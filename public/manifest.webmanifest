@@ -1,0 +1,12 @@
+{
+  "name": "Seiko System V2",
+  "short_name": "Seiko V2",
+  "description": "Seiko operational system for labels, scanning and traceability.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#edf2f4",
+  "theme_color": "#082f4d",
+  "icons": [
+    { "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

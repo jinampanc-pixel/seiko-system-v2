@@ -35,8 +35,28 @@ export default function Home() {
     const sync = () => setOnline(navigator.onLine);
     sync(); window.addEventListener("online", sync); window.addEventListener("offline", sync);
     const queue = JSON.parse(localStorage.getItem("seiko-scan-queue") || "[]"); setPending(queue.length);
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     return () => { window.removeEventListener("online", sync); window.removeEventListener("offline", sync); };
   }, []);
+
+  useEffect(() => {
+    if (!online || pending === 0) return;
+    let cancelled = false;
+    const flush = async () => {
+      const queued = JSON.parse(localStorage.getItem("seiko-scan-queue") || "[]") as Array<ScanEvent & { toState: string }>;
+      const remaining: typeof queued = [];
+      for (const item of queued) {
+        const result = await callSeiko("recordScan", { token: item.token, toState: item.toState, requestKey: item.id });
+        if (!result.ok) remaining.push(item);
+      }
+      if (!cancelled) {
+        localStorage.setItem("seiko-scan-queue", JSON.stringify(remaining));
+        setPending(remaining.length);
+      }
+    };
+    flush();
+    return () => { cancelled = true; };
+  }, [online, pending]);
 
   return <div className="app">
     <aside className="rail">
@@ -118,6 +138,8 @@ function Scanner({ onPending }: { onPending: (n: number) => void }) {
   const [camera, setCamera] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
+  const lastCameraToken = useRef("");
+  const [cameraMessage, setCameraMessage] = useState("");
 
   const submit = async (value = token) => {
     const clean = value.trim();
@@ -143,16 +165,48 @@ function Scanner({ onPending }: { onPending: (n: number) => void }) {
       stream.current?.getTracks().forEach(track => track.stop());
       stream.current = null;
       setCamera(false);
+      setCameraMessage("");
       return;
     }
     try {
       stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       setCamera(true);
+      setCameraMessage("Camera ready. Hold one code inside the frame.");
       setTimeout(() => { if (video.current && stream.current) video.current.srcObject = stream.current; }, 0);
     } catch {
       alert("Camera permission was not granted. Open the app directly in Safari or Chrome, or use a scan gun/manual code.");
     }
   };
+
+  useEffect(() => {
+    if (!camera) return;
+    type DetectorResult = { rawValue?: string };
+    type Detector = { detect(source: HTMLVideoElement): Promise<DetectorResult[]> };
+    type DetectorConstructor = new (options?: { formats?: string[] }) => Detector;
+    const DetectorClass = (window as unknown as { BarcodeDetector?: DetectorConstructor }).BarcodeDetector;
+    if (!DetectorClass) {
+      setCameraMessage("Live decoding is not supported by this browser. Use Chrome, a scan gun, or paste the code.");
+      return;
+    }
+    const detector = new DetectorClass({ formats: ["qr_code", "code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e"] });
+    let reading = false;
+    const timer = window.setInterval(async () => {
+      if (reading || !video.current || video.current.readyState < 2) return;
+      reading = true;
+      try {
+        const found = await detector.detect(video.current);
+        const value = found[0]?.rawValue?.trim();
+        if (value && value !== lastCameraToken.current) {
+          lastCameraToken.current = value;
+          setCameraMessage("Code detected and recorded.");
+          await submit(value);
+          window.setTimeout(() => { lastCameraToken.current = ""; }, 1500);
+        }
+      } catch { /* keep scanning the next frame */ }
+      finally { reading = false; }
+    }, 350);
+    return () => window.clearInterval(timer);
+  }, [camera, operation]);
 
   useEffect(() => () => stream.current?.getTracks().forEach(track => track.stop()), []);
 
@@ -163,7 +217,7 @@ function Scanner({ onPending }: { onPending: (n: number) => void }) {
       <label className="scanLabel">Scan code</label>
       <div className="scanInput"><input autoFocus value={token} onChange={e => setToken(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder="Camera, scan gun or paste token"/><button onClick={() => submit()}>Record</button></div>
       <button className={`cameraButton ${camera ? "stop" : ""}`} onClick={toggleCamera}>{camera ? "Stop camera" : "Open mobile camera"}</button>
-      {camera && <div className="camera"><video ref={video} autoPlay playsInline muted/><div className="scanFrame"/><p>Point the camera at a QR or barcode</p></div>}
+      {camera && <><div className="camera"><video ref={video} autoPlay playsInline muted/><div className="scanFrame"/><p>Point the camera at a QR or barcode</p></div><p className="cameraMessage" role="status">{cameraMessage}</p></>}
       <p className="hint">Scan guns work automatically as keyboard input. Offline scans remain on this device and synchronize when connection returns.</p>
     </section>
     <section className="activity panel">
