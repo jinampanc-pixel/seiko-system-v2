@@ -1,13 +1,21 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./logo-fixes.css";
+import "./label-designer.css";
+import "./label-no-order.css";
+import "./label-records.css";
+import "./production.css";
+import "./integrated-theme.css";
+import "./orders.css";
+import "./workspace-grid.css";
 
 export const metadata: Metadata = {
-  title: "Seiko System V2",
-  description: "Labels, scanning and end-to-end business traceability for Seiko System V2.",
+  title: "Jinam Foundation",
+  description: "Business-separated operations and traceability for Jinam.",
   icons: { icon: "/favicon.svg" },
   manifest: "/manifest.webmanifest",
-  applicationName: "Seiko System V2",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Seiko V2" },
+  applicationName: "Jinam Foundation",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Jinam" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

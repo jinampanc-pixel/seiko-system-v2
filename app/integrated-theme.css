@@ -1,0 +1,91 @@
+/* Brand colours support the interface; they do not become isolated colour blocks. */
+.app .topbar,
+.app .moduleCard,
+.app .panel,
+.app .toolbar select,
+.app .selectGroup select,
+.app .nextFlow,
+.app .traceSearch {
+  background-color: var(--paper);
+}
+
+.app .hero {
+  background: linear-gradient(125deg, var(--navy), var(--navy2));
+}
+
+.app .heroButton {
+  background: color-mix(in srgb, var(--paper) 90%, var(--gold));
+  color: var(--navy);
+  border: 1px solid color-mix(in srgb, var(--paper) 65%, var(--gold));
+  box-shadow: 0 6px 18px #00000014;
+}
+
+.app .heroButton:hover {
+  background: var(--paper);
+  transform: translateY(-1px);
+}
+
+.app .primary,
+.app .scanInput button {
+  background: var(--navy2);
+}
+
+.app .primary.heroButton {
+  background: var(--paper);
+  color: var(--navy);
+  border-color: #ffffffa8;
+}
+
+.app .avatar {
+  background: var(--navy2);
+}
+
+.app .rail .nav.active {
+  background: #ffffff16;
+  box-shadow: none;
+}
+
+/* A quiet warm header separates navigation from the lighter work surface. */
+.app .topbar {
+  background-color: #eee5dc;
+  border-bottom-color: #ddd1c5;
+}
+
+.app .roleBadge {
+  background: color-mix(in srgb, var(--paper) 70%, var(--navy) 8%);
+  color: var(--navy);
+}
+
+.railSettings {
+  flex: none;
+  margin-top: 4px;
+  color: #ffffffb8;
+}
+
+.railSettings[aria-expanded="true"] {
+  background: #ffffff16;
+  color: white;
+}
+
+@media (max-width: 700px) {
+  .railSettings { margin-top: 0; }
+}
+
+/* One header menu replaces the permanent navigation rail. */
+.app { grid-template-columns: 1fr; }
+.topbarEnd { display:flex;align-items:center;gap:8px;margin-left:auto }
+.menuToggle { display:grid;place-content:center;gap:5px;width:42px;height:42px;border:0;border-radius:10px;background:transparent;color:var(--navy) }
+.menuToggle span { display:block;width:22px;height:2px;border-radius:2px;background:currentColor }
+.menuToggle:hover,.menuToggle.active { background:color-mix(in srgb,var(--navy) 9%,transparent) }
+.menuBackdrop { position:fixed;z-index:39;inset:0;border:0;background:#001a3314;cursor:default }
+.moduleMenu { position:fixed;z-index:40;right:0;top:0;display:flex;flex-direction:column;gap:5px;width:260px;height:100vh;padding:16px 12px;background:color-mix(in srgb,var(--navy) 96%,black);box-shadow:-12px 0 28px #001a3330;color:white }
+.moduleMenuHead { display:flex;align-items:center;justify-content:space-between;min-height:46px;padding:0 7px 10px;border-bottom:1px solid #ffffff1f;margin-bottom:4px }
+.moduleMenuHead b { font-size:13px;letter-spacing:.08em;text-transform:uppercase }
+.moduleMenuHead button { display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:white;font-size:22px }
+.moduleMenuHead button:hover { background:#ffffff16 }
+.moduleMenu .nav { display:grid;grid-template-columns:30px 1fr;align-items:center;width:100%;height:46px;padding:7px 10px;border-radius:9px;text-align:left }
+.moduleMenu .nav span { font-size:18px;text-align:center }
+.moduleMenu .nav small { font-size:12px }
+.moduleMenuSettings { margin-top:auto;padding-top:10px;border-top:1px solid #ffffff1f }
+.app .topbar { justify-content:flex-start;padding:0 24px }
+@media(max-width:700px){.app{grid-template-columns:1fr}.surface{padding-bottom:0}.moduleMenu{width:min(260px,100vw)}.app .topbar{height:76px;padding:10px 14px}.businessWordmark.logo-seiko{height:58px}.menuToggle{width:40px;height:40px}}

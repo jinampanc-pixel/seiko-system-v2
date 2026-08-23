@@ -1,11 +1,13 @@
 type ApiRequest = {
   action?: string;
+  businessId?: string;
   payload?: Record<string, unknown>;
 };
 
 const TIMEOUT_MS = 8000;
 const MAX_BODY_BYTES = 64 * 1024;
 const ALLOWED_ACTIONS = new Set([
+  "foundationBootstrap",
   "labelBootstrap",
   "labelRecords",
   "recordScan",
@@ -13,6 +15,8 @@ const ALLOWED_ACTIONS = new Set([
   "traceRecord",
   "health",
 ]);
+const BUSINESS_FREE_ACTIONS = new Set(["foundationBootstrap", "health"]);
+const BUSINESS_ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,63}$/;
 
 export async function POST(request: Request) {
   const upstream = process.env.SEIKO_APPS_SCRIPT_URL;
@@ -48,6 +52,17 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, code: "ACTION_NOT_ALLOWED", message: "This operation is not available." }, { status: 403 });
   }
 
+  const userId = request.headers.get("oai-authenticated-user-id")?.trim();
+  const userEmail = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
+  if (!userId || !userEmail) {
+    return Response.json({ ok: false, code: "AUTH_REQUIRED", message: "Sign in is required." }, { status: 401 });
+  }
+
+  const businessId = body.businessId?.trim();
+  if (!BUSINESS_FREE_ACTIONS.has(body.action) && (!businessId || !BUSINESS_ID.test(businessId))) {
+    return Response.json({ ok: false, code: "BUSINESS_REQUIRED", message: "Select a valid business." }, { status: 400 });
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -55,7 +70,13 @@ export async function POST(request: Request) {
     const response = await fetch(upstream, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: body.action, payload: body.payload || {}, apiKey }),
+      body: JSON.stringify({
+        action: body.action,
+        businessId: businessId || null,
+        payload: { ...(body.payload || {}), businessId: businessId || null },
+        actor: { userId, email: userEmail },
+        apiKey,
+      }),
       cache: "no-store",
       signal: controller.signal,
     });

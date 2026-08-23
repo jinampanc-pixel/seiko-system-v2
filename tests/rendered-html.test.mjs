@@ -12,11 +12,11 @@ async function render(pathname = "/") {
   );
 }
 
-test("renders the Seiko operational application", async () => {
+test("renders the Jinam foundation application", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") || "", /^text\/html/i);
   const html = await response.text();
-  assert.match(html, /Seiko System V2/i);
+  assert.match(html, /Jinam Foundation/i);
   assert.doesNotMatch(html, /Your site is taking shape|Building your site|codex-preview/i);
 });
