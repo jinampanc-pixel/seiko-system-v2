@@ -1,3 +1,5 @@
+import { quantityForRecord } from "./order-domain";
+
 /** One physical garment keeps one identity through every production operation. */
 export type GarmentIdentity = {
   id: string;
@@ -48,10 +50,7 @@ export function generateOrderArtifacts(businessId: string, order: import("./orde
   const activeRecords = order.records.filter(record => !record.held);
   const records: import("./order-domain").OrderRecord[] = order.records.length ? activeRecords : [{ recordId: "order", personId: "", values: {} }];
   for (const record of records) for (const product of order.products.filter(item => item.name.trim())) {
-    const override = Number(record.values[`product:${product.id}:qty_override`] ?? record.values[`product:${product.id}:qty`]);
-    const quantity = product.quantityMode === "order_total"
-      ? (record.recordId === records[0].recordId ? product.orderTotal : 0)
-      : Number.isFinite(override) && override > 0 ? override : product.defaultQuantity;
+    const quantity = quantityForRecord(product, record, record.recordId === records[0].recordId);
     for (let unit = 1; unit <= Math.max(0, quantity); unit++) garments.push({
       id: `${order.orderId}:${record.recordId}:${product.id}:${unit}`,
       businessId, orderId: order.orderId, productId: product.id,
