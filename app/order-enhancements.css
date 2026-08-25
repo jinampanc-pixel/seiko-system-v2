@@ -1,37 +1,68 @@
-/* Focused order UI additions. Kept separate from orders.css to avoid disturbing the established workspace layout. */
+/* Focused order UI additions. */
 
-.policyRow:has(.optionEditor){grid-template-columns:minmax(190px,1fr) 150px minmax(260px,1.4fr) auto 32px;align-items:start}
-.optionEditor{display:grid;gap:6px;min-width:0}
-.optionEditor>input{box-sizing:border-box;width:100%}
-.optionChips{display:flex;flex-wrap:wrap;gap:5px;min-height:24px}
-.optionChips>span{display:inline-flex;align-items:center;gap:3px;max-width:100%;padding:2px 3px 2px 9px;border:1px solid var(--line);border-radius:16px;background:var(--paper);font-size:10px;color:var(--ink)}
-.optionChips .iconRemove{width:20px;height:20px;min-width:20px;font-size:15px}
+/* Owner-managed list fields */
+.policyRow:has(.optionEditor){grid-template-columns:minmax(170px,1fr) 138px minmax(220px,1.35fr) auto 28px;align-items:start}
+.optionEditor{display:grid;gap:4px;min-width:0}
+.optionEditor::before{content:"Owner choices · type + Enter · × removes";font-size:9px;font-weight:700;letter-spacing:.02em;color:var(--muted)}
+.optionEditor>input{box-sizing:border-box;width:100%;height:34px!important}
+.optionChips{display:flex;flex-wrap:wrap;gap:4px;min-height:20px}
+.optionChips>span{display:inline-flex;align-items:center;gap:2px;max-width:100%;padding:1px 2px 1px 7px;border:1px solid var(--line);border-radius:13px;background:color-mix(in srgb,var(--paper) 92%,var(--pale));font-size:10px;color:var(--ink)}
+.optionChips .iconRemove{width:18px;height:18px;min-width:18px;font-size:14px}
 
-.quantityGroupRules{margin-top:8px;margin-bottom:12px}
-.quantityGroupRules>summary{color:var(--navy)}
-.quantityGroupRules>div>input[type="number"]{min-width:100px}
-.quantityGroupRules .sourceFieldPicker{margin-bottom:5px}
+/* Group rules must use existing Person details. Prevent values like 1 or 9 becoming field names. */
+.groupRules .newSourceButton,.groupRules .sourceFieldCreate{display:none!important}
+.groupRules .sourceFieldPicker{grid-template-columns:minmax(220px,520px)!important;margin:5px 0!important}
+.groupRules .sourceFieldPicker label{max-width:520px}
+.groupRules .sourceFieldPicker::after{content:"Source fields are managed in Person details above.";align-self:end;padding:0 0 8px 2px;font-size:9px;color:var(--muted)}
 
+/* Quantity mapping: compact value → quantity rows */
+.quantityGroupRules{margin:5px 0 8px;padding-left:10px!important}
+.quantityGroupRules>summary{color:var(--navy);font-size:10px!important;padding:4px 8px!important}
+.quantityGroupRules>div:not(.sourceFieldPicker){grid-template-columns:minmax(150px,1fr) 90px 24px!important;gap:5px!important;margin-top:4px!important}
+.quantityGroupRules>div>input{height:34px!important}
+.quantityGroupRules>div>input[type="number"]{min-width:72px}
+.quantityGroupRules>.secondary{min-height:32px!important;padding:6px 9px!important;margin-top:5px!important;font-size:11px!important}
+
+/* Workspace order menu */
 .workspaceHead{position:relative;align-items:flex-start}
 .workspaceHeadActions{position:relative;align-self:flex-start;display:block!important;flex:0 0 auto}
-.orderActionMenuButton{display:grid!important;place-content:center;gap:4px;width:42px;height:38px;padding:0!important;border:1px solid var(--line);border-radius:9px;background:var(--paper);cursor:pointer}
-.orderActionMenuButton span{display:block;width:19px;height:2px;border-radius:2px;background:var(--navy)}
+.orderActionMenuButton{display:grid!important;place-content:center;gap:4px;width:38px;height:34px;padding:0!important;border:1px solid var(--line);border-radius:8px;background:var(--paper);cursor:pointer}
+.orderActionMenuButton span{display:block;width:18px;height:2px;border-radius:2px;background:var(--navy)}
 .orderActionMenuButton:hover,.orderActionMenuButton[aria-expanded="true"]{background:var(--pale)}
-.orderActionMenu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;width:230px;padding:7px;border:1px solid var(--line);border-radius:11px;background:var(--paper);box-shadow:0 14px 34px rgba(12,40,64,.16)}
-.orderActionMenu>button{display:block;width:100%;border:0;border-radius:7px;background:transparent;padding:9px 10px;text-align:left;color:var(--ink);font:inherit;font-size:12px;cursor:pointer}
+.orderActionMenu{position:absolute;right:0;top:calc(100% + 5px);z-index:40;width:218px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--paper);box-shadow:0 14px 34px rgba(12,40,64,.14)}
+.orderActionMenu>button{display:block;width:100%;border:0;border-radius:6px;background:transparent;padding:7px 9px;text-align:left;color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
 .orderActionMenu>button:hover{background:var(--pale)}
-.orderActionMenu .orderMenuIndented{padding-left:22px;color:var(--muted)}
+.orderActionMenu .orderMenuIndented{padding-left:20px;color:var(--muted)}
 .orderActionMenu .orderMenuPrimary{font-weight:800;color:var(--navy)}
 .orderActionMenu .orderMenuDanger{color:var(--red)}
-.orderMenuStatus{display:grid;gap:5px;padding:7px 8px 9px}
-.orderMenuStatus>span,.orderMenuSectionLabel{font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
-.orderMenuStatus select{box-sizing:border-box;width:100%;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:0 8px;color:var(--ink)}
-.orderMenuSectionLabel{padding:8px 10px 2px}
-.orderMenuDivider{height:1px;margin:5px 4px;background:var(--line)}
+.orderMenuStatus{display:grid;gap:4px;padding:6px 7px 7px}
+.orderMenuStatus>span,.orderMenuSectionLabel{font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.orderMenuStatus select{box-sizing:border-box;width:100%;height:32px;border:1px solid var(--line);border-radius:7px;background:var(--paper);padding:0 7px;color:var(--ink)}
+.orderMenuSectionLabel{padding:7px 9px 2px}
+.orderMenuDivider{height:1px;margin:4px;background:var(--line)}
+
+/* Dense, low-clutter order setup */
+.orderSetup .setupSection{padding:12px!important;margin-bottom:10px!important}
+.orderSetup .sectionTitle{margin-bottom:9px!important;padding-bottom:8px!important}
+.orderSetup .sectionTitle h3{font-size:16px!important;margin:0!important}
+.orderSetup .sectionTitle p{margin:2px 0 0!important;font-size:10px!important}
+.orderSetup .productPolicy{padding:10px!important;margin-bottom:8px!important;border-radius:10px!important}
+.orderSetup .productPolicyTop{gap:7px!important;align-items:end!important}
+.orderSetup .productPolicyTop label>span,.orderSetup label>span{font-size:9px!important;margin-bottom:3px!important}
+.orderSetup input,.orderSetup select{min-height:34px!important;height:34px!important;padding:0 9px!important;border-radius:7px!important}
+.orderSetup .ruleHelp{font-size:9px!important;margin:4px 0!important;line-height:1.25!important}
+.orderSetup .specBlock{margin-top:5px!important}
+.orderSetup .specPolicy{gap:6px!important}
+.orderSetup .specActions{gap:5px!important;margin-top:5px!important}
+.orderSetup .specActions button,.orderSetup .secondary{min-height:32px!important;padding:6px 9px!important;border-radius:7px!important;font-size:11px!important}
+.orderSetup .measurementRow{gap:6px!important;padding:5px 0!important}
+.orderSetup .productChip{padding:5px 7px!important;font-size:9px!important}
+.orderSetup .setupBottomActions{margin-top:10px!important}
 
 @media(max-width:800px){
   .policyRow:has(.optionEditor){grid-template-columns:1fr}
   .workspaceHead{width:100%;flex-direction:row!important;align-items:flex-start!important}
   .workspaceHead>div:first-child{min-width:0;flex:1}
-  .orderActionMenu{width:min(230px,calc(100vw - 38px))}
+  .orderActionMenu{width:min(218px,calc(100vw - 38px))}
+  .quantityGroupRules>div:not(.sourceFieldPicker){grid-template-columns:1fr 82px 24px!important}
 }
