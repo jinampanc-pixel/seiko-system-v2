@@ -16,16 +16,18 @@ export const erpOrders = sqliteTable("erp_orders", {
   documentJson: text("document_json").notNull(),
   version: integer("version").notNull().default(1),
   createdAt: text("created_at").notNull(),
-  createdBy: text("created_by").notNull(),
+  createdByUserId: text("created_by_user_id").notNull(),
+  createdByEmail: text("created_by_email").notNull(),
   updatedAt: text("updated_at").notNull(),
-  updatedBy: text("updated_by").notNull(),
+  updatedByUserId: text("updated_by_user_id").notNull(),
+  updatedByEmail: text("updated_by_email").notNull(),
 }, table => [
   uniqueIndex("erp_orders_business_order_no_uq").on(table.businessId, table.orderNo),
   index("erp_orders_business_updated_idx").on(table.businessId, table.updatedAt),
   index("erp_orders_business_status_idx").on(table.businessId, table.status),
 ]);
 
-/** Immutable audit event for every server-side order mutation. */
+/** Immutable audit event. Database triggers write these atomically with orders. */
 export const erpAuditEvents = sqliteTable("erp_audit_events", {
   id: text("id").primaryKey(),
   businessId: text("business_id").notNull(),
@@ -49,7 +51,8 @@ export const erpPreferences = sqliteTable("erp_preferences", {
   valueJson: text("value_json").notNull(),
   version: integer("version").notNull().default(1),
   updatedAt: text("updated_at").notNull(),
-  updatedBy: text("updated_by").notNull(),
+  updatedByUserId: text("updated_by_user_id").notNull(),
+  updatedByEmail: text("updated_by_email").notNull(),
 }, table => [
   uniqueIndex("erp_preferences_business_key_uq").on(table.businessId, table.key),
 ]);
