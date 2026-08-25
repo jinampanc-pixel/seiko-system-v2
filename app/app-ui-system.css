@@ -1,0 +1,57 @@
+/* SEIKO application-wide UI system: consistent typography, spacing and control hierarchy. */
+
+:root{
+  --ui-font:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --ui-radius:9px;
+  --ui-control-h:36px;
+  --ui-shadow:0 10px 28px rgba(9,38,58,.08);
+}
+
+html,body,.app,button,input,select,textarea{font-family:var(--ui-font)!important}
+.app h1,.app h2,.app h3,.app h4,.topbar h1,.hero h2,.moduleCard h3,.nextFlow h3,.panelHead h3,.identity h2{font-family:var(--ui-font)!important;letter-spacing:-.018em}
+.app h1,.app h2{font-weight:700!important}
+.app h3,.app h4{font-weight:650!important}
+
+body{font-size:14px;line-height:1.42}
+.page{padding:22px 26px!important}
+.panel{border-radius:11px!important;padding:14px!important;box-shadow:none}
+.primary,.secondary{min-height:36px;padding:8px 12px!important;border-radius:8px!important;font-size:12px;font-weight:700!important}
+input,select,textarea{border-radius:8px!important;font-size:13px;color:var(--ink)}
+input,select{min-height:var(--ui-control-h)}
+input:focus,select:focus,textarea:focus{outline:2px solid color-mix(in srgb,var(--navy2) 22%,transparent);outline-offset:1px;border-color:color-mix(in srgb,var(--navy2) 42%,var(--line))!important}
+
+.eyebrow{font-size:9px!important;letter-spacing:.1em!important}
+.hero{min-height:205px!important;padding:30px 34px!important;border-radius:18px!important;box-shadow:none!important}
+.hero h2{font-size:34px!important;line-height:1.08!important}
+.hero p{font-size:13px}
+.moduleGrid{gap:12px!important;margin-top:14px!important}
+.moduleCard{min-height:156px!important;padding:18px!important;border-radius:13px!important}
+.moduleCard h3{font-size:20px!important;margin:11px 0 6px!important}
+.moduleCard p{font-size:12px!important;margin-bottom:15px!important}
+.nextFlow{padding:16px!important;border-radius:12px!important;margin-top:13px!important}
+.nextFlow h3{font-size:16px!important}
+
+.topbar{height:82px!important;padding:0 22px!important}
+.menuToggle{width:38px!important;height:38px!important;border-radius:8px!important}
+.moduleMenu{width:245px!important;padding:13px 10px!important}
+.moduleMenu .nav{height:42px!important;border-radius:7px!important}
+.moduleMenu .nav small{font-size:11px!important}
+
+.toolbar{gap:8px!important;margin-bottom:10px!important}
+.traceSearch{height:46px!important;border-radius:10px!important}
+.operationGrid{gap:6px!important;margin:8px 0 18px!important}
+.operationGrid button{min-height:40px!important;border-radius:7px!important;font-size:12px}
+
+/* Menus should read like compact application menus, not floating forms. */
+.orderActionMenu,.suggestionPopup,.gridSuggestionPopup,.columnMenu{box-shadow:var(--ui-shadow)!important}
+
+/* Preserve product/brand logos exactly; typography changes must not affect wordmarks. */
+.businessMark,.businessWordmark,.businessMark *, .businessWordmark *{font-family:initial!important}
+
+@media(max-width:700px){
+  .page{padding:13px!important}
+  .topbar{height:70px!important;padding:8px 12px!important}
+  .hero{padding:23px 20px!important;min-height:235px!important}
+  .hero h2{font-size:28px!important}
+  .moduleCard{min-height:0!important}
+}
