@@ -200,7 +200,6 @@ function enhanceEditableSelect(select: HTMLSelectElement, kind: string) {
       return;
     }
 
-    // New wording safely reuses the currently selected underlying behavior.
     store.aliases.push({ label: typed, value: select.value });
     saveChoiceStore(kind, store);
     input.dataset.displayValue = select.value;
@@ -336,48 +335,83 @@ function cleanSpecificationButton() {
 
 export function OwnerDropdownUx() {
   useEffect(() => {
+    let frame = 0;
+    let enhancing = false;
+
     const enhance = () => {
-      reorderOrderMenu();
-      cleanSpecificationButton();
+      if (enhancing) return;
+      enhancing = true;
+      try {
+        reorderOrderMenu();
+        cleanSpecificationButton();
 
-      if (!isOwnerSetup()) return;
+        if (!isOwnerSetup()) return;
 
-      document.querySelectorAll<HTMLElement>(".orderSetup .policyRow").forEach(row => {
-        const typeSelect = row.querySelector<HTMLSelectElement>("select");
-        if (typeSelect) {
-          const listOption = Array.from(typeSelect.options).find(option => option.value === "dropdown");
-          if (listOption) {
-            listOption.textContent = "Dropdown · manage options";
-            typeSelect.dataset.ownerListSelect = "true";
-            typeSelect.title = "Choose this to type, add and remove dropdown options";
+        document.querySelectorAll<HTMLElement>(".orderSetup .policyRow").forEach(row => {
+          const typeSelect = row.querySelector<HTMLSelectElement>("select");
+          if (typeSelect) {
+            const listOption = Array.from(typeSelect.options).find(option => option.value === "dropdown");
+            if (listOption && listOption.textContent !== "Dropdown · manage options") {
+              listOption.textContent = "Dropdown · manage options";
+            }
+            if (typeSelect.dataset.ownerListSelect !== "true") typeSelect.dataset.ownerListSelect = "true";
+            if (typeSelect.title !== "Choose this to type, add and remove dropdown options") {
+              typeSelect.title = "Choose this to type, add and remove dropdown options";
+            }
           }
-        }
-        const optionInput = row.querySelector<HTMLInputElement>(".optionEditor > input");
-        if (optionInput) {
-          optionInput.placeholder = "+ Add option — type and press Enter";
-          optionInput.title = "Type a new dropdown option and press Enter";
-        }
-      });
+          const optionInput = row.querySelector<HTMLInputElement>(".optionEditor > input");
+          if (optionInput) {
+            if (optionInput.placeholder !== "+ Add option — type and press Enter") {
+              optionInput.placeholder = "+ Add option — type and press Enter";
+            }
+            if (optionInput.title !== "Type a new dropdown option and press Enter") {
+              optionInput.title = "Type a new dropdown option and press Enter";
+            }
+          }
+        });
 
-      document.querySelectorAll<HTMLSelectElement>(".orderSetup .productPolicyTop label > select").forEach(select => {
-        const label = select.closest("label");
-        const title = label?.querySelector(":scope > span")?.textContent?.trim();
-        if (title === "Quantity") enhanceEditableSelect(select, "quantity-mode");
-      });
+        document.querySelectorAll<HTMLSelectElement>(".orderSetup .productPolicyTop label > select").forEach(select => {
+          const label = select.closest("label");
+          const title = label?.querySelector(":scope > span")?.textContent?.trim();
+          if (title === "Quantity") enhanceEditableSelect(select, "quantity-mode");
+        });
 
-      document.querySelectorAll<HTMLSelectElement>('.orderSetup .specPolicy select[aria-label="Specification type"]').forEach(select => {
-        enhanceEditableSelect(select, "specification-type");
-      });
+        document.querySelectorAll<HTMLSelectElement>('.orderSetup .specPolicy select[aria-label="Specification type"]').forEach(select => {
+          enhanceEditableSelect(select, "specification-type");
+        });
 
-      document.querySelectorAll<HTMLInputElement>('.orderSetup .specPolicy > input[placeholder^="Colour, pattern, artwork"]').forEach(input => {
-        enhanceManagedFreeText(input, "specification-names", ["Colour", "Pattern/design", "Other detail", "Artwork/logo"]);
+        document.querySelectorAll<HTMLInputElement>('.orderSetup .specPolicy > input[placeholder^="Colour, pattern, artwork"]').forEach(input => {
+          enhanceManagedFreeText(input, "specification-names", ["Colour", "Pattern/design", "Other detail", "Artwork/logo"]);
+        });
+      } finally {
+        enhancing = false;
+      }
+    };
+
+    const scheduleEnhance = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        enhance();
       });
     };
 
     enhance();
-    const observer = new MutationObserver(enhance);
+    const observer = new MutationObserver(mutations => {
+      const relevant = mutations.some(mutation => {
+        const target = mutation.target as HTMLElement;
+        if (target.closest?.(".ownerComboOverlay,.ownerTextSuggestPanel")) return false;
+        return mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0;
+      });
+      if (relevant) scheduleEnhance();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+
+    return () => {
+      observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+      document.querySelectorAll(".ownerComboOverlay,.ownerTextSuggestPanel").forEach(node => node.remove());
+    };
   }, []);
 
   return null;
