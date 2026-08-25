@@ -10,6 +10,8 @@ import "./orders.css";
 import "./order-enhancements.css";
 import "./workspace-grid.css";
 import "./app-ui-system.css";
+import "./ui-regression-fixes.css";
+import { OwnerDropdownUx } from "./owner-dropdown-ux";
 
 export const metadata: Metadata = {
   title: "Jinam Foundation",
@@ -21,5 +23,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="en"><body><OwnerDropdownUx/>{children}</body></html>;
 }
