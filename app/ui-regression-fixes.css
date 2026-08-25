@@ -1,0 +1,91 @@
+/* Regression fixes after the compact UI pass. Loaded last so old module CSS cannot reintroduce conflicts. */
+
+/* Order menu: normal actions share one visual language. Only child label actions, save & close and danger differ. */
+.orderActionMenu>button,
+.orderMenuStatus>span,
+.orderMenuSectionLabel{
+  font-family:var(--ui-font)!important;
+  font-size:11px!important;
+  font-weight:550!important;
+  line-height:1.2!important;
+  letter-spacing:0!important;
+  text-transform:none!important;
+  color:var(--ink)!important;
+}
+.orderMenuStatus select{
+  font-family:var(--ui-font)!important;
+  font-size:11px!important;
+  font-weight:600!important;
+  color:var(--ink)!important;
+}
+.orderMenuSectionLabel{padding:7px 9px 3px!important}
+.orderActionMenu .orderMenuIndented{
+  padding-left:20px!important;
+  font-size:10.5px!important;
+  font-weight:450!important;
+  color:var(--muted)!important;
+}
+.orderActionMenu .orderMenuPrimary{font-weight:750!important;color:var(--navy)!important}
+.orderActionMenu .orderMenuDanger{font-weight:500!important;color:var(--red)!important}
+
+/* Entered/selected business data is strong; hints and suggestions are deliberately quieter. */
+.orderSetup input,
+.orderSetup select{
+  color:var(--ink)!important;
+  font-weight:600!important;
+}
+.orderSetup input::placeholder,
+.orderSetup textarea::placeholder{
+  color:var(--muted)!important;
+  opacity:.58!important;
+  font-weight:400!important;
+}
+.orderSetup input:disabled,
+.orderSetup input[readonly]{
+  color:var(--muted)!important;
+  font-weight:450!important;
+}
+.suggestionPopup button,
+.gridSuggestionPopup button{
+  font-weight:450!important;
+  color:color-mix(in srgb,var(--ink) 72%,var(--muted))!important;
+}
+.suggestionInput>span,
+.orderSetup .ruleHelp,
+.orderSetup .sectionTitle p{
+  color:var(--muted)!important;
+  font-weight:450!important;
+}
+
+/* Owner-managed dropdown options are explicit and compact. */
+.optionEditor::before{
+  content:"OWNER OPTIONS"!important;
+  display:block;
+  margin-bottom:1px;
+  color:var(--muted);
+  font-size:8px!important;
+  font-weight:800!important;
+  letter-spacing:.08em!important;
+}
+.optionEditor>input{
+  font-weight:600!important;
+  border-style:dashed!important;
+  border-color:color-mix(in srgb,var(--navy) 28%,var(--line))!important;
+  background:color-mix(in srgb,var(--paper) 94%,var(--pale))!important;
+}
+.optionChips>span{font-weight:600!important}
+.optionChips .iconRemove{opacity:.78}
+.optionChips .iconRemove:hover{opacity:1}
+
+/* The original order stylesheet generated the same label with ::before. Keep exactly one real button label. */
+.specActions button:nth-child(3){font-size:11px!important}
+.specActions button:nth-child(3)::before{content:none!important;display:none!important}
+
+/* Make list-field intent clear without adding more permanent chrome. */
+.policyRow select[data-owner-list-select="true"]{
+  border-color:color-mix(in srgb,var(--navy) 28%,var(--line))!important;
+}
+
+@media(max-width:800px){
+  .orderActionMenu>button,.orderMenuStatus>span,.orderMenuSectionLabel,.orderMenuStatus select{font-size:11px!important}
+}
