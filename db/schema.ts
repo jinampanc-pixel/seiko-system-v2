@@ -56,3 +56,27 @@ export const erpPreferences = sqliteTable("erp_preferences", {
 }, table => [
   uniqueIndex("erp_preferences_business_key_uq").on(table.businessId, table.key),
 ]);
+
+/**
+ * Authoritative user ↔ business ↔ role membership.
+ * Identity is verified by Cloudflare Access / ChatGPT; this table decides what
+ * that verified user can do inside each Seiko business.
+ */
+export const erpMemberships = sqliteTable("erp_memberships", {
+  id: text("id").primaryKey(),
+  businessId: text("business_id").notNull(),
+  userId: text("user_id"),
+  email: text("email").notNull(),
+  displayName: text("display_name"),
+  role: text("role").notNull(),
+  modulesJson: text("modules_json"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  createdByEmail: text("created_by_email").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  updatedByEmail: text("updated_by_email").notNull(),
+}, table => [
+  uniqueIndex("erp_memberships_business_email_uq").on(table.businessId, table.email),
+  index("erp_memberships_email_idx").on(table.email, table.active),
+  index("erp_memberships_business_role_idx").on(table.businessId, table.role, table.active),
+]);
