@@ -28,7 +28,16 @@
   transform: translate(-40px, -95px);
 }
 
-.businessLogo.logo-seiko { background: var(--paper); }
+/* Seiko is already a correctly cropped transparent wordmark. Never clip it. */
+.businessLogo.logo-seiko {
+  background: var(--paper);
+  overflow: visible;
+}
+
+.businessLogo.logo-seiko img {
+  object-fit: contain;
+  object-position: left center;
+}
 
 .railBrand {
   display: none;
@@ -61,6 +70,20 @@
 
 @media (max-width: 700px) {
   .businessLogo { width: 92px; height: 42px; }
+
+  /* Wide wordmark needs width, not cropping. Keep header compact but show all artwork. */
+  .businessLogo.logo-seiko {
+    width: 154px;
+    height: 54px;
+    overflow: visible;
+  }
+  .businessLogo.logo-seiko img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: left center;
+  }
+
   .businessLogo.logo-veyn-health img,
   .businessLogo.logo-veyn-view img { width: 142px; height: 142px; transform: translate(-21px, -49px); }
   .businessLogo.logo-meth img { width: 110px; height: 78px; transform: translate(-10px, -24px); }
