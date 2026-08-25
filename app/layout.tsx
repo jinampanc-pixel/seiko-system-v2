@@ -11,7 +11,9 @@ import "./order-enhancements.css";
 import "./workspace-grid.css";
 import "./app-ui-system.css";
 import "./ui-regression-fixes.css";
+import "./order-setup-polish.css";
 import { OwnerDropdownUx } from "./owner-dropdown-ux";
+import { OrderSetupPolish } from "./order-setup-polish";
 import { ErpOrderSync } from "./erp-order-sync";
 
 export const metadata: Metadata = {
@@ -24,5 +26,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/>{children}</body></html>;
+  return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/><OrderSetupPolish/>{children}</body></html>;
 }
