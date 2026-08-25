@@ -1,4 +1,4 @@
-export type QuantityMode = "same_for_all" | "per_person" | "default_with_exceptions" | "order_total";
+export type QuantityMode = "same_for_all" | "by_group" | "per_person" | "default_with_exceptions" | "order_total";
 export type ValueMode = "same_for_all" | "by_group" | "per_person" | "default_with_exceptions";
 export type OrderStatus = "Draft" | "Active" | "On Hold" | "Completed" | "Cancelled";
 
@@ -6,7 +6,7 @@ export type OrderField = { id: string; name: string; type: "text" | "number" | "
 export type ArtworkAttachment = { id: string; name: string; mimeType: string; size: number; storageKey: string; addedAt: string };
 export type ManufacturingLink = { manufacturerBusinessId: string; sourceBusinessId: string; sourceOrderId: string; sourceProductId: string };
 export type SpecificationPolicy = { id: string; name: string; role: "colour" | "pattern" | "attribute" | "asset"; mode: ValueMode; defaultValue: string; groupFieldId?: string; groupRules: Array<{ match: string; value: string }>; required: boolean; attachments: ArtworkAttachment[] };
-export type ProductPolicy = { id: string; name: string; sizeHeader: string; quantityMode: QuantityMode; defaultQuantity: number; orderTotal: number; specifications: SpecificationPolicy[]; manufacturingLink?: ManufacturingLink };
+export type ProductPolicy = { id: string; name: string; sizeHeader: string; quantityMode: QuantityMode; defaultQuantity: number; orderTotal: number; quantityGroupFieldId?: string; quantityGroupRules: Array<{ match: string; quantity: number }>; specifications: SpecificationPolicy[]; manufacturingLink?: ManufacturingLink };
 export type MeasurementPolicy = { id: string; name: string; type: "number" | "text"; appliesTo: string[]; requiredMode: "Optional" | "When present" | "Always" };
 export type OrderRecord = { recordId: string; personId: string; values: Record<string, string | number>; held?: boolean };
 export type OrderDetails = { orderNo: string; orderDate: string; deliveryDate: string; clientName: string; clientType: string; contactPerson: string; attnRequired: boolean; contactNumber: string; shipTo: string; billTo: string; remarks: string };
@@ -23,7 +23,7 @@ export const CLIENT_TYPE_PRESETS: Record<string, OrderField[]> = {
 };
 
 export function field(name: string, required = false): OrderField { return { id: crypto.randomUUID(), name, type: "text", options: [], required }; }
-export function blankProduct(): ProductPolicy { return { id: crypto.randomUUID(), name: "", sizeHeader: "Size", quantityMode: "same_for_all", defaultQuantity: 1, orderTotal: 0, specifications: [] }; }
+export function blankProduct(): ProductPolicy { return { id: crypto.randomUUID(), name: "", sizeHeader: "Size", quantityMode: "same_for_all", defaultQuantity: 1, orderTotal: 0, quantityGroupRules: [], specifications: [] }; }
 export function blankSpecification(role: SpecificationPolicy["role"] = "attribute"): SpecificationPolicy { return { id: crypto.randomUUID(), name: role === "colour" ? "Colour" : role === "asset" ? "Logo / Artwork" : "", role, mode: "same_for_all", defaultValue: "", groupRules: [], required: true, attachments: [] }; }
 export function blankMeasurement(): MeasurementPolicy { return { id: crypto.randomUUID(), name: "", type: "number", appliesTo: [], requiredMode: "Optional" }; }
 export function orderStoreKey(businessId: string) { return `jinam:${businessId}:orders-v1`; }
@@ -51,13 +51,30 @@ export function workspaceColumns(order: SeikoOrder): WorkspaceColumn[] {
   return columns;
 }
 
+export function quantityForRecord(product: ProductPolicy, record: OrderRecord, firstRecord = false): number {
+  if (product.quantityMode === "order_total") return firstRecord ? Math.max(0, Number(product.orderTotal) || 0) : 0;
+  if (product.quantityMode === "by_group") {
+    const sourceValue = product.quantityGroupFieldId ? String(record.values[`field:${product.quantityGroupFieldId}`] ?? "").trim() : "";
+    const rule = (product.quantityGroupRules || []).find(item => item.match.trim().toLowerCase() === sourceValue.toLowerCase());
+    if (rule && Number.isFinite(Number(rule.quantity))) return Math.max(0, Number(rule.quantity));
+    return Math.max(0, Number(product.defaultQuantity) || 0);
+  }
+  const override = Number(record.values[`product:${product.id}:qty_override`] ?? record.values[`product:${product.id}:qty`]);
+  if (Number.isFinite(override) && override > 0) return override;
+  return Math.max(0, Number(product.defaultQuantity) || 0);
+}
+
 export function readinessIssues(order: SeikoOrder): string[] {
   const issues = validateOrder(order);
   if (!order.records.length) issues.push("No person / record entries yet. You can still save this order.");
   if (!order.products.some(product => product.name.trim())) issues.push("No products defined yet. Add them now or later.");
-  // Cell completeness is displayed in the workspace itself. Older revisions can
-  // retain obsolete internal column IDs, so they must not create false alerts.
   for (const product of order.products) {
+    if (product.quantityMode === "by_group") {
+      const rules = product.quantityGroupRules || [];
+      if (!product.quantityGroupFieldId) issues.push(`Choose a grouping field for ${product.name || "this product"} quantity.`);
+      if (!rules.length) issues.push(`Add group quantity rules for ${product.name || "this product"}.`);
+      if (rules.some(rule => !rule.match.trim() || !Number.isFinite(Number(rule.quantity)) || Number(rule.quantity) <= 0)) issues.push(`Complete every group quantity rule for ${product.name || "this product"}.`);
+    }
     for (const spec of product.specifications.filter(item => item.mode === "by_group")) {
       if (!spec.groupFieldId) issues.push(`Choose a grouping field for ${product.name} - ${spec.name}.`);
       if (!spec.groupRules.length) issues.push(`Add group rules for ${product.name} - ${spec.name}.`);
