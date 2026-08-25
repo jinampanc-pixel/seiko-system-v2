@@ -16,6 +16,7 @@ type ApiResult<T> = ApiSuccess<T> | ApiFailure;
 
 const LOCAL_POLL_MS = 1200;
 const REMOTE_POLL_MS = 15000;
+const RETRY_BACKOFF_MS = 60_000;
 
 function orderKey(businessId: string) {
   return `jinam:${businessId}:orders-v1`;
@@ -64,7 +65,7 @@ function stable(order: SeikoOrder) {
 
 /**
  * Keeps localStorage as an offline/cache layer while D1 is the shared source of truth.
- * If D1/Auth is not configured yet this component becomes a no-op, so deployments
+ * If D1/Auth is not configured yet this component becomes a quiet no-op, so deployments
  * remain backward-compatible during the infrastructure cutover.
  */
 export function ErpOrderSync() {
@@ -73,12 +74,14 @@ export function ErpOrderSync() {
     let activeBusiness = "";
     let ready = false;
     let syncing = false;
+    let retryAfter = 0;
     let localTimer = 0;
     let remoteTimer = 0;
     const versions = new Map<string, number>();
     const lastSynced = new Map<string, string>();
 
     const list = async (businessId: string) => callOrders<{ orders: Envelope[] }>({ operation: "list", businessId });
+    const backOff = () => { ready = false; retryAfter = Date.now() + RETRY_BACKOFF_MS; };
 
     const applyServer = (businessId: string, envelopes: Envelope[]) => {
       const orders = envelopes.map(item => item.order);
@@ -122,10 +125,11 @@ export function ErpOrderSync() {
       if (cancelled || businessId !== activeBusiness) return;
       if (!remote.ok) {
         syncing = false;
-        // AUTH_REQUIRED / ERP_DB_NOT_CONFIGURED intentionally leave the local cache untouched.
+        backOff();
         return;
       }
 
+      retryAfter = 0;
       let envelopes = remote.data.orders;
       const serverById = new Map(envelopes.map(item => [item.order.orderId, item]));
       const missing = local.filter(order => !serverById.has(order.orderId));
@@ -136,8 +140,6 @@ export function ErpOrderSync() {
         if (remote.ok) envelopes = remote.data.orders;
       }
 
-      // If this browser has a newer offline copy of an existing order, push it
-      // through the normal version check instead of silently discarding it.
       const refreshedById = new Map(envelopes.map(item => [item.order.orderId, item]));
       let pushedOffline = false;
       for (const localOrder of local) {
@@ -159,6 +161,7 @@ export function ErpOrderSync() {
       applyServer(businessId, envelopes);
       ready = true;
       syncing = false;
+      retryAfter = 0;
       window.dispatchEvent(new CustomEvent("seiko:erp-shared-ready", { detail: { businessId } }));
     };
 
@@ -180,10 +183,9 @@ export function ErpOrderSync() {
           localChangedByServer = true;
         } else if (result.code === "VERSION_CONFLICT") {
           preserveConflict(activeBusiness, order, result);
-          // Stop repeatedly trying the same conflicting snapshot.
           lastSynced.set(order.orderId, stable(order));
         } else if (result.code === "AUTH_REQUIRED" || result.code === "ERP_DB_NOT_CONFIGURED") {
-          ready = false;
+          backOff();
           break;
         }
       }
@@ -205,7 +207,7 @@ export function ErpOrderSync() {
         const localFingerprint = JSON.stringify([...versions.entries()]);
         if (remoteFingerprint !== localFingerprint) applyServer(activeBusiness, remote.data.orders);
       } else if (remote.code === "AUTH_REQUIRED" || remote.code === "ERP_DB_NOT_CONFIGURED") {
-        ready = false;
+        backOff();
       }
       syncing = false;
     };
@@ -214,8 +216,9 @@ export function ErpOrderSync() {
       const selected = localStorage.getItem("jinam:selected-business") || "seiko";
       if (selected !== activeBusiness) {
         activeBusiness = selected;
+        retryAfter = 0;
         void initialize(selected);
-      } else if (!ready && !syncing) {
+      } else if (!ready && !syncing && Date.now() >= retryAfter) {
         void initialize(selected);
       }
     };
