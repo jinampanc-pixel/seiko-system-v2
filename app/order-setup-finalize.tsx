@@ -6,6 +6,10 @@ function isOwnerSetup() {
   return Boolean(document.querySelector(".orderSetup .personDetails .policyRow .iconRemove"));
 }
 
+function setText(node: HTMLElement | null | undefined, value: string) {
+  if (node && node.textContent !== value) node.textContent = value;
+}
+
 function finalizeOrderSetup() {
   const setup = document.querySelector(".orderSetup");
   if (!setup) return;
@@ -27,15 +31,15 @@ function finalizeOrderSetup() {
     if (!quantitySelect) return;
 
     if (quantitySelect.value === "by_group") {
-      if (help) help.textContent = "Set a quantity for every required group below. Rows without a matching group are blocked from production.";
-      if (quantityLabel) quantityLabel.textContent = "Not used";
+      setText(help, "Set a quantity for every required group below. Rows without a matching group are blocked from production.");
+      setText(quantityLabel, "Not used");
     } else if (quantitySelect.value === "per_person") {
-      if (help) help.textContent = "Enter the quantity separately in each person’s row.";
-      if (quantityLabel) quantityLabel.textContent = "Not used";
+      setText(help, "Enter the quantity separately in each person’s row.");
+      setText(quantityLabel, "Not used");
     } else if (quantitySelect.value === "order_total") {
-      if (quantityLabel) quantityLabel.textContent = "Order total";
+      setText(quantityLabel, "Order total");
     } else {
-      if (quantityLabel) quantityLabel.textContent = "Default qty";
+      setText(quantityLabel, "Default qty");
     }
   });
 }
