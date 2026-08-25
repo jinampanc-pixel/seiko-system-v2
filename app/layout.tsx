@@ -9,6 +9,7 @@ import "./integrated-theme.css";
 import "./orders.css";
 import "./order-enhancements.css";
 import "./workspace-grid.css";
+import "./app-ui-system.css";
 
 export const metadata: Metadata = {
   title: "Jinam Foundation",
