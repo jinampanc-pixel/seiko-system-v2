@@ -77,9 +77,109 @@
 .optionChips .iconRemove{opacity:.78}
 .optionChips .iconRemove:hover{opacity:1}
 
-/* The original order stylesheet generated the same label with ::before. Keep exactly one real button label. */
-.specActions button:nth-child(3){font-size:11px!important}
-.specActions button:nth-child(3)::before{content:none!important;display:none!important}
+/* Keep exactly one real + Specification label. */
+.specActions button[aria-label="Add specification"]{
+  font-size:11px!important;
+}
+.specActions button[aria-label="Add specification"]::before,
+.specActions button.specButtonClean::before{
+  content:none!important;
+  display:none!important;
+}
+
+/* Hide native selects only when their owner combobox overlay has been mounted. */
+.ownerEditableNative{
+  opacity:0!important;
+  pointer-events:none!important;
+}
+.ownerComboOverlay{
+  position:fixed;
+  z-index:90;
+  pointer-events:auto;
+}
+.ownerComboInput{
+  width:100%;
+  height:100%;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--paper);
+  padding:0 32px 0 10px;
+  color:var(--ink);
+  font:600 13px/1 var(--ui-font);
+}
+.ownerComboOverlay::after{
+  content:"⌄";
+  position:absolute;
+  right:10px;
+  top:50%;
+  transform:translateY(-53%);
+  color:var(--muted);
+  pointer-events:none;
+  font-size:14px;
+}
+.ownerComboPanel,.ownerTextSuggestPanel{
+  position:fixed;
+  z-index:95;
+  max-height:260px;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--paper);
+  box-shadow:0 12px 30px rgba(10,39,60,.15);
+  padding:5px;
+}
+.ownerComboPanel{
+  position:absolute;
+  left:0;
+  top:calc(100% + 4px);
+  width:100%;
+}
+.ownerComboChoice{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 28px;
+  align-items:center;
+  gap:4px;
+}
+.ownerComboPick,.ownerComboRemove{
+  border:0;
+  background:transparent;
+  color:var(--ink);
+}
+.ownerComboPick{
+  min-height:32px;
+  padding:6px 8px;
+  border-radius:6px;
+  text-align:left;
+  font:550 12px var(--ui-font);
+}
+.ownerComboPick:hover{background:var(--pale)}
+.ownerComboRemove{
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  color:var(--red);
+  font-size:18px;
+  line-height:1;
+}
+.ownerComboRemove:hover{background:color-mix(in srgb,var(--red) 8%,transparent)}
+.ownerComboFooter{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  border-top:1px solid var(--line);
+  margin-top:4px;
+  padding:6px 7px 2px;
+  color:var(--muted);
+  font-size:9px;
+}
+.ownerComboFooter button{
+  border:0;
+  background:transparent;
+  color:var(--navy);
+  font-size:9px;
+  font-weight:700;
+}
 
 /* Make list-field intent clear without adding more permanent chrome. */
 .policyRow select[data-owner-list-select="true"]{
