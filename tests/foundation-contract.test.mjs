@@ -224,7 +224,7 @@ test("order workspace supports spreadsheet-speed data entry", () => {
   assert.match(orders, /Ctrl\+C, Ctrl\+V/);
   assert.match(orders, /Ctrl\+Z and Ctrl\+Y/);
   assert.match(orders, /hiddenColumns/);
-  assert.match(orders, /const suggestions=/);
+  assert.match(orders, /const suggestions\s*=/);
   assert.match(orders, /navigator\.clipboard\.writeText/);
   assert.match(orders, /onMouseEnter/);
   assert.doesNotMatch(orders, />Undo<\/button>/);
