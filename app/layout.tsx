@@ -14,6 +14,7 @@ import "./ui-regression-fixes.css";
 import "./order-setup-polish.css";
 import { OwnerDropdownUx } from "./owner-dropdown-ux";
 import { OrderSetupPolish } from "./order-setup-polish";
+import { OrderSetupFinalize } from "./order-setup-finalize";
 import { ErpOrderSync } from "./erp-order-sync";
 
 export const metadata: Metadata = {
@@ -26,5 +27,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/><OrderSetupPolish/>{children}</body></html>;
+  return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/><OrderSetupPolish/><OrderSetupFinalize/>{children}</body></html>;
 }
