@@ -1,100 +1,72 @@
-# vinext-starter
+# SEIKO System V2
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Operational web application for SEIKO Uniforms / SEIKO Tailors.
 
-## Prerequisites
+## Source of truth
 
+The canonical codebase is this GitHub repository on the `main` branch. ChatGPT, Codex, local development, and deployment must all read from and write back to this repository rather than relying on chat history or an old local preview.
+
+See `AGENTS.md` for the required handoff and synchronization rules.
+
+## Technology
+
+- React 19
+- Vinext
+- Vite 8
+- Cloudflare Workers / Wrangler
 - Node.js `>=22.13.0`
 
-## Quick Start
+## Local development
+
+Install exactly from the committed lockfile and start the development server:
 
 ```bash
-npm install
+npm ci
 npm run dev
-npm run build
 ```
 
-This starter does not use `wrangler.jsonc`.
+If a generated Vite RSC cache file under `.vite-cache/deps_rsc/` fails to parse, stop the dev server and clear generated caches before changing application source. Do not edit generated cache files.
 
-## Included Shape
+## Validation
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+npm test
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+The test script runs the repository contract tests, performs the production build, and validates rendered HTML.
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+GitHub Actions also runs this validation automatically for pushes and pull requests targeting `main` using `.github/workflows/ci.yml`.
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+## Cloudflare deployment
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+The Cloudflare Worker configuration is in `wrangler.jsonc` and the application provides:
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+```bash
+npm run deploy:cloudflare
+```
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+A manual GitHub Actions production workflow is available at `.github/workflows/deploy-cloudflare.yml`.
 
-## Useful Commands
+The workflow requires these GitHub repository secrets:
 
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
 
-## Learn More
+Once those secrets exist, run the **Deploy SEIKO to Cloudflare** workflow from GitHub Actions. It installs from the lockfile, runs the full test/build suite, and only then invokes Wrangler.
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+Do not commit Cloudflare credentials or local `.env` values.
+
+## ChatGPT Sites project
+
+The repository also carries `.openai/hosting.json` for the linked ChatGPT Sites project. That project metadata is separate from the Cloudflare Worker production deployment and should not be treated as a replacement for GitHub `main` as the source of truth.
+
+## Important files
+
+- `app/` — application UI and behavior
+- `worker/` — Cloudflare Worker entry
+- `vite.config.ts` — Vinext/Vite and local Cloudflare integration
+- `wrangler.jsonc` — Cloudflare Worker deployment configuration
+- `package.json` / `package-lock.json` — pinned application and toolchain dependencies
+- `AGENTS.md` — cross-model development and handoff rules
+- `.github/workflows/ci.yml` — automatic build/test validation
+- `.github/workflows/deploy-cloudflare.yml` — manual production deployment
