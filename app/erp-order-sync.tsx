@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import type { SeikoOrder } from "./lib/order-domain";
+import { normalizeProductMeasurements, type SeikoOrder } from "./lib/order-domain";
 
 type Envelope = {
   order: SeikoOrder;
@@ -29,14 +29,15 @@ function conflictKey(businessId: string, orderId: string) {
 function readLocalOrders(businessId: string): SeikoOrder[] {
   try {
     const value = JSON.parse(localStorage.getItem(orderKey(businessId)) || "[]");
-    return Array.isArray(value) ? value as SeikoOrder[] : [];
+    return Array.isArray(value) ? (value as SeikoOrder[]).map(normalizeProductMeasurements) : [];
   } catch {
     return [];
   }
 }
 
 function writeLocalOrders(businessId: string, orders: SeikoOrder[]) {
-  localStorage.setItem(orderKey(businessId), JSON.stringify(orders));
+  const normalized = orders.map(normalizeProductMeasurements);
+  localStorage.setItem(orderKey(businessId), JSON.stringify(normalized));
   window.dispatchEvent(new CustomEvent("seiko:orders-cache-updated", { detail: { businessId } }));
 }
 
@@ -60,13 +61,13 @@ function timestamp(value: unknown) {
 }
 
 function stable(order: SeikoOrder) {
-  return JSON.stringify(order);
+  return JSON.stringify(normalizeProductMeasurements(order));
 }
 
 /**
  * Keeps localStorage as an offline/cache layer while D1 is the shared source of truth.
- * If D1/Auth is not configured yet this component becomes a quiet no-op, so deployments
- * remain backward-compatible during the infrastructure cutover.
+ * Existing legacy orders are normalized on every read/write so shared measurement
+ * definitions are split into product-owned identities before they can propagate.
  */
 export function ErpOrderSync() {
   useEffect(() => {
@@ -84,10 +85,11 @@ export function ErpOrderSync() {
     const backOff = () => { ready = false; retryAfter = Date.now() + RETRY_BACKOFF_MS; };
 
     const applyServer = (businessId: string, envelopes: Envelope[]) => {
-      const orders = envelopes.map(item => item.order);
+      const normalizedEnvelopes = envelopes.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
+      const orders = normalizedEnvelopes.map(item => item.order);
       versions.clear();
       lastSynced.clear();
-      for (const item of envelopes) {
+      for (const item of normalizedEnvelopes) {
         versions.set(item.order.orderId, item.version);
         lastSynced.set(item.order.orderId, stable(item.order));
       }
@@ -102,16 +104,18 @@ export function ErpOrderSync() {
     };
 
     const upsert = async (businessId: string, order: SeikoOrder, expectedVersion?: number) => {
+      const normalizedOrder = normalizeProductMeasurements(order);
       const result = await callOrders<Envelope>({
         operation: "upsert",
         businessId,
-        order,
+        order: normalizedOrder,
         expectedVersion: expectedVersion ?? null,
       });
       if (!result.ok) return result;
-      versions.set(order.orderId, result.data.version);
-      lastSynced.set(order.orderId, stable(result.data.order));
-      return result;
+      const normalizedResult = { ...result, data: { ...result.data, order: normalizeProductMeasurements(result.data.order) } } as ApiSuccess<Envelope>;
+      versions.set(normalizedOrder.orderId, normalizedResult.data.version);
+      lastSynced.set(normalizedOrder.orderId, stable(normalizedResult.data.order));
+      return normalizedResult;
     };
 
     const initialize = async (businessId: string) => {
@@ -130,14 +134,14 @@ export function ErpOrderSync() {
       }
 
       retryAfter = 0;
-      let envelopes = remote.data.orders;
+      let envelopes = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
       const serverById = new Map(envelopes.map(item => [item.order.orderId, item]));
       const missing = local.filter(order => !serverById.has(order.orderId));
 
       if (missing.length) {
-        await callOrders({ operation: "import-local", businessId, orders: missing });
+        await callOrders({ operation: "import-local", businessId, orders: missing.map(normalizeProductMeasurements) });
         remote = await list(businessId);
-        if (remote.ok) envelopes = remote.data.orders;
+        if (remote.ok) envelopes = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
       }
 
       const refreshedById = new Map(envelopes.map(item => [item.order.orderId, item]));
@@ -154,7 +158,7 @@ export function ErpOrderSync() {
 
       if (pushedOffline) {
         remote = await list(businessId);
-        if (remote.ok) envelopes = remote.data.orders;
+        if (remote.ok) envelopes = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
       }
 
       if (cancelled || businessId !== activeBusiness) return;
@@ -203,9 +207,10 @@ export function ErpOrderSync() {
       syncing = true;
       const remote = await list(activeBusiness);
       if (remote.ok) {
-        const remoteFingerprint = JSON.stringify(remote.data.orders.map(item => [item.order.orderId, item.version]));
+        const normalizedRemote = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
+        const remoteFingerprint = JSON.stringify(normalizedRemote.map(item => [item.order.orderId, item.version]));
         const localFingerprint = JSON.stringify([...versions.entries()]);
-        if (remoteFingerprint !== localFingerprint) applyServer(activeBusiness, remote.data.orders);
+        if (remoteFingerprint !== localFingerprint) applyServer(activeBusiness, normalizedRemote);
       } else if (remote.code === "AUTH_REQUIRED" || remote.code === "ERP_DB_NOT_CONFIGURED") {
         backOff();
       }
