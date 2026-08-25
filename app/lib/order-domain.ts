@@ -7,6 +7,7 @@ export type ArtworkAttachment = { id: string; name: string; mimeType: string; si
 export type ManufacturingLink = { manufacturerBusinessId: string; sourceBusinessId: string; sourceOrderId: string; sourceProductId: string };
 export type SpecificationPolicy = { id: string; name: string; role: "colour" | "pattern" | "attribute" | "asset"; mode: ValueMode; defaultValue: string; groupFieldId?: string; groupRules: Array<{ match: string; value: string }>; required: boolean; attachments: ArtworkAttachment[] };
 export type ProductPolicy = { id: string; name: string; sizeHeader: string; quantityMode: QuantityMode; defaultQuantity: number; orderTotal: number; quantityGroupFieldId?: string; quantityGroupRules: Array<{ match: string; quantity: number }>; specifications: SpecificationPolicy[]; manufacturingLink?: ManufacturingLink };
+/** A measurement is product-owned. `appliesTo` is retained for document compatibility but normalized to zero or one product id. */
 export type MeasurementPolicy = { id: string; name: string; type: "number" | "text"; appliesTo: string[]; requiredMode: "Optional" | "When present" | "Always" };
 export type OrderRecord = { recordId: string; personId: string; values: Record<string, string | number>; held?: boolean };
 export type OrderDetails = { orderNo: string; orderDate: string; deliveryDate: string; clientName: string; clientType: string; contactPerson: string; attnRequired: boolean; contactNumber: string; shipTo: string; billTo: string; remarks: string };
@@ -31,9 +32,53 @@ export function productionLinkStoreKey(manufacturerBusinessId: string) { return 
 
 export type WorkspaceColumn = { id: string; label: string; required: boolean; groupId: string; groupLabel: string };
 
+/**
+ * Product ownership invariant for measurements.
+ * Older orders could link one measurement definition to several products. Split those
+ * definitions deterministically and move any already-entered workspace values to the
+ * new product-specific keys. This is safe to run repeatedly.
+ */
+export function normalizeProductMeasurements(order: SeikoOrder): SeikoOrder {
+  const migrations: Array<{ oldKey: string; newKey: string }> = [];
+  const measurements: MeasurementPolicy[] = [];
+
+  for (const measurement of order.measurements || []) {
+    const productIds = [...new Set((measurement.appliesTo || []).filter(id => order.products.some(product => product.id === id)))];
+    if (productIds.length <= 1) {
+      measurements.push({ ...measurement, appliesTo: productIds });
+      continue;
+    }
+
+    for (const productId of productIds) {
+      const splitId = `${measurement.id}__${productId}`;
+      measurements.push({ ...measurement, id: splitId, appliesTo: [productId] });
+      migrations.push({
+        oldKey: `measurement:${measurement.id}:product:${productId}`,
+        newKey: `measurement:${splitId}:product:${productId}`,
+      });
+    }
+  }
+
+  if (!migrations.length) return { ...order, measurements };
+
+  const records = order.records.map(record => {
+    let values = record.values;
+    for (const migration of migrations) {
+      if (!(migration.oldKey in values) || migration.newKey in values) continue;
+      if (values === record.values) values = { ...record.values };
+      values[migration.newKey] = values[migration.oldKey];
+      delete values[migration.oldKey];
+    }
+    return values === record.values ? record : { ...record, values };
+  });
+
+  return { ...order, measurements, records };
+}
+
 export function workspaceColumns(order: SeikoOrder): WorkspaceColumn[] {
-  const columns: WorkspaceColumn[] = order.fields.map(item => ({ id: `field:${item.id}`, label: item.name, required: item.required, groupId: "record", groupLabel: "Person / record" }));
-  for (const product of order.products) {
+  const normalized = normalizeProductMeasurements(order);
+  const columns: WorkspaceColumn[] = normalized.fields.map(item => ({ id: `field:${item.id}`, label: item.name, required: item.required, groupId: "record", groupLabel: "Person / record" }));
+  for (const product of normalized.products) {
     if (!product.name.trim()) continue;
     const group = { groupId: `product:${product.id}`, groupLabel: product.name };
     if (product.quantityMode === "per_person") columns.push({ id: `product:${product.id}:qty`, label: "Quantity", required: true, ...group });
@@ -42,11 +87,14 @@ export function workspaceColumns(order: SeikoOrder): WorkspaceColumn[] {
       if (spec.mode === "per_person") columns.push({ id: `spec:${spec.id}`, label: spec.name, required: spec.required, ...group });
       if (spec.mode === "default_with_exceptions") columns.push({ id: `spec:${spec.id}:override`, label: `${spec.name} override`, required: false, ...group });
     }
-  }
-  for (const measurement of order.measurements) {
-    const linked = order.products.filter(product => measurement.appliesTo.includes(product.id) && product.name.trim());
-    for (const product of linked) columns.push({ id: `measurement:${measurement.id}:product:${product.id}`, label: measurement.name, required: measurement.requiredMode === "Always" || measurement.requiredMode === "When present", groupId: `product:${product.id}`, groupLabel: product.name });
-    if (!linked.length && measurement.name.trim()) columns.push({ id: `measurement:${measurement.id}`, label: measurement.name, required: measurement.requiredMode === "Always", groupId: "measurements", groupLabel: "Other measurements" });
+    for (const measurement of normalized.measurements.filter(item => item.appliesTo[0] === product.id && item.name.trim())) {
+      columns.push({
+        id: `measurement:${measurement.id}:product:${product.id}`,
+        label: measurement.name,
+        required: measurement.requiredMode === "Always" || measurement.requiredMode === "When present",
+        ...group,
+      });
+    }
   }
   return columns;
 }
@@ -65,11 +113,12 @@ export function quantityForRecord(product: ProductPolicy, record: OrderRecord, f
 }
 
 export function readinessIssues(order: SeikoOrder): string[] {
-  const issues = validateOrder(order);
-  if (!order.records.length) issues.push("No person / record entries yet. You can still save this order.");
-  if (!order.products.some(product => product.name.trim())) issues.push("No products defined yet. Add them now or later.");
-  const activeRecords = order.records.filter(record => !record.held);
-  for (const product of order.products) {
+  const normalized = normalizeProductMeasurements(order);
+  const issues = validateOrder(normalized);
+  if (!normalized.records.length) issues.push("No person / record entries yet. You can still save this order.");
+  if (!normalized.products.some(product => product.name.trim())) issues.push("No products defined yet. Add them now or later.");
+  const activeRecords = normalized.records.filter(record => !record.held);
+  for (const product of normalized.products) {
     if (product.quantityMode === "by_group") {
       const rules = product.quantityGroupRules || [];
       if (!product.quantityGroupFieldId) issues.push(`Choose a grouping field for ${product.name || "this product"} quantity.`);
@@ -100,6 +149,7 @@ export function validateOrder(order: SeikoOrder): string[] {
 }
 
 export function saveRevision(order: SeikoOrder, reason: string): SeikoOrder {
+  const normalized = normalizeProductMeasurements(order);
   const now = new Date().toISOString();
-  return { ...order, status: order.status === "Draft" && order.records.length ? "Active" : order.status, updatedAt: now, revisions: [...order.revisions, { revision: order.revisions.length + 1, at: now, reason, recordCount: order.records.length }] };
+  return { ...normalized, status: normalized.status === "Draft" && normalized.records.length ? "Active" : normalized.status, updatedAt: now, revisions: [...normalized.revisions, { revision: normalized.revisions.length + 1, at: now, reason, recordCount: normalized.records.length }] };
 }
