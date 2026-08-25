@@ -57,7 +57,7 @@ export function quantityForRecord(product: ProductPolicy, record: OrderRecord, f
     const sourceValue = product.quantityGroupFieldId ? String(record.values[`field:${product.quantityGroupFieldId}`] ?? "").trim() : "";
     const rule = (product.quantityGroupRules || []).find(item => item.match.trim().toLowerCase() === sourceValue.toLowerCase());
     if (rule && Number.isFinite(Number(rule.quantity))) return Math.max(0, Number(rule.quantity));
-    return Math.max(0, Number(product.defaultQuantity) || 0);
+    return 0;
   }
   const override = Number(record.values[`product:${product.id}:qty_override`] ?? record.values[`product:${product.id}:qty`]);
   if (Number.isFinite(override) && override > 0) return override;
@@ -68,12 +68,20 @@ export function readinessIssues(order: SeikoOrder): string[] {
   const issues = validateOrder(order);
   if (!order.records.length) issues.push("No person / record entries yet. You can still save this order.");
   if (!order.products.some(product => product.name.trim())) issues.push("No products defined yet. Add them now or later.");
+  const activeRecords = order.records.filter(record => !record.held);
   for (const product of order.products) {
     if (product.quantityMode === "by_group") {
       const rules = product.quantityGroupRules || [];
       if (!product.quantityGroupFieldId) issues.push(`Choose a grouping field for ${product.name || "this product"} quantity.`);
       if (!rules.length) issues.push(`Add group quantity rules for ${product.name || "this product"}.`);
       if (rules.some(rule => !rule.match.trim() || !Number.isFinite(Number(rule.quantity)) || Number(rule.quantity) <= 0)) issues.push(`Complete every group quantity rule for ${product.name || "this product"}.`);
+      if (product.quantityGroupFieldId && rules.length) {
+        for (const record of activeRecords) {
+          const sourceValue = String(record.values[`field:${product.quantityGroupFieldId}`] ?? "").trim();
+          const matched = rules.some(rule => rule.match.trim().toLowerCase() === sourceValue.toLowerCase() && Number(rule.quantity) > 0);
+          if (!matched) issues.push(`${product.name || "Product"}: ${record.personId} has no group quantity mapping${sourceValue ? ` for “${sourceValue}”` : " for a blank group value"}.`);
+        }
+      }
     }
     for (const spec of product.specifications.filter(item => item.mode === "by_group")) {
       if (!spec.groupFieldId) issues.push(`Choose a grouping field for ${product.name} - ${spec.name}.`);
