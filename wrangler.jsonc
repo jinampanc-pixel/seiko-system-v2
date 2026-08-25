@@ -16,5 +16,9 @@
       "database_id": "f7d40009-5b76-410d-8013-4210978bf182"
     }
   ],
+  "vars": {
+    "CF_ACCESS_TEAM_DOMAIN": "dark-snowflake-9cb3.cloudflareaccess.com",
+    "CF_ACCESS_AUD": "acd2607c25594861a1afabf10f4a881080b8cd9981da3564b49576c60adb618e"
+  },
   "observability": { "enabled": false }
 }
