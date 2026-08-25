@@ -17,7 +17,7 @@
 }
 
 /* The supplied Veyn PNG is 2000px square with the exact artwork in its
-   transparent 1291x268px content bounds. This clips only transparent space. */
+   transparent 1291x268px content bounds. Clip only transparent canvas space. */
 .businessLogo.logo-veyn-health img,
 .businessLogo.logo-veyn-view img {
   position: absolute;
@@ -68,10 +68,66 @@
   transform: translate(-20px, -46px);
 }
 
+/* Header branding: Veyn and MeTh use one wordmark only. The duplicate small
+   businessMark is not part of either brand lockup and must never be shown. */
+.businessMark.logo-veyn-health,
+.businessMark.logo-veyn-view,
+.businessMark.logo-meth {
+  display: none !important;
+}
+
+.compactBusinessPicker:has(.logo-veyn-health),
+.compactBusinessPicker:has(.logo-veyn-view),
+.compactBusinessPicker:has(.logo-meth) {
+  gap: 0 !important;
+}
+
+/* Veyn: show the exact supplied logo artwork. The source is a square PNG with
+   large transparent canvas, so this crops only that transparent canvas. */
+.businessWordmark.logo-veyn-health,
+.businessWordmark.logo-veyn-view {
+  width: 160px !important;
+  height: 46px !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+.businessWordmark.logo-veyn-health img,
+.businessWordmark.logo-veyn-view img {
+  position: absolute !important;
+  width: 242px !important;
+  height: 242px !important;
+  max-width: none !important;
+  left: -36px !important;
+  top: -93px !important;
+  object-fit: contain !important;
+  mix-blend-mode: normal !important;
+}
+
+/* MeTh: retain the supplied artwork, but crop the lockup to the MeTh wordmark
+   only. The lower "Healthcare Apparel" descriptor is intentionally outside
+   this viewport. */
+.businessWordmark.logo-meth {
+  width: 118px !important;
+  height: 34px !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+.businessWordmark.logo-meth img {
+  position: absolute !important;
+  width: 172px !important;
+  height: auto !important;
+  max-width: none !important;
+  left: -28px !important;
+  top: -33px !important;
+  object-fit: contain !important;
+  mix-blend-mode: multiply !important;
+}
+
 @media (max-width: 700px) {
   .businessLogo { width: 92px; height: 42px; }
 
-  /* Wide wordmark needs width, not cropping. Keep header compact but show all artwork. */
   .businessLogo.logo-seiko {
     width: 154px;
     height: 54px;
@@ -87,4 +143,23 @@
   .businessLogo.logo-veyn-health img,
   .businessLogo.logo-veyn-view img { width: 142px; height: 142px; transform: translate(-21px, -49px); }
   .businessLogo.logo-meth img { width: 110px; height: 78px; transform: translate(-10px, -24px); }
+
+  /* Override the generic mobile 105px wordmark clamp. */
+  .businessWordmark.logo-veyn-health,
+  .businessWordmark.logo-veyn-view {
+    width: 152px !important;
+    height: 44px !important;
+  }
+  .businessWordmark.logo-veyn-health img,
+  .businessWordmark.logo-veyn-view img {
+    width: 230px !important;
+    height: 230px !important;
+    left: -34px !important;
+    top: -88px !important;
+  }
+
+  .businessWordmark.logo-meth {
+    width: 112px !important;
+    height: 34px !important;
+  }
 }
