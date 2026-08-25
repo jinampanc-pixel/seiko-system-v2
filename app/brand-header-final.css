@@ -1,6 +1,6 @@
-/* Final business-header rules. This file must be loaded after every other UI stylesheet. */
+/* Final business-header rules. Loaded last. */
 
-/* One brand lockup only. The old icon/mark duplicate is never part of the header. */
+/* Header uses one brand lockup only. */
 .app .topbar .businessMark{
   display:none!important;
 }
@@ -21,10 +21,9 @@
 
 .app .topbar .compactBusinessPicker:hover,
 .app .topbar .compactBusinessPicker:focus-within{
-  background:color-mix(in srgb,var(--paper) 45%,transparent)!important;
+  background:transparent!important;
 }
 
-/* The chevron is the business-switch affordance. */
 .app .topbar .compactBusinessPicker::after{
   content:"⌄"!important;
   position:absolute!important;
@@ -37,7 +36,7 @@
   z-index:3!important;
 }
 
-/* Native selector remains active everywhere, including phones. */
+/* Business selector remains usable on desktop and mobile. */
 .app .topbar .compactBusinessPicker>select{
   display:block!important;
   position:absolute!important;
@@ -56,11 +55,10 @@
   position:relative!important;
   display:block!important;
   flex:none!important;
-  overflow:hidden!important;
   background:transparent!important;
 }
 
-/* SEIKO: supplied transparent wordmark is already clean. Never crop any letter. */
+/* SEIKO asset is already clean and needs no canvas trimming. */
 .app .topbar .businessWordmark.logo-seiko{
   width:168px!important;
   height:70px!important;
@@ -78,52 +76,57 @@
   mix-blend-mode:normal!important;
 }
 
-/* véyn health: preserve the exact supplied logo; only transparent square canvas is clipped. */
+/* véyn health: show the ENTIRE visible artwork, including “where life flows”.
+   The source is a 2000×2000 transparent canvas. These coordinates remove only
+   transparent outer canvas; no visible logo pixels are cropped. */
 .app .topbar .businessWordmark.logo-veyn-health,
 .app .topbar .businessWordmark.logo-veyn-view{
-  width:178px!important;
-  height:52px!important;
+  width:222px!important;
+  height:60px!important;
+  overflow:hidden!important;
 }
 .app .topbar .businessWordmark.logo-veyn-health img,
 .app .topbar .businessWordmark.logo-veyn-view img{
   position:absolute!important;
   display:block!important;
-  width:272px!important;
-  height:272px!important;
+  width:340px!important;
+  height:340px!important;
   max-width:none!important;
-  left:-40px!important;
-  top:-104px!important;
+  left:-56px!important;
+  top:-132px!important;
   object-fit:contain!important;
   transform:none!important;
   mix-blend-mode:normal!important;
 }
 
-/* MeTh: crop the supplied lockup to the MeTh wordmark itself. The lower
-   'Healthcare Apparel' descriptor remains outside this viewport. */
+/* MeTh: show the ENTIRE supplied lockup, including HEALTHCARE APPAREL.
+   The source JPEG has large white outer margins. These coordinates remove only
+   that blank canvas and retain the full visible artwork. */
 .app .topbar .businessWordmark.logo-meth{
-  width:132px!important;
-  height:39px!important;
+  width:174px!important;
+  height:72px!important;
+  overflow:hidden!important;
+  background:#fff!important;
 }
 .app .topbar .businessWordmark.logo-meth img{
   position:absolute!important;
   display:block!important;
-  width:192px!important;
+  width:250px!important;
   height:auto!important;
   max-width:none!important;
-  left:-31px!important;
-  top:-37px!important;
+  left:-42px!important;
+  top:-54px!important;
   object-fit:contain!important;
   transform:none!important;
-  mix-blend-mode:multiply!important;
+  mix-blend-mode:normal!important;
 }
 
 @media(max-width:760px){
   .app .topbar .compactBusinessPicker{
     max-width:calc(100vw - 92px)!important;
-    padding-right:28px!important;
+    padding-right:27px!important;
   }
 
-  /* Explicit phone widths prevent the old 105px generic clamp from returning. */
   .app .topbar .businessWordmark.logo-seiko{
     width:158px!important;
     height:62px!important;
@@ -131,24 +134,24 @@
 
   .app .topbar .businessWordmark.logo-veyn-health,
   .app .topbar .businessWordmark.logo-veyn-view{
-    width:160px!important;
-    height:48px!important;
+    width:190px!important;
+    height:52px!important;
   }
   .app .topbar .businessWordmark.logo-veyn-health img,
   .app .topbar .businessWordmark.logo-veyn-view img{
-    width:246px!important;
-    height:246px!important;
-    left:-36px!important;
-    top:-94px!important;
+    width:294px!important;
+    height:294px!important;
+    left:-48px!important;
+    top:-114px!important;
   }
 
   .app .topbar .businessWordmark.logo-meth{
-    width:122px!important;
-    height:37px!important;
+    width:150px!important;
+    height:62px!important;
   }
   .app .topbar .businessWordmark.logo-meth img{
-    width:178px!important;
-    left:-29px!important;
-    top:-34px!important;
+    width:220px!important;
+    left:-37px!important;
+    top:-47px!important;
   }
 }
