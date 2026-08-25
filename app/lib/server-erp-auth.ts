@@ -1,3 +1,5 @@
+import { env } from "cloudflare:workers";
+
 type Actor = {
   userId: string;
   email: string;
@@ -60,6 +62,14 @@ async function membershipsForActor(actor: Actor): Promise<Membership[]> {
   const cached = membershipCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) return cached.memberships;
 
+  const fromD1 = await membershipsFromD1(actor);
+  if (fromD1.length) {
+    membershipCache.set(cacheKey, { expires: Date.now() + 60_000, memberships: fromD1 });
+    return fromD1;
+  }
+
+  // Temporary compatibility fallback while existing businesses are migrated.
+  // Once all memberships are confirmed in D1 this can be removed cleanly.
   const upstream = process.env.SEIKO_APPS_SCRIPT_URL;
   const apiKey = process.env.SEIKO_API_KEY;
   if (!upstream || !apiKey) return [];
@@ -82,6 +92,35 @@ async function membershipsForActor(actor: Actor): Promise<Membership[]> {
   const memberships = result.ok && Array.isArray(result.data?.businesses) ? result.data!.businesses! : [];
   membershipCache.set(cacheKey, { expires: Date.now() + 60_000, memberships });
   return memberships;
+}
+
+async function membershipsFromD1(actor: Actor): Promise<Membership[]> {
+  const db = env.DB;
+  if (!db) return [];
+
+  try {
+    const result = await db.prepare(
+      `SELECT business_id, role, modules_json
+         FROM erp_memberships
+        WHERE lower(email) = lower(?) AND active = 1
+        ORDER BY business_id`,
+    ).bind(actor.email).all<{ business_id: string; role: string; modules_json: string | null }>();
+
+    const memberships: Membership[] = [];
+    for (const row of result.results || []) {
+      if (!isRole(row.role)) continue;
+      memberships.push({
+        businessId: row.business_id,
+        role: row.role,
+        modules: parseModules(row.modules_json),
+      });
+    }
+    return memberships;
+  } catch (cause) {
+    // During staged rollout the membership table may not exist yet. Fallback below.
+    console.warn("D1 membership lookup unavailable", cause);
+    return [];
+  }
 }
 
 async function authenticateCloudflareAccess(request: Request): Promise<Actor | null> {
@@ -164,4 +203,18 @@ function base64UrlBytes(value: string): Uint8Array {
 
 function safeDecode(value: string): string {
   try { return decodeURIComponent(value); } catch { return value; }
+}
+
+function isRole(value: string): value is Membership["role"] {
+  return value === "owner" || value === "admin" || value === "operations" || value === "viewer";
+}
+
+function parseModules(value: string | null): string[] | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter(item => typeof item === "string") : undefined;
+  } catch {
+    return undefined;
+  }
 }
