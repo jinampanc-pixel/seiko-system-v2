@@ -7,6 +7,7 @@ import "./label-records.css";
 import "./production.css";
 import "./integrated-theme.css";
 import "./orders.css";
+import "./order-enhancements.css";
 import "./workspace-grid.css";
 
 export const metadata: Metadata = {
