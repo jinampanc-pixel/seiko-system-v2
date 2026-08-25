@@ -9,5 +9,12 @@
     "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "seiko-system-v2-db",
+      "database_id": "f7d40009-5b76-410d-8013-4210978bf182"
+    }
+  ],
   "observability": { "enabled": false }
 }
