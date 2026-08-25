@@ -293,11 +293,9 @@ export function OrderSetupPolish() {
     });
     observer.observe(document.body, { childList: true, subtree: true });
     document.addEventListener("change", schedule, true);
-    document.addEventListener("input", schedule, true);
     return () => {
       observer.disconnect();
       document.removeEventListener("change", schedule, true);
-      document.removeEventListener("input", schedule, true);
       if (frame) cancelAnimationFrame(frame);
     };
   }, []);
