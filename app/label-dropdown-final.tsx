@@ -8,22 +8,36 @@ function setSelect(select: HTMLSelectElement, value: string) {
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+function forceEditorVisible(editor: HTMLElement) {
+  editor.hidden = false;
+  editor.classList.add("labelFinalSizeEditor", "labelInlineConfigurator", "labelInlineConfiguratorOpen", "labelSizeConfigurator");
+  editor.dataset.openedFromDropdown = "true";
+  editor.style.setProperty("display", "grid", "important");
+  editor.style.setProperty("visibility", "visible", "important");
+  editor.style.setProperty("opacity", "1", "important");
+  editor.style.setProperty("position", "relative", "important");
+  editor.style.setProperty("width", "100%", "important");
+  editor.style.setProperty("height", "auto", "important");
+}
+
 function revealSizeEditor(page: HTMLElement, anchor: HTMLElement) {
   let attempts = 0;
   const reveal = () => {
     attempts += 1;
     const editor = page.querySelector<HTMLElement>(".customSize");
     if (!editor) {
-      if (attempts < 30) window.setTimeout(reveal, 35);
+      if (attempts < 80) {
+        window.setTimeout(reveal, 35);
+      } else {
+        window.alert("The new-size editor could not be opened. Refresh the designer once and try again.");
+      }
       return;
     }
-    editor.classList.add("labelFinalSizeEditor", "labelInlineConfigurator", "labelInlineConfiguratorOpen", "labelSizeConfigurator");
-    editor.dataset.openedFromDropdown = "true";
-    anchor.insertAdjacentElement("afterend", editor);
-    editor.hidden = false;
-    editor.style.removeProperty("display");
+    forceEditorVisible(editor);
+    if (editor.previousElementSibling !== anchor) anchor.insertAdjacentElement("afterend", editor);
     const firstInput = editor.querySelector<HTMLInputElement>('input[type="text"],input');
     window.setTimeout(() => {
+      forceEditorVisible(editor);
       editor.scrollIntoView({ block: "nearest", behavior: "smooth" });
       firstInput?.focus({ preventScroll: true });
     }, 30);
@@ -35,13 +49,23 @@ function openNativeSizeEditor(page: HTMLElement, anchor: HTMLElement) {
   const trigger = page.querySelector<HTMLButtonElement>(".canvasSizeButton")
     || Array.from(page.querySelectorAll<HTMLButtonElement>("button")).find(button => /label sizes/i.test(button.textContent || ""));
   if (!trigger) {
-    window.alert("The label size editor could not be opened. Refresh once and try again.");
+    window.alert("The label size editor is not available on this page. Refresh once and try again.");
     return;
   }
+
+  const existing = page.querySelector<HTMLElement>(".customSize");
+  if (existing) {
+    forceEditorVisible(existing);
+    if (existing.previousElementSibling !== anchor) anchor.insertAdjacentElement("afterend", existing);
+    existing.querySelector<HTMLInputElement>('input[type="text"],input')?.focus({ preventScroll: true });
+    return;
+  }
+
   const wasHidden = trigger.hidden;
   trigger.hidden = false;
-  trigger.click();
-  trigger.hidden = wasHidden;
+  trigger.removeAttribute("hidden");
+  trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  window.setTimeout(() => { trigger.hidden = wasHidden; }, 0);
   revealSizeEditor(page, anchor);
 }
 
@@ -134,14 +158,8 @@ function enhanceSizeDropdown(page: HTMLElement) {
   const newSize = document.createElement("button");
   newSize.type = "button";
   newSize.className = "labelFinalSizeManage";
+  newSize.dataset.labelAction = "new-size";
   newSize.textContent = "+ New size";
-  newSize.addEventListener("click", event => {
-    event.preventDefault();
-    event.stopPropagation();
-    menu.hidden = true;
-    root!.classList.remove("open");
-    openNativeSizeEditor(page, root!);
-  });
   menu.appendChild(newSize);
 
   const oldRemove = setup.querySelector<HTMLButtonElement>('.iconButton[aria-label="Remove selected size preset"]');
@@ -149,7 +167,7 @@ function enhanceSizeDropdown(page: HTMLElement) {
 
   const editor = page.querySelector<HTMLElement>('.customSize[data-opened-from-dropdown="true"]');
   if (editor) {
-    editor.classList.add("labelFinalSizeEditor", "labelInlineConfiguratorOpen");
+    forceEditorVisible(editor);
     if (editor.previousElementSibling !== root) root.insertAdjacentElement("afterend", editor);
   }
 }
@@ -178,14 +196,31 @@ export function LabelDropdownFinal() {
       if (frame) return;
       frame = requestAnimationFrame(() => { frame = 0; enhance(); });
     };
+    const delegatedClick = (event: MouseEvent) => {
+      const action = (event.target as Element | null)?.closest<HTMLElement>('[data-label-action="new-size"]');
+      if (!action) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      const page = action.closest<HTMLElement>(".labelDesignerPage");
+      const root = action.closest<HTMLElement>(".labelFinalSizeSelect");
+      if (!page || !root) return;
+      const menu = root.querySelector<HTMLElement>(".labelFinalSizeMenu");
+      if (menu) menu.hidden = true;
+      root.classList.remove("open");
+      openNativeSizeEditor(page, root);
+    };
+
     enhance();
     const observer = new MutationObserver(schedule);
     observer.observe(document.body, { childList: true, subtree: true });
     document.addEventListener("change", schedule, true);
+    document.addEventListener("click", delegatedClick, true);
     window.addEventListener("resize", schedule);
     return () => {
       observer.disconnect();
       document.removeEventListener("change", schedule, true);
+      document.removeEventListener("click", delegatedClick, true);
       window.removeEventListener("resize", schedule);
       if (frame) cancelAnimationFrame(frame);
     };
