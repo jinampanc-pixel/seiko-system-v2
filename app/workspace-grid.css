@@ -112,13 +112,37 @@
   z-index: 15;
 }
 
+/* One compact sheet toolbar: add rows / columns, row count, search and pager
+   all stay immediately above the grid instead of forming separate bands. */
+.workspacePage > .workspaceTools {
+  display: grid !important;
+  grid-template-columns: auto auto minmax(220px, 1fr) auto !important;
+  align-items: center !important;
+  gap: 8px 12px !important;
+  margin: 8px 0 5px !important;
+}
+.workspacePage > .workspaceTools > .workspaceAddTools { grid-column: 1; }
+.workspacePage > .workspaceTools > span { grid-column: 2; white-space: nowrap; }
+.workspacePage > .workspaceTools > input[aria-label="Search rows"] {
+  grid-column: 3;
+  justify-self: end;
+  width: min(100%, 310px) !important;
+}
+.workspacePage > .workspaceTools > .workspacePagerTop {
+  grid-column: 4;
+  margin: 0 !important;
+  justify-self: end;
+  white-space: nowrap;
+}
+.workspacePage > .workspaceTableHelp {
+  margin: 3px 0 2px !important;
+}
 .workspacePagerTop {
-  margin-top: 7px !important;
-  margin-bottom: 8px;
+  margin: 0 !important;
 }
 
 .workspaceShortcutGuide {
-  margin: 5px 0 8px;
+  margin: 0 0 5px;
   width: max-content;
   max-width: 100%;
   color: var(--muted);
@@ -210,9 +234,39 @@
   background: var(--pale);
 }
 
+@media (max-width: 1180px) {
+  .workspacePage > .workspaceTools {
+    grid-template-columns: auto 1fr auto !important;
+  }
+  .workspacePage > .workspaceTools > .workspaceAddTools { grid-column: 1; }
+  .workspacePage > .workspaceTools > span { grid-column: 2; }
+  .workspacePage > .workspaceTools > input[aria-label="Search rows"] { grid-column: 3; }
+  .workspacePage > .workspaceTools > .workspacePagerTop {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+
 @media (max-width: 800px) {
   .workspaceAddTools { flex-wrap: wrap; }
   .workspaceTableWrap { max-height: 68vh; }
   .workspaceShortcutGuide { width: 100%; }
   .workspaceShortcutGuidePanel { grid-template-columns: 1fr; }
+  .workspacePage > .workspaceTools {
+    display: flex !important;
+    align-items: stretch !important;
+    gap: 7px !important;
+    flex-wrap: wrap !important;
+  }
+  .workspacePage > .workspaceTools > input[aria-label="Search rows"] {
+    order: 3;
+    width: 100% !important;
+    max-width: none !important;
+  }
+  .workspacePage > .workspaceTools > .workspacePagerTop {
+    order: 4;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }
