@@ -31,24 +31,12 @@
 .labelDesignerPage .labelSetup .labelFinalSizeTrigger{height:44px!important}
 .labelDesignerPage .labelSetup>.rollSummary,.labelDesignerPage .labelSetup>.iconButton{display:none!important}
 
-/* New-size form launched from the embedded dropdown must stay visible even though older
-   labelInlineConfigurator CSS hides configurators by default. */
-.labelDesignerPage .customSize.labelFinalSizeEditor,
-.labelDesignerPage .customSize.labelFinalSizeEditor.labelInlineConfigurator,
-.labelDesignerPage .customSize.labelFinalSizeEditor.labelInlineConfiguratorOpen{
-  display:grid!important;
-  grid-template-columns:repeat(4,minmax(120px,1fr))!important;
-  gap:9px!important;
-  margin:8px 0 0!important;
-  padding:12px!important;
-  width:100%!important;
-  position:relative!important;
-  z-index:20!important;
-}
-.labelDesignerPage .customSize.labelFinalSizeEditor>div{grid-column:1/-1!important}
-.labelDesignerPage .customSize.labelFinalSizeEditor label{display:grid!important;gap:4px!important;min-width:0!important}
-.labelDesignerPage .customSize.labelFinalSizeEditor input{height:36px!important;min-width:0!important}
-.labelDesignerPage .customSize.labelFinalSizeEditor .primary{align-self:end!important;height:36px!important}
+/* Direct New size editor: independent of the legacy React size drawer. */
+.labelDesignerPage .labelDirectSizeEditor{display:grid!important;grid-template-columns:1fr!important;gap:10px!important;margin:8px 0 0!important;padding:12px!important;width:100%!important;position:relative!important;z-index:30!important}
+.labelDirectSizeHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.labelDirectSizeHead h3{margin:0 0 2px;font-size:14px}.labelDirectSizeHead small{color:var(--muted)}
+.labelDirectSizeClose{width:30px;height:30px;border:0;border-radius:7px;background:transparent;color:var(--red);font-size:20px;line-height:1}.labelDirectSizeClose:hover{background:#fff1ef}
+.labelDirectSizeFields{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:9px}.labelDirectSizeFields label{display:grid;gap:4px;min-width:0}.labelDirectSizeFields input{height:36px;min-width:0}.labelDirectSizeFields label:first-child{grid-column:span 2}
+.labelDirectSizeActions{display:flex;align-items:center;justify-content:flex-end;gap:8px}.labelDirectSizeError{margin-right:auto;color:var(--red);font-size:10px;font-weight:700}.labelDirectSizeActions button{height:36px}
 
 /* Packing representation is decided on Back to setup; do not expose a second dead launcher here. */
 .labelDesignerPage .labelContextSettings,
@@ -56,77 +44,33 @@
 .labelDesignerPage .personPackageSetup.labelInlineConfigurator,
 .labelDesignerPage .packageGrouping.labelInlineConfigurator{display:none!important}
 
-/* Selected information cards stay compact, but selected fields always expose their
-   useful field-name/style controls. No separate Options footer is required. */
+/* Selected information cards stay compact, but selected fields always expose their useful field-name/style controls. */
 .labelDesignerPage .fieldChoiceOptionsToggle{display:none!important}
 .labelDesignerPage .fieldChoice.chosen,
-.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded{
-  min-height:42px!important;
-  height:auto!important;
-  grid-column:span 1!important;
-  padding:7px 8px!important;
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr) auto!important;
-  gap:5px 8px!important;
-  align-items:center!important;
-  align-content:start!important;
-}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded{min-height:42px!important;height:auto!important;grid-column:span 1!important;padding:7px 8px!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:5px 8px!important;align-items:center!important;align-content:start!important}
 .labelDesignerPage .fieldChoice.chosen>label:first-child{min-width:0!important;margin:0!important}
-.labelDesignerPage .fieldChoice.chosen>.showName,
-.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.showName{
-  display:flex!important;
-  grid-column:2!important;
-  margin:0!important;
-  white-space:nowrap!important;
-}
-.labelDesignerPage .fieldChoice.chosen>input[aria-label^="Printed name"],
-.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>input[aria-label^="Printed name"]{
-  display:block!important;
-  grid-column:1/-1!important;
-  height:30px!important;
-  min-height:30px!important;
-  margin:0!important;
-  padding:0 8px!important;
-  font-size:10px!important;
-}
-.labelDesignerPage .fieldChoice.chosen>.fieldEmphasis,
-.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.fieldEmphasis{
-  grid-column:1/-1!important;
-  display:flex!important;
-  flex-wrap:wrap!important;
-  gap:5px 12px!important;
-  margin:0!important;
-  padding:5px 0 0!important;
-  border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent)!important;
-}
+.labelDesignerPage .fieldChoice.chosen>.showName,.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.showName{display:flex!important;grid-column:2!important;margin:0!important;white-space:nowrap!important}
+.labelDesignerPage .fieldChoice.chosen>input[aria-label^="Printed name"],.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>input[aria-label^="Printed name"]{display:block!important;grid-column:1/-1!important;height:30px!important;min-height:30px!important;margin:0!important;padding:0 8px!important;font-size:10px!important}
+.labelDesignerPage .fieldChoice.chosen>.fieldEmphasis,.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.fieldEmphasis{grid-column:1/-1!important;display:flex!important;flex-wrap:wrap!important;gap:5px 12px!important;margin:0!important;padding:5px 0 0!important;border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent)!important}
 .labelDesignerPage .fieldChoice.chosen>.fieldEmphasis label{margin:0!important;font-size:9px!important}
 
 /* Selecting something on the canvas must not open a second bulky form. Drag/wheel remain the editor. */
-.labelDesignerPage .labelContextInspector,
-.labelDesignerPage .labelCanvasPanel .labelContextInspector,
-.labelDesignerPage .labelProperties.labelContextInspector{display:none!important}
+.labelDesignerPage .labelContextInspector,.labelDesignerPage .labelCanvasPanel .labelContextInspector,.labelDesignerPage .labelProperties.labelContextInspector{display:none!important}
+
+/* Snapchat-style drag-to-delete target. */
+.labelDesignerPage .labelCanvasPanel{position:relative!important;overflow:visible!important}
+.labelDragDeleteTarget{position:absolute;z-index:70;left:50%;bottom:14px;transform:translate(-50%,18px) scale(.92);display:flex;align-items:center;gap:7px;padding:9px 15px;border:1px solid #d7b1aa;border-radius:999px;background:#fff7f5;color:#b93224;box-shadow:0 8px 22px #7d21152b;opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease,background .15s ease,color .15s ease,border-color .15s ease}
+.labelDragDeleteTarget.visible{opacity:1;transform:translate(-50%,0) scale(1)}
+.labelDragDeleteTarget.armed{background:#c93425;color:#fff;border-color:#c93425;transform:translate(-50%,0) scale(1.08)}
+.labelDragDeleteIcon{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;font-size:20px;line-height:1}.labelDragDeleteTarget b{font-size:10px}
+.labelDesignerPage .canvasElement.deleteArmed{opacity:.35!important;filter:grayscale(.25)!important;transform:scale(.96)!important}
 
 /* Bulletproof working row: flex eliminates grid auto-placement and CSS-order conflicts. */
 .labelDesignerPage .labelFinalWorkingRow{display:flex!important;flex-direction:row!important;align-items:flex-start!important;justify-content:stretch!important;gap:14px!important;width:100%!important;min-width:0!important;margin:0!important;padding:0!important;grid-template-columns:none!important;grid-template-areas:none!important;grid-template-rows:none!important}
-.labelDesignerPage .labelFinalWorkingRow>.labelFinalPreviewCard,.labelDesignerPage .labelFinalWorkingRow .labelFinalPreviewCard{order:1!important;flex:1 1 58%!important;width:auto!important;min-width:0!important;min-height:470px!important;height:auto!important;margin:0!important;align-self:flex-start!important;position:static!important;top:auto!important;transform:none!important}
+.labelDesignerPage .labelFinalWorkingRow>.labelFinalPreviewCard,.labelDesignerPage .labelFinalWorkingRow .labelFinalPreviewCard{order:1!important;flex:1 1 58%!important;width:auto!important;min-width:0!important;min-height:470px!important;height:auto!important;margin:0!important;align-self:flex-start!important;position:relative!important;top:auto!important;transform:none!important}
 .labelDesignerPage .labelFinalWorkingRow>.labelFinalRecordsCard,.labelDesignerPage .labelFinalWorkingRow .labelFinalRecordsCard{order:2!important;flex:0 1 42%!important;width:auto!important;min-width:320px!important;min-height:470px!important;height:auto!important;margin:0!important;align-self:flex-start!important;position:static!important;top:auto!important;transform:none!important}
 .labelDesignerPage .labelFinalPreviewCard .labelStageV2{min-height:390px!important}
 .labelDesignerPage .labelFinalRecordsCard .recordList{max-height:310px!important}
 
-@media(max-width:900px){
- .labelDesignerPage .labelSetup{grid-template-columns:1fr 1fr!important}
- .labelDesignerPage .labelSetup>label:first-child{grid-column:1/-1!important}
- .labelDesignerPage .labelFinalWorkingRow{flex-direction:column!important;gap:12px!important}
- .labelDesignerPage .labelFinalWorkingRow>.labelFinalPreviewCard,.labelDesignerPage .labelFinalWorkingRow>.labelFinalRecordsCard,.labelDesignerPage .labelFinalWorkingRow .labelFinalPreviewCard,.labelDesignerPage .labelFinalWorkingRow .labelFinalRecordsCard{width:100%!important;min-width:0!important;min-height:0!important;flex:0 0 auto!important}
- .labelDesignerPage .labelFinalRecordsCard .recordList{max-height:360px!important}
- .labelDesignerPage .customSize.labelFinalSizeEditor{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-}
-@media(max-width:650px){
- .labelDesignerPage .labelSetup{grid-template-columns:1fr!important}
- .labelDesignerPage .labelSetup>label:first-child{grid-column:1!important}
- .labelEmbeddedMenu,.labelFinalSizeMenu{position:fixed!important;left:10px!important;right:10px!important;top:auto!important;bottom:max(10px,env(safe-area-inset-bottom))!important;max-height:65vh!important}
- .labelManagedField>.labelManagedEditor{position:fixed!important;left:10px!important;right:10px!important;top:auto!important;bottom:max(10px,env(safe-area-inset-bottom))!important;width:auto!important}
- .labelDesignerPage .fieldChoice.chosen,.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded{grid-template-columns:1fr!important}
- .labelDesignerPage .fieldChoice.chosen>.showName{grid-column:1!important}
- .labelDesignerPage .customSize.labelFinalSizeEditor{grid-template-columns:1fr!important}
-}
+@media(max-width:900px){.labelDesignerPage .labelSetup{grid-template-columns:1fr 1fr!important}.labelDesignerPage .labelSetup>label:first-child{grid-column:1/-1!important}.labelDesignerPage .labelFinalWorkingRow{flex-direction:column!important;gap:12px!important}.labelDesignerPage .labelFinalWorkingRow>.labelFinalPreviewCard,.labelDesignerPage .labelFinalWorkingRow>.labelFinalRecordsCard,.labelDesignerPage .labelFinalWorkingRow .labelFinalPreviewCard,.labelDesignerPage .labelFinalWorkingRow .labelFinalRecordsCard{width:100%!important;min-width:0!important;min-height:0!important;flex:0 0 auto!important}.labelDesignerPage .labelFinalRecordsCard .recordList{max-height:360px!important}.labelDirectSizeFields{grid-template-columns:repeat(2,minmax(0,1fr))}.labelDirectSizeFields label:first-child{grid-column:1/-1}}
+@media(max-width:650px){.labelDesignerPage .labelSetup{grid-template-columns:1fr!important}.labelDesignerPage .labelSetup>label:first-child{grid-column:1!important}.labelEmbeddedMenu,.labelFinalSizeMenu{position:fixed!important;left:10px!important;right:10px!important;top:auto!important;bottom:max(10px,env(safe-area-inset-bottom))!important;max-height:65vh!important}.labelManagedField>.labelManagedEditor{position:fixed!important;left:10px!important;right:10px!important;top:auto!important;bottom:max(10px,env(safe-area-inset-bottom))!important;width:auto!important}.labelDesignerPage .fieldChoice.chosen,.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded{grid-template-columns:1fr!important}.labelDesignerPage .fieldChoice.chosen>.showName{grid-column:1!important}.labelDirectSizeFields{grid-template-columns:1fr}.labelDirectSizeFields label:first-child{grid-column:1}.labelDirectSizeActions{flex-wrap:wrap}.labelDirectSizeError{width:100%;margin:0}.labelDragDeleteTarget{position:fixed;bottom:max(88px,calc(env(safe-area-inset-bottom) + 72px))}}
