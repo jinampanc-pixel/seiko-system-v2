@@ -18,8 +18,6 @@ import "./order-setup-polish.css";
 import "./order-compact-ux.css";
 import "./brand-header-final.css";
 import "./label-flow-polish.css";
-import "./label-dropdown-final.css";
-import "./label-field-logic.css";
 import { OwnerDropdownUx } from "./owner-dropdown-ux";
 import { OrderSetupPolish } from "./order-setup-polish";
 import { OrderSetupFinalize } from "./order-setup-finalize";
@@ -44,3 +42,4 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/><WorkspaceTopPager/><WorkspaceShortcuts/><LabelFlowPolish/><LabelDesignerPolish/><LabelProductionReady/><LabelFinalization/>{children}</body></html>;
 }
+
