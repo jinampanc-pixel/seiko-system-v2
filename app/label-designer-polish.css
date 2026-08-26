@@ -29,7 +29,7 @@
 .labelDesignerPage .simpleDesignerHead small{font-size:11px}
 .labelDesignerPage .simpleDesignerHead>button:not(.labelInfoToggle){display:none!important}
 .labelDesignerPage .labelInfoToggle{flex:none;min-width:190px}
-.labelDesignerPage .labelInfoCollapsed .fieldChecklist,.labelDesignerPage .labelInfoCollapsed .labelInfoTools,.labelDesignerPage .labelInfoCollapsed .customerUpdateChoice,.labelDesignerPage .labelInfoCollapsed .purposeBoundary{display:none!important}
+.labelDesignerPage .labelInfoCollapsed .fieldChecklist,.labelDesignerPage .labelInfoCollapsed .labelInfoTools,.labelDesignerPage .labelInfoCollapsed .classificationInformation,.labelDesignerPage .labelInfoCollapsed .customerUpdateChoice,.labelDesignerPage .labelInfoCollapsed .purposeBoundary{display:none!important}
 .labelDesignerPage .labelInfoCollapsed .simpleDesignerHead{margin:0}
 html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelInfoCollapsed) .fieldChecklist{display:grid!important}
 html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelInfoCollapsed) .customerUpdateChoice{display:flex!important}
