@@ -23,7 +23,32 @@ function ensurePurposeOption(select: HTMLSelectElement, purpose: LabelPurpose, l
   select.appendChild(option);
 }
 
-function makePurposeGroup(title: string, action: "create" | "print", menu: HTMLElement, createButtons: Map<LabelPurpose, HTMLButtonElement>, printButton: HTMLButtonElement) {
+function selectedBusiness() {
+  return localStorage.getItem("jinam:selected-business") || "seiko";
+}
+
+function currentWorkspaceOrderId(menu: HTMLElement) {
+  const page = menu.closest<HTMLElement>(".workspacePage");
+  const title = page?.querySelector<HTMLElement>(".workspaceHead h2")?.textContent?.trim() || "";
+  const orderNo = title.split(" · ")[0]?.trim();
+  if (!orderNo) return "";
+  try {
+    const orders = JSON.parse(localStorage.getItem(`jinam:${selectedBusiness()}:orders-v1`) || "[]") as Array<{ orderId?: string; details?: { orderNo?: string } }>;
+    return orders.find(order => order.details?.orderNo === orderNo)?.orderId || "";
+  } catch {
+    return "";
+  }
+}
+
+function openCreateTab(purpose?: LabelPurpose, orderId?: string) {
+  const params = new URLSearchParams();
+  params.set("business", selectedBusiness());
+  if (purpose) params.set("purpose", purpose);
+  if (orderId) params.set("order", orderId);
+  window.open(`/labels/create?${params.toString()}`, "_blank");
+}
+
+function makePurposeGroup(title: string, action: "create" | "print", menu: HTMLElement, printButton: HTMLButtonElement) {
   const details = document.createElement("details");
   details.className = `orderLabelPurposeMenu orderLabelPurposeMenu-${action}`;
   const summary = document.createElement("summary");
@@ -41,7 +66,7 @@ function makePurposeGroup(title: string, action: "create" | "print", menu: HTMLE
     button.textContent = label;
     button.addEventListener("click", () => {
       if (action === "create") {
-        createButtons.get(purpose)?.click();
+        openCreateTab(purpose, currentWorkspaceOrderId(menu));
       } else {
         sessionStorage.setItem(PRINT_PURPOSE_KEY, purpose);
         printButton.click();
@@ -64,20 +89,13 @@ function enhanceOrderMenu() {
     const purposeButtons = Array.from(menu.querySelectorAll<HTMLButtonElement>(".orderMenuIndented"));
     if (!printButton || !editButton || !sectionLabel || purposeButtons.length < 3) return;
 
-    const createButtons = new Map<LabelPurpose, HTMLButtonElement>();
-    purposeButtons.forEach(button => {
-      const text = button.textContent?.trim().toLowerCase();
-      if (text === "production" || text === "packing" || text === "inventory") createButtons.set(text, button);
-    });
-    if (createButtons.size < 3) return;
-
     const dividers = Array.from(menu.querySelectorAll<HTMLElement>(".orderMenuDivider"));
     const firstDivider = dividers[0];
     const secondDivider = dividers[1];
     if (!firstDivider || !secondDivider) return;
 
-    const createGroup = makePurposeGroup("Create labels", "create", menu, createButtons, printButton);
-    const printGroup = makePurposeGroup("Print labels", "print", menu, createButtons, printButton);
+    const createGroup = makePurposeGroup("Create labels", "create", menu, printButton);
+    const printGroup = makePurposeGroup("Print labels", "print", menu, printButton);
 
     sectionLabel.hidden = true;
     printButton.hidden = true;
@@ -103,6 +121,25 @@ function enhanceLabelLauncher() {
     if (eyebrow) eyebrow.textContent = "LABEL CENTER";
     if (heading) heading.textContent = "Labels & printing";
 
+    const orderCenter = head?.querySelector<HTMLButtonElement>("button.secondary");
+    if (orderCenter) orderCenter.textContent = "Order Center";
+    let headActions = head?.querySelector<HTMLElement>(".labelLauncherHeadActions");
+    if (head && orderCenter && !headActions) {
+      headActions = document.createElement("div");
+      headActions.className = "labelLauncherHeadActions";
+      orderCenter.insertAdjacentElement("beforebegin", headActions);
+      headActions.appendChild(orderCenter);
+    }
+    if (headActions && !headActions.querySelector(".labelCreateNewTab")) {
+      const create = document.createElement("button");
+      create.type = "button";
+      create.className = "primary labelCreateNewTab";
+      create.textContent = "+ Create labels";
+      create.title = "Open label creation in a new tab";
+      create.addEventListener("click", () => openCreateTab());
+      headActions.appendChild(create);
+    }
+
     const library = page.querySelector<HTMLElement>(".labelBatchModule");
     const libraryHeading = library?.querySelector<HTMLElement>(".labelBatchModuleHead h3");
     if (libraryHeading) libraryHeading.textContent = "Saved labels";
@@ -120,59 +157,22 @@ function enhanceLabelLauncher() {
       if (text === "No matching batches.") empty.textContent = "No matching saved labels.";
     });
 
+    // Creation now has its own working tab. Keep Label Center focused on saved
+    // labels and printing instead of embedding a second creation workspace here.
     const createPanel = page.querySelector<HTMLElement>(".labelOrderPicker");
-    if (!createPanel) return;
-    const createHeading = createPanel.querySelector<HTMLElement>(".labelOrderPickerHead h3");
-    const createNote = createPanel.querySelector<HTMLElement>(".labelOrderPickerHead small");
-    if (createHeading) createHeading.textContent = "Create labels";
-    if (createNote) createNote.textContent = "Choose the source and purpose, then continue to label design.";
-
-    const purposeSelect = createPanel.querySelector<HTMLSelectElement>('select[aria-label="Label use"]');
-    if (purposeSelect) ensurePurposeOption(purposeSelect, "inventory", "Inventory");
-    createPanel.querySelectorAll<HTMLButtonElement>(".orderLabelActions button").forEach(button => {
-      if (button.textContent?.includes("Create label batch")) button.textContent = "Create labels";
-    });
-
-    if (!page.querySelector(".labelCreateToggle")) {
-      const toggle = document.createElement("button");
-      toggle.type = "button";
-      toggle.className = "primary labelCreateToggle";
-      toggle.textContent = "+ Create labels";
-      createPanel.classList.add("labelCreatePanelCollapsed");
-      toggle.addEventListener("click", () => {
-        const collapsed = createPanel.classList.toggle("labelCreatePanelCollapsed");
-        toggle.textContent = collapsed ? "+ Create labels" : "Close label creation";
-        if (!collapsed) createPanel.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      });
-      library?.insertAdjacentElement("afterend", toggle);
-    }
+    if (createPanel) createPanel.hidden = true;
+    page.querySelector(".labelCreateToggle")?.remove();
 
     const storedPurpose = sessionStorage.getItem(PRINT_PURPOSE_KEY) as LabelPurpose | null;
     if (storedPurpose && libraryFilter && page.dataset.printPurposeApplied !== storedPurpose) {
       ensurePurposeOption(libraryFilter, storedPurpose, labelPurposeName(storedPurpose));
       setReactSelectValue(libraryFilter, storedPurpose);
-      if (purposeSelect) {
-        ensurePurposeOption(purposeSelect, storedPurpose, labelPurposeName(storedPurpose));
-        setReactSelectValue(purposeSelect, storedPurpose);
-      }
       page.dataset.printPurposeApplied = storedPurpose;
       sessionStorage.removeItem(PRINT_PURPOSE_KEY);
       const filterNote = document.createElement("div");
       filterNote.className = "labelPurposeFilterNote";
       filterNote.textContent = `Showing ${labelPurposeName(storedPurpose).toLowerCase()} labels for this order.`;
       library?.querySelector(".labelBatchModuleHead")?.insertAdjacentElement("afterend", filterNote);
-    }
-
-    if (purposeSelect?.value === "inventory") {
-      let note = createPanel.querySelector<HTMLElement>(".inventoryLabelSourceNote");
-      if (!note) {
-        note = document.createElement("div");
-        note.className = "inventoryLabelSourceNote";
-        createPanel.querySelector(".labelOrderPickerHead")?.insertAdjacentElement("afterend", note);
-      }
-      note.innerHTML = "<b>Inventory labels</b><span>Order-linked stock is internally manufactured. Ready-made purchased stock enters through Inventory, then uses the same stock, label, sales and traceability system.</span>";
-    } else {
-      createPanel.querySelector(".inventoryLabelSourceNote")?.remove();
     }
   });
 }
