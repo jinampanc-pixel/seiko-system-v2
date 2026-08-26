@@ -74,3 +74,5 @@
   .labelManagedEditor{position:fixed;left:10px;right:10px;top:auto;bottom:max(10px,env(safe-area-inset-bottom));max-height:55vh;overflow:auto}
   .labelCreateRouteActions .primary{width:100%}
 }
+.labelDesignerPage .labelSelectionPreviewGrid>.labelCanvasPanel,.labelDesignerPage .labelSelectionPreviewGrid>.labelSidebar{position:relative!important;top:auto!important;align-self:stretch!important;margin:0!important}
+
