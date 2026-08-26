@@ -3,6 +3,7 @@ import "./globals.css";
 import "./logo-fixes.css";
 import "./label-designer.css";
 import "./label-designer-polish.css";
+import "./label-production-ready.css";
 import "./label-no-order.css";
 import "./label-records.css";
 import "./production.css";
@@ -25,6 +26,7 @@ import { WorkspaceTopPager } from "./workspace-top-pager";
 import { WorkspaceShortcuts } from "./workspace-shortcuts";
 import { LabelFlowPolish } from "./label-flow-polish";
 import { LabelDesignerPolish } from "./label-designer-polish";
+import { LabelProductionReady } from "./label-production-ready";
 
 export const metadata: Metadata = {
   title: "Jinam Foundation",
@@ -36,5 +38,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/><WorkspaceTopPager/><WorkspaceShortcuts/><LabelFlowPolish/><LabelDesignerPolish/>{children}</body></html>;
+  return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/><WorkspaceTopPager/><WorkspaceShortcuts/><LabelFlowPolish/><LabelDesignerPolish/><LabelProductionReady/>{children}</body></html>;
 }
