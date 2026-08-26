@@ -90,31 +90,88 @@ async function cutSelectedCells(page: HTMLElement) {
 }
 
 function ensureShortcutGuide(page: HTMLElement) {
-  if (page.querySelector(".workspaceShortcutGuide")) return;
   const help = page.querySelector<HTMLElement>(".workspaceTableHelp");
-  if (!help) return;
+  const tools = page.querySelector<HTMLElement>(".workspaceTools");
+  if (!tools) return;
+  if (help) help.hidden = true;
 
-  const details = document.createElement("details");
-  details.className = "workspaceShortcutGuide";
-  const summary = document.createElement("summary");
-  summary.textContent = "Keyboard shortcuts";
-  const panel = document.createElement("div");
-  panel.className = "workspaceShortcutGuidePanel";
-  panel.innerHTML = [
-    ["Ctrl/Cmd + S", "Save order"],
-    ["Ctrl/Cmd + P", "Print labels"],
-    ["Ctrl/Cmd + F", "Search rows"],
-    ["Ctrl/Cmd + C / V / X", "Copy / paste / cut cells"],
-    ["Ctrl/Cmd + Z / Y", "Undo / redo"],
-    ["Ctrl/Cmd + ;", "Insert current date"],
-    ["Ctrl/Cmd + Shift + ;", "Insert current time"],
-    ["Ctrl/Cmd + Home / End", "First / last used cell"],
-    ["F2", "Edit selected cell"],
-    ["Delete / Backspace", "Clear selected cells"],
-    ["Esc", "Close menu / leave cell"]
-  ].map(([shortcut, action]) => `<span><kbd>${shortcut}</kbd><b>${action}</b></span>`).join("");
-  details.append(summary, panel);
-  help.insertAdjacentElement("afterend", details);
+  let details = page.querySelector<HTMLDetailsElement>(".workspaceShortcutGuide");
+  if (!details) {
+    details = document.createElement("details");
+    details.className = "workspaceShortcutGuide";
+    const summary = document.createElement("summary");
+    summary.textContent = "Keyboard shortcuts";
+    const panel = document.createElement("div");
+    panel.className = "workspaceShortcutGuidePanel";
+    panel.innerHTML = [
+      ["Ctrl/Cmd + S", "Save order"],
+      ["Ctrl/Cmd + P", "Print labels"],
+      ["Ctrl/Cmd + F", "Search rows"],
+      ["Ctrl/Cmd + C / V / X", "Copy / paste / cut cells"],
+      ["Ctrl/Cmd + Z / Y", "Undo / redo"],
+      ["Ctrl/Cmd + ;", "Insert current date"],
+      ["Ctrl/Cmd + Shift + ;", "Insert current time"],
+      ["Ctrl/Cmd + Home / End", "First / last used cell"],
+      ["F2", "Edit selected cell"],
+      ["Delete / Backspace", "Clear selected cells"],
+      ["Esc", "Close menu / leave cell"]
+    ].map(([shortcut, action]) => `<span><kbd>${shortcut}</kbd><b>${action}</b></span>`).join("");
+    details.append(summary, panel);
+  }
+
+  if (details.nextElementSibling !== tools) page.insertBefore(details, tools);
+}
+
+function organizeColumnMenu(page: HTMLElement) {
+  const menu = page.querySelector<HTMLElement>(".columnMenu");
+  if (!menu) return;
+
+  const labels = Array.from(menu.querySelectorAll<HTMLLabelElement>(":scope > label"));
+  if (!labels.length) return;
+  const groupHeaders = Array.from(page.querySelectorAll<HTMLTableCellElement>(".workspaceTable thead tr:first-child th.productGroup"));
+  if (!groupHeaders.length) return;
+
+  const groups = groupHeaders.map(header => ({
+    name: header.textContent?.trim() || "Columns",
+    span: Math.max(0, header.colSpan || 0),
+  }));
+  const signature = `${labels.length}|${groups.map(group => `${group.name}:${group.span}`).join("|")}`;
+  if (menu.dataset.groupSignature === signature && menu.querySelector(".columnMenuGroupHeading")) return;
+
+  menu.querySelectorAll(".columnMenuGroupHeading").forEach(node => node.remove());
+  labels.forEach(label => {
+    label.classList.remove("columnMenuGroupedItem", "columnMenuGroupFirstItem");
+    delete label.dataset.columnGroup;
+  });
+
+  let cursor = 0;
+  groups.forEach((group, groupIndex) => {
+    const count = group.span + (groupIndex === 0 && group.name.toLowerCase().includes("person") ? 1 : 0);
+    if (count <= 0 || cursor >= labels.length) return;
+
+    const heading = document.createElement("div");
+    heading.className = "columnMenuGroupHeading";
+    heading.textContent = group.name;
+    menu.insertBefore(heading, labels[cursor]);
+
+    const end = Math.min(labels.length, cursor + count);
+    for (let index = cursor; index < end; index++) {
+      labels[index].classList.add("columnMenuGroupedItem");
+      labels[index].dataset.columnGroup = group.name;
+      if (index === cursor) labels[index].classList.add("columnMenuGroupFirstItem");
+    }
+    cursor = end;
+  });
+
+  if (cursor < labels.length) {
+    const heading = document.createElement("div");
+    heading.className = "columnMenuGroupHeading";
+    heading.textContent = "Other";
+    menu.insertBefore(heading, labels[cursor]);
+    for (let index = cursor; index < labels.length; index++) labels[index].classList.add("columnMenuGroupedItem");
+  }
+
+  menu.dataset.groupSignature = signature;
 }
 
 export function WorkspaceShortcuts() {
@@ -198,7 +255,9 @@ export function WorkspaceShortcuts() {
 
     const ensure = () => {
       const page = currentWorkspace();
-      if (page) ensureShortcutGuide(page);
+      if (!page) return;
+      ensureShortcutGuide(page);
+      organizeColumnMenu(page);
     };
     ensure();
     const observer = new MutationObserver(ensure);
