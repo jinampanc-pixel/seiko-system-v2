@@ -33,7 +33,6 @@ function ensureDeleteTarget(page: HTMLElement) {
     panel.appendChild(target);
   }
 
-  // Keep this interaction visible even if later layout CSS changes around the preview.
   Object.assign(target.style, {
     position: "absolute",
     zIndex: "999",
@@ -80,6 +79,50 @@ function hideDeleteTarget(target: HTMLElement) {
   target.style.background = "#fff7f5";
   target.style.color = "#b93224";
   target.style.borderColor = "#d7b1aa";
+}
+
+function normalizePrintGeometry() {
+  document.querySelectorAll<HTMLElement>(".printSheet .printedElement").forEach(element => {
+    if (element.dataset.canvasPrintFontApplied === "true") return;
+    const inline = element.style.fontSize.trim();
+    if (!inline.endsWith("pt")) return;
+    const font = Number.parseFloat(inline);
+    if (!Number.isFinite(font)) return;
+
+    // Designer canvas uses 8 px per millimetre and font * 1.333 px.
+    // Therefore the same physical print size is font / 6 millimetres.
+    element.dataset.canvasPrintFontApplied = "true";
+    element.dataset.originalPrintFont = inline;
+    element.style.fontSize = `${font / 6}mm`;
+    element.style.lineHeight = "1";
+  });
+
+  // `outer` is the horizontal roll margin used in the 109 mm width equation.
+  // Do not accidentally add the same value as a vertical print offset.
+  document.querySelectorAll<HTMLElement>(".printSheet").forEach(sheet => {
+    if (sheet.dataset.canvasPrintPaddingApplied === "true") return;
+    sheet.dataset.canvasPrintPaddingApplied = "true";
+    sheet.dataset.originalPaddingTop = sheet.style.paddingTop;
+    sheet.dataset.originalPaddingBottom = sheet.style.paddingBottom;
+    sheet.style.paddingTop = "0";
+    sheet.style.paddingBottom = "0";
+  });
+}
+
+function restorePrintGeometry() {
+  document.querySelectorAll<HTMLElement>('.printSheet .printedElement[data-canvas-print-font-applied="true"]').forEach(element => {
+    element.style.fontSize = element.dataset.originalPrintFont || "";
+    element.style.lineHeight = "";
+    delete element.dataset.canvasPrintFontApplied;
+    delete element.dataset.originalPrintFont;
+  });
+  document.querySelectorAll<HTMLElement>('.printSheet[data-canvas-print-padding-applied="true"]').forEach(sheet => {
+    sheet.style.paddingTop = sheet.dataset.originalPaddingTop || "";
+    sheet.style.paddingBottom = sheet.dataset.originalPaddingBottom || "";
+    delete sheet.dataset.canvasPrintPaddingApplied;
+    delete sheet.dataset.originalPaddingTop;
+    delete sheet.dataset.originalPaddingBottom;
+  });
 }
 
 function enhance() {
@@ -135,8 +178,6 @@ export function LabelDropdownFinal() {
         event.clientY >= targetRect.top - 24 &&
         event.clientY <= targetRect.bottom + 24;
 
-      // Snapchat-like gesture: pulling the element below the lower edge of the label
-      // also arms removal, even if the pointer does not hit the pill exactly.
       const pulledDown =
         event.clientX >= panelRect.left &&
         event.clientX <= panelRect.right &&
@@ -165,8 +206,6 @@ export function LabelDropdownFinal() {
 
       if (!armed) return;
 
-      // The React designer owns the actual item state. Trigger its real remove control
-      // so canvas, preview, saved layout and print output all stay synchronized.
       window.setTimeout(() => {
         const remove = page.querySelector<HTMLButtonElement>('.labelProperties .iconButton[aria-label="Remove selected element"]');
         remove?.click();
@@ -182,6 +221,8 @@ export function LabelDropdownFinal() {
     document.addEventListener("pointerup", finishDrag, true);
     document.addEventListener("pointercancel", finishDrag, true);
     window.addEventListener("resize", schedule);
+    window.addEventListener("beforeprint", normalizePrintGeometry);
+    window.addEventListener("afterprint", restorePrintGeometry);
 
     return () => {
       observer.disconnect();
@@ -191,6 +232,9 @@ export function LabelDropdownFinal() {
       document.removeEventListener("pointerup", finishDrag, true);
       document.removeEventListener("pointercancel", finishDrag, true);
       window.removeEventListener("resize", schedule);
+      window.removeEventListener("beforeprint", normalizePrintGeometry);
+      window.removeEventListener("afterprint", restorePrintGeometry);
+      restorePrintGeometry();
       if (frame) cancelAnimationFrame(frame);
     };
   }, []);
