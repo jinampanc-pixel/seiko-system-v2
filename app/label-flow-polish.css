@@ -15,7 +15,6 @@
 .labelPurposeFilterNote,.inventoryLabelSourceNote{margin:9px 0 0;padding:9px 11px;border-radius:8px;background:color-mix(in srgb,var(--pale) 72%,var(--paper));color:var(--muted);font-size:11px}
 .inventoryLabelSourceNote{display:grid;gap:3px}
 .inventoryLabelSourceNote b{color:var(--navy)}
-
 .labelOrderPicker[hidden]{display:none!important}
 .labelCreateToggle{display:none!important}
 .labelBatchModuleHead h3::after{content:""}
@@ -32,14 +31,25 @@
 .labelCreateRouteHead{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:16px}
 .labelCreateRouteHead h1{margin:4px 0 6px;font:700 32px/1.08 var(--heading-font);color:var(--navy)}
 .labelCreateRouteHead p{margin:0;color:var(--muted)}
-.labelCreateOrderChoice{display:grid;grid-template-columns:1.55fr 1.25fr 1fr;gap:12px;align-items:start;background:var(--paper)}
-.labelCreateOrderChoice label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:800}
-.labelCreateOrderChoice select,.logicLockedField{min-height:44px;border:1px solid var(--line);border-radius:9px;background:var(--paper);padding:0 12px;color:var(--ink);font:600 13px/1.2 var(--ui-font);display:flex;align-items:center;justify-content:space-between}
+.labelCreateOrderChoice{display:grid;grid-template-columns:1.55fr 1fr 1.35fr;gap:12px;align-items:start;background:var(--paper);overflow:visible}
+.labelCreateOrderChoice>label,.labelManagedField>label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:800;min-width:0}
+.labelCreateOrderChoice select{min-height:44px;border:1px solid var(--line);border-radius:9px;background:var(--paper);padding:0 12px;color:var(--ink);font:600 13px/1.2 var(--ui-font);width:100%}
 .labelCreateOrderChoice select:disabled{opacity:.55;cursor:not-allowed;background:color-mix(in srgb,var(--paper) 65%,var(--app-background))}
 .labelCreateFieldHelp{font-size:10px;line-height:1.35;color:var(--muted);font-weight:500;min-height:27px}
-.logicLockedField small{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-.logicLockedField.sourceWaiting{color:color-mix(in srgb,var(--muted) 65%,transparent);background:color-mix(in srgb,var(--paper) 65%,var(--app-background))}
-.logicLockedField.sourceReady{color:var(--ink)}
+.labelManagedField{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:end;min-width:0}
+.labelManagedField>label{grid-column:1/-1}
+.labelManageButton{justify-self:start;height:27px;border:0;border-radius:6px;padding:0 8px;background:var(--pale);color:var(--navy);font:800 9px/1 var(--ui-font)}
+.labelManageButton:disabled{opacity:.4;cursor:not-allowed}
+.labelManagedEditor{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 6px);display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--paper);box-shadow:0 14px 34px #102c3b22}
+.labelManagedEditorHead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.labelManagedEditorHead b{font-size:11px;color:var(--navy);text-transform:capitalize}
+.labelManagedEditorHead button{height:26px;border:0;border-radius:6px;padding:0 8px;background:var(--navy);color:white;font-size:9px;font-weight:800}
+.labelManagedEditor>p{margin:0;color:var(--muted);font-size:9px;line-height:1.35}
+.labelManagedRows{display:grid;gap:6px;max-height:220px;overflow:auto}
+.labelManagedRow{display:grid;grid-template-columns:minmax(0,1fr) 28px;gap:5px;align-items:center}
+.labelManagedRow input{height:34px;border:1px solid var(--line);border-radius:7px;padding:0 8px;background:var(--paper);color:var(--ink);font-size:11px;font-weight:650}
+.labelManagedRow.isHidden input{opacity:.48;text-decoration:line-through}
+.labelManagedRemove{height:28px;border:0;border-radius:6px;background:transparent;color:var(--red);font-size:18px}
 .labelCreateRouteActions{display:flex;justify-content:flex-end;margin-top:12px}
 .labelCreateRouteActions .primary{min-width:190px;background:var(--navy);min-height:42px}
 .labelCreateRouteActions .primary:disabled{opacity:.4;cursor:not-allowed}
@@ -61,5 +71,6 @@
   .labelCreateRoute{width:calc(100vw - 20px);padding-top:18px}
   .labelCreateRouteHead{align-items:flex-start;flex-direction:column}
   .labelCreateOrderChoice{grid-template-columns:1fr}
+  .labelManagedEditor{position:fixed;left:10px;right:10px;top:auto;bottom:max(10px,env(safe-area-inset-bottom));max-height:55vh;overflow:auto}
   .labelCreateRouteActions .primary{width:100%}
 }
