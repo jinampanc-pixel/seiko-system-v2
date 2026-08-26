@@ -97,6 +97,14 @@ function enhanceOrderSearch() {
   syncFromSelect();
 }
 
+function markProductionWorkspaceFields() {
+  document.querySelectorAll<HTMLElement>(".labelDesignerPage .fieldChoice").forEach(choice => {
+    const label = choice.querySelector("label span")?.textContent?.trim() || "";
+    const reportOnly = /^(Package contents|Cutting bundle summary|Resolved size|Calculated quantity|Number of people|Number of variations)$/i.test(label);
+    choice.dataset.productionWorkspace = reportOnly ? "false" : "true";
+  });
+}
+
 function currentPreset(): Preset {
   const select = document.querySelector<HTMLSelectElement>(".labelDesignerPage .labelSetup label:nth-of-type(3) select");
   if (!select || select.value === DEFAULT_PRESET.id) return DEFAULT_PRESET;
@@ -166,6 +174,7 @@ export function LabelFinalization() {
     let frame = 0;
     const enhance = () => {
       enhanceOrderSearch();
+      markProductionWorkspaceFields();
       ensureCanvasRatio();
     };
     const schedule = () => {
