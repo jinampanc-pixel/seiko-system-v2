@@ -15,6 +15,9 @@ type OrderSummary = {
 type Preset = { id: string; name: string; labelW: number; labelH: number; rollW: number; columns: number; outer: number; gapX: number; gapY: number };
 
 const DEFAULT_PRESET: Preset = { id: "pixra-109", name: "109 mm roll · 2 × 50 × 25", labelW: 50, labelH: 25, rollW: 109, columns: 2, outer: 3, gapX: 3, gapY: 3 };
+/* The original interactive designer is authored at 8 CSS px per millimetre. */
+const DESIGN_PX_PER_MM = 8;
+const CSS_PX_PER_PT = 96 / 72;
 
 function activeBusiness() {
   const params = new URLSearchParams(window.location.search);
@@ -114,6 +117,28 @@ function currentPreset(): Preset {
     return presets.find(preset => preset.id === select.value) || DEFAULT_PRESET;
   } catch { return DEFAULT_PRESET; }
 }
+
+function syncPreviewTypography(canvas: HTMLElement, labelWidthMm: number) {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !labelWidthMm) return;
+  const actualPxPerMm = rect.width / labelWidthMm;
+  canvas.querySelectorAll<HTMLElement>(".canvasElement.element-text,.canvasElement.element-field,.canvasElement.element-sequence").forEach(element => {
+    const currentPx = Number.parseFloat(element.style.fontSize || "0");
+    const lastApplied = Number.parseFloat(element.dataset.finalAppliedFontPx || "0");
+    /* React writes logical font * 1.333px. If it changed since our last pass, capture the new logical value. */
+    if (!element.dataset.logicalLabelFont || !lastApplied || Math.abs(currentPx - lastApplied) > .05) {
+      const logical = currentPx / CSS_PX_PER_PT;
+      if (Number.isFinite(logical) && logical > 0) element.dataset.logicalLabelFont = String(logical);
+    }
+    const logical = Number.parseFloat(element.dataset.logicalLabelFont || "0");
+    if (!logical) return;
+    const physicalFontMm = logical * CSS_PX_PER_PT / DESIGN_PX_PER_MM;
+    const responsivePx = physicalFontMm * actualPxPerMm;
+    element.style.fontSize = `${responsivePx}px`;
+    element.dataset.finalAppliedFontPx = String(responsivePx);
+  });
+}
+
 function ensureCanvasRatio() {
   document.querySelectorAll<HTMLElement>(".labelDesignerPage .labelCanvasPanel").forEach(panel => {
     const canvas = panel.querySelector<HTMLElement>(".labelCanvas");
@@ -124,7 +149,22 @@ function ensureCanvasRatio() {
     const height = Number(match?.[2]) || 25;
     canvas.style.setProperty("--final-label-ratio", `${width} / ${height}`);
     canvas.dataset.finalRatioReady = "true";
+    syncPreviewTypography(canvas, width);
   });
+}
+
+function normalizedPrintedLabel(source: HTMLElement) {
+  const clone = source.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll<HTMLElement>(".printedElement.element-text,.printedElement.element-field,.printedElement.element-sequence").forEach(element => {
+    /* Hidden printSheet stores the logical designer font as pt. Convert that same logical
+       value through the designer's 8px/mm coordinate system so print matches preview exactly. */
+    const logicalFont = Number.parseFloat(element.style.fontSize || "0");
+    if (!logicalFont) return;
+    const physicalFontMm = logicalFont * CSS_PX_PER_PT / DESIGN_PX_PER_MM;
+    element.style.fontSize = `${physicalFontMm}mm`;
+    element.style.lineHeight = "1.05";
+  });
+  return clone.outerHTML;
 }
 
 function labelOnlyPrint() {
@@ -142,7 +182,7 @@ function labelOnlyPrint() {
     const pitch = preset.labelH + Math.max(0, preset.gapY || 0);
     const rows: string[] = [];
     for (let index = 0; index < labels.length; index += preset.columns) {
-      const items = labels.slice(index, index + preset.columns).map(label => label.outerHTML).join("");
+      const items = labels.slice(index, index + preset.columns).map(normalizedPrintedLabel).join("");
       rows.push(`<section class="printRow">${items}</section>`);
     }
     const css = `
@@ -153,7 +193,7 @@ function labelOnlyPrint() {
       .printRow{position:relative;width:${preset.rollW}mm;height:${pitch}mm;padding:0 ${preset.outer}mm;display:grid;grid-template-columns:repeat(${preset.columns},${preset.labelW}mm);column-gap:${preset.gapX}mm;align-items:start;break-after:page;page-break-after:always;overflow:hidden;background:#fff}
       .printRow:last-child{break-after:auto;page-break-after:auto}
       .printedLabel{position:relative!important;box-sizing:border-box!important;width:${preset.labelW}mm!important;height:${preset.labelH}mm!important;overflow:hidden!important;background:#fff!important}
-      .printedElement{position:absolute!important;display:flex!important;align-items:center!important;overflow:hidden!important;padding:0!important;line-height:1.05}
+      .printedElement{position:absolute!important;display:flex!important;align-items:center!important;overflow:hidden!important;padding:0!important;line-height:1.05!important;white-space:normal!important}
       .fieldName{margin-right:.25em}
       .fakeQr,.fakeQr.realQr{display:block!important;width:100%!important;height:100%!important;background:none!important;color:transparent!important;font-size:0!important;overflow:hidden!important}
       .fakeQr svg,.fakeQr.realQr svg{display:block!important;width:100%!important;height:100%!important;background:#fff!important}
@@ -165,7 +205,7 @@ function labelOnlyPrint() {
     popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Labels</title><style>${css}</style></head><body>${rows.join("")}</body></html>`);
     popup.document.close();
     popup.focus();
-    window.setTimeout(() => popup.print(), 120);
+    window.setTimeout(() => popup.print(), 160);
   }, 40);
 }
 
@@ -183,7 +223,7 @@ export function LabelFinalization() {
     };
     enhance();
     const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] });
     const click = (event: MouseEvent) => {
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>(".labelDesignerPage .labelTopbar .primary");
       if (!button || button.disabled || !/^Print\b/i.test(button.textContent || "")) return;
