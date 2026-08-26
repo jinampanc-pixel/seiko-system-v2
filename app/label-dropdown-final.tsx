@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 type StoredPreset = {
   id: string;
@@ -15,7 +16,30 @@ type StoredPreset = {
   locked?: boolean;
 };
 
+type SizeDraft = {
+  name: string;
+  labelW: string;
+  labelH: string;
+  rollW: string;
+  columns: string;
+  outer: string;
+  gapX: string;
+  gapY: string;
+};
+
+const emptyDraft: SizeDraft = {
+  name: "",
+  labelW: "50",
+  labelH: "25",
+  rollW: "109",
+  columns: "2",
+  outer: "3",
+  gapX: "3",
+  gapY: "3",
+};
+
 function activeBusiness() {
+  if (typeof window === "undefined") return "seiko";
   const params = new URLSearchParams(window.location.search);
   return params.get("business") || localStorage.getItem("jinam:selected-business") || "seiko";
 }
@@ -28,136 +52,18 @@ function pendingPresetKey() {
   return `jinam:${activeBusiness()}:labels:pending-preset-v1`;
 }
 
+function readCustomPresets(): StoredPreset[] {
+  try {
+    return JSON.parse(localStorage.getItem(presetStorageKey()) || "[]") as StoredPreset[];
+  } catch {
+    return [];
+  }
+}
+
 function setSelect(select: HTMLSelectElement, value: string) {
   Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, value);
   select.dispatchEvent(new Event("input", { bubbles: true }));
   select.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-function numberField(label: string, name: string, value: string) {
-  const wrapper = document.createElement("label");
-  const title = document.createElement("span");
-  title.textContent = label;
-  const input = document.createElement("input");
-  input.name = name;
-  input.type = "number";
-  input.step = "0.1";
-  input.min = name === "columns" ? "1" : "0";
-  input.value = value;
-  wrapper.append(title, input);
-  return wrapper;
-}
-
-function openDirectSizeEditor(page: HTMLElement, anchor: HTMLElement) {
-  const existing = page.querySelector<HTMLElement>(".labelDirectSizeEditor");
-  if (existing) {
-    existing.remove();
-    return;
-  }
-
-  const editor = document.createElement("form");
-  editor.className = "labelDirectSizeEditor panel";
-  editor.noValidate = true;
-
-  const head = document.createElement("div");
-  head.className = "labelDirectSizeHead";
-  const copy = document.createElement("div");
-  const title = document.createElement("h3");
-  title.textContent = "New label size";
-  const note = document.createElement("small");
-  note.textContent = "All measurements are millimetres.";
-  copy.append(title, note);
-  const close = document.createElement("button");
-  close.type = "button";
-  close.className = "labelDirectSizeClose";
-  close.textContent = "×";
-  close.setAttribute("aria-label", "Close new label size");
-  close.addEventListener("click", () => editor.remove());
-  head.append(copy, close);
-  editor.appendChild(head);
-
-  const nameLabel = document.createElement("label");
-  const nameTitle = document.createElement("span");
-  nameTitle.textContent = "Name";
-  const name = document.createElement("input");
-  name.name = "name";
-  name.type = "text";
-  name.placeholder = "e.g. 50 × 30 mm · 2 across";
-  nameLabel.append(nameTitle, name);
-
-  const fields = document.createElement("div");
-  fields.className = "labelDirectSizeFields";
-  fields.append(
-    nameLabel,
-    numberField("Label width", "labelW", "50"),
-    numberField("Label height", "labelH", "25"),
-    numberField("Roll width", "rollW", "109"),
-    numberField("Across", "columns", "2"),
-    numberField("Outer margin", "outer", "3"),
-    numberField("Horizontal gap", "gapX", "3"),
-    numberField("Vertical gap", "gapY", "3"),
-  );
-  editor.appendChild(fields);
-
-  const actions = document.createElement("div");
-  actions.className = "labelDirectSizeActions";
-  const error = document.createElement("span");
-  error.className = "labelDirectSizeError";
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.className = "secondary";
-  cancel.textContent = "Cancel";
-  cancel.addEventListener("click", () => editor.remove());
-  const save = document.createElement("button");
-  save.type = "submit";
-  save.className = "primary";
-  save.textContent = "Save size";
-  actions.append(error, cancel, save);
-  editor.appendChild(actions);
-
-  editor.addEventListener("submit", event => {
-    event.preventDefault();
-    const data = new FormData(editor);
-    const preset: StoredPreset = {
-      id: `size-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-      name: String(data.get("name") || "").trim(),
-      labelW: Number(data.get("labelW")),
-      labelH: Number(data.get("labelH")),
-      rollW: Number(data.get("rollW")),
-      columns: Math.max(1, Math.floor(Number(data.get("columns")))),
-      outer: Number(data.get("outer")),
-      gapX: Number(data.get("gapX")),
-      gapY: Number(data.get("gapY")),
-    };
-    const numeric = [preset.labelW, preset.labelH, preset.rollW, preset.columns, preset.outer, preset.gapX, preset.gapY];
-    if (!preset.name) {
-      error.textContent = "Enter a size name.";
-      name.focus();
-      return;
-    }
-    if (numeric.some(value => !Number.isFinite(value) || value < 0) || preset.labelW <= 0 || preset.labelH <= 0 || preset.rollW <= 0 || preset.columns <= 0) {
-      error.textContent = "Check the measurements.";
-      return;
-    }
-    const requiredWidth = preset.outer * 2 + preset.labelW * preset.columns + preset.gapX * Math.max(0, preset.columns - 1);
-    if (requiredWidth > preset.rollW + 0.01) {
-      error.textContent = `Needs at least ${requiredWidth.toFixed(1)} mm roll width.`;
-      return;
-    }
-    let saved: StoredPreset[] = [];
-    try { saved = JSON.parse(localStorage.getItem(presetStorageKey()) || "[]") as StoredPreset[]; } catch { saved = []; }
-    saved = saved.filter(item => item.id !== preset.id && item.name.toLowerCase() !== preset.name.toLowerCase());
-    saved.push(preset);
-    localStorage.setItem(presetStorageKey(), JSON.stringify(saved));
-    localStorage.setItem(pendingPresetKey(), preset.id);
-    window.location.reload();
-  });
-
-  anchor.insertAdjacentElement("afterend", editor);
-  window.setTimeout(() => {
-    editor.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    name.focus({ preventScroll: true });
-  }, 20);
 }
 
 function applyPendingPreset(select: HTMLSelectElement) {
@@ -166,6 +72,13 @@ function applyPendingPreset(select: HTMLSelectElement) {
   if (!Array.from(select.options).some(option => option.value === pending)) return;
   setSelect(select, pending);
   localStorage.removeItem(pendingPresetKey());
+}
+
+function removePreset(id: string, select: HTMLSelectElement) {
+  const next = readCustomPresets().filter(item => item.id !== id);
+  localStorage.setItem(presetStorageKey(), JSON.stringify(next));
+  localStorage.setItem(pendingPresetKey(), select.value === id ? "pixra-109" : select.value);
+  window.location.reload();
 }
 
 function enhanceSizeDropdown(page: HTMLElement) {
@@ -200,12 +113,6 @@ function enhanceSizeDropdown(page: HTMLElement) {
       menu.hidden = !menu.hidden;
       root!.classList.toggle("open", !menu.hidden);
     });
-    document.addEventListener("pointerdown", event => {
-      if (!root?.contains(event.target as Node)) {
-        menu.hidden = true;
-        root?.classList.remove("open");
-      }
-    });
   }
 
   const trigger = root.querySelector<HTMLButtonElement>(".labelFinalSizeTrigger")!;
@@ -217,7 +124,9 @@ function enhanceSizeDropdown(page: HTMLElement) {
   menu.replaceChildren();
   const optionsWrap = document.createElement("div");
   optionsWrap.className = "labelFinalSizeOptions";
-  Array.from(select.options).forEach((option, index) => {
+  const customIds = new Set(readCustomPresets().map(item => item.id));
+
+  Array.from(select.options).forEach(option => {
     const row = document.createElement("div");
     row.className = `labelFinalSizeOptionRow ${option.value === select.value ? "selected" : ""}`;
     const choose = document.createElement("button");
@@ -234,8 +143,7 @@ function enhanceSizeDropdown(page: HTMLElement) {
     });
     row.appendChild(choose);
 
-    const isBuiltIn = option.value === "pixra-109" || index === 0;
-    if (!isBuiltIn) {
+    if (customIds.has(option.value)) {
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "labelFinalSizeRemove";
@@ -244,10 +152,7 @@ function enhanceSizeDropdown(page: HTMLElement) {
       remove.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
-        setSelect(select, option.value);
-        window.setTimeout(() => {
-          page.querySelector<HTMLButtonElement>('.labelSetup .iconButton[aria-label="Remove selected size preset"]')?.click();
-        }, 0);
+        removePreset(option.value, select);
       });
       row.appendChild(remove);
     }
@@ -262,18 +167,15 @@ function enhanceSizeDropdown(page: HTMLElement) {
   newSize.textContent = "+ New size";
   menu.appendChild(newSize);
 
-  const oldRemove = setup.querySelector<HTMLButtonElement>('.iconButton[aria-label="Remove selected size preset"]');
-  if (oldRemove) oldRemove.classList.add("labelFinalHiddenAction");
+  setup.querySelector<HTMLButtonElement>('.iconButton[aria-label="Remove selected size preset"]')?.classList.add("labelFinalHiddenAction");
 }
 
 function hardenWorkingRow(page: HTMLElement) {
   const grid = page.querySelector<HTMLElement>(".labelSelectionPreviewGrid, .labelDesignerGrid");
   if (!grid) return;
   grid.classList.add("labelFinalWorkingRow");
-  const preview = grid.querySelector<HTMLElement>(".labelCanvasPanel");
-  const records = grid.querySelector<HTMLElement>(".labelSidebar");
-  preview?.classList.add("labelFinalPreviewCard");
-  records?.classList.add("labelFinalRecordsCard");
+  grid.querySelector<HTMLElement>(".labelCanvasPanel")?.classList.add("labelFinalPreviewCard");
+  grid.querySelector<HTMLElement>(".labelSidebar")?.classList.add("labelFinalRecordsCard");
 }
 
 function ensureDeleteTarget(page: HTMLElement) {
@@ -294,7 +196,65 @@ function enhance() {
   });
 }
 
+function SizeEditor({ draft, setDraft, error, setError, onClose }: {
+  draft: SizeDraft;
+  setDraft: (next: SizeDraft) => void;
+  error: string;
+  setError: (message: string) => void;
+  onClose: () => void;
+}) {
+  const fields = useMemo(() => [
+    ["labelW", "Label width"],
+    ["labelH", "Label height"],
+    ["rollW", "Roll width"],
+    ["columns", "Across"],
+    ["outer", "Outer margin"],
+    ["gapX", "Horizontal gap"],
+    ["gapY", "Vertical gap"],
+  ] as const, []);
+
+  const save = () => {
+    const preset: StoredPreset = {
+      id: `size-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      name: draft.name.trim(),
+      labelW: Number(draft.labelW),
+      labelH: Number(draft.labelH),
+      rollW: Number(draft.rollW),
+      columns: Math.max(1, Math.floor(Number(draft.columns))),
+      outer: Number(draft.outer),
+      gapX: Number(draft.gapX),
+      gapY: Number(draft.gapY),
+    };
+    const numeric = [preset.labelW, preset.labelH, preset.rollW, preset.columns, preset.outer, preset.gapX, preset.gapY];
+    if (!preset.name) return setError("Enter a size name.");
+    if (numeric.some(value => !Number.isFinite(value) || value < 0) || preset.labelW <= 0 || preset.labelH <= 0 || preset.rollW <= 0 || preset.columns <= 0) return setError("Check the measurements.");
+    const requiredWidth = preset.outer * 2 + preset.labelW * preset.columns + preset.gapX * Math.max(0, preset.columns - 1);
+    if (requiredWidth > preset.rollW + 0.01) return setError(`Needs at least ${requiredWidth.toFixed(1)} mm roll width.`);
+
+    const saved = readCustomPresets().filter(item => item.name.toLowerCase() !== preset.name.toLowerCase());
+    saved.push(preset);
+    localStorage.setItem(presetStorageKey(), JSON.stringify(saved));
+    localStorage.setItem(pendingPresetKey(), preset.id);
+    window.location.reload();
+  };
+
+  return createPortal(<div className="labelSizeModalBackdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <form className="labelDirectSizeEditor labelDirectSizeModal panel" onSubmit={event => { event.preventDefault(); save(); }}>
+      <div className="labelDirectSizeHead"><div><h3>New label size</h3><small>All measurements are millimetres.</small></div><button type="button" className="labelDirectSizeClose" aria-label="Close new label size" onClick={onClose}>×</button></div>
+      <div className="labelDirectSizeFields">
+        <label className="labelSizeName"><span>Name</span><input autoFocus value={draft.name} placeholder="e.g. 50 × 30 mm · 2 across" onChange={event => setDraft({ ...draft, name: event.target.value })}/></label>
+        {fields.map(([key, label]) => <label key={key}><span>{label}</span><input type="number" min={key === "columns" ? 1 : 0} step={key === "columns" ? 1 : .1} value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })}/></label>)}
+      </div>
+      <div className="labelDirectSizeActions"><span className="labelDirectSizeError">{error}</span><button type="button" className="secondary" onClick={onClose}>Cancel</button><button type="submit" className="primary">Save size</button></div>
+    </form>
+  </div>, document.body);
+}
+
 export function LabelDropdownFinal() {
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [draft, setDraft] = useState<SizeDraft>(emptyDraft);
+  const [error, setError] = useState("");
+
   useEffect(() => {
     let frame = 0;
     let dragPage: HTMLElement | null = null;
@@ -305,35 +265,37 @@ export function LabelDropdownFinal() {
       if (frame) return;
       frame = requestAnimationFrame(() => { frame = 0; enhance(); });
     };
-
-    const delegatedClick = (event: MouseEvent) => {
+    const click = (event: MouseEvent) => {
       const action = (event.target as Element | null)?.closest<HTMLElement>('[data-label-action="new-size"]');
       if (!action) return;
       event.preventDefault();
       event.stopPropagation();
-      event.stopImmediatePropagation();
-      const page = action.closest<HTMLElement>(".labelDesignerPage");
       const root = action.closest<HTMLElement>(".labelFinalSizeSelect");
-      if (!page || !root) return;
-      const menu = root.querySelector<HTMLElement>(".labelFinalSizeMenu");
+      const menu = root?.querySelector<HTMLElement>(".labelFinalSizeMenu");
       if (menu) menu.hidden = true;
-      root.classList.remove("open");
-      openDirectSizeEditor(page, root);
+      root?.classList.remove("open");
+      setError("");
+      setDraft(emptyDraft);
+      setEditorOpen(true);
     };
-
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      document.querySelectorAll<HTMLElement>(".labelFinalSizeSelect.open").forEach(root => {
+        if (root.contains(target)) return;
+        root.classList.remove("open");
+        const menu = root.querySelector<HTMLElement>(".labelFinalSizeMenu");
+        if (menu) menu.hidden = true;
+      });
+    };
     const pointerDown = (event: PointerEvent) => {
       const element = (event.target as Element | null)?.closest<HTMLElement>(".labelDesignerPage .canvasElement");
       if (!element) return;
       const page = element.closest<HTMLElement>(".labelDesignerPage");
       const target = page?.querySelector<HTMLElement>(".labelDragDeleteTarget");
       if (!page || !target) return;
-      dragPage = page;
-      dragElement = element;
-      deleteArmed = false;
-      target.classList.add("visible");
-      target.classList.remove("armed");
+      dragPage = page; dragElement = element; deleteArmed = false;
+      target.classList.add("visible"); target.classList.remove("armed");
     };
-
     const pointerMove = (event: PointerEvent) => {
       if (!dragPage || !dragElement) return;
       const target = dragPage.querySelector<HTMLElement>(".labelDragDeleteTarget");
@@ -343,29 +305,22 @@ export function LabelDropdownFinal() {
       target.classList.toggle("armed", deleteArmed);
       dragElement.classList.toggle("deleteArmed", deleteArmed);
     };
-
     const finishDrag = () => {
       if (!dragPage) return;
-      const page = dragPage;
-      const element = dragElement;
-      const armed = deleteArmed;
+      const page = dragPage, element = dragElement, armed = deleteArmed;
       const target = page.querySelector<HTMLElement>(".labelDragDeleteTarget");
-      target?.classList.remove("visible", "armed");
-      element?.classList.remove("deleteArmed");
-      dragPage = null;
-      dragElement = null;
-      deleteArmed = false;
+      target?.classList.remove("visible", "armed"); element?.classList.remove("deleteArmed");
+      dragPage = null; dragElement = null; deleteArmed = false;
       if (!armed) return;
-      window.setTimeout(() => {
-        page.querySelector<HTMLButtonElement>('.labelProperties .iconButton[aria-label="Remove selected element"]')?.click();
-      }, 0);
+      window.setTimeout(() => page.querySelector<HTMLButtonElement>('.labelProperties .iconButton[aria-label="Remove selected element"]')?.click(), 0);
     };
 
     enhance();
     const observer = new MutationObserver(schedule);
     observer.observe(document.body, { childList: true, subtree: true });
     document.addEventListener("change", schedule, true);
-    document.addEventListener("click", delegatedClick, true);
+    document.addEventListener("click", click, true);
+    document.addEventListener("pointerdown", outside, true);
     document.addEventListener("pointerdown", pointerDown, true);
     document.addEventListener("pointermove", pointerMove, true);
     document.addEventListener("pointerup", finishDrag, true);
@@ -374,7 +329,8 @@ export function LabelDropdownFinal() {
     return () => {
       observer.disconnect();
       document.removeEventListener("change", schedule, true);
-      document.removeEventListener("click", delegatedClick, true);
+      document.removeEventListener("click", click, true);
+      document.removeEventListener("pointerdown", outside, true);
       document.removeEventListener("pointerdown", pointerDown, true);
       document.removeEventListener("pointermove", pointerMove, true);
       document.removeEventListener("pointerup", finishDrag, true);
@@ -383,5 +339,6 @@ export function LabelDropdownFinal() {
       if (frame) cancelAnimationFrame(frame);
     };
   }, []);
-  return null;
+
+  return editorOpen ? <SizeEditor draft={draft} setDraft={setDraft} error={error} setError={setError} onClose={() => setEditorOpen(false)}/> : null;
 }
