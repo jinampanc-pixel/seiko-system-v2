@@ -184,16 +184,11 @@ function reorderSections(page: HTMLElement) {
   const grid = page.querySelector<HTMLElement>(".labelDesignerGrid");
   if (stack && setup && stack.firstElementChild !== setup) stack.insertBefore(setup, stack.firstElementChild);
   if (stack && info && setup && setup.nextElementSibling !== info) stack.insertBefore(info, setup.nextElementSibling);
-  if (info && grid && info.nextElementSibling !== grid) info.insertAdjacentElement("afterend", grid);
   grid?.classList.add("labelSelectionPreviewGrid");
   const canvas = grid?.querySelector<HTMLElement>(".labelCanvasPanel");
   canvas?.classList.add("labelCanvasPrimary");
 
-  const properties = grid?.querySelector<HTMLElement>(":scope > .labelProperties");
-  if (canvas && properties && properties.parentElement !== canvas) {
-    properties.classList.add("labelContextInspector");
-    canvas.appendChild(properties);
-  }
+  grid?.querySelector<HTMLElement>(":scope > .labelProperties")?.classList.add("labelContextInspector");
 }
 
 function addInlineButton(host: HTMLElement, className: string, label: string, onClick: () => void) {
@@ -254,11 +249,6 @@ function manageSetupDrawers(page: HTMLElement) {
     if (remove) remove.disabled = !page.querySelector('.labelSetup .iconButton[aria-label="Remove selected size preset"]');
   }
 
-  const sizeForm = page.querySelector<HTMLElement>(".customSize");
-  if (sizeForm) {
-    sizeForm.classList.add("labelInlineConfigurator", "labelInlineConfiguratorOpen", "labelSizeConfigurator");
-    if (setup.nextElementSibling !== sizeForm) setup.insertAdjacentElement("afterend", sizeForm);
-  }
 }
 
 function cleanCanvasChrome(page: HTMLElement) {
@@ -333,3 +323,4 @@ export function LabelDesignerPolish() {
   }, []);
   return null;
 }
+
