@@ -15,8 +15,8 @@
   top: calc(100% + 6px);
   left: 0;
   display: grid;
-  min-width: 220px;
-  max-height: 320px;
+  min-width: 260px;
+  max-height: 380px;
   overflow: auto;
   padding: 8px;
   border: 1px solid var(--line);
@@ -29,8 +29,37 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px;
+  padding: 6px 8px 6px 18px;
   font-size: 12px;
+}
+
+.columnMenuGroupHeading {
+  position: sticky;
+  top: -8px;
+  z-index: 2;
+  margin: 3px -8px 2px;
+  padding: 7px 10px 6px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  background: color-mix(in srgb, var(--paper) 96%, var(--pale));
+  color: var(--navy);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.columnMenuGroupHeading:first-child {
+  margin-top: -8px;
+  border-top: 0;
+}
+
+.columnMenuGroupedItem {
+  min-height: 31px;
+}
+
+.columnMenuGroupFirstItem {
+  padding-top: 8px !important;
 }
 
 .rowCountControl {
@@ -135,7 +164,7 @@
   white-space: nowrap;
 }
 .workspacePage > .workspaceTableHelp {
-  margin: 3px 0 2px !important;
+  display: none !important;
 }
 .workspacePagerTop {
   margin: 0 !important;
@@ -268,5 +297,9 @@
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+  .columnMenu {
+    min-width: min(300px, calc(100vw - 32px));
+    max-width: min(340px, calc(100vw - 32px));
   }
 }
