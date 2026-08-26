@@ -29,28 +29,114 @@
 .labelDesignerPage .fieldChoice{min-height:37px!important;padding:5px 7px!important}
 .labelDesignerPage .fieldChoice.fieldChoiceExpanded{padding:7px!important}
 .labelDesignerPage .customerUpdateChoice{margin-top:9px!important;padding:9px!important}
-/* In Production, derived report metrics do not belong in Product details. If an old layout already uses one, leave it visible until the owner unticks it. */
 .labelDesignerPage .fieldChoice[data-production-workspace="false"]:not(.chosen){display:none!important}
 
-/* Stable working area: label preview is the main visual, records are narrower. */
-.labelDesignerPage .labelSelectionPreviewGrid{grid-template-columns:minmax(520px,1.25fr) minmax(330px,.75fr)!important;gap:14px!important;align-items:start!important}
-.labelDesignerPage .labelCanvasPanel{grid-column:1!important;min-width:0!important;padding:14px!important}
-.labelDesignerPage .labelSidebar{grid-column:2!important;width:100%!important;max-height:440px!important;padding:14px!important}
-.labelDesignerPage .labelStageV2{display:flex!important;align-items:center!important;justify-content:center!important;width:100%!important;min-height:330px!important;padding:22px!important;overflow:hidden!important}
-.labelDesignerPage .labelCanvas[data-final-ratio-ready="true"]{width:min(100%,640px)!important;max-width:640px!important;height:auto!important;aspect-ratio:var(--final-label-ratio)!important;transform:none!important;flex:none!important}
-.labelDesignerPage .labelCanvasPanel .labelContextInspector:has(.propertyFields){margin-top:10px!important}
-.labelDesignerPage .recordList{max-height:270px!important}.labelDesignerPage .recordList .record{min-height:49px!important}
-.labelDesignerPage .elementTools{margin-top:10px!important;padding-top:10px!important}.labelDesignerPage .elementTools button{min-height:34px!important}
+/* Deterministic working row: never rely on DOM auto-placement. */
+.labelDesignerPage .labelSelectionPreviewGrid{
+  display:grid!important;
+  grid-template-columns:minmax(0,1.3fr) minmax(320px,.7fr)!important;
+  grid-template-areas:"preview records"!important;
+  grid-template-rows:minmax(470px,auto)!important;
+  gap:16px!important;
+  align-items:stretch!important;
+  width:100%!important;
+  min-width:0!important;
+  margin-top:0!important;
+}
+.labelDesignerPage .labelSelectionPreviewGrid>.labelCanvasPanel,
+.labelDesignerPage .labelSelectionPreviewGrid .labelCanvasPanel{
+  grid-area:preview!important;
+  grid-column:auto!important;
+  grid-row:auto!important;
+  align-self:stretch!important;
+  min-width:0!important;
+  min-height:470px!important;
+  height:100%!important;
+  margin:0!important;
+  padding:14px!important;
+  display:flex!important;
+  flex-direction:column!important;
+}
+.labelDesignerPage .labelSelectionPreviewGrid>.labelSidebar,
+.labelDesignerPage .labelSelectionPreviewGrid .labelSidebar{
+  grid-area:records!important;
+  grid-column:auto!important;
+  grid-row:auto!important;
+  align-self:stretch!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:470px!important;
+  height:100%!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:14px!important;
+  overflow:hidden!important;
+  display:flex!important;
+  flex-direction:column!important;
+}
+.labelDesignerPage .labelCanvasPanel .canvasToolbar{flex:0 0 auto!important}
+.labelDesignerPage .labelStageV2{
+  flex:1 1 auto!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:340px!important;
+  padding:22px!important;
+  overflow:hidden!important;
+}
+.labelDesignerPage .labelCanvas[data-final-ratio-ready="true"]{
+  width:min(100%,680px)!important;
+  max-width:680px!important;
+  height:auto!important;
+  aspect-ratio:var(--final-label-ratio)!important;
+  transform:none!important;
+  flex:none!important;
+}
+.labelDesignerPage .labelSidebar .panelHead{flex:0 0 auto!important}
+.labelDesignerPage .labelSidebar>input,.labelDesignerPage .labelSidebar .labelSearch{flex:0 0 auto!important}
+.labelDesignerPage .recordList{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:auto!important;
+  overscroll-behavior:contain;
+}
+.labelDesignerPage .recordList .record{min-height:49px!important}
+.labelDesignerPage .elementTools{flex:0 0 auto!important;margin-top:10px!important;padding-top:10px!important}
+.labelDesignerPage .elementTools button{min-height:34px!important}
+.labelDesignerPage .labelCanvasPanel .labelContextInspector:has(.propertyFields){flex:0 0 auto!important;margin-top:10px!important}
 
-/* Browser print is a safety fallback only. The primary Print button opens a label-only document. */
+/* Browser print is a safety fallback only. */
 @media print{
   html,body{margin:0!important;padding:0!important;background:#fff!important}
   body>*{display:none!important}
 }
 
-@media(max-width:900px){
+@media(max-width:1050px){
+ .labelDesignerPage .labelSelectionPreviewGrid{grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr)!important;gap:12px!important}
+}
+@media(max-width:820px){
  .labelCreateOrderChoice{grid-template-columns:1fr 1fr}.labelCreateOrderChoice>.labelCreateField:first-child{grid-column:1/-1}
- .labelDesignerPage .labelSelectionPreviewGrid{grid-template-columns:1fr!important}.labelDesignerPage .labelCanvasPanel,.labelDesignerPage .labelSidebar{grid-column:1!important}.labelDesignerPage .labelSidebar{max-height:none!important}
+ .labelDesignerPage .labelSelectionPreviewGrid{
+   grid-template-columns:minmax(0,1fr)!important;
+   grid-template-areas:"preview" "records"!important;
+   grid-template-rows:auto auto!important;
+   gap:12px!important;
+ }
+ .labelDesignerPage .labelSelectionPreviewGrid>.labelCanvasPanel,
+ .labelDesignerPage .labelSelectionPreviewGrid .labelCanvasPanel,
+ .labelDesignerPage .labelSelectionPreviewGrid>.labelSidebar,
+ .labelDesignerPage .labelSelectionPreviewGrid .labelSidebar{
+   grid-column:1!important;
+   grid-row:auto!important;
+   width:100%!important;
+   height:auto!important;
+   min-height:0!important;
+ }
+ .labelDesignerPage .labelSidebar{max-height:none!important}
+ .labelDesignerPage .recordList{max-height:360px!important}
  .labelDesignerPage .fieldChecklist{grid-template-columns:repeat(2,minmax(0,1fr))!important}
  .labelDesignerPage .labelSetup{grid-template-columns:1fr 1fr!important}
 }
@@ -63,4 +149,5 @@
  .labelDesignerPage .labelStageV2{min-height:260px!important;padding:10px!important}
  .labelDesignerPage .labelCanvas[data-final-ratio-ready="true"]{width:100%!important;max-width:100%!important}
  .labelDesignerPage .labelSetup{grid-template-columns:1fr!important}
+ .labelDesignerPage .recordList{max-height:42vh!important}
 }
