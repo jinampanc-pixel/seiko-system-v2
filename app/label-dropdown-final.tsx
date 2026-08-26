@@ -2,71 +2,170 @@
 
 import { useEffect } from "react";
 
+type StoredPreset = {
+  id: string;
+  name: string;
+  labelW: number;
+  labelH: number;
+  rollW: number;
+  columns: number;
+  outer: number;
+  gapX: number;
+  gapY: number;
+  locked?: boolean;
+};
+
+function activeBusiness() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("business") || localStorage.getItem("jinam:selected-business") || "seiko";
+}
+
+function presetStorageKey() {
+  return `jinam:${activeBusiness()}:labels:presets-v1`;
+}
+
+function pendingPresetKey() {
+  return `jinam:${activeBusiness()}:labels:pending-preset-v1`;
+}
+
 function setSelect(select: HTMLSelectElement, value: string) {
   Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, value);
   select.dispatchEvent(new Event("input", { bubbles: true }));
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function forceEditorVisible(editor: HTMLElement) {
-  editor.hidden = false;
-  editor.classList.add("labelFinalSizeEditor", "labelInlineConfigurator", "labelInlineConfiguratorOpen", "labelSizeConfigurator");
-  editor.dataset.openedFromDropdown = "true";
-  editor.style.setProperty("display", "grid", "important");
-  editor.style.setProperty("visibility", "visible", "important");
-  editor.style.setProperty("opacity", "1", "important");
-  editor.style.setProperty("position", "relative", "important");
-  editor.style.setProperty("width", "100%", "important");
-  editor.style.setProperty("height", "auto", "important");
+function numberField(label: string, name: string, value: string) {
+  const wrapper = document.createElement("label");
+  const title = document.createElement("span");
+  title.textContent = label;
+  const input = document.createElement("input");
+  input.name = name;
+  input.type = "number";
+  input.step = "0.1";
+  input.min = name === "columns" ? "1" : "0";
+  input.value = value;
+  wrapper.append(title, input);
+  return wrapper;
 }
 
-function revealSizeEditor(page: HTMLElement, anchor: HTMLElement) {
-  let attempts = 0;
-  const reveal = () => {
-    attempts += 1;
-    const editor = page.querySelector<HTMLElement>(".customSize");
-    if (!editor) {
-      if (attempts < 80) {
-        window.setTimeout(reveal, 35);
-      } else {
-        window.alert("The new-size editor could not be opened. Refresh the designer once and try again.");
-      }
+function openDirectSizeEditor(page: HTMLElement, anchor: HTMLElement) {
+  const existing = page.querySelector<HTMLElement>(".labelDirectSizeEditor");
+  if (existing) {
+    existing.remove();
+    return;
+  }
+
+  const editor = document.createElement("form");
+  editor.className = "labelDirectSizeEditor panel";
+  editor.noValidate = true;
+
+  const head = document.createElement("div");
+  head.className = "labelDirectSizeHead";
+  const copy = document.createElement("div");
+  const title = document.createElement("h3");
+  title.textContent = "New label size";
+  const note = document.createElement("small");
+  note.textContent = "All measurements are millimetres.";
+  copy.append(title, note);
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "labelDirectSizeClose";
+  close.textContent = "×";
+  close.setAttribute("aria-label", "Close new label size");
+  close.addEventListener("click", () => editor.remove());
+  head.append(copy, close);
+  editor.appendChild(head);
+
+  const nameLabel = document.createElement("label");
+  const nameTitle = document.createElement("span");
+  nameTitle.textContent = "Name";
+  const name = document.createElement("input");
+  name.name = "name";
+  name.type = "text";
+  name.placeholder = "e.g. 50 × 30 mm · 2 across";
+  nameLabel.append(nameTitle, name);
+
+  const fields = document.createElement("div");
+  fields.className = "labelDirectSizeFields";
+  fields.append(
+    nameLabel,
+    numberField("Label width", "labelW", "50"),
+    numberField("Label height", "labelH", "25"),
+    numberField("Roll width", "rollW", "109"),
+    numberField("Across", "columns", "2"),
+    numberField("Outer margin", "outer", "3"),
+    numberField("Horizontal gap", "gapX", "3"),
+    numberField("Vertical gap", "gapY", "3"),
+  );
+  editor.appendChild(fields);
+
+  const actions = document.createElement("div");
+  actions.className = "labelDirectSizeActions";
+  const error = document.createElement("span");
+  error.className = "labelDirectSizeError";
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "secondary";
+  cancel.textContent = "Cancel";
+  cancel.addEventListener("click", () => editor.remove());
+  const save = document.createElement("button");
+  save.type = "submit";
+  save.className = "primary";
+  save.textContent = "Save size";
+  actions.append(error, cancel, save);
+  editor.appendChild(actions);
+
+  editor.addEventListener("submit", event => {
+    event.preventDefault();
+    const data = new FormData(editor);
+    const preset: StoredPreset = {
+      id: `size-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      name: String(data.get("name") || "").trim(),
+      labelW: Number(data.get("labelW")),
+      labelH: Number(data.get("labelH")),
+      rollW: Number(data.get("rollW")),
+      columns: Math.max(1, Math.floor(Number(data.get("columns")))),
+      outer: Number(data.get("outer")),
+      gapX: Number(data.get("gapX")),
+      gapY: Number(data.get("gapY")),
+    };
+    const numeric = [preset.labelW, preset.labelH, preset.rollW, preset.columns, preset.outer, preset.gapX, preset.gapY];
+    if (!preset.name) {
+      error.textContent = "Enter a size name.";
+      name.focus();
       return;
     }
-    forceEditorVisible(editor);
-    if (editor.previousElementSibling !== anchor) anchor.insertAdjacentElement("afterend", editor);
-    const firstInput = editor.querySelector<HTMLInputElement>('input[type="text"],input');
-    window.setTimeout(() => {
-      forceEditorVisible(editor);
-      editor.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      firstInput?.focus({ preventScroll: true });
-    }, 30);
-  };
-  reveal();
+    if (numeric.some(value => !Number.isFinite(value) || value < 0) || preset.labelW <= 0 || preset.labelH <= 0 || preset.rollW <= 0 || preset.columns <= 0) {
+      error.textContent = "Check the measurements.";
+      return;
+    }
+    const requiredWidth = preset.outer * 2 + preset.labelW * preset.columns + preset.gapX * Math.max(0, preset.columns - 1);
+    if (requiredWidth > preset.rollW + 0.01) {
+      error.textContent = `Needs at least ${requiredWidth.toFixed(1)} mm roll width.`;
+      return;
+    }
+    let saved: StoredPreset[] = [];
+    try { saved = JSON.parse(localStorage.getItem(presetStorageKey()) || "[]") as StoredPreset[]; } catch { saved = []; }
+    saved = saved.filter(item => item.id !== preset.id && item.name.toLowerCase() !== preset.name.toLowerCase());
+    saved.push(preset);
+    localStorage.setItem(presetStorageKey(), JSON.stringify(saved));
+    localStorage.setItem(pendingPresetKey(), preset.id);
+    window.location.reload();
+  });
+
+  anchor.insertAdjacentElement("afterend", editor);
+  window.setTimeout(() => {
+    editor.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    name.focus({ preventScroll: true });
+  }, 20);
 }
 
-function openNativeSizeEditor(page: HTMLElement, anchor: HTMLElement) {
-  const trigger = page.querySelector<HTMLButtonElement>(".canvasSizeButton")
-    || Array.from(page.querySelectorAll<HTMLButtonElement>("button")).find(button => /label sizes/i.test(button.textContent || ""));
-  if (!trigger) {
-    window.alert("The label size editor is not available on this page. Refresh once and try again.");
-    return;
-  }
-
-  const existing = page.querySelector<HTMLElement>(".customSize");
-  if (existing) {
-    forceEditorVisible(existing);
-    if (existing.previousElementSibling !== anchor) anchor.insertAdjacentElement("afterend", existing);
-    existing.querySelector<HTMLInputElement>('input[type="text"],input')?.focus({ preventScroll: true });
-    return;
-  }
-
-  const wasHidden = trigger.hidden;
-  trigger.hidden = false;
-  trigger.removeAttribute("hidden");
-  trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-  window.setTimeout(() => { trigger.hidden = wasHidden; }, 0);
-  revealSizeEditor(page, anchor);
+function applyPendingPreset(select: HTMLSelectElement) {
+  const pending = localStorage.getItem(pendingPresetKey());
+  if (!pending) return;
+  if (!Array.from(select.options).some(option => option.value === pending)) return;
+  setSelect(select, pending);
+  localStorage.removeItem(pendingPresetKey());
 }
 
 function enhanceSizeDropdown(page: HTMLElement) {
@@ -77,6 +176,7 @@ function enhanceSizeDropdown(page: HTMLElement) {
   const select = sizeLabel?.querySelector<HTMLSelectElement>("select");
   if (!sizeLabel || !select) return;
 
+  applyPendingPreset(select);
   sizeLabel.querySelector(".labelSizeActions")?.remove();
   select.classList.add("labelFinalNativeSelect");
 
@@ -164,12 +264,6 @@ function enhanceSizeDropdown(page: HTMLElement) {
 
   const oldRemove = setup.querySelector<HTMLButtonElement>('.iconButton[aria-label="Remove selected size preset"]');
   if (oldRemove) oldRemove.classList.add("labelFinalHiddenAction");
-
-  const editor = page.querySelector<HTMLElement>('.customSize[data-opened-from-dropdown="true"]');
-  if (editor) {
-    forceEditorVisible(editor);
-    if (editor.previousElementSibling !== root) root.insertAdjacentElement("afterend", editor);
-  }
 }
 
 function hardenWorkingRow(page: HTMLElement) {
@@ -182,20 +276,36 @@ function hardenWorkingRow(page: HTMLElement) {
   records?.classList.add("labelFinalRecordsCard");
 }
 
+function ensureDeleteTarget(page: HTMLElement) {
+  const panel = page.querySelector<HTMLElement>(".labelCanvasPanel");
+  if (!panel || panel.querySelector(".labelDragDeleteTarget")) return;
+  const target = document.createElement("div");
+  target.className = "labelDragDeleteTarget";
+  target.setAttribute("aria-hidden", "true");
+  target.innerHTML = '<span class="labelDragDeleteIcon">×</span><b>Remove</b>';
+  panel.appendChild(target);
+}
+
 function enhance() {
   document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(page => {
     enhanceSizeDropdown(page);
     hardenWorkingRow(page);
+    ensureDeleteTarget(page);
   });
 }
 
 export function LabelDropdownFinal() {
   useEffect(() => {
     let frame = 0;
+    let dragPage: HTMLElement | null = null;
+    let dragElement: HTMLElement | null = null;
+    let deleteArmed = false;
+
     const schedule = () => {
       if (frame) return;
       frame = requestAnimationFrame(() => { frame = 0; enhance(); });
     };
+
     const delegatedClick = (event: MouseEvent) => {
       const action = (event.target as Element | null)?.closest<HTMLElement>('[data-label-action="new-size"]');
       if (!action) return;
@@ -208,7 +318,47 @@ export function LabelDropdownFinal() {
       const menu = root.querySelector<HTMLElement>(".labelFinalSizeMenu");
       if (menu) menu.hidden = true;
       root.classList.remove("open");
-      openNativeSizeEditor(page, root);
+      openDirectSizeEditor(page, root);
+    };
+
+    const pointerDown = (event: PointerEvent) => {
+      const element = (event.target as Element | null)?.closest<HTMLElement>(".labelDesignerPage .canvasElement");
+      if (!element) return;
+      const page = element.closest<HTMLElement>(".labelDesignerPage");
+      const target = page?.querySelector<HTMLElement>(".labelDragDeleteTarget");
+      if (!page || !target) return;
+      dragPage = page;
+      dragElement = element;
+      deleteArmed = false;
+      target.classList.add("visible");
+      target.classList.remove("armed");
+    };
+
+    const pointerMove = (event: PointerEvent) => {
+      if (!dragPage || !dragElement) return;
+      const target = dragPage.querySelector<HTMLElement>(".labelDragDeleteTarget");
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      deleteArmed = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+      target.classList.toggle("armed", deleteArmed);
+      dragElement.classList.toggle("deleteArmed", deleteArmed);
+    };
+
+    const finishDrag = () => {
+      if (!dragPage) return;
+      const page = dragPage;
+      const element = dragElement;
+      const armed = deleteArmed;
+      const target = page.querySelector<HTMLElement>(".labelDragDeleteTarget");
+      target?.classList.remove("visible", "armed");
+      element?.classList.remove("deleteArmed");
+      dragPage = null;
+      dragElement = null;
+      deleteArmed = false;
+      if (!armed) return;
+      window.setTimeout(() => {
+        page.querySelector<HTMLButtonElement>('.labelProperties .iconButton[aria-label="Remove selected element"]')?.click();
+      }, 0);
     };
 
     enhance();
@@ -216,11 +366,19 @@ export function LabelDropdownFinal() {
     observer.observe(document.body, { childList: true, subtree: true });
     document.addEventListener("change", schedule, true);
     document.addEventListener("click", delegatedClick, true);
+    document.addEventListener("pointerdown", pointerDown, true);
+    document.addEventListener("pointermove", pointerMove, true);
+    document.addEventListener("pointerup", finishDrag, true);
+    document.addEventListener("pointercancel", finishDrag, true);
     window.addEventListener("resize", schedule);
     return () => {
       observer.disconnect();
       document.removeEventListener("change", schedule, true);
       document.removeEventListener("click", delegatedClick, true);
+      document.removeEventListener("pointerdown", pointerDown, true);
+      document.removeEventListener("pointermove", pointerMove, true);
+      document.removeEventListener("pointerup", finishDrag, true);
+      document.removeEventListener("pointercancel", finishDrag, true);
       window.removeEventListener("resize", schedule);
       if (frame) cancelAnimationFrame(frame);
     };
