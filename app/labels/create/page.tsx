@@ -15,11 +15,11 @@ const BUSINESS_LOGOS: Record<string, string> = {
 };
 
 const SOURCE_OPTIONS: Array<{ value: SourceMode; label: string; help: string }> = [
-  { value: "person_product", label: "Person + Product", help: "One label for each person-product/workpiece identity." },
-  { value: "person", label: "Person", help: "One label representing each person or person package." },
-  { value: "product", label: "Product", help: "One label representing a product or stock summary." },
-  { value: "group", label: "Group", help: "One label for a grouped package or grouped work set." },
-  { value: "order", label: "Whole Order", help: "One label representing the complete order or outer package." },
+  { value: "person_product", label: "Each physical item", help: "One label for each person-product workpiece or individual garment/item." },
+  { value: "person", label: "Each person / package", help: "One label for each person or that person's package." },
+  { value: "product", label: "Each product / stock group", help: "One label for a product total, stock group or product-level inventory identity." },
+  { value: "group", label: "Each group / outer package", help: "One label for a grouped work set or grouped outer package." },
+  { value: "order", label: "Whole order", help: "One label representing the complete order or its outermost package." },
 ];
 
 function defaultThemeFor(businessId: string): BusinessTheme {
@@ -35,7 +35,7 @@ function defaultSourceForPurpose(purpose: LabelPurpose): SourceMode {
 }
 
 function sourceLabel(source: SourceMode) {
-  return SOURCE_OPTIONS.find(option => option.value === source)?.label || "Source";
+  return SOURCE_OPTIONS.find(option => option.value === source)?.label || "Label identity";
 }
 
 function DesignerSourceLock({ sourceMode }: { sourceMode: SourceMode }) {
@@ -49,10 +49,6 @@ function DesignerSourceLock({ sourceMode }: { sourceMode: SourceMode }) {
         return;
       }
 
-      // LabelDesigner already understands all five source modes internally.
-      // Temporarily expose the selected value to its React onChange handler,
-      // then replace the designer control with a clear locked summary so the
-      // source is changed only through Back to setup.
       if (!Array.from(select.options).some(option => option.value === sourceMode)) {
         const option = document.createElement("option");
         option.value = sourceMode;
@@ -68,7 +64,7 @@ function DesignerSourceLock({ sourceMode }: { sourceMode: SourceMode }) {
       if (!label) return;
       label.classList.add("launcherSourceLocked");
       const title = label.querySelector<HTMLElement>(":scope > span");
-      if (title) title.textContent = "Source";
+      if (title) title.textContent = "Label represents";
       let locked = label.querySelector<HTMLElement>(".designerSourceLockedValue");
       if (!locked) {
         locked = document.createElement("div");
@@ -138,9 +134,9 @@ export default function CreateLabelsPage() {
   }
 
   if (started && selectedOrder) {
-    return <div className="labelCreateApp app" style={themeVariables(theme) as CSSProperties}>
+    return <div className="labelCreateApp app" data-label-source={sourceMode} style={themeVariables(theme) as CSSProperties}>
       <div className="surface">
-        <header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/><button className="secondary" onClick={() => setStarted(false)}>Back to setup</button></header>
+        <header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>
         <DesignerSourceLock sourceMode={sourceMode} />
         <LabelDesigner businessId={businessId} order={selectedOrder} initialPurpose={purpose} canManageSizes onBack={() => setStarted(false)} />
       </div>
@@ -149,14 +145,14 @@ export default function CreateLabelsPage() {
 
   return <div className="labelCreateApp app" style={themeVariables(theme) as CSSProperties}>
     <div className="surface">
-      <header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/><button className="secondary" onClick={() => window.close()}>Close tab</button></header>
+      <header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>
       <main className="labelCreateRoute">
         <section className="labelCreateRouteHead">
-          <div><p className="eyebrow">LABEL CREATION</p><h1>Create labels</h1><p>Choose the order, decide what one label represents, then choose why the labels are being created.</p></div>
+          <div><p className="eyebrow">LABEL CREATION</p><h1>Create labels</h1><p>Choose the order, decide what one label represents, then choose why the label is needed.</p></div>
         </section>
         <section className="panel labelCreateOrderChoice">
           <label><span>1 · Order</span><select value={orderId} onChange={event => setOrderId(event.target.value)}><option value="">Choose an order…</option>{orders.map(order => <option key={order.orderId} value={order.orderId}>{order.details.orderNo} — {order.details.clientName || "Unnamed client"}</option>)}</select></label>
-          <label><span>2 · Source</span><select value={sourceMode} disabled={!selectedOrder} onChange={event => setSourceMode(event.target.value as SourceMode)}>{SOURCE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small className="labelCreateFieldHelp">{selectedOrder ? selectedSource.help : "Choose an order first."}</small></label>
+          <label><span>2 · Label represents</span><select value={sourceMode} disabled={!selectedOrder} onChange={event => setSourceMode(event.target.value as SourceMode)}>{SOURCE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small className="labelCreateFieldHelp">{selectedOrder ? selectedSource.help : "Choose an order first."}</small></label>
           <label><span>3 · Purpose</span><select value={purpose} onChange={event => changePurpose(event.target.value as LabelPurpose)}><option value="production">Production</option><option value="packing">Packing</option><option value="inventory">Inventory</option></select></label>
         </section>
         <div className="labelCreateRouteActions"><button className="primary" disabled={!selectedOrder} onClick={() => selectedOrder && setStarted(true)}>Continue to designer</button></div>
