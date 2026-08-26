@@ -21,23 +21,38 @@
 .labelBatchModuleHead h3::after{content:""}
 .labelBatchModuleList article small{line-height:1.35}
 
-.labelCreateRoute{width:min(1180px,calc(100vw - 32px));margin:0 auto;padding:28px 0 64px}
+.labelCreateApp{display:block!important;min-height:100vh;background:var(--app-background);color:var(--ink)}
+.labelCreateApp .surface{min-height:100vh;background:var(--app-background)}
+.labelCreateTopbar{height:88px;padding:10px 28px;background:#efe5d8;border-bottom:1px solid color-mix(in srgb,var(--navy) 14%,transparent);display:flex;align-items:center;justify-content:space-between;gap:18px}
+.labelCreateBrand{display:block;object-fit:contain;object-position:left center;max-width:230px;max-height:68px}
+.labelCreateBrand.logo-seiko{width:165px;height:66px}
+.labelCreateBrand.logo-veyn-health{width:220px;height:58px}
+.labelCreateBrand.logo-meth{width:175px;height:64px;mix-blend-mode:multiply}
+.labelCreateRoute{width:min(1180px,calc(100vw - 48px));margin:0 auto;padding:26px 0 64px}
 .labelCreateRouteHead{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:16px}
-.labelCreateRouteHead h1{margin:4px 0 6px;font-size:32px;color:var(--navy)}
+.labelCreateRouteHead h1{margin:4px 0 6px;font:700 32px/1.08 var(--heading-font);color:var(--navy)}
 .labelCreateRouteHead p{margin:0;color:var(--muted)}
-.labelCreateOrderChoice{display:grid;grid-template-columns:.7fr 1.8fr 1fr;gap:12px;align-items:end}
+.labelCreateOrderChoice{display:grid;grid-template-columns:1.75fr 1.25fr 1fr;gap:12px;align-items:end;background:var(--paper)}
 .labelCreateOrderChoice label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:800}
-.labelCreateOrderChoice select,.logicLockedField{min-height:42px;border:1px solid var(--line);border-radius:9px;background:var(--paper);padding:0 12px;color:var(--ink);font:600 13px/1.2 var(--ui-font);display:flex;align-items:center;justify-content:space-between}
+.labelCreateOrderChoice select,.logicLockedField{min-height:44px;border:1px solid var(--line);border-radius:9px;background:var(--paper);padding:0 12px;color:var(--ink);font:600 13px/1.2 var(--ui-font);display:flex;align-items:center;justify-content:space-between}
 .logicLockedField small{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-.labelLogicNote{margin:12px 0 0;padding:11px 13px;border-radius:9px;background:color-mix(in srgb,var(--pale) 70%,var(--paper));color:var(--muted);font-size:12px;line-height:1.45}
-.labelLogicNote b{color:var(--navy)}
+.logicLockedField.sourceWaiting{color:color-mix(in srgb,var(--muted) 65%,transparent);background:color-mix(in srgb,var(--paper) 65%,var(--app-background))}
+.logicLockedField.sourceReady{color:var(--ink)}
+.labelCreateRouteActions{display:flex;justify-content:flex-end;margin-top:12px}
+.labelCreateRouteActions .primary{min-width:190px;background:var(--navy);min-height:42px}
+.labelCreateRouteActions .primary:disabled{opacity:.4;cursor:not-allowed}
 
 @media(max-width:760px){
   .labelLauncherHead{align-items:flex-start;flex-direction:column}
   .labelLauncherHeadActions{width:100%}
   .labelLauncherHeadActions button{flex:1;min-width:0}
   .labelPurposeFilterNote,.inventoryLabelSourceNote{font-size:12px;line-height:1.4}
+  .labelCreateTopbar{height:76px;padding:8px 14px}
+  .labelCreateBrand.logo-seiko{width:145px;height:58px}
+  .labelCreateBrand.logo-veyn-health{width:180px;height:48px}
+  .labelCreateBrand.logo-meth{width:145px;height:54px}
   .labelCreateRoute{width:calc(100vw - 20px);padding-top:18px}
   .labelCreateRouteHead{align-items:flex-start;flex-direction:column}
   .labelCreateOrderChoice{grid-template-columns:1fr}
+  .labelCreateRouteActions .primary{width:100%}
 }
