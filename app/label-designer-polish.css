@@ -45,6 +45,8 @@ html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelIn
 .labelDesignerPage .fieldChoice .showName,.labelDesignerPage .fieldChoice>input,.labelDesignerPage .fieldChoice .fieldEmphasis{display:none}
 .labelDesignerPage .fieldChoice.fieldChoiceExpanded .showName,.labelDesignerPage .fieldChoice.fieldChoiceExpanded>input,.labelDesignerPage .fieldChoice.fieldChoiceExpanded .fieldEmphasis{display:flex}
 .labelDesignerPage .fieldChoice.fieldChoiceExpanded>input{display:block}
+.labelDesignerPage .fieldChoice.fieldChoiceExpanded>input[aria-label^="Printed name"]{box-sizing:border-box;grid-column:1/-1;width:100%;height:36px;min-height:36px;margin:2px 0 0;padding:0 10px;font-size:12px;line-height:1.2;background:var(--paper)}
+.labelDesignerPage .fieldChoice.fieldChoiceExpanded>.fieldEmphasis{grid-column:1/-1;width:100%;margin-top:3px;padding-top:7px}
 .labelDesignerPage .fieldChoiceOptionsToggle{height:26px;border:0;background:transparent;color:var(--navy);font-size:9px;font-weight:800}
 .labelDesignerPage .fieldChoice:not(.chosen) .fieldChoiceOptionsToggle{display:none}
 
@@ -110,3 +112,4 @@ html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelIn
   .labelDesignerPage .labelStageV2{min-height:260px}
   .labelDesignerPage .labelSizeConfigurator{grid-template-columns:1fr}
 }
+
