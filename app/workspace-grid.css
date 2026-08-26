@@ -91,6 +91,11 @@
   user-select: none;
 }
 
+.workspacePagerTop {
+  margin-top: 7px !important;
+  margin-bottom: 8px;
+}
+
 .workspaceTable td.gridSelected input,
 .workspaceTable td.gridSelected select {
   background: transparent;
