@@ -1,7 +1,13 @@
 /* Final Create Labels layout */
 .labelCreateOrderChoice{grid-template-columns:minmax(360px,1.4fr) minmax(230px,.85fr) minmax(300px,1.1fr);gap:12px;align-items:start}
+.labelCreateOrderChoice>.labelCreateField{position:relative!important;display:grid!important;grid-template-rows:20px 44px!important;row-gap:6px!important;min-width:0!important;align-items:start!important;margin:0!important;padding:0!important}
+.labelCreateOrderChoice>.labelCreateField>label{display:contents!important}
+.labelCreateOrderChoice>.labelCreateField>label>span,
+.labelCreateOrderChoice>.labelCreateField>.labelCreateFieldTitle{display:flex!important;align-items:flex-end!important;height:20px!important;min-height:20px!important;margin:0!important;padding:0!important;line-height:1!important;box-sizing:border-box!important}
+.labelCreateOrderChoice>.labelCreateField>.labelOrderSearch,
+.labelCreateOrderChoice>.labelCreateField>.labelEmbeddedSelect{grid-row:2!important;align-self:start!important;height:44px!important;margin:0!important}
 .labelCreateField{position:relative;display:grid;gap:6px;min-width:0}
-.labelCreateFieldTitle{display:block!important;min-height:22px;align-items:center}
+.labelCreateFieldTitle{display:flex!important;min-height:20px;align-items:flex-end}
 .labelManagedField{position:relative!important;display:grid!important;grid-template-columns:1fr!important;gap:6px!important;align-items:start!important}
 .labelManagedField>select{width:100%!important;padding-right:104px!important}
 .labelManagedField .labelManageButton{position:absolute!important;z-index:6;right:34px!important;top:38px!important;width:auto!important;height:24px!important;min-height:24px!important;margin:0!important;padding:0 8px!important;border:1px solid color-mix(in srgb,var(--line) 82%,transparent)!important;border-radius:6px!important;background:color-mix(in srgb,var(--pale) 82%,var(--paper))!important;color:var(--navy)!important;font-size:9px!important;font-weight:800!important;line-height:1!important}
