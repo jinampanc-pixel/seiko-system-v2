@@ -159,6 +159,8 @@ function enhanceInformation(page: HTMLElement) {
       const button = document.createElement("button"); button.type = "button"; button.textContent = label; button.dataset.category = id; if (index === 0) button.classList.add("active");
       button.addEventListener("click", () => {
         bar!.querySelectorAll("button").forEach(item => item.classList.toggle("active", item === button));
+        const classification = section.querySelector<HTMLElement>(".classificationInformation");
+        if (classification) classification.hidden = id !== "core";
         checklist.querySelectorAll<HTMLElement>(".fieldChoice").forEach(choice => {
           if (id === "style") { choice.hidden = !choice.classList.contains("chosen"); choice.classList.toggle("fieldChoiceExpanded", choice.classList.contains("chosen")); }
           else { choice.hidden = choice.dataset.readyCategory !== id; if (!choice.hidden) choice.classList.remove("fieldChoiceExpanded"); }
@@ -203,3 +205,4 @@ export function LabelProductionReady() {
   }, []);
   return null;
 }
+
