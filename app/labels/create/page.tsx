@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LabelDesigner } from "../../label-designer";
 import { orderStoreKey, type SeikoOrder } from "../../lib/order-domain";
 import { businessStorageKey, THEME_PRESETS, themeVariables, type BusinessTheme } from "../../lib/foundation";
@@ -58,7 +58,7 @@ async function loadSharedConfiguration(businessId: string): Promise<{ config: La
     const response = await fetch("/api/erp/preferences", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operation: "get", businessId, key: "labels.configuration.v2" }) });
     const result = await response.json() as PreferenceResponse;
     if (result.ok) return { config: normalizeConfig(result.data?.value), canManage: Boolean(result.data?.canManage) };
-  } catch { /* use safety copy below */ }
+  } catch { /* safety copy below */ }
   try {
     const local = JSON.parse(localStorage.getItem(preferenceKey(businessId)) || "null") as LabelConfiguration | null;
     return { config: normalizeConfig(local), canManage: false };
@@ -70,6 +70,36 @@ async function saveSharedConfiguration(businessId: string, config: LabelConfigur
   const response = await fetch("/api/erp/preferences", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operation: "set", businessId, key: "labels.configuration.v2", value: config }) });
   const result = await response.json() as PreferenceResponse;
   if (!result.ok) throw new Error(result.message || "Could not save label options.");
+}
+
+function ManagedDropdown({ value, options, disabled, canManage, manageLabel, onChange, onManage }: {
+  value: string;
+  options: Array<{ id: string; label: string }>;
+  disabled?: boolean;
+  canManage: boolean;
+  manageLabel: string;
+  onChange: (id: string) => void;
+  onManage: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const selected = options.find(item => item.id === value) || options[0];
+  useEffect(() => {
+    const outside = (event: PointerEvent) => {
+      if (root.current && !root.current.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, []);
+  return <div className={`labelEmbeddedSelect ${open ? "open" : ""}`} ref={root}>
+    <button type="button" className="labelEmbeddedSelectButton" disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(current => !current)}>
+      <span>{selected?.label || "Choose…"}</span><span className="labelEmbeddedChevron">⌄</span>
+    </button>
+    {open && <div className="labelEmbeddedMenu" role="listbox">
+      <div className="labelEmbeddedOptions">{options.map(item => <button type="button" role="option" aria-selected={item.id === value} className={item.id === value ? "selected" : ""} key={item.id} onClick={() => { onChange(item.id); setOpen(false); }}><span>{item.label}</span>{item.id === value && <b>✓</b>}</button>)}</div>
+      {canManage && <button type="button" className="labelEmbeddedManage" onClick={() => { setOpen(false); onManage(); }}>{manageLabel}</button>}
+    </div>}
+  </div>;
 }
 
 function ConfigurationEditor({ kind, config, purposeId, onChange, onClose }: { kind: "purpose" | "representation"; config: LabelConfiguration; purposeId: string; onChange: (config: LabelConfiguration) => void; onClose: () => void }) {
@@ -207,8 +237,8 @@ export default function CreateLabelsPage() {
       <section className="labelCreateRouteHead"><div><p className="eyebrow">LABEL CREATION</p><h1>Create labels</h1><p>Choose the order, choose why the label is needed, then decide what one label represents.</p></div></section>
       <section className="panel labelCreateOrderChoice">
         <div className="labelCreateField"><label><span>1 · Order</span><select value={orderId} onChange={event => setOrderId(event.target.value)}><option value="">Choose an order…</option>{orders.map(order => <option key={order.orderId} value={order.orderId}>{order.details.orderNo} — {order.details.clientName || "Unnamed client"}</option>)}</select></label></div>
-        <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>2 · Purpose</span>{canManage && <button type="button" className="labelManageButton" onClick={() => setManage(manage === "purpose" ? null : "purpose")}>Manage</button>}</div><select value={selectedPurpose.id} disabled={!selectedOrder} onChange={event => changePurpose(event.target.value)}>{purposes.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select>{manage === "purpose" && canManage && <ConfigurationEditor kind="purpose" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>
-        <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>3 · Label represents</span>{canManage && <button type="button" className="labelManageButton" onClick={() => setManage(manage === "representation" ? null : "representation")}>Manage</button>}</div><select value={selectedRepresentation.id} disabled={!selectedOrder || !representations.length} onChange={event => setRepresentationId(event.target.value)}>{representations.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select><small className="labelCreateFieldHelp">{selectedOrder ? selectedRepresentation.help : "Choose an order first."}</small>{manage === "representation" && canManage && <ConfigurationEditor kind="representation" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>
+        <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>2 · Purpose</span></div><ManagedDropdown value={selectedPurpose.id} options={purposes} disabled={!selectedOrder} canManage={canManage} manageLabel="Manage purposes…" onChange={changePurpose} onManage={() => setManage("purpose")}/>{manage === "purpose" && canManage && <ConfigurationEditor kind="purpose" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>
+        <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>3 · Label represents</span></div><ManagedDropdown value={selectedRepresentation.id} options={representations} disabled={!selectedOrder || !representations.length} canManage={canManage} manageLabel="Manage representations…" onChange={setRepresentationId} onManage={() => setManage("representation")}/>{manage === "representation" && canManage && <ConfigurationEditor kind="representation" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>
       </section>
       {saveError && <p className="labelConfigurationError">{saveError}</p>}
       <div className="labelCreateRouteActions"><button className="primary" disabled={!selectedOrder || !representations.length} onClick={() => selectedOrder && setStarted(true)}>Continue to designer</button></div>
