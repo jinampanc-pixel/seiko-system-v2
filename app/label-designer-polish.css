@@ -1,18 +1,28 @@
 .labelCreateTopbar{justify-content:flex-start}
 .labelCreateTopbar>button{display:none!important}
 .labelDesignerPage .labelTopbar .secondary{white-space:nowrap}
-.labelDesignerPage .labelTopbar .primary{min-width:120px}
-.labelDesignerPage .labelSaveBar{margin:2px 2px 4px}
-.labelDesignerPage .labelSaveMeaning{margin:0 4px 10px;color:var(--muted);font-size:10px;text-align:right}
-.labelDesignerPage .labelSaveMeaning b{color:var(--ink)}
+.labelDesignerPage .labelTopbar .primary{min-width:108px}
+.labelDesignerPage .labelSaveBar{margin:2px 2px 10px}
+.labelDesignerPage .labelSaveMeaning{display:none!important}
 
-/* Main page hierarchy: setup -> optional contextual setup -> information -> records/preview. */
-.labelDesignerPage .labelControlStack{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
-.labelDesignerPage .labelSetup{order:1;margin:0;padding:12px;grid-template-columns:minmax(220px,1.15fr) minmax(190px,.95fr) minmax(240px,1.05fr) 36px}
-.labelDesignerPage .labelInlineConfigurator.labelInlineConfiguratorOpen{order:2}
-.labelDesignerPage .simpleDesigner{order:3;margin:0;padding:12px 14px}
-.labelDesignerPage .labelSelectionPreviewGrid{order:99;width:100%}
+/* Page hierarchy: setup -> information -> working area. */
+.labelDesignerPage .labelControlStack{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.labelDesignerPage .labelSetup{order:1;margin:0;padding:14px;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
+.labelDesignerPage .labelSetup>label{min-width:0}
+.labelDesignerPage .labelSetup>label>span{min-height:14px}
+.labelDesignerPage .labelSetup select,.labelDesignerPage .designerSourceLockedValue{min-height:42px}
+.labelDesignerPage .rollSummary{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-top:2px;min-width:0}
+.labelDesignerPage .rollSummary b{white-space:nowrap}.labelDesignerPage .rollSummary small{white-space:normal}
+.labelDesignerPage .labelSetup>.iconButton{display:none!important}
+.labelDesignerPage .labelInlineActions{display:flex;align-items:center;gap:6px;margin-top:5px}
+.labelDesignerPage .labelInlineAction{height:27px;border:0;border-radius:6px;padding:0 8px;background:#eef3f5;color:var(--navy);font-size:9px;font-weight:800}
+.labelDesignerPage .labelInlineAction:disabled{opacity:.38}
+.labelDesignerPage .labelInlineConfigurator{display:none!important}
+.labelDesignerPage .labelInlineConfigurator.labelInlineConfiguratorOpen{display:grid!important;order:2;margin:0}
+.labelDesignerPage .labelSizeConfigurator{grid-template-columns:1.2fr repeat(4,1fr)}
 
+/* Label information stays useful even though the interactive canvas uses advanced coordinates. */
+.labelDesignerPage .simpleDesigner{order:3;margin:0;padding:14px}
 .labelDesignerPage .simpleDesignerHead{align-items:center}
 .labelDesignerPage .simpleDesignerHead>div{min-width:0}
 .labelDesignerPage .simpleDesignerHead h3{font-size:17px}
@@ -21,63 +31,56 @@
 .labelDesignerPage .labelInfoToggle{flex:none;min-width:190px}
 .labelDesignerPage .labelInfoCollapsed .fieldChecklist,.labelDesignerPage .labelInfoCollapsed .labelInfoTools,.labelDesignerPage .labelInfoCollapsed .customerUpdateChoice,.labelDesignerPage .labelInfoCollapsed .purposeBoundary{display:none!important}
 .labelDesignerPage .labelInfoCollapsed .simpleDesignerHead{margin:0}
+html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelInfoCollapsed) .fieldChecklist{display:grid!important}
+html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelInfoCollapsed) .customerUpdateChoice{display:flex!important}
+html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelInfoCollapsed) .purposeBoundary{display:block!important}
+.labelDesignerPage .labelInfoSelectedStrip{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.labelDesignerPage .labelInfoSelectedStrip:empty{display:none}
+.labelDesignerPage .labelInfoChip{height:27px;border:1px solid var(--line);border-radius:14px;padding:0 9px;background:color-mix(in srgb,var(--paper) 88%,var(--pale));color:var(--navy);font-size:9px;font-weight:700}
 .labelDesignerPage .labelInfoTools{margin-top:10px}
-.labelDesignerPage .labelInfoTools input{box-sizing:border-box;width:100%;height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--paper);color:var(--ink)}
-.labelDesignerPage .fieldChecklist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:8px;max-height:48vh;overflow:auto;padding-right:3px}
-.labelDesignerPage .fieldGroupHeading{grid-column:1/-1;position:sticky;top:0;z-index:2;margin:5px 0 0;padding:6px 7px;border-radius:7px;background:color-mix(in srgb,var(--paper) 94%,var(--navy));color:var(--navy);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
-.labelDesignerPage .fieldChoice{position:relative;grid-template-columns:minmax(0,1fr) auto;min-height:42px}
+.labelDesignerPage .labelInfoTools input{box-sizing:border-box;width:100%;height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--paper);color:var(--ink)}
+.labelDesignerPage .fieldChecklist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:8px;max-height:400px;overflow:auto;padding-right:3px}
+.labelDesignerPage .fieldGroupHeading{grid-column:1/-1;position:sticky;top:0;z-index:2;margin:5px 0 0;padding:7px 8px;border-radius:7px;background:color-mix(in srgb,var(--paper) 92%,var(--pale));color:var(--navy);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.labelDesignerPage .fieldChoice{position:relative;grid-template-columns:minmax(0,1fr) auto;min-height:43px}
 .labelDesignerPage .fieldChoice .showName,.labelDesignerPage .fieldChoice>input,.labelDesignerPage .fieldChoice .fieldEmphasis{display:none}
 .labelDesignerPage .fieldChoice.fieldChoiceExpanded .showName,.labelDesignerPage .fieldChoice.fieldChoiceExpanded>input,.labelDesignerPage .fieldChoice.fieldChoiceExpanded .fieldEmphasis{display:flex}
 .labelDesignerPage .fieldChoice.fieldChoiceExpanded>input{display:block}
 .labelDesignerPage .fieldChoiceOptionsToggle{height:26px;border:0;background:transparent;color:var(--navy);font-size:9px;font-weight:800}
 .labelDesignerPage .fieldChoice:not(.chosen) .fieldChoiceOptionsToggle{display:none}
 
-.labelDesignerPage .rollSummary{align-self:center;display:grid;gap:2px}
-.labelDesignerPage .rollSummary small{white-space:normal}
-.labelDesignerPage .labelSetup>.iconButton{display:none!important}
-.labelDesignerPage .labelInlineActions{display:flex;align-items:center;gap:6px;margin-top:3px}
-.labelDesignerPage .labelInlineAction{height:25px;border:0;border-radius:6px;padding:0 7px;background:#eef3f5;color:var(--navy);font-size:9px;font-weight:800}
-.labelDesignerPage .labelInlineAction:disabled{opacity:.38}
-.labelDesignerPage .labelInlineConfigurator{display:none!important}
-.labelDesignerPage .labelInlineConfigurator.labelInlineConfiguratorOpen{display:grid!important;margin:0}
-.labelDesignerPage .labelSizeConfigurator{grid-template-columns:1.2fr repeat(4,1fr)}
-
-/* Bottom working zone: preview + records. Properties only appear when an element is selected. */
-.labelDesignerPage .labelSelectionPreviewGrid{display:grid;grid-template-columns:minmax(360px,.9fr) minmax(520px,1.25fr);grid-template-rows:auto auto;gap:12px;min-height:0;margin-top:0}
-.labelDesignerPage .labelSelectionPreviewGrid .labelCanvasPanel{grid-column:1;grid-row:1;min-height:0}
-.labelDesignerPage .labelSelectionPreviewGrid .labelSidebar{grid-column:2;grid-row:1 / span 2;min-height:0;max-height:610px;overflow:hidden;display:flex;flex-direction:column}
-.labelDesignerPage .labelSelectionPreviewGrid .recordList{overflow:auto}
-.labelDesignerPage .labelSelectionPreviewGrid .labelProperties{grid-column:1;grid-row:2;min-height:0;margin-top:-2px}
-.labelDesignerPage .labelSelectionPreviewGrid .labelProperties:not(:has(.propertyFields)){display:none!important}
-.labelDesignerPage .labelSelectionPreviewGrid .labelProperties:has(.propertyFields){display:block!important;padding:10px 12px;border-top-left-radius:8px;border-top-right-radius:8px;box-shadow:none}
-.labelDesignerPage .labelSelectionPreviewGrid .labelProperties:has(.propertyFields) .panelHead{margin-bottom:8px}
-.labelDesignerPage .labelSelectionPreviewGrid .labelProperties:has(.propertyFields) .panelHead .eyebrow{font-size:9px}
-.labelDesignerPage .labelSelectionPreviewGrid .labelProperties:has(.propertyFields) .panelHead h3{font-size:14px;text-transform:capitalize}
-.labelDesignerPage .labelSelectionPreviewGrid .labelProperties:has(.propertyFields) .templateBox{display:none!important}
-.labelDesignerPage .labelCanvasPrimary{border:1px solid color-mix(in srgb,var(--navy) 18%,var(--line));box-shadow:0 10px 28px #122d3b12}
-.labelDesignerPage .canvasToolbar{padding:2px 2px 10px;flex-wrap:wrap}
-.labelDesignerPage .canvasToolbar b{font-size:13px}
-.labelDesignerPage .canvasToolbar>.canvasSizeButton{display:none!important}
-.labelDesignerPage .canvasElementResizeControls{display:flex;align-items:center;gap:5px;margin-left:auto}
-.labelDesignerPage .canvasElementResizeControls span{margin-right:3px;color:var(--muted);font-size:9px}
-.labelDesignerPage .canvasElementResizeControls button{width:30px;padding:0;font-size:18px;font-weight:700}
-.labelDesignerPage .labelStageV2{min-height:460px;padding:16px}
+/* Bottom working zone. */
+.labelDesignerPage .labelSelectionPreviewGrid{order:99;display:grid;grid-template-columns:minmax(360px,.9fr) minmax(480px,1.1fr);gap:12px;width:100%;min-height:0;margin-top:0}
+.labelDesignerPage .labelCanvasPanel{position:relative;grid-column:1;min-height:0;padding:12px}
+.labelDesignerPage .labelSidebar{grid-column:2;min-height:0;max-height:520px;overflow:hidden;display:flex;flex-direction:column}
+.labelDesignerPage .recordList{overflow:auto}
+.labelDesignerPage .labelCanvasPrimary{border:1px solid color-mix(in srgb,var(--navy) 18%,var(--line));box-shadow:0 8px 22px #122d3b10}
+.labelDesignerPage .canvasToolbar{padding:2px 2px 9px;flex-wrap:wrap}.labelDesignerPage .canvasToolbar b{font-size:13px}
+.labelDesignerPage .canvasToolbar>.canvasSizeButton,.labelDesignerPage .canvasElementResizeControls{display:none!important}
+.labelDesignerPage .labelStageV2{min-height:330px;height:auto;padding:20px;overflow:auto;background-size:16px 16px}
+.labelDesignerPage .labelCanvas{max-width:100%;box-shadow:0 8px 20px #122d3b28}
 .labelDesignerPage .canvasElement{touch-action:none}
-.labelDesignerPage .recordList .record{min-height:52px}
-.labelDesignerPage .recordList .record b{font-size:12px}
+.labelDesignerPage .recordList .record{min-height:52px}.labelDesignerPage .recordList .record b{font-size:12px}
 .labelDesignerPage .launcherSourceLocked select{display:none!important}
-.labelDesignerPage .designerSourceLockedValue{min-height:40px;border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:7px 9px;display:grid;align-content:center;gap:2px}
-.labelDesignerPage .designerSourceLockedValue b{font-size:12px;color:var(--ink)}
-.labelDesignerPage .designerSourceLockedValue small{font-size:9px;color:var(--muted)}
+.labelDesignerPage .designerSourceLockedValue{border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:7px 9px;display:grid;align-content:center;gap:2px}
+.labelDesignerPage .designerSourceLockedValue b{font-size:12px;color:var(--ink)}.labelDesignerPage .designerSourceLockedValue small{font-size:9px;color:var(--muted)}
+
+/* Contextual element inspector: only appears once an element is selected. */
+.labelDesignerPage .labelContextInspector{display:none!important}
+.labelDesignerPage .labelContextInspector:has(.propertyFields){display:block!important;position:absolute;z-index:20;top:56px;right:18px;width:min(250px,calc(100% - 36px));min-height:0!important;padding:11px;background:color-mix(in srgb,var(--paper) 97%,transparent);box-shadow:0 14px 34px #0c26342b;border-color:color-mix(in srgb,var(--navy) 22%,var(--line));backdrop-filter:blur(8px)}
+.labelDesignerPage .labelContextInspector .panelHead{padding-bottom:7px;margin-bottom:8px}
+.labelDesignerPage .labelContextInspector .panelHead .eyebrow{display:none}
+.labelDesignerPage .labelContextInspector .panelHead h3{font:700 13px var(--ui-font);text-transform:capitalize}
+.labelDesignerPage .labelContextInspector .propertyFields{gap:8px}
+.labelDesignerPage .labelContextInspector .propertyFields input,.labelDesignerPage .labelContextInspector .propertyFields select{height:34px}
+.labelDesignerPage .labelContextInspector .templateBox{display:none!important}
 
 @media(max-width:900px){
  .labelDesignerPage .labelSetup{grid-template-columns:1fr 1fr}
  .labelDesignerPage .labelSetup>label:first-child,.labelDesignerPage .rollSummary{grid-column:1/-1}
  .labelDesignerPage .fieldChecklist{grid-template-columns:repeat(2,minmax(0,1fr))}
- .labelDesignerPage .labelSelectionPreviewGrid{grid-template-columns:1fr;grid-template-rows:auto}
- .labelDesignerPage .labelSelectionPreviewGrid .labelCanvasPanel{grid-column:1;grid-row:auto;order:1}
- .labelDesignerPage .labelSelectionPreviewGrid .labelSidebar{grid-column:1;grid-row:auto;order:2;max-height:none}
- .labelDesignerPage .labelSelectionPreviewGrid .labelProperties{grid-column:1;grid-row:auto;order:3}
+ .labelDesignerPage .labelSelectionPreviewGrid{grid-template-columns:1fr}
+ .labelDesignerPage .labelCanvasPanel,.labelDesignerPage .labelSidebar{grid-column:1}
+ .labelDesignerPage .labelSidebar{max-height:none}
 }
 
 @media(max-width:750px){
@@ -86,28 +89,24 @@
   .labelDesignerPage .labelTopbar>div:last-child{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .labelDesignerPage .labelTopbar>div:last-child button{width:100%}
   .labelDesignerPage .labelSaveBar{overflow:auto;justify-content:flex-start;padding-bottom:3px}
-  .labelDesignerPage .labelSaveMeaning{text-align:left}
   .labelDesignerPage .simpleDesigner{padding:10px}
   .labelDesignerPage .simpleDesignerHead{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}
   .labelDesignerPage .labelInfoToggle{min-width:0;padding:0 10px}
-  .labelDesignerPage .fieldChecklist{grid-template-columns:1fr;max-height:52vh}
+  .labelDesignerPage .fieldChecklist{grid-template-columns:1fr;max-height:50vh}
   .labelDesignerPage .labelSelectionPreviewGrid{display:flex!important;flex-direction:column;gap:10px}
-  .labelDesignerPage .labelCanvasPanel{order:1;position:relative;padding:8px;background:var(--paper)}
+  .labelDesignerPage .labelCanvasPanel{order:1;padding:8px;background:var(--paper)}
   .labelDesignerPage .labelSidebar{order:2}
-  .labelDesignerPage .labelProperties{order:3}
-  .labelDesignerPage .labelStageV2{min-height:300px;max-height:48vh;padding:10px;overflow:auto}
+  .labelDesignerPage .labelStageV2{min-height:280px;max-height:46vh;padding:10px;overflow:auto}
   .labelDesignerPage .labelCanvas{transform:scale(.78);transform-origin:center}
-  .labelDesignerPage .canvasToolbar span{display:block;max-width:220px}
-  .labelDesignerPage .canvasElementResizeControls{width:100%;justify-content:flex-end;margin:3px 0 0}
+  .labelDesignerPage .canvasToolbar span{display:block;max-width:260px}
   .labelDesignerPage .recordList{max-height:38vh;overflow:auto}
-  .labelDesignerPage .labelSetup{grid-template-columns:1fr 1fr!important}
-  .labelDesignerPage .labelSetup>label:first-child,.labelDesignerPage .rollSummary{grid-column:1/-1}
-  .labelDesignerPage .labelSizeConfigurator{grid-template-columns:1fr 1fr}
-}
-
-@media(max-width:480px){
-  .labelDesignerPage .labelCanvas{transform:scale(.66)}
-  .labelDesignerPage .labelStageV2{min-height:270px}
   .labelDesignerPage .labelSetup{grid-template-columns:1fr!important}
+  .labelDesignerPage .rollSummary{grid-column:1;display:grid;gap:2px}
+  .labelDesignerPage .labelSizeConfigurator{grid-template-columns:1fr 1fr}
+  .labelDesignerPage .labelContextInspector:has(.propertyFields){position:fixed;left:10px;right:10px;top:auto;bottom:max(10px,env(safe-area-inset-bottom));width:auto;max-height:42vh;overflow:auto}
+}
+@media(max-width:480px){
+  .labelDesignerPage .labelCanvas{transform:scale(.68)}
+  .labelDesignerPage .labelStageV2{min-height:260px}
   .labelDesignerPage .labelSizeConfigurator{grid-template-columns:1fr}
 }
