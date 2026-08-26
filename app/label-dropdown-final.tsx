@@ -8,6 +8,35 @@ function setSelect(select: HTMLSelectElement, value: string) {
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+function revealSizeEditor(page: HTMLElement, anchor: HTMLElement) {
+  let attempts = 0;
+  const reveal = () => {
+    attempts += 1;
+    const editor = page.querySelector<HTMLElement>(".customSize");
+    if (!editor) {
+      if (attempts < 24) window.setTimeout(reveal, 35);
+      return;
+    }
+    editor.classList.add("labelFinalSizeEditor");
+    editor.dataset.openedFromDropdown = "true";
+    anchor.insertAdjacentElement("afterend", editor);
+    const firstInput = editor.querySelector<HTMLInputElement>('input[type="text"],input');
+    window.setTimeout(() => {
+      editor.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      firstInput?.focus({ preventScroll: true });
+    }, 30);
+  };
+  reveal();
+}
+
+function openNativeSizeEditor(page: HTMLElement, anchor: HTMLElement) {
+  const trigger = page.querySelector<HTMLButtonElement>(".canvasSizeButton")
+    || Array.from(page.querySelectorAll<HTMLButtonElement>("button")).find(button => /label sizes/i.test(button.textContent || ""));
+  if (!trigger) return;
+  trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  revealSizeEditor(page, anchor);
+}
+
 function enhanceSizeDropdown(page: HTMLElement) {
   const setup = page.querySelector<HTMLElement>(".labelSetup");
   if (!setup) return;
@@ -100,14 +129,18 @@ function enhanceSizeDropdown(page: HTMLElement) {
   newSize.textContent = "+ New size";
   newSize.addEventListener("click", event => {
     event.preventDefault();
+    event.stopPropagation();
     menu.hidden = true;
     root!.classList.remove("open");
-    page.querySelector<HTMLButtonElement>(".canvasSizeButton")?.click();
+    openNativeSizeEditor(page, root!);
   });
   menu.appendChild(newSize);
 
   const oldRemove = setup.querySelector<HTMLButtonElement>('.iconButton[aria-label="Remove selected size preset"]');
   if (oldRemove) oldRemove.classList.add("labelFinalHiddenAction");
+
+  const editor = page.querySelector<HTMLElement>('.customSize[data-opened-from-dropdown="true"]');
+  if (editor && editor.previousElementSibling !== root) root.insertAdjacentElement("afterend", editor);
 }
 
 function hardenWorkingRow(page: HTMLElement) {
