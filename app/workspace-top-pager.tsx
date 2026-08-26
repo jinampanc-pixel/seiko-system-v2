@@ -2,16 +2,40 @@
 
 import { useEffect } from "react";
 
+function enhanceRowCount(page: HTMLElement) {
+  const input = page.querySelector<HTMLInputElement>('.rowCountControl input[aria-label="Number of rows to add"]');
+  if (!input || input.dataset.replaceOnFocus === "true") return;
+
+  input.dataset.replaceOnFocus = "true";
+  // Number inputs do not reliably support select() across browsers. Keep the
+  // React numeric value logic, but render this control as numeric text so the
+  // existing default can be replaced in one click/keystroke.
+  input.type = "text";
+  input.inputMode = "numeric";
+  input.autocomplete = "off";
+  input.setAttribute("pattern", "[0-9]*");
+
+  const selectValue = () => requestAnimationFrame(() => input.select());
+  input.addEventListener("focus", selectValue);
+  input.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    input.focus();
+    selectValue();
+  });
+}
+
 function buildTopPager(page: HTMLElement) {
   const bottom = page.querySelector<HTMLElement>(":scope > .workspacePager:not(.workspacePagerTop)");
-  const tableHelp = page.querySelector<HTMLElement>(":scope > .workspaceTableHelp");
-  if (!bottom || !tableHelp) return;
+  const tools = page.querySelector<HTMLElement>(":scope > .workspaceTools");
+  if (!bottom || !tools) return;
 
-  let top = page.querySelector<HTMLElement>(":scope > .workspacePagerTop");
+  let top = page.querySelector<HTMLElement>(".workspacePagerTop");
   if (!top) {
     top = document.createElement("div");
     top.className = "workspacePager workspacePagerTop";
-    tableHelp.insertAdjacentElement("beforebegin", top);
+    tools.appendChild(top);
+  } else if (top.parentElement !== tools) {
+    tools.appendChild(top);
   }
 
   top.replaceChildren();
@@ -21,8 +45,6 @@ function buildTopPager(page: HTMLElement) {
       const proxy = child.cloneNode(true) as HTMLButtonElement;
       proxy.addEventListener("click", () => {
         const current = page.querySelectorAll<HTMLButtonElement>(":scope > .workspacePager:not(.workspacePagerTop) button")[index - 2];
-        // Prefer matching by visible label because the row-size label/select is
-        // also a child of the pager and shifts child indexes.
         const match = Array.from(page.querySelectorAll<HTMLButtonElement>(":scope > .workspacePager:not(.workspacePagerTop) button"))
           .find(button => button.textContent === proxy.textContent);
         (match || current)?.click();
@@ -48,8 +70,11 @@ function buildTopPager(page: HTMLElement) {
   });
 }
 
-function syncWorkspacePagers() {
-  document.querySelectorAll<HTMLElement>(".workspacePage").forEach(buildTopPager);
+function syncWorkspaceChrome() {
+  document.querySelectorAll<HTMLElement>(".workspacePage").forEach(page => {
+    enhanceRowCount(page);
+    buildTopPager(page);
+  });
 }
 
 export function WorkspaceTopPager() {
@@ -59,7 +84,7 @@ export function WorkspaceTopPager() {
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        syncWorkspacePagers();
+        syncWorkspaceChrome();
       });
     };
 
