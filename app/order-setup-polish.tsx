@@ -5,8 +5,10 @@ import { useEffect } from "react";
 function setReactInputValue(input: HTMLInputElement, value: string) {
   const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
   descriptor?.set?.call(input, value);
+  // React text inputs are driven by the input event. Do not also dispatch a
+  // change event here: the global setup polish listener treats change as a
+  // structural signal and would rebuild the measurement proxy on every key.
   input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 function setReactSelectValue(select: HTMLSelectElement, value: string) {
@@ -286,7 +288,10 @@ export function OrderSetupPolish() {
     const observer = new MutationObserver(mutations => {
       const relevant = mutations.some(mutation => {
         const target = mutation.target as HTMLElement;
-        if (target.closest?.(".sourceOwnerCombo,.productMeasurements")) return false;
+        // The hidden measurement registry's suggestion popup can mount/unmount
+        // while a product measurement proxy is being typed. That is not a
+        // structural measurement change and must not rebuild the proxy row.
+        if (target.closest?.(".sourceOwnerCombo,.productMeasurements,.measurementRegistry .suggestionInput")) return false;
         return mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0;
       });
       if (relevant) schedule();
