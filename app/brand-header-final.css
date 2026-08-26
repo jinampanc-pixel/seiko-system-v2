@@ -81,32 +81,27 @@
   mix-blend-mode:normal!important;
 }
 
-/* véyn health
-   Source artwork is 2000×2000 with the complete visible logo at
-   x=329..1619 / y=779..1046. The viewport below removes transparent canvas
-   only. It includes the full wordmark AND “where life flows”. */
+/* véyn health: the repository asset is now the exact trimmed transparent
+   lockup. No clipping, offsets, scaling tricks, or crop math are allowed. */
 .app .topbar .businessWordmark.logo-veyn-health{
-  width:250px!important;
-  height:52px!important;
-  overflow:hidden!important;
+  width:230px!important;
+  height:48px!important;
+  overflow:visible!important;
 }
 .app .topbar .businessWordmark.logo-veyn-health img{
-  position:absolute!important;
+  position:static!important;
   display:block!important;
-  width:387.30px!important;
-  height:387.30px!important;
-  max-width:none!important;
-  left:-63.69px!important;
-  top:-150.88px!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
   object-fit:contain!important;
+  object-position:left center!important;
   transform:none!important;
   mix-blend-mode:normal!important;
 }
 
-/* MeTh
-   The supplied JPEG has a white background. Multiply blending makes that
-   white behave like the header paper instead of appearing as a pasted patch.
-   The complete MeTh + HEALTHCARE APPAREL lockup remains visible. */
+/* MeTh: preserve the complete supplied lockup. Multiply makes the JPEG's
+   white canvas inherit the paper colour visually rather than look pasted on. */
 .app .topbar .businessWordmark.logo-meth{
   width:180px!important;
   height:76px!important;
@@ -147,14 +142,8 @@
   }
 
   .app .topbar .businessWordmark.logo-veyn-health{
-    width:214px!important;
-    height:45px!important;
-  }
-  .app .topbar .businessWordmark.logo-veyn-health img{
-    width:331.53px!important;
-    height:331.53px!important;
-    left:-54.53px!important;
-    top:-129.11px!important;
+    width:195px!important;
+    height:41px!important;
   }
 
   .app .topbar .businessWordmark.logo-meth{
