@@ -1,0 +1,53 @@
+/* Final Create Labels layout */
+.labelCreateOrderChoice{grid-template-columns:minmax(380px,1.45fr) minmax(220px,.8fr) minmax(280px,1fr);gap:10px;align-items:start}
+.labelCreateField{position:relative;display:grid;gap:6px;min-width:0}
+.labelCreateFieldTitle{min-height:22px;align-items:center}
+.labelManageButton{margin-left:auto!important;align-self:center!important}
+.labelOrderNativeSelect{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+.labelOrderSearch{position:relative}
+.labelOrderSearch>input{box-sizing:border-box;width:100%;height:44px;border:1px solid var(--line);border-radius:9px;padding:0 40px 0 12px;background:var(--paper);color:var(--ink);font:600 13px/1.2 var(--ui-font)}
+.labelOrderSearch>input::placeholder{color:var(--muted);font-weight:500}
+.labelOrderSearch::after{content:"⌕";position:absolute;right:12px;top:10px;color:var(--muted);font-size:17px;pointer-events:none}
+.labelOrderSearchResults{position:absolute;z-index:95;left:0;right:0;top:calc(100% + 5px);max-height:310px;overflow:auto;padding:5px;border:1px solid var(--line);border-radius:9px;background:var(--paper);box-shadow:0 16px 35px #102d4928}
+.labelOrderSearchResult{display:grid;width:100%;gap:3px;padding:9px 10px;border:0;border-radius:7px;background:transparent;color:var(--ink);text-align:left}
+.labelOrderSearchResult:hover,.labelOrderSearchResult:focus{background:var(--pale);outline:none}.labelOrderSearchResult b{font-size:12px}.labelOrderSearchResult small{color:var(--muted);font-size:10px}.labelOrderSearchEmpty{margin:0;padding:10px;color:var(--muted);font-size:11px}
+.labelManagedEditor{width:min(360px,calc(100vw - 28px))!important;gap:7px!important;padding:9px!important}
+.labelManagedRows{max-height:190px!important}.labelManagedRow input,.labelManagedAdd input,.labelManagedAdd select{height:32px!important;font-size:10px!important}.labelManagedToggle,.labelManagedRemove,.labelManagedAdd button{height:30px!important}.labelManagedAdd{grid-template-columns:minmax(0,1fr) minmax(125px,.7fr) auto!important;padding-top:7px!important}
+
+/* Compact information chooser. */
+.labelDesignerPage .simpleDesigner{padding:12px!important}
+.labelDesignerPage .labelInfoCategoryBar{margin:7px 0 6px!important}.labelDesignerPage .labelInfoCategoryBar button{height:31px!important;padding:0 10px!important;font-size:9px!important}
+.labelDesignerPage .fieldChecklist{max-height:270px!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;padding-top:7px!important}
+.labelDesignerPage .fieldChoice{min-height:37px!important;padding:5px 7px!important}
+.labelDesignerPage .fieldChoice.fieldChoiceExpanded{padding:7px!important}
+.labelDesignerPage .customerUpdateChoice{margin-top:9px!important;padding:9px!important}
+
+/* Stable working area: label preview is the main visual, records are narrower. */
+.labelDesignerPage .labelSelectionPreviewGrid{grid-template-columns:minmax(520px,1.25fr) minmax(330px,.75fr)!important;gap:14px!important;align-items:start!important}
+.labelDesignerPage .labelCanvasPanel{grid-column:1!important;min-width:0!important;padding:14px!important}
+.labelDesignerPage .labelSidebar{grid-column:2!important;width:100%!important;max-height:440px!important;padding:14px!important}
+.labelDesignerPage .labelStageV2{display:flex!important;align-items:center!important;justify-content:center!important;width:100%!important;min-height:330px!important;padding:22px!important;overflow:hidden!important}
+.labelDesignerPage .labelCanvas[data-final-ratio-ready="true"]{width:min(100%,640px)!important;max-width:640px!important;height:auto!important;aspect-ratio:var(--final-label-ratio)!important;transform:none!important;flex:none!important}
+.labelDesignerPage .labelCanvasPanel .labelContextInspector:has(.propertyFields){margin-top:10px!important}
+.labelDesignerPage .recordList{max-height:270px!important}.labelDesignerPage .recordList .record{min-height:49px!important}
+.labelDesignerPage .elementTools{margin-top:10px!important;padding-top:10px!important}.labelDesignerPage .elementTools button{min-height:34px!important}
+
+/* Browser print is a safety fallback only. The primary Print button opens a label-only document. */
+@media print{
+  html,body{margin:0!important;padding:0!important;background:#fff!important}
+  body>*{display:none!important}
+}
+
+@media(max-width:900px){
+ .labelCreateOrderChoice{grid-template-columns:1fr 1fr}.labelCreateOrderChoice>.labelCreateField:first-child{grid-column:1/-1}
+ .labelDesignerPage .labelSelectionPreviewGrid{grid-template-columns:1fr!important}.labelDesignerPage .labelCanvasPanel,.labelDesignerPage .labelSidebar{grid-column:1!important}.labelDesignerPage .labelSidebar{max-height:none!important}
+ .labelDesignerPage .fieldChecklist{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:650px){
+ .labelCreateOrderChoice{grid-template-columns:1fr}.labelCreateOrderChoice>.labelCreateField:first-child{grid-column:1}
+ .labelManagedEditor{position:fixed!important;left:10px!important;right:10px!important;bottom:max(10px,env(safe-area-inset-bottom))!important;top:auto!important;width:auto!important}
+ .labelManagedAdd{grid-template-columns:1fr!important}
+ .labelDesignerPage .fieldChecklist{grid-template-columns:1fr!important;max-height:42vh!important}
+ .labelDesignerPage .labelStageV2{min-height:260px!important;padding:10px!important}
+ .labelDesignerPage .labelCanvas[data-final-ratio-ready="true"]{width:100%!important;max-width:100%!important}
+}
