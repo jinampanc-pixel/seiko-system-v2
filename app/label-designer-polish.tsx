@@ -67,6 +67,14 @@ function refreshFieldHeadings(checklist: HTMLElement) {
   });
 }
 
+function renameShowFieldControl(choice: HTMLElement) {
+  const showName = choice.querySelector<HTMLLabelElement>(".showName");
+  if (!showName) return;
+  Array.from(showName.childNodes).forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE && /Show name/i.test(node.textContent || "")) node.textContent = " Show field name";
+  });
+}
+
 function organizeInformation(page: HTMLElement) {
   const section = page.querySelector<HTMLElement>(".simpleDesigner");
   const checklist = section?.querySelector<HTMLElement>(".fieldChecklist");
@@ -127,17 +135,15 @@ function organizeInformation(page: HTMLElement) {
       checklist.insertBefore(heading, choice);
       lastGroup = group;
     }
-    if (choice.classList.contains("chosen") && !choice.querySelector(".fieldChoiceOptionsToggle")) {
-      const options = document.createElement("button");
-      options.type = "button";
-      options.className = "fieldChoiceOptionsToggle";
-      options.textContent = "Options";
-      options.addEventListener("click", event => {
-        event.preventDefault();
-        event.stopPropagation();
-        choice.classList.toggle("fieldChoiceExpanded");
-      });
-      choice.appendChild(options);
+
+    /* Selected fields always expose their compact styling controls. The old Options
+       button created a hidden dependency where controls existed but were not visible. */
+    choice.querySelector(".fieldChoiceOptionsToggle")?.remove();
+    if (choice.classList.contains("chosen")) {
+      choice.classList.add("fieldChoiceExpanded");
+      renameShowFieldControl(choice);
+    } else {
+      choice.classList.remove("fieldChoiceExpanded");
     }
   });
   refreshFieldHeadings(checklist);
@@ -258,7 +264,7 @@ function manageSetupDrawers(page: HTMLElement) {
 function cleanCanvasChrome(page: HTMLElement) {
   page.querySelector(".canvasElementResizeControls")?.remove();
   const button = page.querySelector<HTMLButtonElement>(".canvasSizeButton");
-  if (button) button.hidden = true;
+  if (button && !button.classList.contains("labelFinalSizeManage")) button.hidden = true;
   const hint = page.querySelector<HTMLElement>(".canvasToolbar span");
   if (hint) hint.textContent = "Drag an element to move it. Use the mouse wheel on a selected element to resize it.";
 }
