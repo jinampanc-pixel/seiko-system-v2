@@ -6,16 +6,6 @@ function sourceMode() {
   return document.querySelector<HTMLElement>(".labelCreateApp")?.dataset.labelSource || "";
 }
 
-function buttonByText(root: ParentNode, text: string) {
-  return Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === text);
-}
-
-function dispatchSelect(select: HTMLSelectElement, value: string) {
-  const descriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value");
-  descriptor?.set?.call(select, value);
-  select.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
 function tidyTopActions(page: HTMLElement) {
   const back = Array.from(page.querySelectorAll<HTMLButtonElement>(".labelTopbar button.secondary"))
     .find(item => item.textContent?.includes("Back to order") || item.textContent?.includes("Back to setup"));
@@ -24,25 +14,20 @@ function tidyTopActions(page: HTMLElement) {
   const print = Array.from(page.querySelectorAll<HTMLButtonElement>(".labelTopbar button.primary"))
     .find(item => item.textContent?.includes("Print"));
   if (print) {
-    const count = print.textContent?.match(/(\d+)\s*$/)?.[1] || "";
-    print.textContent = count ? `Print · ${count}` : "Print";
+    print.textContent = "Print";
     print.title = "Print the selected labels. Your browser print dialog can also save them as PDF.";
   }
 
+  page.querySelector(".labelSaveMeaning")?.remove();
   const saveBar = page.querySelector<HTMLElement>(".labelSaveBar");
-  if (!saveBar) return;
-  Array.from(saveBar.querySelectorAll<HTMLButtonElement>("button")).forEach(button => {
-    const text = button.textContent?.trim() || "";
-    if (text.startsWith("Save batch")) button.textContent = "Save label set";
-    if (text.startsWith("Update batch")) button.textContent = "Update label set";
-    if (text.startsWith("Batches")) button.childNodes[0].textContent = "Saved sets ";
-    if (text.startsWith("Layouts")) button.childNodes[0].textContent = "Saved layouts ";
-  });
-  if (!saveBar.nextElementSibling?.classList.contains("labelSaveMeaning")) {
-    const note = document.createElement("p");
-    note.className = "labelSaveMeaning";
-    note.innerHTML = "<b>Layout</b> = reusable design, information and size. <b>Label set</b> = this order's selected records saved for reprint.";
-    saveBar.insertAdjacentElement("afterend", note);
+  if (saveBar) {
+    Array.from(saveBar.querySelectorAll<HTMLButtonElement>("button")).forEach(button => {
+      const text = button.textContent?.trim() || "";
+      if (text.startsWith("Save batch")) button.textContent = "Save label set";
+      if (text.startsWith("Update batch")) button.textContent = "Update label set";
+      if (text.startsWith("Batches")) button.childNodes[0].textContent = "Saved sets ";
+      if (text.startsWith("Layouts")) button.childNodes[0].textContent = "Saved layouts ";
+    });
   }
 
   page.querySelectorAll<HTMLElement>(".compactLibrary").forEach(library => {
@@ -74,6 +59,14 @@ function groupForLabel(label: string) {
   return "Core information";
 }
 
+function refreshFieldHeadings(checklist: HTMLElement) {
+  checklist.querySelectorAll<HTMLElement>(".fieldGroupHeading").forEach(heading => {
+    const group = heading.dataset.infoGroup;
+    const visible = Array.from(checklist.querySelectorAll<HTMLElement>(`.fieldChoice[data-info-group="${CSS.escape(group || "")}"]`)).some(choice => !choice.hidden);
+    heading.hidden = !visible;
+  });
+}
+
 function organizeInformation(page: HTMLElement) {
   const section = page.querySelector<HTMLElement>(".simpleDesigner");
   const checklist = section?.querySelector<HTMLElement>(".fieldChecklist");
@@ -85,7 +78,7 @@ function organizeInformation(page: HTMLElement) {
     const heading = section.querySelector<HTMLElement>(".simpleDesignerHead h3");
     const note = section.querySelector<HTMLElement>(".simpleDesignerHead small");
     if (heading) heading.textContent = "Label information";
-    if (note) note.textContent = "Choose only the details that need to appear on this label.";
+    if (note) note.textContent = "Choose the details that should appear on this label.";
 
     const chosenCount = () => checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
     const toggle = document.createElement("button");
@@ -98,11 +91,15 @@ function organizeInformation(page: HTMLElement) {
     });
     section.querySelector(".simpleDesignerHead")?.appendChild(toggle);
 
+    const selectedStrip = document.createElement("div");
+    selectedStrip.className = "labelInfoSelectedStrip";
+    section.querySelector(".simpleDesignerHead")?.insertAdjacentElement("afterend", selectedStrip);
+
     const tools = document.createElement("div");
     tools.className = "labelInfoTools";
     const search = document.createElement("input");
     search.type = "search";
-    search.placeholder = "Find information…";
+    search.placeholder = "Find a field or measurement…";
     search.setAttribute("aria-label", "Find label information");
     tools.appendChild(search);
     checklist.insertAdjacentElement("beforebegin", tools);
@@ -113,9 +110,6 @@ function organizeInformation(page: HTMLElement) {
         choice.hidden = !!query && !text.includes(query);
       });
       refreshFieldHeadings(checklist);
-    });
-    section.addEventListener("change", () => {
-      if (section.classList.contains("labelInfoCollapsed")) toggle.textContent = `Choose information · ${chosenCount()} selected`;
     });
   }
 
@@ -147,14 +141,34 @@ function organizeInformation(page: HTMLElement) {
     }
   });
   refreshFieldHeadings(checklist);
-}
 
-function refreshFieldHeadings(checklist: HTMLElement) {
-  checklist.querySelectorAll<HTMLElement>(".fieldGroupHeading").forEach(heading => {
-    const group = heading.dataset.infoGroup;
-    const visible = Array.from(checklist.querySelectorAll<HTMLElement>(`.fieldChoice[data-info-group="${CSS.escape(group || "")}"]`)).some(choice => !choice.hidden);
-    heading.hidden = !visible;
-  });
+  const selectedStrip = section.querySelector<HTMLElement>(".labelInfoSelectedStrip");
+  if (selectedStrip) {
+    selectedStrip.replaceChildren();
+    const selectedChoices = Array.from(checklist.querySelectorAll<HTMLElement>(".fieldChoice.chosen"));
+    selectedChoices.forEach(choice => {
+      const label = choice.querySelector("label span")?.textContent?.trim();
+      if (!label) return;
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "labelInfoChip";
+      chip.textContent = label;
+      chip.title = `Edit ${label}`;
+      chip.addEventListener("click", () => {
+        section.classList.remove("labelInfoCollapsed");
+        const toggle = section.querySelector<HTMLButtonElement>(".labelInfoToggle");
+        if (toggle) toggle.textContent = "Done";
+        choice.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+      selectedStrip.appendChild(chip);
+    });
+  }
+
+  const toggle = section.querySelector<HTMLButtonElement>(".labelInfoToggle");
+  if (toggle && section.classList.contains("labelInfoCollapsed")) {
+    const count = checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
+    toggle.textContent = `Choose information · ${count} selected`;
+  }
 }
 
 function reorderSections(page: HTMLElement) {
@@ -162,10 +176,18 @@ function reorderSections(page: HTMLElement) {
   const setup = page.querySelector<HTMLElement>(".labelSetup");
   const info = page.querySelector<HTMLElement>(".simpleDesigner");
   const grid = page.querySelector<HTMLElement>(".labelDesignerGrid");
-  if (stack && setup && info && setup.nextElementSibling !== info) stack.insertBefore(setup, info);
+  if (stack && setup && stack.firstElementChild !== setup) stack.insertBefore(setup, stack.firstElementChild);
+  if (stack && info && setup && setup.nextElementSibling !== info) stack.insertBefore(info, setup.nextElementSibling);
   if (info && grid && info.nextElementSibling !== grid) info.insertAdjacentElement("afterend", grid);
   grid?.classList.add("labelSelectionPreviewGrid");
-  grid?.querySelector<HTMLElement>(".labelCanvasPanel")?.classList.add("labelCanvasPrimary");
+  const canvas = grid?.querySelector<HTMLElement>(".labelCanvasPanel");
+  canvas?.classList.add("labelCanvasPrimary");
+
+  const properties = grid?.querySelector<HTMLElement>(":scope > .labelProperties");
+  if (canvas && properties && properties.parentElement !== canvas) {
+    properties.classList.add("labelContextInspector");
+    canvas.appendChild(properties);
+  }
 }
 
 function addInlineButton(host: HTMLElement, className: string, label: string, onClick: () => void) {
@@ -233,31 +255,16 @@ function manageSetupDrawers(page: HTMLElement) {
   }
 }
 
-function hideDuplicateSizeButton(page: HTMLElement) {
+function cleanCanvasChrome(page: HTMLElement) {
+  page.querySelector(".canvasElementResizeControls")?.remove();
   const button = page.querySelector<HTMLButtonElement>(".canvasSizeButton");
   if (button) button.hidden = true;
-}
-
-function addCanvasResizeControls(page: HTMLElement) {
-  const toolbar = page.querySelector<HTMLElement>(".canvasToolbar");
-  if (!toolbar || toolbar.querySelector(".canvasElementResizeControls")) return;
-  const controls = document.createElement("div");
-  controls.className = "canvasElementResizeControls";
-  controls.innerHTML = '<span>Selected element size</span><button type="button" aria-label="Make selected element smaller">−</button><button type="button" aria-label="Make selected element larger">+</button>';
-  const [minus, plus] = Array.from(controls.querySelectorAll<HTMLButtonElement>("button"));
-  const resize = (larger: boolean) => {
-    const selected = page.querySelector<HTMLElement>(".canvasElement.selected");
-    if (!selected) return;
-    selected.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: larger ? -100 : 100 }));
-  };
-  minus.addEventListener("click", () => resize(false));
-  plus.addEventListener("click", () => resize(true));
-  toolbar.appendChild(controls);
+  const hint = page.querySelector<HTMLElement>(".canvasToolbar span");
+  if (hint) hint.textContent = "Drag an element to move it. Use the mouse wheel on a selected element to resize it.";
 }
 
 function tidyRecordLabels(page: HTMLElement) {
   const mode = sourceMode();
-  const sidebarHeading = page.querySelector<HTMLElement>(".labelSidebar .panelHead h3");
   const eyebrow = page.querySelector<HTMLElement>(".labelSidebar .panelHead .eyebrow");
   if (eyebrow) eyebrow.textContent = "LABELS TO PRINT";
   page.querySelectorAll<HTMLElement>(".recordList .record").forEach(record => {
@@ -271,7 +278,6 @@ function tidyRecordLabels(page: HTMLElement) {
     else if (mode === "order") title.textContent = parts[0] || "Whole order";
     if (mode === "product" && meta?.textContent?.startsWith("Product total")) meta.textContent = meta.textContent.replace(/^Product total\s*·?\s*/, "");
   });
-  if (sidebarHeading && mode === "order") sidebarHeading.dataset.identityMode = "order";
 }
 
 function enhancePage(page: HTMLElement) {
@@ -280,8 +286,7 @@ function enhancePage(page: HTMLElement) {
   reorderSections(page);
   organizeInformation(page);
   manageSetupDrawers(page);
-  hideDuplicateSizeButton(page);
-  addCanvasResizeControls(page);
+  cleanCanvasChrome(page);
   tidyRecordLabels(page);
 }
 
