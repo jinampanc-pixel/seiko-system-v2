@@ -36,14 +36,19 @@ const ROLE_MODULES: Record<BusinessRole, readonly Module[]> = {
   viewer: ["home", "trace"],
 };
 
+/* These identifiers are permanently retired and must not regain UI access even
+   if stale bootstrap or membership data is returned during migration. */
+export const RETIRED_BUSINESS_IDS = new Set(["veyn-view"]);
+
 export function normalizeMembership(value: BusinessMembership): BusinessMembership {
+  if (RETIRED_BUSINESS_IDS.has(value.businessId)) return { ...value, modules: [] };
   const allowedForRole = new Set(ROLE_MODULES[value.role] || ROLE_MODULES.viewer);
   const granted = new Set(value.modules || []);
   return { ...value, modules: MODULES.filter(module => allowedForRole.has(module) && granted.has(module)) };
 }
 
 export function canAccess(membership: BusinessMembership | undefined, module: Module): boolean {
-  return Boolean(membership?.modules.includes(module));
+  return Boolean(membership && !RETIRED_BUSINESS_IDS.has(membership.businessId) && membership.modules.includes(module));
 }
 
 export function businessStorageKey(businessId: string, suffix: string): string {
