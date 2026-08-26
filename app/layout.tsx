@@ -19,6 +19,7 @@ import { OrderSetupPolish } from "./order-setup-polish";
 import { OrderSetupFinalize } from "./order-setup-finalize";
 import { OrderCompactUx } from "./order-compact-ux";
 import { ErpOrderSync } from "./erp-order-sync";
+import { WorkspaceTopPager } from "./workspace-top-pager";
 
 export const metadata: Metadata = {
   title: "Jinam Foundation",
@@ -30,5 +31,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/>{children}</body></html>;
+  return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/><WorkspaceTopPager/>{children}</body></html>;
 }
