@@ -14,12 +14,14 @@ function revealSizeEditor(page: HTMLElement, anchor: HTMLElement) {
     attempts += 1;
     const editor = page.querySelector<HTMLElement>(".customSize");
     if (!editor) {
-      if (attempts < 24) window.setTimeout(reveal, 35);
+      if (attempts < 30) window.setTimeout(reveal, 35);
       return;
     }
-    editor.classList.add("labelFinalSizeEditor");
+    editor.classList.add("labelFinalSizeEditor", "labelInlineConfigurator", "labelInlineConfiguratorOpen", "labelSizeConfigurator");
     editor.dataset.openedFromDropdown = "true";
     anchor.insertAdjacentElement("afterend", editor);
+    editor.hidden = false;
+    editor.style.removeProperty("display");
     const firstInput = editor.querySelector<HTMLInputElement>('input[type="text"],input');
     window.setTimeout(() => {
       editor.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -32,8 +34,14 @@ function revealSizeEditor(page: HTMLElement, anchor: HTMLElement) {
 function openNativeSizeEditor(page: HTMLElement, anchor: HTMLElement) {
   const trigger = page.querySelector<HTMLButtonElement>(".canvasSizeButton")
     || Array.from(page.querySelectorAll<HTMLButtonElement>("button")).find(button => /label sizes/i.test(button.textContent || ""));
-  if (!trigger) return;
-  trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  if (!trigger) {
+    window.alert("The label size editor could not be opened. Refresh once and try again.");
+    return;
+  }
+  const wasHidden = trigger.hidden;
+  trigger.hidden = false;
+  trigger.click();
+  trigger.hidden = wasHidden;
   revealSizeEditor(page, anchor);
 }
 
@@ -140,7 +148,10 @@ function enhanceSizeDropdown(page: HTMLElement) {
   if (oldRemove) oldRemove.classList.add("labelFinalHiddenAction");
 
   const editor = page.querySelector<HTMLElement>('.customSize[data-opened-from-dropdown="true"]');
-  if (editor && editor.previousElementSibling !== root) root.insertAdjacentElement("afterend", editor);
+  if (editor) {
+    editor.classList.add("labelFinalSizeEditor", "labelInlineConfiguratorOpen");
+    if (editor.previousElementSibling !== root) root.insertAdjacentElement("afterend", editor);
+  }
 }
 
 function hardenWorkingRow(page: HTMLElement) {
