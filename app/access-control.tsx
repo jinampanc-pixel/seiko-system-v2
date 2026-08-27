@@ -70,7 +70,7 @@ export function AccessProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { queueMicrotask(() => void refresh()); }, [refresh]);
 
   useEffect(() => {
     const syncBusiness = () => {
@@ -159,7 +159,7 @@ function AccessPanel({ onClose }: { onClose: () => void }) {
     finally { setLoadingUsers(false); }
   }, [businessId, can]);
 
-  useEffect(() => { if (tab === "users") void loadUsers(); }, [tab, loadUsers]);
+  useEffect(() => { if (tab === "users") queueMicrotask(() => void loadUsers()); }, [tab, loadUsers]);
 
   const permissions = permissionsForRole(membership?.role || "viewer", membership?.permissions);
   const businessName = membership?.businessName || businessId;
@@ -230,13 +230,13 @@ function MembershipEditor({ businessId, currentUser, actorRole, user, onCancel, 
   };
 
   return <div className="membershipEditorBackdrop"><div className="membershipEditor">
-    <div className="membershipEditorHead"><div><p className="eyebrow">{user ? "EDIT USER" : "NEW USER"}</p><h3>{user ? user.displayName || user.email : "Add user"}</h3></div><button className="iconButton" onClick={onCancel}>×</button></div>
+    <div className="membershipEditorHead"><div><p className="eyebrow">{user ? "EDIT USER" : "NEW USER"}</p><h3>{user ? user.displayName || user.email : "Add user"}</h3></div><button className="iconButton" onClick={onCancel} aria-label="Close user editor">×</button></div>
     {error && <div className="accessError">{error}</div>}
     <div className="membershipIdentityGrid">
-      <label><span>Name</span><input value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={ownerLocked}/></label>
-      <label><span>Email</span><input type="email" value={email} onChange={event => setEmail(event.target.value)} disabled={Boolean(user) || ownerLocked}/></label>
-      <label><span>Role preset</span><select value={role} onChange={event => applyRole(event.target.value as AccessRole)} disabled={ownerLocked}>{(["owner","admin","operations","viewer"] as AccessRole[]).filter(item => item !== "owner" || actorRole === "owner").map(item => <option key={item} value={item}>{titleRole(item)}</option>)}</select></label>
-      <label className="membershipActive"><input type="checkbox" checked={active} onChange={event => setActive(event.target.checked)} disabled={ownerLocked || (user?.email === currentUser && user?.role === "owner")}/><span>Active access</span></label>
+      <label><span>Name</span><input aria-label="User name" value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={ownerLocked}/></label>
+      <label><span>Email</span><input aria-label="User email" type="email" value={email} onChange={event => setEmail(event.target.value)} disabled={Boolean(user) || ownerLocked}/></label>
+      <label><span>Role preset</span><select aria-label="Role preset" value={role} onChange={event => applyRole(event.target.value as AccessRole)} disabled={ownerLocked}>{(["owner","admin","operations","viewer"] as AccessRole[]).filter(item => item !== "owner" || actorRole === "owner").map(item => <option key={item} value={item}>{titleRole(item)}</option>)}</select></label>
+      <label className="membershipActive"><input aria-label="Active access" type="checkbox" checked={active} onChange={event => setActive(event.target.checked)} disabled={ownerLocked || (user?.email === currentUser && user?.role === "owner")}/><span>Active access</span></label>
     </div>
     <AccessMatrix modules={modules} permissions={permissions} onModules={setModules} onPermissions={setPermissions} readOnly={ownerLocked || role === "owner"}/>
     <div className="membershipEditorActions"><button className="secondary" onClick={onCancel}>Cancel</button><button className="primary" onClick={() => void save()} disabled={saving || ownerLocked || !email.trim()}>{saving ? "Saving…" : "Save access"}</button></div>
@@ -250,8 +250,8 @@ function AccessMatrix({ modules, permissions, onModules, onPermissions, readOnly
   const toggleModule = (module: Module) => onModules?.(modules.includes(module) ? modules.filter(item => item !== module) : [...modules, module]);
   const togglePermission = (permission: Permission) => onPermissions?.(permissions.includes(permission) ? permissions.filter(item => item !== permission) : [...permissions, permission]);
   return <div className={`accessMatrix ${readOnly ? "readOnly" : ""}`}>
-    <section><h3>Modules</h3><p>Controls which parts of the system appear for this user.</p><div className="accessModuleGrid">{MODULES.filter(item => item !== "admin").map(module => <label key={module}><input type="checkbox" checked={modules.includes(module)} onChange={() => toggleModule(module)} disabled={readOnly}/><span>{module === "home" ? "Home" : module[0].toUpperCase() + module.slice(1)}</span></label>)}</div></section>
-    {groups.map(group => <section key={group}><h3>{group}</h3><div className="permissionGrid">{PERMISSION_DEFINITIONS.filter(item => item.group === group).map(item => <label key={item.key} title={item.description}><input type="checkbox" checked={permissions.includes(item.key)} onChange={() => togglePermission(item.key)} disabled={readOnly}/><span><strong>{item.label}</strong><small>{item.description}</small></span></label>)}</div></section>)}
+    <section><h3>Modules</h3><p>Controls which parts of the system appear for this user.</p><div className="accessModuleGrid">{MODULES.filter(item => item !== "admin").map(module => { const label = module === "home" ? "Home" : module[0].toUpperCase() + module.slice(1); return <label key={module} htmlFor={`access-module-${module}`}><input id={`access-module-${module}`} aria-label={`${label} module`} type="checkbox" checked={modules.includes(module)} onChange={() => toggleModule(module)} disabled={readOnly}/><span>{label}</span></label>; })}</div></section>
+    {groups.map(group => <section key={group}><h3>{group}</h3><div className="permissionGrid">{PERMISSION_DEFINITIONS.filter(item => item.group === group).map(item => <label key={item.key} htmlFor={`access-permission-${item.key}`} title={item.description}><input id={`access-permission-${item.key}`} aria-label={item.label} type="checkbox" checked={permissions.includes(item.key)} onChange={() => togglePermission(item.key)} disabled={readOnly}/><span><strong>{item.label}</strong><small>{item.description}</small></span></label>)}</div></section>)}
   </div>;
 }
 
