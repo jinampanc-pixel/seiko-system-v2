@@ -19,6 +19,7 @@ import "./order-compact-ux.css";
 import "./brand-header-final.css";
 import "./label-flow-polish.css";
 import "./label-controls.css";
+import "./label-print-safety.css";
 import "./global-navigation.css";
 import "./control-consistency.css";
 import { AppEnhancements } from "./app-enhancements";
