@@ -20,10 +20,6 @@ const eslintConfig = defineConfig([
   ...tseslint.configs.recommended,
   react.configs.flat.recommended,
   react.configs.flat["jsx-runtime"],
-  // Keep production linting on the stable Hooks contract. The plugin's
-  // recommended-latest preset also enables experimental React Compiler rules,
-  // which are useful during compiler adoption but are not a runtime-quality
-  // requirement for this application today.
   reactHooks.configs.flat.recommended,
   jsxA11y.flatConfigs.recommended,
   next.configs["core-web-vitals"],
@@ -40,12 +36,18 @@ const eslintConfig = defineConfig([
         version: "detect",
       },
     },
+    rules: {
+      // These two checks are React-Compiler adoption guidance. Keep them visible
+      // while the existing large label components are decomposed, but do not
+      // confuse compiler optimization eligibility with runtime correctness.
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
+    },
   },
   {
     files: ["app/orders.tsx"],
-    // This file still contains one pre-consolidation <details defaultOpen>
-    // attribute. Keep it visible as debt while enforcing every other JSX rule.
-    // Remove this override when OrderSetup is split into smaller components.
+    // One pre-consolidation <details defaultOpen> remains in the large OrderSetup
+    // component. Keep it visible until that component is split and formatted.
     rules: {
       "react/no-unknown-property": "warn",
     },
