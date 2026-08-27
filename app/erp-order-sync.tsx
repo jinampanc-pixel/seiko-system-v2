@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useAccess } from "./access-control";
 import { normalizeProductMeasurements, type SeikoOrder } from "./lib/order-domain";
 
 type Envelope = {
@@ -66,13 +67,20 @@ function stable(order: SeikoOrder) {
 
 /**
  * Keeps localStorage as an offline/cache layer while D1 is the shared source of truth.
- * Existing legacy orders are normalized on every read/write so shared measurement
- * definitions are split into product-owned identities before they can propagate.
+ * Reads remain available to authorized viewers. Writes/imports are attempted only
+ * when the current membership grants the corresponding order permission.
  */
 export function ErpOrderSync() {
+  const { businessId, membership, can } = useAccess();
+  const canView = Boolean(membership?.modules.includes("orders") && can("orders.view"));
+  const canCreate = can("orders.create");
+  const canEdit = can("orders.edit");
+
   useEffect(() => {
+    if (!businessId || !canView) return;
+
     let cancelled = false;
-    let activeBusiness = "";
+    const activeBusiness = businessId;
     let ready = false;
     let syncing = false;
     let retryAfter = 0;
@@ -81,10 +89,10 @@ export function ErpOrderSync() {
     const versions = new Map<string, number>();
     const lastSynced = new Map<string, string>();
 
-    const list = async (businessId: string) => callOrders<{ orders: Envelope[] }>({ operation: "list", businessId });
+    const list = async () => callOrders<{ orders: Envelope[] }>({ operation: "list", businessId: activeBusiness });
     const backOff = () => { ready = false; retryAfter = Date.now() + RETRY_BACKOFF_MS; };
 
-    const applyServer = (businessId: string, envelopes: Envelope[]) => {
+    const applyServer = (envelopes: Envelope[]) => {
       const normalizedEnvelopes = envelopes.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
       const orders = normalizedEnvelopes.map(item => item.order);
       versions.clear();
@@ -93,21 +101,21 @@ export function ErpOrderSync() {
         versions.set(item.order.orderId, item.version);
         lastSynced.set(item.order.orderId, stable(item.order));
       }
-      writeLocalOrders(businessId, orders);
+      writeLocalOrders(activeBusiness, orders);
     };
 
-    const preserveConflict = (businessId: string, order: SeikoOrder, result: ApiFailure) => {
+    const preserveConflict = (order: SeikoOrder, result: ApiFailure) => {
       try {
-        localStorage.setItem(conflictKey(businessId, order.orderId), JSON.stringify({ at: new Date().toISOString(), order, server: result.data || null }));
+        localStorage.setItem(conflictKey(activeBusiness, order.orderId), JSON.stringify({ at: new Date().toISOString(), order, server: result.data || null }));
       } catch { /* preserving the working local copy is still the priority */ }
-      window.dispatchEvent(new CustomEvent("seiko:order-sync-conflict", { detail: { businessId, orderId: order.orderId, message: result.message } }));
+      window.dispatchEvent(new CustomEvent("seiko:order-sync-conflict", { detail: { businessId: activeBusiness, orderId: order.orderId, message: result.message } }));
     };
 
-    const upsert = async (businessId: string, order: SeikoOrder, expectedVersion?: number) => {
+    const upsert = async (order: SeikoOrder, expectedVersion?: number) => {
       const normalizedOrder = normalizeProductMeasurements(order);
       const result = await callOrders<Envelope>({
         operation: "upsert",
-        businessId,
+        businessId: activeBusiness,
         order: normalizedOrder,
         expectedVersion: expectedVersion ?? null,
       });
@@ -118,15 +126,15 @@ export function ErpOrderSync() {
       return normalizedResult;
     };
 
-    const initialize = async (businessId: string) => {
+    const initialize = async () => {
       ready = false;
       syncing = true;
       versions.clear();
       lastSynced.clear();
 
-      const local = readLocalOrders(businessId);
-      let remote = await list(businessId);
-      if (cancelled || businessId !== activeBusiness) return;
+      const local = readLocalOrders(activeBusiness);
+      let remote = await list();
+      if (cancelled) return;
       if (!remote.ok) {
         syncing = false;
         backOff();
@@ -138,39 +146,41 @@ export function ErpOrderSync() {
       const serverById = new Map(envelopes.map(item => [item.order.orderId, item]));
       const missing = local.filter(order => !serverById.has(order.orderId));
 
-      if (missing.length) {
-        await callOrders({ operation: "import-local", businessId, orders: missing.map(normalizeProductMeasurements) });
-        remote = await list(businessId);
+      if (missing.length && canCreate) {
+        await callOrders({ operation: "import-local", businessId: activeBusiness, orders: missing.map(normalizeProductMeasurements) });
+        remote = await list();
         if (remote.ok) envelopes = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
       }
 
       const refreshedById = new Map(envelopes.map(item => [item.order.orderId, item]));
       let pushedOffline = false;
-      for (const localOrder of local) {
-        const server = refreshedById.get(localOrder.orderId);
-        if (!server) continue;
-        if (timestamp(localOrder.updatedAt) <= timestamp(server.updatedAt)) continue;
-        if (stable(localOrder) === stable(server.order)) continue;
-        const result = await upsert(businessId, localOrder, server.version);
-        if (result.ok) pushedOffline = true;
-        else if (result.code === "VERSION_CONFLICT") preserveConflict(businessId, localOrder, result);
+      if (canEdit) {
+        for (const localOrder of local) {
+          const server = refreshedById.get(localOrder.orderId);
+          if (!server) continue;
+          if (timestamp(localOrder.updatedAt) <= timestamp(server.updatedAt)) continue;
+          if (stable(localOrder) === stable(server.order)) continue;
+          const result = await upsert(localOrder, server.version);
+          if (result.ok) pushedOffline = true;
+          else if (result.code === "VERSION_CONFLICT") preserveConflict(localOrder, result);
+        }
       }
 
       if (pushedOffline) {
-        remote = await list(businessId);
+        remote = await list();
         if (remote.ok) envelopes = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
       }
 
-      if (cancelled || businessId !== activeBusiness) return;
-      applyServer(businessId, envelopes);
+      if (cancelled) return;
+      applyServer(envelopes);
       ready = true;
       syncing = false;
       retryAfter = 0;
-      window.dispatchEvent(new CustomEvent("seiko:erp-shared-ready", { detail: { businessId } }));
+      window.dispatchEvent(new CustomEvent("seiko:erp-shared-ready", { detail: { businessId: activeBusiness } }));
     };
 
     const pushLocalChanges = async () => {
-      if (!ready || syncing || !activeBusiness) return;
+      if (!ready || syncing) return;
       const local = readLocalOrders(activeBusiness);
       const changed = local.filter(order => lastSynced.get(order.orderId) !== stable(order));
       if (!changed.length) return;
@@ -181,14 +191,20 @@ export function ErpOrderSync() {
 
       for (const order of changed) {
         if (cancelled) break;
-        const result = await upsert(activeBusiness, order, versions.get(order.orderId));
+        const existingVersion = versions.get(order.orderId);
+        const allowed = existingVersion === undefined ? canCreate : canEdit;
+        if (!allowed) {
+          lastSynced.set(order.orderId, stable(order));
+          continue;
+        }
+        const result = await upsert(order, existingVersion);
         if (result.ok) {
           byId.set(order.orderId, result.data.order);
           localChangedByServer = true;
         } else if (result.code === "VERSION_CONFLICT") {
-          preserveConflict(activeBusiness, order, result);
+          preserveConflict(order, result);
           lastSynced.set(order.orderId, stable(order));
-        } else if (result.code === "AUTH_REQUIRED" || result.code === "ERP_DB_NOT_CONFIGURED") {
+        } else if (["AUTH_REQUIRED", "FORBIDDEN", "ERP_DB_NOT_CONFIGURED"].includes(result.code)) {
           backOff();
           break;
         }
@@ -199,38 +215,31 @@ export function ErpOrderSync() {
     };
 
     const pullRemoteChanges = async () => {
-      if (!ready || syncing || !activeBusiness) return;
+      if (!ready || syncing) return;
       const local = readLocalOrders(activeBusiness);
       const dirty = local.some(order => lastSynced.get(order.orderId) !== stable(order));
-      if (dirty) return;
+      if (dirty && (canCreate || canEdit)) return;
 
       syncing = true;
-      const remote = await list(activeBusiness);
+      const remote = await list();
       if (remote.ok) {
         const normalizedRemote = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
         const remoteFingerprint = JSON.stringify(normalizedRemote.map(item => [item.order.orderId, item.version]));
         const localFingerprint = JSON.stringify([...versions.entries()]);
-        if (remoteFingerprint !== localFingerprint) applyServer(activeBusiness, normalizedRemote);
-      } else if (remote.code === "AUTH_REQUIRED" || remote.code === "ERP_DB_NOT_CONFIGURED") {
+        if (remoteFingerprint !== localFingerprint) applyServer(normalizedRemote);
+      } else if (["AUTH_REQUIRED", "FORBIDDEN", "ERP_DB_NOT_CONFIGURED"].includes(remote.code)) {
         backOff();
       }
       syncing = false;
     };
 
-    const tickBusiness = () => {
-      const selected = localStorage.getItem("jinam:selected-business") || "seiko";
-      if (selected !== activeBusiness) {
-        activeBusiness = selected;
-        retryAfter = 0;
-        void initialize(selected);
-      } else if (!ready && !syncing && Date.now() >= retryAfter) {
-        void initialize(selected);
-      }
+    const retry = () => {
+      if (!ready && !syncing && Date.now() >= retryAfter) void initialize();
     };
 
-    tickBusiness();
+    void initialize();
     localTimer = window.setInterval(() => {
-      tickBusiness();
+      retry();
       void pushLocalChanges();
     }, LOCAL_POLL_MS);
     remoteTimer = window.setInterval(() => void pullRemoteChanges(), REMOTE_POLL_MS);
@@ -240,7 +249,7 @@ export function ErpOrderSync() {
       window.clearInterval(localTimer);
       window.clearInterval(remoteTimer);
     };
-  }, []);
+  }, [businessId, canCreate, canEdit, canView]);
 
   return null;
 }
