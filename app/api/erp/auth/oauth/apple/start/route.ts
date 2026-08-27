@@ -1,4 +1,4 @@
-import { beginOAuth, ModernAuthError } from "../../../../../lib/server-modern-auth";
+import { beginOAuth, ModernAuthError } from "../../../../../../lib/server-modern-auth";
 
 export async function GET(request: Request) {
   try {
