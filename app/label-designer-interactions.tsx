@@ -3,8 +3,8 @@
 import { useEffect } from "react";
 
 /**
- * Small interaction adapter for behaviours that must react to pointer movement
- * outside the physical label canvas. Core label data remains owned by LabelDesigner.
+ * Narrow interaction adapter for behaviours that need pointer/document scope.
+ * Label data and form state remain owned by LabelDesigner.
  */
 export function LabelDesignerInteractions() {
   useEffect(() => {
@@ -46,6 +46,73 @@ export function LabelDesignerInteractions() {
 
     const scheduleEnhance = () => {
       if (!animationFrame) animationFrame = requestAnimationFrame(enhance);
+    };
+
+    const selectedFieldCount = (section: HTMLElement) =>
+      section.querySelectorAll<HTMLInputElement>('.fieldChecklist > .fieldChoice input[type="checkbox"]:checked').length;
+
+    const toggleInformation = (button: HTMLButtonElement) => {
+      const section = button.closest<HTMLElement>(".simpleDesigner");
+      if (!section) return;
+      const collapsed = section.classList.toggle("labelInfoCollapsed");
+      button.textContent = collapsed ? `Choose information · ${selectedFieldCount(section)} selected` : "Done";
+      if (!collapsed) scheduleEnhance();
+    };
+
+    const validateSizeEditor = (editor: HTMLElement) => {
+      editor.querySelector(".labelSizeValidation")?.remove();
+      const inputs = Array.from(editor.querySelectorAll<HTMLInputElement>("input"));
+      const name = inputs.find(input => input.type === "text");
+      const numeric = inputs.filter(input => input.type === "number");
+      let message = "";
+
+      if (!name?.value.trim()) message = "Give this label size a name.";
+      else if (numeric.some(input => !Number.isFinite(Number(input.value)) || Number(input.value) < 0)) message = "Enter valid measurements before saving.";
+      else if (numeric.slice(0, 4).some(input => Number(input.value) <= 0)) message = "Width, height, roll width and Across must be greater than zero.";
+
+      if (!message) return true;
+
+      const note = document.createElement("p");
+      note.className = "labelSizeValidation";
+      note.setAttribute("role", "alert");
+      note.textContent = message;
+      editor.querySelector(".customSizeActions")?.insertAdjacentElement("beforebegin", note);
+      if (!name?.value.trim()) name?.focus();
+      return false;
+    };
+
+    const handleControlClick = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (!target) return;
+
+      const infoToggle = target.closest<HTMLButtonElement>(".labelDesignerPage .labelInfoToggle");
+      if (infoToggle) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        toggleInformation(infoToggle);
+        return;
+      }
+
+      const sizeAction = target.closest<HTMLButtonElement>(".labelDesignerPage .customSizeActions button");
+      if (!sizeAction) return;
+      const editor = sizeAction.closest<HTMLElement>(".customSize");
+      if (!editor) return;
+
+      const isSave = sizeAction.classList.contains("primary");
+      if (isSave && !validateSizeEditor(editor)) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return;
+      }
+
+      // React owns showSizes/createSize. Because this editor is visually relocated,
+      // remove the relocated DOM node after React has processed the click so an
+      // orphan cannot remain visible after Cancel or Save.
+      window.setTimeout(() => {
+        if (editor.isConnected) editor.remove();
+      }, 0);
     };
 
     const setDeleteState = (target: HTMLElement, armed: boolean) => {
@@ -109,8 +176,7 @@ export function LabelDesignerInteractions() {
 
       if (!shouldRemove) return;
 
-      // Use LabelDesigner's own remove action so items, saved layouts and print data
-      // all update through the same React state path.
+      // Use LabelDesigner's own remove action so layouts and print state stay in sync.
       window.setTimeout(() => {
         page.querySelector<HTMLButtonElement>('.labelProperties .iconButton[aria-label="Remove selected element"]')?.click();
       }, 0);
@@ -119,6 +185,7 @@ export function LabelDesignerInteractions() {
     enhance();
     const observer = new MutationObserver(scheduleEnhance);
     observer.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener("click", handleControlClick, true);
     document.addEventListener("pointerdown", beginDrag, true);
     document.addEventListener("pointermove", updateDrag, true);
     document.addEventListener("pointerup", finishDrag, true);
@@ -126,6 +193,7 @@ export function LabelDesignerInteractions() {
 
     return () => {
       observer.disconnect();
+      document.removeEventListener("click", handleControlClick, true);
       document.removeEventListener("pointerdown", beginDrag, true);
       document.removeEventListener("pointermove", updateDrag, true);
       document.removeEventListener("pointerup", finishDrag, true);
