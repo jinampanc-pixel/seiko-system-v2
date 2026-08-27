@@ -22,7 +22,9 @@ import "./label-controls.css";
 import "./label-print-safety.css";
 import "./global-navigation.css";
 import "./control-consistency.css";
+import "./access-control.css";
 import { AppEnhancements } from "./app-enhancements";
+import { AccessProvider } from "./access-control";
 
 export const metadata: Metadata = {
   title: "Jinam Foundation",
@@ -34,5 +36,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><AppEnhancements />{children}</body></html>;
+  return <html lang="en"><body><AccessProvider><AppEnhancements />{children}</AccessProvider></body></html>;
 }
