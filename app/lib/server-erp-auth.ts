@@ -1,11 +1,14 @@
 import { env } from "cloudflare:workers";
 import { parseAccessConfig, permissionsForRole, type AccessRole, type Permission } from "./access-control";
+import { getSessionIdentity } from "./server-password-auth";
 
 export type Actor = {
   userId: string;
   email: string;
   displayName: string;
-  source: "chatgpt" | "cloudflare-access";
+  source: "erp-session" | "chatgpt" | "cloudflare-access";
+  mustChangePassword?: boolean;
+  sessionId?: string;
 };
 
 export type Membership = {
@@ -30,6 +33,19 @@ const membershipCache = new Map<string, { expires: number; memberships: Membersh
 const keyCache = new Map<string, { expires: number; keys: JsonWebKey[] }>();
 
 export async function authenticateActor(request: Request): Promise<Actor | null> {
+  const session = await getSessionIdentity(request);
+  if (session) {
+    return {
+      userId: session.userId,
+      email: session.email,
+      displayName: session.displayName,
+      source: "erp-session",
+      mustChangePassword: session.mustChangePassword,
+      sessionId: session.sessionId,
+    };
+  }
+
+  // Trusted platform identity remains available for the owner/bootstrap path.
   const chatGptUserId = request.headers.get("oai-authenticated-user-id")?.trim();
   const chatGptEmail = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
   if (chatGptUserId && chatGptEmail) {
@@ -64,6 +80,7 @@ export async function authorizeBusiness(
   businessId: string,
   required: "read" | "write" | "admin" = "read",
 ): Promise<Membership | null> {
+  if (actor.mustChangePassword) return null;
   const memberships = await getActorMemberships(actor);
   const membership = memberships.find(item => item.businessId === businessId);
   if (!membership) return null;
@@ -74,6 +91,7 @@ export async function authorizeBusiness(
 }
 
 export async function authorizePermission(actor: Actor, businessId: string, permission: Permission): Promise<Membership | null> {
+  if (actor.mustChangePassword) return null;
   const memberships = await getActorMemberships(actor);
   const membership = memberships.find(item => item.businessId === businessId);
   return membership && hasPermission(membership, permission) ? membership : null;
