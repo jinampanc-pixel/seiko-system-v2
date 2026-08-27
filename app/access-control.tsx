@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { createPortal } from "react-dom";
 import { MODULES, type BusinessMembership, type FoundationBootstrap, type Module } from "./lib/foundation";
 import { PERMISSION_DEFINITIONS, ROLE_PERMISSION_PRESETS, permissionsForRole, type AccessRole, type Permission } from "./lib/access-control";
+import { ModernAccountMethods, ModernLoginOptions } from "./modern-auth-ui";
 
 type SessionState = {
   user: FoundationBootstrap["user"];
@@ -183,13 +184,16 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
       <h1>{heading}</h1>
       <p>{message}</p>
 
-      {status === "signed-out" && <form className="erpLoginForm" onSubmit={event => { event.preventDefault(); void signIn(); }}>
-        <label><span>Email or phone</span><input autoComplete="username" value={identifier} onChange={event => setIdentifier(event.target.value)} placeholder="Email or mobile number"/></label>
-        <label><span>Password</span><input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Password"/></label>
-        {formError && <div className="accessError" role="alert">{formError}</div>}
-        <button className="primary" type="submit" disabled={busy || !identifier.trim() || !password}>{busy ? "Signing in…" : "Sign in"}</button>
-        <small className="accessLoginHelp">Your administrator creates your account and initial password. Users not listed in the ERP cannot sign in.</small>
-      </form>}
+      {status === "signed-out" && <>
+        <form className="erpLoginForm" onSubmit={event => { event.preventDefault(); void signIn(); }}>
+          <label><span>Email or phone</span><input autoComplete="username" value={identifier} onChange={event => setIdentifier(event.target.value)} placeholder="Email or mobile number"/></label>
+          <label><span>Password</span><input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Password"/></label>
+          {formError && <div className="accessError" role="alert">{formError}</div>}
+          <button className="primary" type="submit" disabled={busy || !identifier.trim() || !password}>{busy ? "Signing in…" : "Sign in"}</button>
+          <small className="accessLoginHelp">Your administrator creates your account and initial password. Users not listed in the ERP cannot sign in.</small>
+        </form>
+        <ModernLoginOptions onSignedIn={onRetry}/>
+      </>}
 
       {status === "change-password" && <form className="erpLoginForm" onSubmit={event => { event.preventDefault(); void changePassword(); }}>
         <label><span>New password</span><input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="At least 12 characters"/></label>
@@ -250,6 +254,7 @@ function AccessPanel({ onClose }: { onClose: () => void }) {
 
       {tab === "mine" && <div className="accessPanelBody">
         <div className="accessSummary"><div><small>Role</small><strong>{titleRole(membership?.role || "viewer")}</strong></div><div><small>Business</small><strong>{businessName}</strong></div></div>
+        <ModernAccountMethods/>
         <AccessMatrix modules={membership?.modules || []} permissions={permissions} readOnly/>
         <div className="accessSessionActions"><button className="secondary" onClick={() => void signOut(false)}>Sign out</button><button className="secondary" onClick={() => void signOut(true)}>Sign out all devices</button></div>
       </div>}
