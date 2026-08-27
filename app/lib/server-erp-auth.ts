@@ -1,16 +1,18 @@
 import { env } from "cloudflare:workers";
+import { parseAccessConfig, permissionsForRole, type AccessRole, type Permission } from "./access-control";
 
-type Actor = {
+export type Actor = {
   userId: string;
   email: string;
   displayName: string;
   source: "chatgpt" | "cloudflare-access";
 };
 
-type Membership = {
+export type Membership = {
   businessId: string;
-  role: "owner" | "admin" | "operations" | "viewer";
+  role: AccessRole;
   modules?: string[];
+  permissions?: Permission[];
 };
 
 type AccessPayload = {
@@ -43,55 +45,42 @@ export async function authenticateActor(request: Request): Promise<Actor | null>
   return authenticateCloudflareAccess(request);
 }
 
+export async function getActorMemberships(actor: Actor): Promise<Membership[]> {
+  const cacheKey = `${actor.userId}:${actor.email}`;
+  const cached = membershipCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) return cached.memberships;
+
+  const memberships = await membershipsFromD1(actor);
+  membershipCache.set(cacheKey, { expires: Date.now() + 15_000, memberships });
+  return memberships;
+}
+
+export function clearMembershipCache() {
+  membershipCache.clear();
+}
+
 export async function authorizeBusiness(
   actor: Actor,
   businessId: string,
   required: "read" | "write" | "admin" = "read",
 ): Promise<Membership | null> {
-  const memberships = await membershipsForActor(actor);
+  const memberships = await getActorMemberships(actor);
   const membership = memberships.find(item => item.businessId === businessId);
   if (!membership) return null;
 
-  if (required === "admin" && membership.role !== "owner" && membership.role !== "admin") return null;
+  if (required === "admin" && !hasPermission(membership, "settings.manage") && !hasPermission(membership, "users.manage")) return null;
   if (required === "write" && membership.role === "viewer") return null;
   return membership;
 }
 
-async function membershipsForActor(actor: Actor): Promise<Membership[]> {
-  const cacheKey = `${actor.userId}:${actor.email}`;
-  const cached = membershipCache.get(cacheKey);
-  if (cached && cached.expires > Date.now()) return cached.memberships;
+export async function authorizePermission(actor: Actor, businessId: string, permission: Permission): Promise<Membership | null> {
+  const memberships = await getActorMemberships(actor);
+  const membership = memberships.find(item => item.businessId === businessId);
+  return membership && hasPermission(membership, permission) ? membership : null;
+}
 
-  const fromD1 = await membershipsFromD1(actor);
-  if (fromD1.length) {
-    membershipCache.set(cacheKey, { expires: Date.now() + 60_000, memberships: fromD1 });
-    return fromD1;
-  }
-
-  // Temporary compatibility fallback while existing businesses are migrated.
-  // Once all memberships are confirmed in D1 this can be removed cleanly.
-  const upstream = process.env.SEIKO_APPS_SCRIPT_URL;
-  const apiKey = process.env.SEIKO_API_KEY;
-  if (!upstream || !apiKey) return [];
-
-  const response = await fetch(upstream, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      action: "foundationBootstrap",
-      businessId: null,
-      payload: {},
-      actor: { userId: actor.userId, email: actor.email },
-      apiKey,
-    }),
-    cache: "no-store",
-  });
-  if (!response.ok) return [];
-
-  const result = await response.json() as { ok?: boolean; data?: { businesses?: Membership[] } };
-  const memberships = result.ok && Array.isArray(result.data?.businesses) ? result.data!.businesses! : [];
-  membershipCache.set(cacheKey, { expires: Date.now() + 60_000, memberships });
-  return memberships;
+export function hasPermission(membership: Membership, permission: Permission): boolean {
+  return permissionsForRole(membership.role, membership.permissions).includes(permission);
 }
 
 async function membershipsFromD1(actor: Actor): Promise<Membership[]> {
@@ -109,16 +98,17 @@ async function membershipsFromD1(actor: Actor): Promise<Membership[]> {
     const memberships: Membership[] = [];
     for (const row of result.results || []) {
       if (!isRole(row.role)) continue;
+      const config = parseAccessConfig(row.modules_json);
       memberships.push({
         businessId: row.business_id,
         role: row.role,
-        modules: parseModules(row.modules_json),
+        modules: config.modules,
+        permissions: config.permissions,
       });
     }
     return memberships;
   } catch (cause) {
-    // During staged rollout the membership table may not exist yet. Fallback below.
-    console.warn("D1 membership lookup unavailable", cause);
+    console.error("D1 membership lookup failed", cause);
     return [];
   }
 }
@@ -205,16 +195,6 @@ function safeDecode(value: string): string {
   try { return decodeURIComponent(value); } catch { return value; }
 }
 
-function isRole(value: string): value is Membership["role"] {
+function isRole(value: string): value is AccessRole {
   return value === "owner" || value === "admin" || value === "operations" || value === "viewer";
-}
-
-function parseModules(value: string | null): string[] | undefined {
-  if (!value) return undefined;
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter(item => typeof item === "string") : undefined;
-  } catch {
-    return undefined;
-  }
 }
