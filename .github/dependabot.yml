@@ -9,13 +9,47 @@ updates:
       timezone: "Asia/Kolkata"
     open-pull-requests-limit: 5
     groups:
-      development-tooling:
-        dependency-type: development
+      framework-stack:
+        patterns:
+          - "vinext"
+          - "vite"
+          - "@vitejs/plugin-*"
+          - "@cloudflare/vite-plugin"
+          - "wrangler"
+          - "react"
+          - "react-dom"
+          - "react-server-dom-webpack"
         update-types:
           - minor
           - patch
-      runtime-dependencies:
-        dependency-type: production
+      lint-stack:
+        patterns:
+          - "eslint"
+          - "@eslint/js"
+          - "@next/eslint-plugin-next"
+          - "eslint-plugin-*"
+          - "typescript-eslint"
+          - "globals"
+        update-types:
+          - minor
+          - patch
+      styling-stack:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/postcss"
+        update-types:
+          - minor
+          - patch
+      type-definitions:
+        patterns:
+          - "@types/*"
+        update-types:
+          - minor
+          - patch
+      database-tooling:
+        patterns:
+          - "drizzle-orm"
+          - "drizzle-kit"
         update-types:
           - minor
           - patch
