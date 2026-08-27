@@ -169,7 +169,8 @@ function enhanceInformation(page: HTMLElement) {
       });
       bar!.appendChild(button);
     });
-    section.querySelector(".labelInfoSelectedStrip")?.insertAdjacentElement("afterend", bar) || section.querySelector(".simpleDesignerHead")?.insertAdjacentElement("afterend", bar);
+    const anchor = section.querySelector(".labelInfoSelectedStrip") || section.querySelector(".simpleDesignerHead");
+    anchor?.insertAdjacentElement("afterend", bar);
     const first = bar.querySelector<HTMLButtonElement>("button"); first?.click();
   }
   checklist.querySelectorAll<HTMLElement>(".fieldGroupHeading").forEach(heading => heading.hidden = true);
@@ -205,4 +206,3 @@ export function LabelProductionReady() {
   }, []);
   return null;
 }
-
