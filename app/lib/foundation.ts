@@ -1,6 +1,6 @@
 import { permissionsForRole, type Permission } from "./access-control";
 
-export const MODULES = ["home", "orders", "labels", "scan", "trace", "production", "inventory", "sales", "delivery", "admin"] as const;
+export const MODULES = ["home", "orders", "labels", "scan", "trace", "production", "inventory", "sales", "billing", "delivery", "admin"] as const;
 
 export type Module = (typeof MODULES)[number];
 export type BusinessRole = "owner" | "admin" | "operations" | "viewer";
@@ -35,8 +35,8 @@ export type FoundationBootstrap = {
 const ROLE_MODULES: Record<BusinessRole, readonly Module[]> = {
   owner: MODULES,
   admin: MODULES,
-  operations: ["home", "orders", "labels", "scan", "trace", "production", "inventory", "delivery"],
-  viewer: ["home", "orders", "labels", "trace", "production", "inventory", "sales", "delivery"],
+  operations: ["home", "orders", "labels", "scan", "trace", "production", "inventory", "billing", "delivery"],
+  viewer: ["home", "orders", "labels", "trace", "production", "inventory", "sales", "billing", "delivery"],
 };
 
 /* These identifiers are permanently retired and must not regain UI access even
