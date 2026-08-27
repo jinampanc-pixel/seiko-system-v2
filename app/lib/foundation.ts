@@ -32,7 +32,8 @@ export type FoundationBootstrap = {
   businesses: BusinessMembership[];
 };
 
-const ROLE_MODULES: Record<BusinessRole, readonly Module[]> = {
+/** Role defaults are starting presets only. Explicit modules/permissions may be customized. */
+export const ROLE_MODULE_PRESETS: Record<BusinessRole, readonly Module[]> = {
   owner: MODULES,
   admin: MODULES,
   operations: ["home", "orders", "labels", "scan", "trace", "production", "inventory", "delivery"],
@@ -45,12 +46,13 @@ export const RETIRED_BUSINESS_IDS = new Set(["veyn-view"]);
 
 export function normalizeMembership(value: BusinessMembership): BusinessMembership {
   if (RETIRED_BUSINESS_IDS.has(value.businessId)) return { ...value, modules: [], permissions: [] };
-  const allowedForRole = new Set(ROLE_MODULES[value.role] || ROLE_MODULES.viewer);
-  const configuredModules = Array.isArray(value.modules) && value.modules.length ? value.modules : [...allowedForRole];
+  const configuredModules = Array.isArray(value.modules) && value.modules.length
+    ? value.modules
+    : [...(ROLE_MODULE_PRESETS[value.role] || ROLE_MODULE_PRESETS.viewer)];
   const granted = new Set(configuredModules);
   return {
     ...value,
-    modules: MODULES.filter(module => allowedForRole.has(module) && granted.has(module)),
+    modules: MODULES.filter(module => granted.has(module)),
     permissions: permissionsForRole(value.role, value.permissions),
   };
 }
