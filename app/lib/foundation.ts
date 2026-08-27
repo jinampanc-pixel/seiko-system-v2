@@ -1,3 +1,5 @@
+import { permissionsForRole, type Permission } from "./access-control";
+
 export const MODULES = ["home", "orders", "labels", "scan", "trace", "production", "inventory", "sales", "delivery", "admin"] as const;
 
 export type Module = (typeof MODULES)[number];
@@ -21,6 +23,7 @@ export type BusinessMembership = {
   logoUrl?: string;
   role: BusinessRole;
   modules: Module[];
+  permissions?: Permission[];
   theme?: BusinessTheme;
 };
 
@@ -32,8 +35,8 @@ export type FoundationBootstrap = {
 const ROLE_MODULES: Record<BusinessRole, readonly Module[]> = {
   owner: MODULES,
   admin: MODULES,
-  operations: ["home", "orders", "labels", "scan", "trace", "production", "delivery"],
-  viewer: ["home", "trace"],
+  operations: ["home", "orders", "labels", "scan", "trace", "production", "inventory", "delivery"],
+  viewer: ["home", "orders", "labels", "trace", "production", "inventory", "sales", "delivery"],
 };
 
 /* These identifiers are permanently retired and must not regain UI access even
@@ -41,14 +44,22 @@ const ROLE_MODULES: Record<BusinessRole, readonly Module[]> = {
 export const RETIRED_BUSINESS_IDS = new Set(["veyn-view"]);
 
 export function normalizeMembership(value: BusinessMembership): BusinessMembership {
-  if (RETIRED_BUSINESS_IDS.has(value.businessId)) return { ...value, modules: [] };
+  if (RETIRED_BUSINESS_IDS.has(value.businessId)) return { ...value, modules: [], permissions: [] };
   const allowedForRole = new Set(ROLE_MODULES[value.role] || ROLE_MODULES.viewer);
   const granted = new Set(value.modules || []);
-  return { ...value, modules: MODULES.filter(module => allowedForRole.has(module) && granted.has(module)) };
+  return {
+    ...value,
+    modules: MODULES.filter(module => allowedForRole.has(module) && granted.has(module)),
+    permissions: permissionsForRole(value.role, value.permissions),
+  };
 }
 
 export function canAccess(membership: BusinessMembership | undefined, module: Module): boolean {
   return Boolean(membership && !RETIRED_BUSINESS_IDS.has(membership.businessId) && membership.modules.includes(module));
+}
+
+export function canDo(membership: BusinessMembership | undefined, permission: Permission): boolean {
+  return Boolean(membership && !RETIRED_BUSINESS_IDS.has(membership.businessId) && permissionsForRole(membership.role, membership.permissions).includes(permission));
 }
 
 export function businessStorageKey(businessId: string, suffix: string): string {
