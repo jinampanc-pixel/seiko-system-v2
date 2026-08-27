@@ -23,6 +23,7 @@ import "./label-print-safety.css";
 import "./global-navigation.css";
 import "./control-consistency.css";
 import "./access-control.css";
+import "./modern-auth.css";
 import { AppEnhancements } from "./app-enhancements";
 import { AccessProvider } from "./access-control";
 
