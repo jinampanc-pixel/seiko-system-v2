@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { startDomEnhancement } from "./lib/dom-enhancement";
 
 type LabelPurpose = "production" | "packing" | "inventory";
 const PRINT_PURPOSE_KEY = "jinam:labels:print-purpose";
@@ -157,8 +158,6 @@ function enhanceLabelLauncher() {
       if (text === "No matching batches.") empty.textContent = "No matching saved labels.";
     });
 
-    // Creation now has its own working tab. Keep Label Center focused on saved
-    // labels and printing instead of embedding a second creation workspace here.
     const createPanel = page.querySelector<HTMLElement>(".labelOrderPicker");
     if (createPanel) createPanel.hidden = true;
     page.querySelector(".labelCreateToggle")?.remove();
@@ -177,26 +176,18 @@ function enhanceLabelLauncher() {
   });
 }
 
+function enhance() {
+  enhanceOrderMenu();
+  enhanceLabelLauncher();
+}
+
 export function LabelFlowPolish() {
   useEffect(() => {
-    let frame = 0;
-    const enhance = () => {
-      frame = 0;
-      enhanceOrderMenu();
-      enhanceLabelLauncher();
-    };
-    const schedule = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(enhance);
-    };
-    enhance();
-    const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true });
-    document.addEventListener("change", schedule, true);
+    const controller = startDomEnhancement(enhance);
+    document.addEventListener("change", controller.schedule, true);
     return () => {
-      observer.disconnect();
-      document.removeEventListener("change", schedule, true);
-      if (frame) cancelAnimationFrame(frame);
+      document.removeEventListener("change", controller.schedule, true);
+      controller.stop();
     };
   }, []);
   return null;
