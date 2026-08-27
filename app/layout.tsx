@@ -18,7 +18,7 @@ import "./order-setup-polish.css";
 import "./order-compact-ux.css";
 import "./brand-header-final.css";
 import "./label-flow-polish.css";
-import "./label-dropdown-final.css";
+import "./label-controls.css";
 import { OwnerDropdownUx } from "./owner-dropdown-ux";
 import { OrderSetupPolish } from "./order-setup-polish";
 import { OrderSetupFinalize } from "./order-setup-finalize";
