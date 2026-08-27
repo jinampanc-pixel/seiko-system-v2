@@ -36,11 +36,49 @@ export function LabelDesignerInteractions() {
       }
     };
 
+    const enhanceInformation = (page: HTMLElement) => {
+      const section = page.querySelector<HTMLElement>(".simpleDesigner");
+      const checklist = section?.querySelector<HTMLElement>(".fieldChecklist");
+      if (!section || !checklist) return;
+
+      const classification = section.querySelector<HTMLElement>(".classificationInformation");
+      if (classification) {
+        classification.classList.add("classificationTile");
+        const clientChoice = Array.from(checklist.querySelectorAll<HTMLElement>(":scope > .fieldChoice")).find(choice =>
+          choice.querySelector("label span")?.textContent?.trim() === "Client"
+        );
+        if (classification.parentElement !== checklist || (clientChoice && classification.nextElementSibling !== clientChoice)) {
+          if (clientChoice) checklist.insertBefore(classification, clientChoice);
+          else checklist.appendChild(classification);
+        }
+      }
+
+      const selectedStrip = section.querySelector<HTMLElement>(".labelInfoSelectedStrip");
+      selectedStrip?.querySelectorAll<HTMLButtonElement>(".labelInfoChip").forEach(chip => {
+        if (chip.dataset.removeReady === "true") return;
+        const label = chip.textContent?.trim();
+        if (!label) return;
+        chip.dataset.fieldLabel = label;
+        chip.dataset.removeReady = "true";
+        chip.replaceChildren();
+        const text = document.createElement("span");
+        text.className = "labelInfoChipText";
+        text.textContent = label;
+        const remove = document.createElement("span");
+        remove.className = "labelInfoChipRemove";
+        remove.setAttribute("aria-hidden", "true");
+        remove.textContent = "×";
+        chip.append(text, remove);
+        chip.setAttribute("aria-label", `${label}. Click to edit; use the × to remove.`);
+      });
+    };
+
     const enhance = () => {
       animationFrame = 0;
       document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(page => {
         ensureDeleteTarget(page);
         placeSizeEditor(page);
+        enhanceInformation(page);
       });
     };
 
@@ -57,6 +95,19 @@ export function LabelDesignerInteractions() {
       const collapsed = section.classList.toggle("labelInfoCollapsed");
       button.textContent = collapsed ? `Choose information · ${selectedFieldCount(section)} selected` : "Done";
       if (!collapsed) scheduleEnhance();
+    };
+
+    const removeSelectedChip = (removeControl: HTMLElement) => {
+      const chip = removeControl.closest<HTMLButtonElement>(".labelInfoChip");
+      const section = chip?.closest<HTMLElement>(".simpleDesigner");
+      const checklist = section?.querySelector<HTMLElement>(".fieldChecklist");
+      const label = chip?.dataset.fieldLabel;
+      if (!chip || !checklist || !label) return;
+      const choice = Array.from(checklist.querySelectorAll<HTMLElement>(":scope > .fieldChoice")).find(item =>
+        item.querySelector("label span")?.textContent?.trim() === label
+      );
+      choice?.querySelector<HTMLInputElement>('input[type="checkbox"]')?.click();
+      scheduleEnhance();
     };
 
     const validateSizeEditor = (editor: HTMLElement) => {
@@ -84,6 +135,15 @@ export function LabelDesignerInteractions() {
     const handleControlClick = (event: MouseEvent) => {
       const target = event.target as Element | null;
       if (!target) return;
+
+      const chipRemove = target.closest<HTMLElement>(".labelDesignerPage .labelInfoChipRemove");
+      if (chipRemove) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        removeSelectedChip(chipRemove);
+        return;
+      }
 
       const infoToggle = target.closest<HTMLButtonElement>(".labelDesignerPage .labelInfoToggle");
       if (infoToggle) {
