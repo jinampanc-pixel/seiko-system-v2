@@ -65,9 +65,19 @@ function cleanBusinesses(items: BusinessMembership[]) {
   return items.filter(item => item.businessId !== "veyn-view" && item.modules.includes("home"));
 }
 
+function rootUrl(businessId = currentBusinessId()) {
+  return `/?business=${encodeURIComponent(businessId)}`;
+}
+
 function navigateToRoot(target: Module | "settings") {
   sessionStorage.setItem(NAV_INTENT_KEY, target);
-  window.location.assign("/");
+  window.location.assign(rootUrl());
+}
+
+function setReactSelectValue(select: HTMLSelectElement, value: string) {
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, value);
+  select.dispatchEvent(new Event("input", { bubbles: true }));
+  select.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 function BusinessNavigator({ businesses, businessId, onChange }: {
@@ -172,7 +182,7 @@ export function GlobalNavigation() {
   useEffect(() => {
     const goHome = () => {
       sessionStorage.removeItem(NAV_INTENT_KEY);
-      window.location.assign("/");
+      window.location.assign(rootUrl());
     };
     const click = (event: MouseEvent) => {
       const target = event.target as Element | null;
@@ -208,6 +218,41 @@ export function GlobalNavigation() {
   }, []);
 
   useEffect(() => {
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (!target || target.closest(".moduleMenu") || target.closest(".menuToggle")) return;
+      const openToggle = document.querySelector<HTMLButtonElement>('.menuToggle[aria-expanded="true"]');
+      openToggle?.click();
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer, true);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+  }, []);
+
+  useEffect(() => {
+    if (pathname !== "/") return;
+    const requestedBusiness = new URLSearchParams(window.location.search).get("business");
+    if (!requestedBusiness) return;
+
+    let attempts = 0;
+    const applyBusiness = () => {
+      attempts += 1;
+      const select = document.querySelector<HTMLSelectElement>(".app .compactBusinessPicker select");
+      if (!select) {
+        if (attempts < 50) window.setTimeout(applyBusiness, 40);
+        return;
+      }
+      if (!Array.from(select.options).some(option => option.value === requestedBusiness)) return;
+      if (select.value !== requestedBusiness) setReactSelectValue(select, requestedBusiness);
+      localStorage.setItem("jinam:selected-business", requestedBusiness);
+      setBusinessId(requestedBusiness);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("business");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    };
+    applyBusiness();
+  }, [pathname]);
+
+  useEffect(() => {
     if (pathname !== "/") return;
     const intent = sessionStorage.getItem(NAV_INTENT_KEY) as Module | "settings" | null;
     if (!intent) return;
@@ -237,6 +282,8 @@ export function GlobalNavigation() {
   const changeBusiness = (nextBusinessId: string) => {
     localStorage.setItem("jinam:selected-business", nextBusinessId);
     setBusinessId(nextBusinessId);
+    sessionStorage.removeItem(NAV_INTENT_KEY);
+
     if (standaloneLabels) {
       const url = new URL(window.location.href);
       url.searchParams.set("business", nextBusinessId);
@@ -245,8 +292,16 @@ export function GlobalNavigation() {
       window.location.assign(`${url.pathname}?${url.searchParams.toString()}`);
       return;
     }
-    sessionStorage.removeItem(NAV_INTENT_KEY);
-    window.location.assign("/");
+
+    const rootSelect = document.querySelector<HTMLSelectElement>(".app .compactBusinessPicker select");
+    if (rootSelect && Array.from(rootSelect.options).some(option => option.value === nextBusinessId)) {
+      setReactSelectValue(rootSelect, nextBusinessId);
+      const openToggle = document.querySelector<HTMLButtonElement>('.menuToggle[aria-expanded="true"]');
+      openToggle?.click();
+      return;
+    }
+
+    window.location.assign(rootUrl(nextBusinessId));
   };
 
   return <>
