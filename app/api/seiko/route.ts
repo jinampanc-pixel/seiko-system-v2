@@ -1,3 +1,7 @@
+import { authenticateActor, authorizePermission, getActorMemberships } from "../../lib/server-erp-auth";
+import { buildFoundationBootstrap } from "../../lib/server-session";
+import type { Permission } from "../../lib/access-control";
+
 type ApiRequest = {
   action?: string;
   businessId?: string;
@@ -17,18 +21,15 @@ const ALLOWED_ACTIONS = new Set([
 ]);
 const BUSINESS_FREE_ACTIONS = new Set(["foundationBootstrap", "health"]);
 const BUSINESS_ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,63}$/;
+const ACTION_PERMISSION: Partial<Record<string, Permission>> = {
+  labelBootstrap: "labels.view",
+  labelRecords: "labels.view",
+  recordScan: "scan.use",
+  traceSearch: "trace.view",
+  traceRecord: "trace.view",
+};
 
 export async function POST(request: Request) {
-  const upstream = process.env.SEIKO_APPS_SCRIPT_URL;
-  const apiKey = process.env.SEIKO_API_KEY;
-
-  if (!upstream || !apiKey) {
-    return Response.json(
-      { ok: false, code: "BACKEND_NOT_CONNECTED", message: "The operational backend is not connected yet." },
-      { status: 503 },
-    );
-  }
-
   const declaredLength = Number(request.headers.get("content-length") || 0);
   if (declaredLength > MAX_BODY_BYTES) {
     return Response.json({ ok: false, code: "REQUEST_TOO_LARGE", message: "The request is too large." }, { status: 413 });
@@ -52,15 +53,38 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, code: "ACTION_NOT_ALLOWED", message: "This operation is not available." }, { status: 403 });
   }
 
-  const userId = request.headers.get("oai-authenticated-user-id")?.trim();
-  const userEmail = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
-  if (!userId || !userEmail) {
+  if (body.action === "health") return Response.json({ ok: true, data: { status: "ok" } });
+
+  const actor = await authenticateActor(request);
+  if (!actor) {
     return Response.json({ ok: false, code: "AUTH_REQUIRED", message: "Sign in is required." }, { status: 401 });
+  }
+
+  if (body.action === "foundationBootstrap") {
+    const memberships = await getActorMemberships(actor);
+    if (!memberships.length) {
+      return Response.json({ ok: false, code: "NO_ACCESS", message: "Your account has not been given access to a business yet." }, { status: 403 });
+    }
+    return Response.json({ ok: true, data: buildFoundationBootstrap(actor, memberships) });
   }
 
   const businessId = body.businessId?.trim();
   if (!BUSINESS_FREE_ACTIONS.has(body.action) && (!businessId || !BUSINESS_ID.test(businessId))) {
     return Response.json({ ok: false, code: "BUSINESS_REQUIRED", message: "Select a valid business." }, { status: 400 });
+  }
+
+  const requiredPermission = ACTION_PERMISSION[body.action];
+  if (businessId && requiredPermission && !await authorizePermission(actor, businessId, requiredPermission)) {
+    return Response.json({ ok: false, code: "FORBIDDEN", message: "You do not have permission to perform this operation." }, { status: 403 });
+  }
+
+  const upstream = process.env.SEIKO_APPS_SCRIPT_URL;
+  const apiKey = process.env.SEIKO_API_KEY;
+  if (!upstream || !apiKey) {
+    return Response.json(
+      { ok: false, code: "BACKEND_NOT_CONNECTED", message: "The operational backend is not connected yet." },
+      { status: 503 },
+    );
   }
 
   const controller = new AbortController();
@@ -74,7 +98,7 @@ export async function POST(request: Request) {
         action: body.action,
         businessId: businessId || null,
         payload: { ...(body.payload || {}), businessId: businessId || null },
-        actor: { userId, email: userEmail },
+        actor: { userId: actor.userId, email: actor.email },
         apiKey,
       }),
       cache: "no-store",
@@ -82,7 +106,8 @@ export async function POST(request: Request) {
     });
     const text = await response.text();
     let data: unknown;
-    try { data = JSON.parse(text); } catch { data = { ok: false, code: "INVALID_BACKEND_RESPONSE", message: "The backend returned an invalid response." }; }
+    try { data = JSON.parse(text); }
+    catch { data = { ok: false, code: "INVALID_BACKEND_RESPONSE", message: "The backend returned an invalid response." }; }
     return Response.json(data, { status: response.ok ? 200 : 502 });
   } catch (error) {
     const timedOut = error instanceof Error && error.name === "AbortError";
