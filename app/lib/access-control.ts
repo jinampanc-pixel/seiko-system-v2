@@ -25,6 +25,13 @@ export const PERMISSIONS = [
   "inventory.manage",
   "sales.view",
   "sales.manage",
+  "billing.view",
+  "billing.quotations.manage",
+  "billing.purchase_orders.manage",
+  "billing.delivery_challans.manage",
+  "billing.invoices.manage",
+  "catalog.view",
+  "catalog.manage",
   "delivery.view",
   "delivery.manage",
   "audit.view",
@@ -46,7 +53,7 @@ export type AccessConfig = {
 export type PermissionDefinition = {
   key: Permission;
   label: string;
-  group: "Orders" | "Finance" | "Labels" | "Operations" | "Administration";
+  group: "Orders" | "Finance" | "Billing" | "Labels" | "Operations" | "Administration";
   description: string;
 };
 
@@ -61,6 +68,13 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: "pricing.edit", label: "Edit selling prices", group: "Finance", description: "Set or change selling prices and quotations." },
   { key: "costs.view", label: "See costs", group: "Finance", description: "View purchase, material, production and cost-price information." },
   { key: "financials.view", label: "See financial information", group: "Finance", description: "View margins, totals, invoice values and financial summaries." },
+  { key: "billing.view", label: "View billing", group: "Billing", description: "Open quotations, purchase orders, delivery challans, invoices and related commercial records." },
+  { key: "billing.quotations.manage", label: "Manage quotations", group: "Billing", description: "Create, edit, approve and revise quotations." },
+  { key: "billing.purchase_orders.manage", label: "Manage purchase orders", group: "Billing", description: "Record and maintain customer or supplier purchase orders." },
+  { key: "billing.delivery_challans.manage", label: "Manage delivery challans", group: "Billing", description: "Create and revise delivery challans from fulfilled orders and dispatches." },
+  { key: "billing.invoices.manage", label: "Manage invoices", group: "Billing", description: "Create, edit and issue invoices from billable records." },
+  { key: "catalog.view", label: "View catalog", group: "Billing", description: "View the catalog derived from the shared product and service master." },
+  { key: "catalog.manage", label: "Manage items, services & catalog", group: "Billing", description: "Maintain the shared item/service master and catalog-facing information." },
   { key: "suggestions.manage", label: "Manage dropdown values", group: "Administration", description: "Owner-only: add, rename and remove shared dropdown/list values." },
   { key: "labels.view", label: "View labels", group: "Labels", description: "Open saved labels and label records." },
   { key: "labels.create", label: "Create labels", group: "Labels", description: "Create production, packing and inventory labels." },
@@ -94,9 +108,10 @@ export const ROLE_PERMISSION_PRESETS: Record<AccessRole, readonly Permission[]> 
     "scan.use", "trace.view",
     "production.view", "production.manage",
     "inventory.view", "inventory.manage",
+    "billing.view", "billing.delivery_challans.manage",
     "delivery.view", "delivery.manage",
   ],
-  viewer: ["orders.view", "labels.view", "trace.view", "production.view", "inventory.view", "sales.view", "delivery.view"],
+  viewer: ["orders.view", "labels.view", "trace.view", "production.view", "inventory.view", "sales.view", "billing.view", "catalog.view", "delivery.view"],
 };
 
 export function isPermission(value: unknown): value is Permission {
