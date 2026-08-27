@@ -28,7 +28,10 @@ export function LabelDesignerInteractions() {
 
       const widthMm = labelWidthMm(page);
       const safePercent = RIGHT_PRINT_SAFE_MM / widthMm * 100;
-      canvas.style.setProperty("--label-right-safe-pct", `${safePercent}%`);
+      const safeValue = `${safePercent}%`;
+      if (canvas.style.getPropertyValue("--label-right-safe-pct") !== safeValue) {
+        canvas.style.setProperty("--label-right-safe-pct", safeValue);
+      }
       canvas.dataset.rightSafeMm = String(RIGHT_PRINT_SAFE_MM);
 
       canvas.querySelectorAll<HTMLElement>(".canvasElement").forEach(element => {
