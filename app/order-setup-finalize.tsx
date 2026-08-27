@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { startDomEnhancement } from "./lib/dom-enhancement";
 
 function isOwnerSetup() {
   return Boolean(document.querySelector(".orderSetup .personDetails .policyRow .iconRemove"));
@@ -46,22 +47,11 @@ function finalizeOrderSetup() {
 
 export function OrderSetupFinalize() {
   useEffect(() => {
-    let frame = 0;
-    const schedule = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        finalizeOrderSetup();
-      });
-    };
-    schedule();
-    const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true });
-    document.addEventListener("change", schedule, true);
+    const controller = startDomEnhancement(finalizeOrderSetup);
+    document.addEventListener("change", controller.schedule, true);
     return () => {
-      observer.disconnect();
-      document.removeEventListener("change", schedule, true);
-      if (frame) cancelAnimationFrame(frame);
+      document.removeEventListener("change", controller.schedule, true);
+      controller.stop();
     };
   }, []);
   return null;
