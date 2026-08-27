@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { businessCatalogEntry } from "../../../lib/business-catalog";
-import { MODULES, type Module } from "../../../lib/foundation";
+import { MODULES, ROLE_MODULE_PRESETS, type Module } from "../../../lib/foundation";
 import { PERMISSIONS, isDelegablePermission, isPermission, permissionsForRole, serializeAccessConfig, type AccessRole, type Permission } from "../../../lib/access-control";
 import { authenticateActor, authorizePermission, clearMembershipCache } from "../../../lib/server-erp-auth";
 import { ensureAuthSchema, revokeAllUserSessions, upsertCredentialUser } from "../../../lib/server-password-auth";
@@ -224,10 +224,10 @@ async function auditMembership(
 
 function sanitizeModules(value: Module[] | undefined, role: AccessRole, businessId: string): Module[] {
   const businessModules = new Set<Module>(businessCatalogEntry(businessId).allowedModules);
-  const roleModules = role === "owner" ? [...MODULES] : defaultModulesForRole(role);
-  const source = Array.isArray(value) ? value : roleModules;
+  const preset = ROLE_MODULE_PRESETS[role] || ROLE_MODULE_PRESETS.viewer;
+  const source = role === "owner" ? [...businessModules] : Array.isArray(value) ? value : [...preset];
   const modules = source.filter((item): item is Module =>
-    (MODULES as readonly string[]).includes(item) && businessModules.has(item) && roleModules.includes(item),
+    (MODULES as readonly string[]).includes(item) && businessModules.has(item),
   );
   if (businessModules.has("home") && !modules.includes("home")) modules.unshift("home");
   return [...new Set(modules)];
@@ -236,12 +236,6 @@ function sanitizeModules(value: Module[] | undefined, role: AccessRole, business
 function sanitizePermissions(value: Permission[] | undefined, role: AccessRole): Permission[] {
   if (!Array.isArray(value)) return permissionsForRole(role);
   return [...new Set(value.filter(isPermission).filter(isDelegablePermission))];
-}
-
-function defaultModulesForRole(role: AccessRole): Module[] {
-  if (role === "owner" || role === "admin") return [...MODULES];
-  if (role === "operations") return ["home", "orders", "labels", "scan", "trace", "production", "inventory", "delivery"];
-  return ["home", "orders", "labels", "trace"];
 }
 
 function parseConfig(raw: string | null): { modules: Module[]; permissions?: Permission[] } {
