@@ -13,7 +13,7 @@
   box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 22%,transparent);
 }
 
-/* Settings is part of the normal navigation stack, not pinned to the footer. */
+/* Settings stays in the normal navigation stack. */
 .app .moduleMenu .moduleMenuSettings,
 .globalStandaloneMenu .moduleMenuSettings{
   margin-top:8px!important;
@@ -21,7 +21,7 @@
   border-top:1px solid #ffffff1f!important;
 }
 
-/* Business navigator follows Settings and uses one predictable row. */
+/* Business navigator uses one predictable row. */
 .globalBusinessNavigator{
   position:relative;
   display:grid;
@@ -89,6 +89,13 @@
 }
 .globalBusinessNavigator>select:focus-visible{
   outline:none;
+}
+
+/* The business switcher is the final menu item, flush with the bottom edge. */
+.moduleMenu>.globalBusinessNavigator,
+.globalStandaloneMenu>.globalBusinessNavigator{
+  margin-top:auto!important;
+  margin-bottom:0!important;
 }
 
 /* Standalone Create Labels / Designer route gets the same navigation trigger. */
