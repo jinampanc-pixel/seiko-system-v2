@@ -53,7 +53,7 @@ export type AccessConfig = {
 export type PermissionDefinition = {
   key: Permission;
   label: string;
-  group: "Orders" | "Finance" | "Billing" | "Labels" | "Operations" | "Administration";
+  group: "Orders" | "Finance" | "Labels" | "Operations" | "Administration";
   description: string;
 };
 
@@ -68,13 +68,13 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: "pricing.edit", label: "Edit selling prices", group: "Finance", description: "Set or change selling prices and quotations." },
   { key: "costs.view", label: "See costs", group: "Finance", description: "View purchase, material, production and cost-price information." },
   { key: "financials.view", label: "See financial information", group: "Finance", description: "View margins, totals, invoice values and financial summaries." },
-  { key: "billing.view", label: "View billing", group: "Billing", description: "Open quotations, purchase orders, delivery challans, invoices and related commercial records." },
-  { key: "billing.quotations.manage", label: "Manage quotations", group: "Billing", description: "Create, edit, approve and revise quotations." },
-  { key: "billing.purchase_orders.manage", label: "Manage purchase orders", group: "Billing", description: "Record and maintain customer or supplier purchase orders." },
-  { key: "billing.delivery_challans.manage", label: "Manage delivery challans", group: "Billing", description: "Create and revise delivery challans from fulfilled orders and dispatches." },
-  { key: "billing.invoices.manage", label: "Manage invoices", group: "Billing", description: "Create, edit and issue invoices from billable records." },
-  { key: "catalog.view", label: "View catalog", group: "Billing", description: "View the catalog derived from the shared product and service master." },
-  { key: "catalog.manage", label: "Manage items, services & catalog", group: "Billing", description: "Maintain the shared item/service master and catalog-facing information." },
+  { key: "billing.view", label: "View billing", group: "Finance", description: "Open quotations, purchase orders, delivery challans, invoices and related commercial records." },
+  { key: "billing.quotations.manage", label: "Manage quotations", group: "Finance", description: "Create, edit, approve and revise quotations." },
+  { key: "billing.purchase_orders.manage", label: "Manage purchase orders", group: "Finance", description: "Record and maintain customer or supplier purchase orders." },
+  { key: "billing.delivery_challans.manage", label: "Manage delivery challans", group: "Finance", description: "Create and revise delivery challans from fulfilled orders and dispatches." },
+  { key: "billing.invoices.manage", label: "Manage invoices", group: "Finance", description: "Create, edit and issue invoices from billable records." },
+  { key: "catalog.view", label: "View catalog", group: "Finance", description: "View the catalog derived from the shared product and service master." },
+  { key: "catalog.manage", label: "Manage items, services & catalog", group: "Finance", description: "Maintain the shared item/service master and catalog-facing information." },
   { key: "suggestions.manage", label: "Manage dropdown values", group: "Administration", description: "Owner-only: add, rename and remove shared dropdown/list values." },
   { key: "labels.view", label: "View labels", group: "Labels", description: "Open saved labels and label records." },
   { key: "labels.create", label: "Create labels", group: "Labels", description: "Create production, packing and inventory labels." },
