@@ -6,6 +6,7 @@ const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8
 const enhancements = readFileSync(new URL("../app/app-enhancements.tsx", import.meta.url), "utf8");
 const scheduler = readFileSync(new URL("../app/lib/dom-enhancement.ts", import.meta.url), "utf8");
 const labelFlow = readFileSync(new URL("../app/label-flow-polish.tsx", import.meta.url), "utf8");
+const labelProduction = readFileSync(new URL("../app/label-production-ready.tsx", import.meta.url), "utf8");
 const orderFinalize = readFileSync(new URL("../app/order-setup-finalize.tsx", import.meta.url), "utf8");
 const orderCompact = readFileSync(new URL("../app/order-compact-ux.tsx", import.meta.url), "utf8");
 const workspacePager = readFileSync(new URL("../app/workspace-top-pager.tsx", import.meta.url), "utf8");
@@ -55,7 +56,7 @@ test("shared DOM scheduler owns observer and animation-frame lifecycle", () => {
 });
 
 test("consolidated adapters use the shared scheduler", () => {
-  for (const source of [labelFlow, orderFinalize, orderCompact, workspacePager, ownerDropdown]) {
+  for (const source of [labelFlow, labelProduction, orderFinalize, orderCompact, workspacePager, ownerDropdown]) {
     assert.match(source, /startDomEnhancement/);
   }
 });
