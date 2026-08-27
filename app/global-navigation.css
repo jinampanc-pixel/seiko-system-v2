@@ -1,6 +1,6 @@
 /* Global navigation rules: header is logo + menu only; business switching lives in Menu. */
 
-/* Root header: remove business-picker chevron and click interception. */
+/* Root header: logo is Home; business switching belongs in the menu. */
 .app .topbar .compactBusinessPicker{
   padding-right:0!important;
   cursor:pointer!important;
@@ -8,68 +8,126 @@
 .app .topbar .compactBusinessPicker::after{display:none!important}
 .app .topbar .compactBusinessPicker>select{display:none!important;pointer-events:none!important}
 .app .topbar .globalHomeLogo{outline:none}
-.app .topbar .globalHomeLogo:focus-visible{border-radius:8px;box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 22%,transparent)}
+.app .topbar .globalHomeLogo:focus-visible{
+  border-radius:8px;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 22%,transparent);
+}
 
-/* Menu business navigator: deliberately compact, directly below Settings. */
+/* Settings is part of the normal navigation stack, not pinned to the footer. */
+.app .moduleMenu .moduleMenuSettings,
+.globalStandaloneMenu .moduleMenuSettings{
+  margin-top:8px!important;
+  padding-top:8px!important;
+  border-top:1px solid #ffffff1f!important;
+}
+
+/* Business navigator follows Settings and uses one predictable row. */
 .globalBusinessNavigator{
+  position:relative;
   display:grid;
-  grid-template-columns:34px minmax(0,1fr);
+  grid-template-columns:36px minmax(0,1fr) 16px;
   align-items:center;
   gap:9px;
-  margin-top:9px;
-  padding:10px 6px 2px;
-  border-top:1px solid #ffffff1f;
+  min-height:50px;
+  margin-top:2px;
+  padding:7px 10px;
+  border:1px solid #ffffff18;
+  border-radius:9px;
+  background:#ffffff0b;
+  color:#fff;
+  overflow:hidden;
+}
+.globalBusinessNavigator:hover,
+.globalBusinessNavigator:focus-within{
+  background:#ffffff12;
+  border-color:#ffffff27;
 }
 .globalBusinessIcon{
-  width:32px;
-  height:32px;
+  width:34px;
+  height:34px;
   display:grid;
   place-items:center;
   overflow:hidden;
   border-radius:8px;
-  background:#ffffff10;
-}
-.globalBusinessIcon img{display:block;width:100%;height:100%;object-fit:contain}
-.globalBusinessIcon.logo-meth img{mix-blend-mode:screen}
-.globalBusinessSelect{position:relative;min-width:0}
-.globalBusinessSelect select{
-  box-sizing:border-box;
-  width:100%;
-  height:38px;
-  appearance:none;
-  border:1px solid #ffffff29;
-  border-radius:8px;
   background:#ffffff0d;
-  padding:0 34px 0 10px;
+  pointer-events:none;
+}
+.globalBusinessIcon img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center;
+}
+.globalBusinessIcon.logo-meth img{mix-blend-mode:screen}
+.globalBusinessName{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
   color:#fff;
   font-size:11px;
   font-weight:700;
-  outline:none;
+  line-height:1.2;
+  pointer-events:none;
 }
-.globalBusinessSelect select option{color:#132b39;background:#fff}
-.globalBusinessSelect i{
-  position:absolute;
-  right:10px;
-  top:50%;
+.globalBusinessChevron{
   width:14px;
   height:14px;
-  translate:0 -50%;
   pointer-events:none;
   background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='m3 5 4 4 4-4' fill='none' stroke='%23ffffff' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px 14px no-repeat;
+}
+.globalBusinessNavigator>select{
+  position:absolute;
+  inset:0;
+  z-index:2;
+  width:100%;
+  height:100%;
+  opacity:0;
+  cursor:pointer;
+  appearance:auto;
+}
+.globalBusinessNavigator>select:focus-visible{
+  outline:none;
 }
 
 /* Standalone Create Labels / Designer route gets the same navigation trigger. */
 .labelCreateTopbar{position:relative}
 .labelCreateTopbar .globalStandaloneNavEnd{margin-left:auto}
-.labelCreateTopbar .menuToggle{display:grid;place-content:center;gap:5px;width:42px;height:42px;border:0;border-radius:10px;background:transparent;color:var(--navy)}
-.labelCreateTopbar .menuToggle span{display:block;width:22px;height:2px;border-radius:2px;background:currentColor}
-.labelCreateTopbar .menuToggle:hover,.labelCreateTopbar .menuToggle.active{background:color-mix(in srgb,var(--navy) 9%,transparent)}
+.labelCreateTopbar .menuToggle{
+  display:grid;
+  place-content:center;
+  gap:5px;
+  width:42px;
+  height:42px;
+  border:0;
+  border-radius:10px;
+  background:transparent;
+  color:var(--navy);
+}
+.labelCreateTopbar .menuToggle span{
+  display:block;
+  width:22px;
+  height:2px;
+  border-radius:2px;
+  background:currentColor;
+}
+.labelCreateTopbar .menuToggle:hover,
+.labelCreateTopbar .menuToggle.active{
+  background:color-mix(in srgb,var(--navy) 9%,transparent);
+}
 .labelCreateTopbar .globalHomeLogo{cursor:pointer}
-.labelCreateTopbar .globalHomeLogo:focus-visible{border-radius:8px;box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 22%,transparent)}
-.globalStandaloneMenu .moduleMenuSettings{margin-top:auto}
+.labelCreateTopbar .globalHomeLogo:focus-visible{
+  border-radius:8px;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 22%,transparent);
+}
 
 @media(max-width:700px){
-  .globalBusinessNavigator{grid-template-columns:32px minmax(0,1fr);padding-left:4px;padding-right:4px}
-  .globalBusinessSelect select{font-size:12px}
+  .globalBusinessNavigator{
+    grid-template-columns:34px minmax(0,1fr) 16px;
+    min-height:52px;
+    padding:8px 9px;
+  }
+  .globalBusinessName{font-size:12px}
   .labelCreateTopbar .menuToggle{width:40px;height:40px}
 }
