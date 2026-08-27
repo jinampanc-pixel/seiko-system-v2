@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { startDomEnhancement } from "./lib/dom-enhancement";
 
 function setReactInputValue(input: HTMLInputElement, value: string) {
   const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
@@ -111,30 +112,20 @@ function syncAdaptiveValues() {
   });
 }
 
+function enhance() {
+  if (!document.querySelector(".orderSetup")) return;
+  markClientFields();
+  upgradeSpecificationFreeText();
+  syncAdaptiveValues();
+}
+
 export function OrderCompactUx() {
   useEffect(() => {
-    let frame = 0;
-    const enhance = () => {
-      if (!document.querySelector(".orderSetup")) return;
-      markClientFields();
-      upgradeSpecificationFreeText();
-      syncAdaptiveValues();
-    };
-    const schedule = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        enhance();
-      });
-    };
-    enhance();
-    const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true });
-    document.addEventListener("change", schedule, true);
+    const controller = startDomEnhancement(enhance);
+    document.addEventListener("change", controller.schedule, true);
     return () => {
-      observer.disconnect();
-      document.removeEventListener("change", schedule, true);
-      if (frame) cancelAnimationFrame(frame);
+      document.removeEventListener("change", controller.schedule, true);
+      controller.stop();
     };
   }, []);
   return null;
