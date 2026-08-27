@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { authenticateActor, authorizeBusiness } from "../../../lib/server-erp-auth";
+import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
 
 type OrderLike = {
   orderId?: unknown;
@@ -24,6 +24,8 @@ type OrderEnvelope = {
   updatedAt: string;
   updatedBy: string;
 };
+
+type OrderWriteAccess = { canCreate: boolean; canEdit: boolean };
 
 const BUSINESS_ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,63}$/;
 const MAX_BODY_BYTES = 6 * 1024 * 1024;
@@ -51,10 +53,6 @@ export async function POST(request: Request) {
   const operation = body.operation;
   if (!operation) return error("INVALID_OPERATION", "Choose a valid operation.", 400);
 
-  const required = operation === "audit" ? "admin" : operation === "list" ? "read" : "write";
-  const membership = await authorizeBusiness(actor, businessId, required);
-  if (!membership) return error("FORBIDDEN", "You do not have permission for this business.", 403);
-
   const db = env.DB;
   if (!db) {
     return error(
@@ -65,10 +63,26 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (operation === "list") return listOrders(db, businessId);
-    if (operation === "upsert") return upsertOrder(db, businessId, actor, body.order, body.expectedVersion);
-    if (operation === "import-local") return importLocalOrders(db, businessId, actor, body.orders);
-    if (operation === "audit") return auditTrail(db, businessId, body.orderId);
+    if (operation === "list") {
+      if (!await authorizePermission(actor, businessId, "orders.view")) return forbidden();
+      return listOrders(db, businessId);
+    }
+    if (operation === "import-local") {
+      if (!await authorizePermission(actor, businessId, "orders.create")) return forbidden();
+      return importLocalOrders(db, businessId, actor, body.orders);
+    }
+    if (operation === "audit") {
+      if (!await authorizePermission(actor, businessId, "audit.view")) return forbidden();
+      return auditTrail(db, businessId, body.orderId);
+    }
+    if (operation === "upsert") {
+      const access: OrderWriteAccess = {
+        canCreate: Boolean(await authorizePermission(actor, businessId, "orders.create")),
+        canEdit: Boolean(await authorizePermission(actor, businessId, "orders.edit")),
+      };
+      if (!access.canCreate && !access.canEdit) return forbidden();
+      return upsertOrder(db, businessId, actor, body.order, body.expectedVersion, access);
+    }
     return error("INVALID_OPERATION", "Choose a valid operation.", 400);
   } catch (cause) {
     console.error("ERP orders API failure", cause);
@@ -106,6 +120,7 @@ async function upsertOrder(
   actor: { userId: string; email: string },
   candidate: OrderLike | undefined,
   expectedVersion: number | null | undefined,
+  access: OrderWriteAccess,
 ) {
   const parsed = validateOrder(candidate);
   if (!parsed.ok) return error("INVALID_ORDER", parsed.message, 400);
@@ -115,6 +130,9 @@ async function upsertOrder(
     `SELECT version, document_json, updated_at, updated_by_email
        FROM erp_orders WHERE business_id = ? AND id = ?`,
   ).bind(businessId, orderId).first<{ version: number; document_json: string; updated_at: string; updated_by_email: string }>();
+
+  if (!current && !access.canCreate) return error("FORBIDDEN", "You do not have permission to create orders.", 403);
+  if (current && !access.canEdit) return error("FORBIDDEN", "You do not have permission to edit orders.", 403);
 
   const now = new Date().toISOString();
   const document = { ...candidate, updatedAt: now } as OrderLike;
@@ -255,6 +273,10 @@ function conflict(current: { version: number; document_json: string; updated_at:
     message: `This order was changed by ${current.updated_by_email}. Reload before saving your version.`,
     data: { order, version: Number(current.version), updatedAt: current.updated_at, updatedBy: current.updated_by_email },
   }, { status: 409 });
+}
+
+function forbidden() {
+  return error("FORBIDDEN", "You do not have permission for this operation.", 403);
 }
 
 function error(code: string, message: string, status: number) {
