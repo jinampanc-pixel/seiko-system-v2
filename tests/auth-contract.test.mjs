@@ -40,8 +40,10 @@ test("first login requires a password change before ERP authorization", () => {
 test("new users require administrator-created credentials", () => {
   assert.match(memberships, /CREDENTIAL_REQUIRED/);
   assert.match(memberships, /temporaryPassword/);
-  assert.match(accessUi, /Temporary password \*/);
+  assert.match(accessUi, /Initial password \*/);
+  assert.match(accessUi, /Set or generate a temporary password now/);
   assert.match(accessUi, /Generate/);
+  assert.match(accessUi, /Copy/);
 });
 
 test("login accepts email or phone and rate limits failures", () => {
