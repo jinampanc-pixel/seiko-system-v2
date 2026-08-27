@@ -2,7 +2,7 @@
 /* Exact business logos are intentionally rendered as supplied assets. */
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { callSeiko } from "./lib/seiko-api";
 import {
@@ -78,17 +78,15 @@ function BusinessNavigator({ businesses, businessId, onChange }: {
   const selected = businesses.find(item => item.businessId === businessId) || businesses[0];
   if (!selected) return null;
 
-  return <div className="globalBusinessNavigator">
+  return <div className="globalBusinessNavigator" title="Switch business">
     <span className={`globalBusinessIcon logo-${selected.businessId}`} aria-hidden="true">
       {selected.logoUrl ? <img src={selected.logoUrl} alt=""/> : <b>{selected.businessName.slice(0, 1)}</b>}
     </span>
-    <label className="globalBusinessSelect">
-      <span className="srOnly">Switch business</span>
-      <select aria-label="Switch business" value={selected.businessId} onChange={event => onChange(event.target.value)}>
-        {businesses.map(item => <option key={item.businessId} value={item.businessId}>{item.businessName}</option>)}
-      </select>
-      <i aria-hidden="true"/>
-    </label>
+    <span className="globalBusinessName">{selected.businessName}</span>
+    <span className="globalBusinessChevron" aria-hidden="true"/>
+    <select aria-label="Switch business" value={selected.businessId} onChange={event => onChange(event.target.value)}>
+      {businesses.map(item => <option key={item.businessId} value={item.businessId}>{item.businessName}</option>)}
+    </select>
   </div>;
 }
 
@@ -235,7 +233,7 @@ export function GlobalNavigation() {
     openTarget();
   }, [pathname]);
 
-  const visibleBusinesses = useMemo(() => cleanBusinesses(businesses), [businesses]);
+  const visibleBusinesses = cleanBusinesses(businesses);
   const changeBusiness = (nextBusinessId: string) => {
     localStorage.setItem("jinam:selected-business", nextBusinessId);
     setBusinessId(nextBusinessId);
