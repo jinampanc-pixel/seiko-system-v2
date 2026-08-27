@@ -110,10 +110,7 @@ export function AccessProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AccessContextValue>(() => ({ session, businessId: membership?.businessId || businessId, membership, can, refresh }), [session, businessId, membership, can, refresh]);
 
   if (status !== "ready" || !session || !membership) {
-    return <>
-      <AccessGate status={status} message={message} onRetry={refresh}/>
-      <div className="accessProtectedContent" aria-hidden="true">{children}</div>
-    </>;
+    return <AccessGate status={status} message={message} onRetry={refresh}/>;
   }
 
   return <AccessContext.Provider value={value}>
