@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
+import { startDomEnhancement } from "./lib/dom-enhancement";
 
 function enhanceRowCount(page: HTMLElement) {
   const input = page.querySelector<HTMLInputElement>('.rowCountControl input[aria-label="Number of rows to add"]');
   if (!input || input.dataset.replaceOnFocus === "true") return;
 
   input.dataset.replaceOnFocus = "true";
-  // Number inputs do not reliably support select() across browsers. Keep the
-  // React numeric value logic, but render this control as numeric text so the
-  // existing default can be replaced in one click/keystroke.
   input.type = "text";
   input.inputMode = "numeric";
   input.autocomplete = "off";
@@ -79,30 +77,18 @@ function syncWorkspaceChrome() {
 
 export function WorkspaceTopPager() {
   useEffect(() => {
-    let frame = 0;
-    const schedule = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        syncWorkspaceChrome();
-      });
-    };
-
-    schedule();
-    const observer = new MutationObserver(mutations => {
-      const relevant = mutations.some(mutation => {
+    const controller = startDomEnhancement(syncWorkspaceChrome, {
+      observer: { childList: true, subtree: true, characterData: true },
+      shouldSchedule: mutations => mutations.some(mutation => {
         const target = mutation.target as HTMLElement;
         if (target.closest?.(".workspacePagerTop")) return false;
         return Boolean(target.closest?.(".workspacePage")) || Array.from(mutation.addedNodes).some(node => node instanceof HTMLElement && (node.matches?.(".workspacePage") || node.querySelector?.(".workspacePage")));
-      });
-      if (relevant) schedule();
+      }),
     });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    document.addEventListener("change", schedule, true);
+    document.addEventListener("change", controller.schedule, true);
     return () => {
-      observer.disconnect();
-      document.removeEventListener("change", schedule, true);
-      if (frame) cancelAnimationFrame(frame);
+      document.removeEventListener("change", controller.schedule, true);
+      controller.stop();
     };
   }, []);
 
