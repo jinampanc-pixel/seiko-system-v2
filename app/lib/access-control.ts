@@ -35,6 +35,9 @@ export const PERMISSIONS = [
 export type Permission = (typeof PERMISSIONS)[number];
 export type AccessRole = "owner" | "admin" | "operations" | "viewer";
 
+/** Controls that are deliberately never delegable away from a business Owner. */
+export const OWNER_ONLY_PERMISSIONS: readonly Permission[] = ["suggestions.manage"];
+
 export type AccessConfig = {
   modules?: Module[];
   permissions?: Permission[];
@@ -58,7 +61,7 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: "pricing.edit", label: "Edit selling prices", group: "Finance", description: "Set or change selling prices and quotations." },
   { key: "costs.view", label: "See costs", group: "Finance", description: "View purchase, material, production and cost-price information." },
   { key: "financials.view", label: "See financial information", group: "Finance", description: "View margins, totals, invoice values and financial summaries." },
-  { key: "suggestions.manage", label: "Manage dropdown values", group: "Administration", description: "Add, rename and remove owner-managed dropdown/list values." },
+  { key: "suggestions.manage", label: "Manage dropdown values", group: "Administration", description: "Owner-only: add, rename and remove shared dropdown/list values." },
   { key: "labels.view", label: "View labels", group: "Labels", description: "Open saved labels and label records." },
   { key: "labels.create", label: "Create labels", group: "Labels", description: "Create production, packing and inventory labels." },
   { key: "labels.print", label: "Print labels", group: "Labels", description: "Send labels to the browser/printer." },
@@ -80,10 +83,11 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
 ];
 
 const ALL_PERMISSIONS = [...PERMISSIONS];
+const DELEGABLE_PERMISSIONS = ALL_PERMISSIONS.filter(permission => !OWNER_ONLY_PERMISSIONS.includes(permission));
 
 export const ROLE_PERMISSION_PRESETS: Record<AccessRole, readonly Permission[]> = {
   owner: ALL_PERMISSIONS,
-  admin: ALL_PERMISSIONS,
+  admin: DELEGABLE_PERMISSIONS,
   operations: [
     "orders.view", "orders.create", "orders.edit",
     "labels.view", "labels.create", "labels.print",
@@ -99,9 +103,13 @@ export function isPermission(value: unknown): value is Permission {
   return typeof value === "string" && (PERMISSIONS as readonly string[]).includes(value);
 }
 
+export function isDelegablePermission(value: Permission): boolean {
+  return !OWNER_ONLY_PERMISSIONS.includes(value);
+}
+
 export function permissionsForRole(role: AccessRole, configured?: readonly Permission[]): Permission[] {
   if (role === "owner") return [...ALL_PERMISSIONS];
-  if (configured) return [...new Set(configured.filter(isPermission))];
+  if (configured) return [...new Set(configured.filter(isPermission).filter(isDelegablePermission))];
   return [...ROLE_PERMISSION_PRESETS[role]];
 }
 
