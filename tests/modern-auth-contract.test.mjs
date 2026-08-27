@@ -6,6 +6,7 @@ const read = path => fs.readFileSync(new URL(`../${path}`, import.meta.url), "ut
 const server = read("app/lib/server-modern-auth.ts");
 const ui = read("app/modern-auth-ui.tsx");
 const access = read("app/access-control.tsx");
+const accessCss = read("app/access-control.css");
 const migration = read("drizzle/0004_erp_modern_auth.sql");
 
 test("Google sign-in uses OIDC state nonce and PKCE and only auto-links verified exact emails", () => {
@@ -61,4 +62,19 @@ test("password-manager autocomplete remains enabled", () => {
   assert.match(access, /autoComplete="username"/);
   assert.match(access, /autoComplete="current-password"/);
   assert.match(access, /autoComplete="new-password"/);
+});
+
+test("user editor can make login ready before first sign-in and reset it later", () => {
+  assert.match(access, /Initial password \*/);
+  assert.match(access, /Reset password \(optional\)/);
+  assert.match(access, /Ready to sign in after save/);
+  assert.match(access, /sign this user out on every device/);
+  assert.match(access, /Copy\/share this temporary password/);
+});
+
+test("user editor keeps header and actions outside the scrolling permission body", () => {
+  assert.match(access, /membershipEditorBody/);
+  assert.match(access, /membershipEditorFooter/);
+  assert.match(accessCss, /grid-template-rows:auto minmax\(0,1fr\) auto/);
+  assert.match(accessCss, /\.membershipEditorBody\{min-height:0;overflow:auto/);
 });
