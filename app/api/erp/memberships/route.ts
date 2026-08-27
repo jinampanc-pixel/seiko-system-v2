@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { MODULES, type Module } from "../../../lib/foundation";
-import { PERMISSIONS, isPermission, permissionsForRole, serializeAccessConfig, type AccessRole, type Permission } from "../../../lib/access-control";
+import { PERMISSIONS, isDelegablePermission, isPermission, permissionsForRole, serializeAccessConfig, type AccessRole, type Permission } from "../../../lib/access-control";
 import { authenticateActor, authorizePermission, clearMembershipCache } from "../../../lib/server-erp-auth";
 
 type MembershipInput = {
@@ -62,7 +62,7 @@ async function listMemberships(db: NonNullable<typeof env.DB>, businessId: strin
       email: row.email,
       displayName: row.display_name || row.email,
       role,
-      modules: config.modules,
+      modules: config.modules.length ? config.modules : defaultModulesForRole(role),
       permissions: permissionsForRole(role, config.permissions),
       customPermissions: Boolean(config.permissions),
       active: Boolean(row.active),
@@ -108,7 +108,7 @@ async function upsertMembership(
     `INSERT INTO erp_memberships (
        id,business_id,user_id,email,display_name,role,modules_json,active,
        created_at,created_by_email,updated_at,updated_by_email
-     ) VALUES (?,?,NULL,?,?,?,?,?,?,?, ?,?)
+     ) VALUES (?,?,NULL,?,?,?,?,?,?,?,?,?)
      ON CONFLICT(business_id,email) DO UPDATE SET
        display_name=excluded.display_name,
        role=excluded.role,
@@ -177,14 +177,21 @@ async function auditMembership(
 }
 
 function sanitizeModules(value: Module[] | undefined, role: AccessRole): Module[] {
-  if (role === "owner" || role === "admin") return [...MODULES];
-  const modules = Array.isArray(value) ? value.filter((item): item is Module => (MODULES as readonly string[]).includes(item)) : [];
+  if (role === "owner") return [...MODULES];
+  const source = Array.isArray(value) ? value : defaultModulesForRole(role);
+  const modules = source.filter((item): item is Module => (MODULES as readonly string[]).includes(item));
   return [...new Set(["home" as Module, ...modules])];
 }
 
 function sanitizePermissions(value: Permission[] | undefined, role: AccessRole): Permission[] {
   if (!Array.isArray(value)) return permissionsForRole(role);
-  return [...new Set(value.filter(isPermission))];
+  return [...new Set(value.filter(isPermission).filter(isDelegablePermission))];
+}
+
+function defaultModulesForRole(role: AccessRole): Module[] {
+  if (role === "owner" || role === "admin") return [...MODULES];
+  if (role === "operations") return ["home", "orders", "labels", "scan", "trace", "production", "inventory", "delivery"];
+  return ["home", "orders", "labels", "trace"];
 }
 
 function parseConfig(raw: string | null): { modules: Module[]; permissions?: Permission[] } {
