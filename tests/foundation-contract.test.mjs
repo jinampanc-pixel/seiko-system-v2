@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
 const route = readFileSync(new URL("../app/api/seiko/route.ts", import.meta.url), "utf8");
+const serverAuth = readFileSync(new URL("../app/lib/server-erp-auth.ts", import.meta.url), "utf8");
 const api = readFileSync(new URL("../app/lib/seiko-api.ts", import.meta.url), "utf8");
 const foundation = readFileSync(new URL("../app/lib/foundation.ts", import.meta.url), "utf8");
 const orders = readFileSync(new URL("../app/orders.tsx", import.meta.url), "utf8");
@@ -48,9 +49,11 @@ test("queued scans synchronize using their original idempotency key", () => {
 
 test("business context is mandatory and forwarded with authenticated identity", () => {
   assert.match(route, /BUSINESS_REQUIRED/);
-  assert.match(route, /oai-authenticated-user-id/);
-  assert.match(route, /oai-authenticated-user-email/);
-  assert.match(route, /actor: \{ userId, email: userEmail \}/);
+  assert.match(route, /authenticateActor\(request\)/);
+  assert.match(serverAuth, /oai-authenticated-user-id/);
+  assert.match(serverAuth, /oai-authenticated-user-email/);
+  assert.match(serverAuth, /cf-access-jwt-assertion/);
+  assert.match(route, /actor: \{ userId: actor\.userId, email: actor\.email \}/);
   assert.match(route, /businessId: businessId \|\| null/);
 });
 
