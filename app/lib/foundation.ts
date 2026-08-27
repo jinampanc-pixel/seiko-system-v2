@@ -46,7 +46,8 @@ export const RETIRED_BUSINESS_IDS = new Set(["veyn-view"]);
 export function normalizeMembership(value: BusinessMembership): BusinessMembership {
   if (RETIRED_BUSINESS_IDS.has(value.businessId)) return { ...value, modules: [], permissions: [] };
   const allowedForRole = new Set(ROLE_MODULES[value.role] || ROLE_MODULES.viewer);
-  const granted = new Set(value.modules || []);
+  const configuredModules = Array.isArray(value.modules) && value.modules.length ? value.modules : [...allowedForRole];
+  const granted = new Set(configuredModules);
   return {
     ...value,
     modules: MODULES.filter(module => allowedForRole.has(module) && granted.has(module)),
