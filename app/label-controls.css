@@ -40,6 +40,20 @@
 /* Representation is chosen on Back to setup, so duplicate packing/group launchers stay hidden here. */
 .labelDesignerPage .labelContextSettings,.labelDesignerPage .labelContextSettingsButton,.labelDesignerPage .personPackageSetup.labelInlineConfigurator,.labelDesignerPage .packageGrouping.labelInlineConfigurator{display:none!important}
 
+/* Selected information summary uses compact removable brand chips. */
+.labelDesignerPage .labelInfoSelectedStrip{display:flex!important;flex-wrap:wrap!important;gap:6px!important;align-items:center!important}
+.labelDesignerPage .labelInfoChip{display:inline-flex!important;align-items:center!important;gap:7px!important;min-height:30px!important;padding:5px 8px 5px 10px!important;border:0!important;border-radius:999px!important;background:var(--navy)!important;color:#fff!important;font-size:10px!important;font-weight:800!important;line-height:1!important}
+.labelDesignerPage .labelInfoChip:hover{background:var(--navy2)!important}
+.labelDesignerPage .labelInfoChipText{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.labelDesignerPage .labelInfoChipRemove{display:grid;place-items:center;width:17px;height:17px;flex:none;border-radius:50%;background:#ffffff18;color:#fff;font-size:15px;font-weight:500;line-height:1}
+.labelDesignerPage .labelInfoChip:hover .labelInfoChipRemove{background:#ffffff2b}
+
+/* Classification is a peer information tile, not a separate full-width form. */
+.labelDesignerPage .classificationInformation.classificationTile{grid-column:span 1!important;display:grid!important;grid-template-columns:1fr!important;gap:6px!important;align-content:start!important;min-height:54px!important;margin:0!important;padding:9px 10px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:var(--paper)!important}
+.labelDesignerPage .classificationInformation.classificationTile>b{font-size:11px!important;color:var(--ink)!important}
+.labelDesignerPage .classificationInformation.classificationTile>select{width:100%!important;height:34px!important;min-height:34px!important;margin:0!important;padding:0 34px 0 9px!important;font-size:10px!important}
+.labelDesignerPage .classificationInformation.classificationTile>small{margin:0!important;font-size:9px!important;line-height:1.25!important;color:var(--muted)!important}
+
 /* Selected information cards expose useful naming/style controls without an extra Options footer. */
 .labelDesignerPage .fieldChoiceOptionsToggle{display:none!important}
 .labelDesignerPage .fieldChoice.chosen,.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded{min-height:42px!important;height:auto!important;grid-column:span 1!important;padding:7px 8px!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:5px 8px!important;align-items:center!important;align-content:start!important}
@@ -74,5 +88,6 @@
  .labelDesignerPage .fieldChoice.chosen>.showName{grid-column:1!important}
  .labelDesignerPage .labelInlineSizeEditor{grid-template-columns:1fr!important}
  .labelDesignerPage .labelInlineSizeEditor .customSizeActions{grid-template-columns:1fr!important}
+ .labelDesignerPage .classificationInformation.classificationTile{grid-column:1!important}
  .labelDragDeleteTarget{position:fixed;bottom:max(88px,calc(env(safe-area-inset-bottom) + 72px))}
 }
