@@ -2,10 +2,13 @@ import { env } from "cloudflare:workers";
 import { MODULES, type Module } from "../../../lib/foundation";
 import { PERMISSIONS, isDelegablePermission, isPermission, permissionsForRole, serializeAccessConfig, type AccessRole, type Permission } from "../../../lib/access-control";
 import { authenticateActor, authorizePermission, clearMembershipCache } from "../../../lib/server-erp-auth";
+import { ensureAuthSchema, revokeAllUserSessions, upsertCredentialUser } from "../../../lib/server-password-auth";
 
 type MembershipInput = {
   email?: string;
   displayName?: string;
+  phone?: string;
+  temporaryPassword?: string;
   role?: AccessRole;
   modules?: Module[];
   permissions?: Permission[];
@@ -38,6 +41,7 @@ export async function POST(request: Request) {
 
   const db = env.DB;
   if (!db) return error("ERP_DB_NOT_CONFIGURED", "Shared ERP storage is not connected.", 503);
+  await ensureAuthSchema(db);
 
   if (body.operation === "list") return listMemberships(db, businessId);
   if (body.operation === "upsert") return upsertMembership(db, businessId, actor, actorMembership.role, body.membership);
@@ -47,12 +51,16 @@ export async function POST(request: Request) {
 
 async function listMemberships(db: NonNullable<typeof env.DB>, businessId: string) {
   const result = await db.prepare(
-    `SELECT email, display_name, role, modules_json, active, created_at, updated_at, updated_by_email
-       FROM erp_memberships WHERE business_id = ?
-       ORDER BY active DESC, lower(display_name), lower(email)`,
+    `SELECT m.email,m.display_name,m.role,m.modules_json,m.active,m.created_at,m.updated_at,m.updated_by_email,
+            u.phone_e164,u.password_hash,u.must_change_password,u.last_login_at
+       FROM erp_memberships m
+       LEFT JOIN erp_users u ON lower(u.email)=lower(m.email)
+      WHERE m.business_id=?
+      ORDER BY m.active DESC, lower(m.display_name), lower(m.email)`,
   ).bind(businessId).all<{
     email: string; display_name: string | null; role: string; modules_json: string | null;
     active: number; created_at: string; updated_at: string; updated_by_email: string;
+    phone_e164: string | null; password_hash: string | null; must_change_password: number | null; last_login_at: string | null;
   }>();
 
   const users = (result.results || []).map(row => {
@@ -61,6 +69,10 @@ async function listMemberships(db: NonNullable<typeof env.DB>, businessId: strin
     return {
       email: row.email,
       displayName: row.display_name || row.email,
+      phone: row.phone_e164 || "",
+      hasCredentials: Boolean(row.password_hash),
+      mustChangePassword: Boolean(row.must_change_password),
+      lastLoginAt: row.last_login_at,
       role,
       modules: config.modules.length ? config.modules : defaultModulesForRole(role),
       permissions: permissionsForRole(role, config.permissions),
@@ -88,9 +100,19 @@ async function upsertMembership(
   if (role === "owner" && actorRole !== "owner") return error("OWNER_REQUIRED", "Only an Owner can grant Owner access.", 403);
 
   const current = await db.prepare(
-    `SELECT role, active FROM erp_memberships WHERE business_id = ? AND lower(email) = lower(?)`,
+    `SELECT role,active FROM erp_memberships WHERE business_id=? AND lower(email)=lower(?)`,
   ).bind(businessId, email).first<{ role: string; active: number }>();
   if (current?.role === "owner" && actorRole !== "owner") return error("OWNER_REQUIRED", "Only an Owner can change an Owner account.", 403);
+
+  const credential = await db.prepare(`SELECT id,password_hash FROM erp_users WHERE lower(email)=lower(?)`)
+    .bind(email).first<{ id: string; password_hash: string | null }>();
+  const temporaryPassword = candidate?.temporaryPassword || "";
+  if (!current && !credential && !temporaryPassword) {
+    return error("CREDENTIAL_REQUIRED", "Set a temporary password for a new user.", 400);
+  }
+  if (!credential && candidate?.phone && !temporaryPassword) {
+    return error("CREDENTIAL_REQUIRED", "Set a temporary password to activate this user's ERP login.", 400);
+  }
 
   const modules = sanitizeModules(candidate?.modules, role);
   const permissions = role === "owner" ? permissionsForRole("owner") : sanitizePermissions(candidate?.permissions, role);
@@ -103,13 +125,30 @@ async function upsertMembership(
     return error("LAST_OWNER", "A business must always have at least one active Owner.", 409);
   }
 
+  let userId = credential?.id || null;
+  if (credential || temporaryPassword) {
+    try {
+      const result = await upsertCredentialUser(db, {
+        email,
+        displayName,
+        phone: candidate?.phone || null,
+        temporaryPassword: temporaryPassword || null,
+        actorEmail: actor.email,
+      });
+      userId = result.userId;
+    } catch (cause) {
+      return error("INVALID_CREDENTIAL", cause instanceof Error ? cause.message : "Login credentials could not be saved.", 400);
+    }
+  }
+
   const id = crypto.randomUUID();
   await db.prepare(
     `INSERT INTO erp_memberships (
        id,business_id,user_id,email,display_name,role,modules_json,active,
        created_at,created_by_email,updated_at,updated_by_email
-     ) VALUES (?,?,NULL,?,?,?,?,?,?,?,?,?)
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
      ON CONFLICT(business_id,email) DO UPDATE SET
+       user_id=COALESCE(excluded.user_id,erp_memberships.user_id),
        display_name=excluded.display_name,
        role=excluded.role,
        modules_json=excluded.modules_json,
@@ -117,11 +156,14 @@ async function upsertMembership(
        updated_at=excluded.updated_at,
        updated_by_email=excluded.updated_by_email`,
   ).bind(
-    id, businessId, email, displayName, role, accessConfig, active,
+    id, businessId, userId, email, displayName, role, accessConfig, active,
     now, actor.email, now, actor.email,
   ).run();
 
-  await auditMembership(db, businessId, actor, email, current ? "membership.updated" : "membership.created", { email, displayName, role, modules, permissions, active: Boolean(active) });
+  if (userId) await db.prepare(`UPDATE erp_memberships SET user_id=? WHERE lower(email)=lower(?)`).bind(userId, email).run();
+  await auditMembership(db, businessId, actor, email, current ? "membership.updated" : "membership.created", {
+    email, displayName, role, modules, permissions, active: Boolean(active), credentialsReset: Boolean(temporaryPassword),
+  });
   clearMembershipCache();
   return Response.json({ ok: true, data: { email } });
 }
@@ -136,7 +178,7 @@ async function deactivateMembership(
   const email = rawEmail?.trim().toLowerCase() || "";
   if (!EMAIL.test(email)) return error("INVALID_EMAIL", "Choose a valid user.", 400);
   const current = await db.prepare(
-    `SELECT role, active FROM erp_memberships WHERE business_id = ? AND lower(email) = lower(?)`,
+    `SELECT role,active FROM erp_memberships WHERE business_id=? AND lower(email)=lower(?)`,
   ).bind(businessId, email).first<{ role: string; active: number }>();
   if (!current) return error("NOT_FOUND", "This user does not exist.", 404);
   if (current.role === "owner" && actorRole !== "owner") return error("OWNER_REQUIRED", "Only an Owner can deactivate an Owner.", 403);
@@ -146,9 +188,11 @@ async function deactivateMembership(
 
   const now = new Date().toISOString();
   await db.prepare(
-    `UPDATE erp_memberships SET active = 0, updated_at = ?, updated_by_email = ?
-      WHERE business_id = ? AND lower(email) = lower(?)`,
+    `UPDATE erp_memberships SET active=0,updated_at=?,updated_by_email=? WHERE business_id=? AND lower(email)=lower(?)`,
   ).bind(now, actor.email, businessId, email).run();
+
+  const user = await db.prepare(`SELECT id FROM erp_users WHERE lower(email)=lower(?)`).bind(email).first<{ id: string }>();
+  if (user) await revokeAllUserSessions(db, user.id);
   await auditMembership(db, businessId, actor, email, "membership.deactivated", { email, active: false });
   clearMembershipCache();
   return Response.json({ ok: true, data: { email } });
@@ -156,7 +200,7 @@ async function deactivateMembership(
 
 async function activeOwnerCount(db: NonNullable<typeof env.DB>, businessId: string) {
   const row = await db.prepare(
-    `SELECT count(*) AS count FROM erp_memberships WHERE business_id = ? AND role = 'owner' AND active = 1`,
+    `SELECT count(*) AS count FROM erp_memberships WHERE business_id=? AND role='owner' AND active=1`,
   ).bind(businessId).first<{ count: number }>();
   return Number(row?.count || 0);
 }
@@ -213,5 +257,5 @@ function isRole(value: string): value is AccessRole {
 }
 
 function error(code: string, message: string, status: number) {
-  return Response.json({ ok: false, code, message }, { status });
+  return Response.json({ ok: false, code, message }, { status, headers: { "cache-control": "no-store" } });
 }
