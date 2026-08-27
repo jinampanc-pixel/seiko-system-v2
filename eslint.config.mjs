@@ -20,7 +20,11 @@ const eslintConfig = defineConfig([
   ...tseslint.configs.recommended,
   react.configs.flat.recommended,
   react.configs.flat["jsx-runtime"],
-  reactHooks.configs.flat["recommended-latest"],
+  // Keep production linting on the stable Hooks contract. The plugin's
+  // recommended-latest preset also enables experimental React Compiler rules,
+  // which are useful during compiler adoption but are not a runtime-quality
+  // requirement for this application today.
+  reactHooks.configs.flat.recommended,
   jsxA11y.flatConfigs.recommended,
   next.configs["core-web-vitals"],
   {
