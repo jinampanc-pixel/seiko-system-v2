@@ -10,6 +10,11 @@ const session = read("app/api/erp/session/route.ts");
 const memberships = read("app/api/erp/memberships/route.ts");
 const accessUi = read("app/access-control.tsx");
 const migration = read("drizzle/0003_erp_first_party_auth.sql");
+const platformAccess = read("app/lib/server-platform-access.ts");
+const businessCatalog = read("app/lib/business-catalog.ts");
+const foundation = read("app/lib/foundation.ts");
+const accessControl = read("app/lib/access-control.ts");
+const billing = read("app/billing.tsx");
 
 test("passwords use salted PBKDF2 and are never stored as plaintext", () => {
   assert.match(auth, /PBKDF2-SHA256/);
@@ -56,4 +61,24 @@ test("login accepts email or phone and rate limits failures", () => {
 test("administrator password reset revokes existing sessions", () => {
   assert.match(memberships, /upsertCredentialUser/);
   assert.match(auth, /if \(input\.temporaryPassword\)[\s\S]*revokeAllUserSessions/);
+});
+
+test("founding platform owner is provisioned across the three business systems", () => {
+  assert.match(session, /ensurePlatformOwnerBusinesses/);
+  assert.match(platformAccess, /erp_platform_roles/);
+  assert.match(platformAccess, /role='owner'/);
+  assert.match(businessCatalog, /businessId: "seiko"/);
+  assert.match(businessCatalog, /businessId: "veyn-health"/);
+  assert.match(businessCatalog, /businessId: "meth"/);
+});
+
+test("billing is a first-class module with shared commercial document flow", () => {
+  assert.match(foundation, /"billing"/);
+  assert.match(accessControl, /billing\.quotations\.manage/);
+  assert.match(accessControl, /billing\.purchase_orders\.manage/);
+  assert.match(accessControl, /billing\.delivery_challans\.manage/);
+  assert.match(accessControl, /billing\.invoices\.manage/);
+  assert.match(accessControl, /catalog\.manage/);
+  assert.match(billing, /Quotation → PO → Delivery Challan → Invoice/);
+  assert.match(billing, /same customer, item\/service and pricing source/);
 });
