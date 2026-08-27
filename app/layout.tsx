@@ -20,19 +20,7 @@ import "./brand-header-final.css";
 import "./label-flow-polish.css";
 import "./label-controls.css";
 import "./global-navigation.css";
-import { OwnerDropdownUx } from "./owner-dropdown-ux";
-import { OrderSetupPolish } from "./order-setup-polish";
-import { OrderSetupFinalize } from "./order-setup-finalize";
-import { OrderCompactUx } from "./order-compact-ux";
-import { ErpOrderSync } from "./erp-order-sync";
-import { WorkspaceTopPager } from "./workspace-top-pager";
-import { WorkspaceShortcuts } from "./workspace-shortcuts";
-import { LabelFlowPolish } from "./label-flow-polish";
-import { LabelDesignerPolish } from "./label-designer-polish";
-import { LabelProductionReady } from "./label-production-ready";
-import { LabelFinalization } from "./label-finalization";
-import { LabelDesignerInteractions } from "./label-designer-interactions";
-import { GlobalNavigation } from "./global-navigation";
+import { AppEnhancements } from "./app-enhancements";
 
 export const metadata: Metadata = {
   title: "Jinam Foundation",
@@ -44,5 +32,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/><WorkspaceTopPager/><WorkspaceShortcuts/><LabelFlowPolish/><LabelDesignerPolish/><LabelProductionReady/><LabelFinalization/><LabelDesignerInteractions/><GlobalNavigation/>{children}</body></html>;
+  return <html lang="en"><body><AppEnhancements />{children}</body></html>;
 }
