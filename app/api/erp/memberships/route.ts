@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { businessCatalogEntry } from "../../../lib/business-catalog";
 import { MODULES, type Module } from "../../../lib/foundation";
 import { PERMISSIONS, isDelegablePermission, isPermission, permissionsForRole, serializeAccessConfig, type AccessRole, type Permission } from "../../../lib/access-control";
 import { authenticateActor, authorizePermission, clearMembershipCache } from "../../../lib/server-erp-auth";
@@ -74,7 +75,7 @@ async function listMemberships(db: NonNullable<typeof env.DB>, businessId: strin
       mustChangePassword: Boolean(row.must_change_password),
       lastLoginAt: row.last_login_at,
       role,
-      modules: config.modules.length ? config.modules : defaultModulesForRole(role),
+      modules: sanitizeModules(config.modules.length ? config.modules : undefined, role, businessId),
       permissions: permissionsForRole(role, config.permissions),
       customPermissions: Boolean(config.permissions),
       active: Boolean(row.active),
@@ -83,7 +84,8 @@ async function listMemberships(db: NonNullable<typeof env.DB>, businessId: strin
       updatedBy: row.updated_by_email,
     };
   });
-  return Response.json({ ok: true, data: { users, permissionKeys: PERMISSIONS, moduleKeys: MODULES } });
+  const moduleKeys = businessCatalogEntry(businessId).allowedModules;
+  return Response.json({ ok: true, data: { users, permissionKeys: PERMISSIONS, moduleKeys } });
 }
 
 async function upsertMembership(
@@ -114,7 +116,7 @@ async function upsertMembership(
     return error("CREDENTIAL_REQUIRED", "Set a temporary password to activate this user's ERP login.", 400);
   }
 
-  const modules = sanitizeModules(candidate?.modules, role);
+  const modules = sanitizeModules(candidate?.modules, role, businessId);
   const permissions = role === "owner" ? permissionsForRole("owner") : sanitizePermissions(candidate?.permissions, role);
   const accessConfig = serializeAccessConfig({ modules, permissions });
   const now = new Date().toISOString();
@@ -220,11 +222,15 @@ async function auditMembership(
   ).bind(crypto.randomUUID(), businessId, "membership", email, action, actor.userId, actor.email, new Date().toISOString(), JSON.stringify(snapshot)).run();
 }
 
-function sanitizeModules(value: Module[] | undefined, role: AccessRole): Module[] {
-  if (role === "owner") return [...MODULES];
-  const source = Array.isArray(value) ? value : defaultModulesForRole(role);
-  const modules = source.filter((item): item is Module => (MODULES as readonly string[]).includes(item));
-  return [...new Set(["home" as Module, ...modules])];
+function sanitizeModules(value: Module[] | undefined, role: AccessRole, businessId: string): Module[] {
+  const businessModules = new Set<Module>(businessCatalogEntry(businessId).allowedModules);
+  const roleModules = role === "owner" ? [...MODULES] : defaultModulesForRole(role);
+  const source = Array.isArray(value) ? value : roleModules;
+  const modules = source.filter((item): item is Module =>
+    (MODULES as readonly string[]).includes(item) && businessModules.has(item) && roleModules.includes(item),
+  );
+  if (businessModules.has("home") && !modules.includes("home")) modules.unshift("home");
+  return [...new Set(modules)];
 }
 
 function sanitizePermissions(value: Permission[] | undefined, role: AccessRole): Permission[] {
