@@ -29,14 +29,15 @@
 .labelDesignerPage .simpleDesignerHead small{font-size:11px}
 .labelDesignerPage .simpleDesignerHead>button:not(.labelInfoToggle){display:none!important}
 .labelDesignerPage .labelInfoToggle{flex:none;min-width:190px}
-.labelDesignerPage .labelInfoCollapsed .fieldChecklist,.labelDesignerPage .labelInfoCollapsed .labelInfoTools,.labelDesignerPage .labelInfoCollapsed .classificationInformation,.labelDesignerPage .labelInfoCollapsed .customerUpdateChoice,.labelDesignerPage .labelInfoCollapsed .purposeBoundary{display:none!important}
+.labelDesignerPage .labelInfoCollapsed .fieldChecklist,.labelDesignerPage .labelInfoCollapsed .labelInfoTools,.labelDesignerPage .labelInfoCollapsed .classificationInformation,.labelDesignerPage .labelInfoCollapsed .customerUpdateChoice,.labelDesignerPage .labelInfoCollapsed .purposeBoundary,.labelDesignerPage .labelInfoCollapsed .labelInfoCategoryBar{display:none!important}
 .labelDesignerPage .labelInfoCollapsed .simpleDesignerHead{margin:0}
 html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelInfoCollapsed) .fieldChecklist{display:grid!important}
 html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelInfoCollapsed) .customerUpdateChoice{display:flex!important}
 html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelInfoCollapsed) .purposeBoundary{display:block!important}
 .labelDesignerPage .labelInfoSelectedStrip{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .labelDesignerPage .labelInfoSelectedStrip:empty{display:none}
-.labelDesignerPage .labelInfoChip{height:27px;border:1px solid var(--line);border-radius:14px;padding:0 9px;background:color-mix(in srgb,var(--paper) 88%,var(--pale));color:var(--navy);font-size:9px;font-weight:700}
+.labelDesignerPage .labelInfoChip{height:28px;border:1px solid var(--navy);border-radius:14px;padding:0 10px;background:var(--navy);color:#fff;font-size:9px;font-weight:800;box-shadow:none}
+.labelDesignerPage .labelInfoChip:hover{filter:brightness(1.06)}
 .labelDesignerPage .labelInfoTools{margin-top:10px}
 .labelDesignerPage .labelInfoTools input{box-sizing:border-box;width:100%;height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--paper);color:var(--ink)}
 .labelDesignerPage .fieldChecklist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:8px;max-height:400px;overflow:auto;padding-right:3px}
@@ -47,6 +48,7 @@ html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelIn
 .labelDesignerPage .fieldChoice.fieldChoiceExpanded>input{display:block}
 .labelDesignerPage .fieldChoiceOptionsToggle{height:26px;border:0;background:transparent;color:var(--navy);font-size:9px;font-weight:800}
 .labelDesignerPage .fieldChoice:not(.chosen) .fieldChoiceOptionsToggle{display:none}
+.labelDesignerPage .labelSizeValidation{grid-column:1/-1;margin:0;padding:8px 10px;border-radius:7px;background:#fff1ef;color:var(--red);font-size:10px;font-weight:700}
 
 /* Bottom working zone. */
 .labelDesignerPage .labelSelectionPreviewGrid{order:99;display:grid;grid-template-columns:minmax(360px,.9fr) minmax(480px,1.1fr);gap:12px;width:100%;min-height:0;margin-top:0}
@@ -110,4 +112,3 @@ html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelIn
   .labelDesignerPage .labelStageV2{min-height:260px}
   .labelDesignerPage .labelSizeConfigurator{grid-template-columns:1fr}
 }
-
