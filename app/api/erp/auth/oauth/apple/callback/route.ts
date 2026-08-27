@@ -1,4 +1,4 @@
-import { finishOAuth, ModernAuthError } from "../../../../../lib/server-modern-auth";
+import { finishOAuth, ModernAuthError } from "../../../../../../lib/server-modern-auth";
 
 export async function POST(request: Request) {
   const form = await request.formData();
