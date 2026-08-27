@@ -1,0 +1,16 @@
+/* Shared form-control rules. Brand accent follows the active business theme. */
+
+.app input[type="checkbox"],
+.app input[type="radio"],
+.labelCreateApp input[type="checkbox"],
+.labelCreateApp input[type="radio"]{
+  accent-color:var(--gold);
+}
+
+.app input[type="checkbox"]:focus-visible,
+.app input[type="radio"]:focus-visible,
+.labelCreateApp input[type="checkbox"]:focus-visible,
+.labelCreateApp input[type="radio"]:focus-visible{
+  outline:2px solid color-mix(in srgb,var(--gold) 68%,white);
+  outline-offset:2px;
+}
