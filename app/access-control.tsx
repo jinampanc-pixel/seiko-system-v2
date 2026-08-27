@@ -184,7 +184,7 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
       <p>{message}</p>
 
       {status === "signed-out" && <form className="erpLoginForm" onSubmit={event => { event.preventDefault(); void signIn(); }}>
-        <label><span>Email or phone</span><input autoComplete="username" value={identifier} onChange={event => setIdentifier(event.target.value)} placeholder="Email or mobile number" autoFocus/></label>
+        <label><span>Email or phone</span><input autoComplete="username" value={identifier} onChange={event => setIdentifier(event.target.value)} placeholder="Email or mobile number"/></label>
         <label><span>Password</span><input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Password"/></label>
         {formError && <div className="accessError" role="alert">{formError}</div>}
         <button className="primary" type="submit" disabled={busy || !identifier.trim() || !password}>{busy ? "Signing in…" : "Sign in"}</button>
@@ -192,7 +192,7 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
       </form>}
 
       {status === "change-password" && <form className="erpLoginForm" onSubmit={event => { event.preventDefault(); void changePassword(); }}>
-        <label><span>New password</span><input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="At least 12 characters" autoFocus/></label>
+        <label><span>New password</span><input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="At least 12 characters"/></label>
         <label><span>Confirm password</span><input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Repeat your password"/></label>
         {formError && <div className="accessError" role="alert">{formError}</div>}
         <button className="primary" type="submit" disabled={busy || newPassword.length < 12 || !confirmPassword}>{busy ? "Saving…" : "Set password & continue"}</button>
