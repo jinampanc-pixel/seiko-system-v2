@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { startDomEnhancement } from "./lib/dom-enhancement";
 
 type StoredChoice = { label: string; value: string };
 type ChoiceStore = { hidden: string[]; aliases: StoredChoice[] };
@@ -212,7 +213,6 @@ function enhanceEditableSelect(select: HTMLSelectElement, kind: string) {
       return;
     }
 
-    // Custom owner wording reuses the currently selected real system behaviour.
     store.aliases.push({ label: typed, value: select.value });
     saveChoiceStore(kind, store, base);
     input.dataset.displayValue = select.value;
@@ -249,56 +249,43 @@ function cleanSpecificationButton() {
   });
 }
 
+function enhance() {
+  reorderOrderMenu();
+  cleanSpecificationButton();
+  if (!isOwnerSetup()) return;
+
+  document.querySelectorAll<HTMLElement>(".orderSetup .policyRow").forEach(row => {
+    const typeSelect = row.querySelector<HTMLSelectElement>("select");
+    if (typeSelect) {
+      const listOption = Array.from(typeSelect.options).find(option => option.value === "dropdown");
+      if (listOption && listOption.textContent !== "Dropdown · manage options") listOption.textContent = "Dropdown · manage options";
+    }
+    const optionInput = row.querySelector<HTMLInputElement>(".optionEditor > input");
+    if (optionInput) optionInput.placeholder = "+ Add option — type and press Enter";
+  });
+
+  document.querySelectorAll<HTMLSelectElement>(".orderSetup .productPolicyTop label > select").forEach(select => {
+    const title = select.closest("label")?.querySelector(":scope > span")?.textContent?.trim();
+    if (title === "Quantity") enhanceEditableSelect(select, "quantity-mode");
+  });
+
+  document.querySelectorAll<HTMLSelectElement>('.orderSetup .specPolicy select[aria-label="Specification type"]').forEach(select => {
+    enhanceEditableSelect(select, "specification-type");
+  });
+
+  document.querySelectorAll<HTMLSelectElement>('.orderSetup .specPolicy select[aria-label="Value assignment method"]').forEach(select => {
+    enhanceEditableSelect(select, "specification-value-mode");
+  });
+}
+
 export function OwnerDropdownUx() {
   useEffect(() => {
-    let frame = 0;
-
-    const enhance = () => {
-      reorderOrderMenu();
-      cleanSpecificationButton();
-      if (!isOwnerSetup()) return;
-
-      document.querySelectorAll<HTMLElement>(".orderSetup .policyRow").forEach(row => {
-        const typeSelect = row.querySelector<HTMLSelectElement>("select");
-        if (typeSelect) {
-          const listOption = Array.from(typeSelect.options).find(option => option.value === "dropdown");
-          if (listOption && listOption.textContent !== "Dropdown · manage options") listOption.textContent = "Dropdown · manage options";
-        }
-        const optionInput = row.querySelector<HTMLInputElement>(".optionEditor > input");
-        if (optionInput) optionInput.placeholder = "+ Add option — type and press Enter";
-      });
-
-      document.querySelectorAll<HTMLSelectElement>(".orderSetup .productPolicyTop label > select").forEach(select => {
-        const title = select.closest("label")?.querySelector(":scope > span")?.textContent?.trim();
-        if (title === "Quantity") enhanceEditableSelect(select, "quantity-mode");
-      });
-
-      document.querySelectorAll<HTMLSelectElement>('.orderSetup .specPolicy select[aria-label="Specification type"]').forEach(select => {
-        enhanceEditableSelect(select, "specification-type");
-      });
-
-      document.querySelectorAll<HTMLSelectElement>('.orderSetup .specPolicy select[aria-label="Value assignment method"]').forEach(select => {
-        enhanceEditableSelect(select, "specification-value-mode");
-      });
-    };
-
-    const schedule = () => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(() => {
-        frame = 0;
-        enhance();
-      });
-    };
-
-    enhance();
-    const observer = new MutationObserver(mutations => {
-      if (mutations.some(mutation => mutation.addedNodes.length || mutation.removedNodes.length)) schedule();
+    const controller = startDomEnhancement(enhance, {
+      shouldSchedule: mutations => mutations.some(mutation => mutation.addedNodes.length || mutation.removedNodes.length),
     });
-    observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
-      observer.disconnect();
-      if (frame) window.cancelAnimationFrame(frame);
+      controller.stop();
       document.querySelectorAll(".ownerManagedSelect").forEach(node => node.remove());
       document.querySelectorAll(".ownerEditableNative").forEach(node => node.classList.remove("ownerEditableNative"));
     };
