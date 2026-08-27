@@ -30,7 +30,6 @@ import { LabelFlowPolish } from "./label-flow-polish";
 import { LabelDesignerPolish } from "./label-designer-polish";
 import { LabelProductionReady } from "./label-production-ready";
 import { LabelFinalization } from "./label-finalization";
-import { LabelDropdownFinal } from "./label-dropdown-final";
 
 export const metadata: Metadata = {
   title: "Jinam Foundation",
@@ -42,5 +41,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/><WorkspaceTopPager/><WorkspaceShortcuts/><LabelFlowPolish/><LabelDesignerPolish/><LabelProductionReady/><LabelFinalization/><LabelDropdownFinal/>{children}</body></html>;
+  return <html lang="en"><body><ErpOrderSync/><OwnerDropdownUx/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/><WorkspaceTopPager/><WorkspaceShortcuts/><LabelFlowPolish/><LabelDesignerPolish/><LabelProductionReady/><LabelFinalization/>{children}</body></html>;
 }
