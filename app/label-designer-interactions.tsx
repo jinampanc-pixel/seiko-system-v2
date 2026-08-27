@@ -35,12 +35,16 @@ export function LabelDesignerInteractions() {
       canvas.dataset.rightSafeMm = String(RIGHT_PRINT_SAFE_MM);
 
       canvas.querySelectorAll<HTMLElement>(".canvasElement").forEach(element => {
+        if (element === draggedElement) return;
         const left = Number.parseFloat(element.style.left);
         const width = Number.parseFloat(element.style.width);
         if (!Number.isFinite(left) || !Number.isFinite(width)) return;
         const maxLeft = Math.max(0, 100 - safePercent - width);
         const nextLeft = Math.min(left, maxLeft);
-        if (Math.abs(nextLeft - left) > 0.001) element.style.left = `${nextLeft}%`;
+        if (Math.abs(nextLeft - left) > 0.001) {
+          element.dataset.rightSafeOriginalLeft = String(left);
+          element.style.left = `${nextLeft}%`;
+        }
       });
     };
 
@@ -243,6 +247,13 @@ export function LabelDesignerInteractions() {
       draggedPage = page;
       draggedElement = element;
       removeArmed = false;
+
+      const originalLeft = Number.parseFloat(element.dataset.rightSafeOriginalLeft || "");
+      if (Number.isFinite(originalLeft)) {
+        element.style.left = `${originalLeft}%`;
+        delete element.dataset.rightSafeOriginalLeft;
+      }
+
       setDeleteState(target, false);
     };
 
