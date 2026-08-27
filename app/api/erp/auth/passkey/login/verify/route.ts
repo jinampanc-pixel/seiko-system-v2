@@ -1,4 +1,4 @@
-import { verifyPasskeyLogin, ModernAuthError } from "../../../../../lib/server-modern-auth";
+import { verifyPasskeyLogin, ModernAuthError } from "../../../../../../lib/server-modern-auth";
 
 export async function POST(request: Request) {
   try {
