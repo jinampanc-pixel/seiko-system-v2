@@ -1,48 +1,46 @@
-/* Embedded managed dropdowns: one interaction pattern everywhere. */
-.labelEmbeddedSelect,.labelFinalSizeSelect{position:relative;min-width:0}
-.labelEmbeddedSelectButton,.labelFinalSizeTrigger{box-sizing:border-box;width:100%;height:44px;border:1px solid var(--line);border-radius:9px;background:var(--paper);padding:0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--ink);font:600 13px/1.2 var(--ui-font);text-align:left}
-.labelEmbeddedSelectButton:disabled,.labelFinalSizeTrigger:disabled{opacity:.55;cursor:not-allowed}
-.labelEmbeddedChevron,.labelFinalChevron{flex:none;color:var(--muted);font-size:14px}
-.labelEmbeddedMenu,.labelFinalSizeMenu{position:absolute;z-index:120;left:0;right:0;top:calc(100% + 5px);overflow:hidden;border:1px solid var(--line);border-radius:9px;background:var(--paper);box-shadow:0 16px 38px #102d4928}
-.labelEmbeddedOptions,.labelFinalSizeOptions{max-height:260px;overflow:auto;padding:5px}
-.labelEmbeddedOptions>button,.labelFinalSizeOption{width:100%;min-height:36px;border:0;border-radius:7px;padding:7px 9px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:transparent;color:var(--ink);font-size:11px;font-weight:600;text-align:left}
-.labelEmbeddedOptions>button:hover,.labelEmbeddedOptions>button.selected,.labelFinalSizeOption:hover,.labelFinalSizeOptionRow.selected .labelFinalSizeOption{background:var(--pale)}
-.labelEmbeddedManage,.labelFinalSizeManage{width:100%;height:36px;border:0;border-top:1px solid var(--line);background:color-mix(in srgb,var(--pale) 78%,var(--paper));color:var(--navy);font-size:10px;font-weight:800;text-align:left;padding:0 12px}
-.labelEmbeddedManage:hover,.labelFinalSizeManage:hover{background:var(--pale)}
-.labelFinalNativeSelect{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
-.labelFinalSizeOptionRow{display:grid;grid-template-columns:minmax(0,1fr) 30px;align-items:center;gap:2px}
-.labelFinalSizeOptionRow:not(:has(.labelFinalSizeRemove)){grid-template-columns:1fr}
-.labelFinalSizeRemove{width:28px;height:28px;border:0;border-radius:6px;background:transparent;color:var(--red);font-size:17px;line-height:1}
-.labelFinalSizeRemove:hover{background:#fff1ef}
-.labelFinalHiddenAction,.labelSizeActions{display:none!important}
+/* Shared label-control refinements. Keep this file deliberately small: core layout lives in label-designer*.css. */
 
-/* Owner editor opens from the dropdown action, not as a floating button beside the field. */
+/* Create Labels managed dropdowns. */
+.labelEmbeddedSelect{position:relative;min-width:0}
+.labelEmbeddedSelectButton{box-sizing:border-box;width:100%;height:44px;border:1px solid var(--line);border-radius:9px;background:var(--paper);padding:0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--ink);font:600 13px/1.2 var(--ui-font);text-align:left}
+.labelEmbeddedSelectButton:disabled{opacity:.55;cursor:not-allowed}
+.labelEmbeddedChevron{width:14px;height:14px;flex:none;font-size:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='m3 5 4 4 4-4' fill='none' stroke='%230d4566' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px 14px no-repeat}
+.labelEmbeddedMenu{position:absolute;z-index:120;left:0;right:0;top:calc(100% + 5px);overflow:hidden;border:1px solid var(--line);border-radius:9px;background:var(--paper);box-shadow:0 16px 38px #102d4928}
+.labelEmbeddedOptions{max-height:260px;overflow:auto;padding:5px}
+.labelEmbeddedOptions>button{width:100%;min-height:36px;border:0;border-radius:7px;padding:7px 9px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:transparent;color:var(--ink);font-size:11px;font-weight:600;text-align:left}
+.labelEmbeddedOptions>button:hover,.labelEmbeddedOptions>button.selected{background:var(--pale)}
+.labelEmbeddedManage{width:100%;height:36px;border:0;border-top:1px solid var(--line);background:color-mix(in srgb,var(--pale) 78%,var(--paper));color:var(--navy);font-size:10px;font-weight:800;text-align:left;padding:0 12px}
+.labelEmbeddedManage:hover{background:var(--pale)}
+
+/* Owner editors open beneath their field and never add a second side button. */
 .labelManagedField{position:relative!important}
 .labelManagedField>.labelManagedEditor{top:calc(100% + 6px)!important;left:0!important;right:auto!important}
 .labelCreateFieldTitle{min-height:20px!important}
 .labelCreateFieldTitle .labelManageButton,.labelManagedField>.labelManageButton{display:none!important}
 
-/* Label setup: three controls align to the same baseline. */
+/* Designer setup controls share one baseline and one chevron language. */
 .labelDesignerPage .labelSetup{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important;align-items:end!important}
 .labelDesignerPage .labelSetup>label{display:grid!important;grid-template-rows:auto 44px!important;gap:6px!important;min-width:0!important;margin:0!important}
 .labelDesignerPage .labelSetup>label>span:first-child{align-self:end!important}
 .labelDesignerPage .labelSetup .launcherSourceLocked .designerSourceLockedValue{height:44px!important;min-height:44px!important;box-sizing:border-box!important}
-.labelDesignerPage .labelSetup .labelFinalSizeSelect{height:44px!important}
-.labelDesignerPage .labelSetup .labelFinalSizeTrigger{height:44px!important}
+.labelDesignerPage .managedSizeTrigger{height:44px!important}
+.labelDesignerPage .managedSizeTrigger i{width:14px!important;height:14px!important;border:0!important;transform:none!important;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='m3 5 4 4 4-4' fill='none' stroke='%230d4566' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px 14px no-repeat!important}
 .labelDesignerPage .labelSetup>.rollSummary,.labelDesignerPage .labelSetup>.iconButton{display:none!important}
 
-/* True React/state-driven New size modal. */
-.labelSizeModalBackdrop{position:fixed;z-index:10000;inset:0;display:grid;place-items:center;padding:18px;background:#102d4959;backdrop-filter:blur(2px)}
-.labelDirectSizeModal{display:grid;grid-template-columns:1fr;gap:12px;width:min(760px,calc(100vw - 32px));max-height:min(82vh,760px);overflow:auto;margin:0;padding:16px;background:var(--paper);box-shadow:0 24px 60px #102d4945}
-.labelDirectSizeHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.labelDirectSizeHead h3{margin:0 0 2px;font-size:16px}.labelDirectSizeHead small{color:var(--muted)}
-.labelDirectSizeClose{width:32px;height:32px;border:0;border-radius:7px;background:transparent;color:var(--red);font-size:20px;line-height:1}.labelDirectSizeClose:hover{background:#fff1ef}
-.labelDirectSizeFields{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:9px}.labelDirectSizeFields label{display:grid;gap:4px;min-width:0}.labelDirectSizeFields input{height:38px;min-width:0}.labelDirectSizeFields .labelSizeName{grid-column:span 2}
-.labelDirectSizeActions{display:flex;align-items:center;justify-content:flex-end;gap:8px}.labelDirectSizeError{margin-right:auto;color:var(--red);font-size:10px;font-weight:700}.labelDirectSizeActions button{height:36px}
+/* Temporary New label size editor: directly below setup; Save/Cancel close it via React state. */
+.labelDesignerPage .labelInlineSizeEditor{display:grid!important;grid-template-columns:repeat(4,minmax(120px,1fr))!important;gap:9px!important;align-items:end!important;order:2!important;margin:0!important;padding:14px!important;width:100%!important}
+.labelDesignerPage .labelInlineSizeEditor>div:first-child{grid-column:1/-1!important}
+.labelDesignerPage .labelInlineSizeEditor h3{margin:0 0 3px!important;font-size:16px!important}
+.labelDesignerPage .labelInlineSizeEditor p{margin:0!important;color:var(--muted)!important;font-size:10px!important}
+.labelDesignerPage .labelInlineSizeEditor label{display:grid!important;gap:4px!important;min-width:0!important}
+.labelDesignerPage .labelInlineSizeEditor input{box-sizing:border-box!important;width:100%!important;height:38px!important;min-width:0!important}
+.labelDesignerPage .labelInlineSizeEditor .customSizeActions{grid-column:1/-1!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
+.labelDesignerPage .labelInlineSizeEditor .customSizeActions button{height:38px!important}
 
-/* Packing representation is decided on Back to setup; do not expose a second dead launcher here. */
+/* Representation is chosen on Back to setup, so duplicate packing/group launchers stay hidden here. */
 .labelDesignerPage .labelContextSettings,.labelDesignerPage .labelContextSettingsButton,.labelDesignerPage .personPackageSetup.labelInlineConfigurator,.labelDesignerPage .packageGrouping.labelInlineConfigurator{display:none!important}
 
-/* Selected information cards stay compact, but selected fields always expose their useful field-name/style controls. */
+/* Selected information cards expose useful naming/style controls without an extra Options footer. */
 .labelDesignerPage .fieldChoiceOptionsToggle{display:none!important}
 .labelDesignerPage .fieldChoice.chosen,.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded{min-height:42px!important;height:auto!important;grid-column:span 1!important;padding:7px 8px!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:5px 8px!important;align-items:center!important;align-content:start!important}
 .labelDesignerPage .fieldChoice.chosen>label:first-child{min-width:0!important;margin:0!important}
@@ -51,23 +49,30 @@
 .labelDesignerPage .fieldChoice.chosen>.fieldEmphasis,.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.fieldEmphasis{grid-column:1/-1!important;display:flex!important;flex-wrap:wrap!important;gap:5px 12px!important;margin:0!important;padding:5px 0 0!important;border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent)!important}
 .labelDesignerPage .fieldChoice.chosen>.fieldEmphasis label{margin:0!important;font-size:9px!important}
 
-/* Selecting something on the canvas must not open a second bulky form. Drag/wheel remain the editor. */
+/* The preview itself is the editor; no second bulky properties card. */
 .labelDesignerPage .labelContextInspector,.labelDesignerPage .labelCanvasPanel .labelContextInspector,.labelDesignerPage .labelProperties.labelContextInspector{display:none!important}
 
-/* Snapchat-style drag-to-delete target. */
+/* Drag a canvas element below the label to remove it. */
 .labelDesignerPage .labelCanvasPanel{position:relative!important;overflow:visible!important}
 .labelDragDeleteTarget{position:absolute;z-index:70;left:50%;bottom:14px;transform:translate(-50%,18px) scale(.92);display:flex;align-items:center;gap:7px;padding:9px 15px;border:1px solid #d7b1aa;border-radius:999px;background:#fff7f5;color:#b93224;box-shadow:0 8px 22px #7d21152b;opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease,background .15s ease,color .15s ease,border-color .15s ease}
 .labelDragDeleteTarget.visible{opacity:1;transform:translate(-50%,0) scale(1)}
 .labelDragDeleteTarget.armed{background:#c93425;color:#fff;border-color:#c93425;transform:translate(-50%,0) scale(1.08)}
-.labelDragDeleteIcon{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;font-size:20px;line-height:1}.labelDragDeleteTarget b{font-size:10px}
+.labelDragDeleteIcon{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;font-size:20px;line-height:1}
+.labelDragDeleteTarget b{font-size:10px}
 .labelDesignerPage .canvasElement.deleteArmed{opacity:.35!important;filter:grayscale(.25)!important;transform:scale(.96)!important}
 
-/* Bulletproof working row: flex eliminates grid auto-placement and CSS-order conflicts. */
-.labelDesignerPage .labelFinalWorkingRow{display:flex!important;flex-direction:row!important;align-items:flex-start!important;justify-content:stretch!important;gap:14px!important;width:100%!important;min-width:0!important;margin:0!important;padding:0!important;grid-template-columns:none!important;grid-template-areas:none!important;grid-template-rows:none!important}
-.labelDesignerPage .labelFinalWorkingRow>.labelFinalPreviewCard,.labelDesignerPage .labelFinalWorkingRow .labelFinalPreviewCard{order:1!important;flex:1 1 58%!important;width:auto!important;min-width:0!important;min-height:470px!important;height:auto!important;margin:0!important;align-self:flex-start!important;position:relative!important;top:auto!important;transform:none!important}
-.labelDesignerPage .labelFinalWorkingRow>.labelFinalRecordsCard,.labelDesignerPage .labelFinalWorkingRow .labelFinalRecordsCard{order:2!important;flex:0 1 42%!important;width:auto!important;min-width:320px!important;min-height:470px!important;height:auto!important;margin:0!important;align-self:flex-start!important;position:static!important;top:auto!important;transform:none!important}
-.labelDesignerPage .labelFinalPreviewCard .labelStageV2{min-height:390px!important}
-.labelDesignerPage .labelFinalRecordsCard .recordList{max-height:310px!important}
-
-@media(max-width:900px){.labelDesignerPage .labelSetup{grid-template-columns:1fr 1fr!important}.labelDesignerPage .labelSetup>label:first-child{grid-column:1/-1!important}.labelDesignerPage .labelFinalWorkingRow{flex-direction:column!important;gap:12px!important}.labelDesignerPage .labelFinalWorkingRow>.labelFinalPreviewCard,.labelDesignerPage .labelFinalWorkingRow>.labelFinalRecordsCard,.labelDesignerPage .labelFinalWorkingRow .labelFinalPreviewCard,.labelDesignerPage .labelFinalWorkingRow .labelFinalRecordsCard{width:100%!important;min-width:0!important;min-height:0!important;flex:0 0 auto!important}.labelDesignerPage .labelFinalRecordsCard .recordList{max-height:360px!important}.labelDirectSizeFields{grid-template-columns:repeat(2,minmax(0,1fr))}.labelDirectSizeFields .labelSizeName{grid-column:1/-1}}
-@media(max-width:650px){.labelDesignerPage .labelSetup{grid-template-columns:1fr!important}.labelDesignerPage .labelSetup>label:first-child{grid-column:1!important}.labelEmbeddedMenu,.labelFinalSizeMenu{position:fixed!important;left:10px!important;right:10px!important;top:auto!important;bottom:max(10px,env(safe-area-inset-bottom))!important;max-height:65vh!important}.labelManagedField>.labelManagedEditor{position:fixed!important;left:10px!important;right:10px!important;top:auto!important;bottom:max(10px,env(safe-area-inset-bottom))!important;width:auto!important}.labelDesignerPage .fieldChoice.chosen,.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded{grid-template-columns:1fr!important}.labelDesignerPage .fieldChoice.chosen>.showName{grid-column:1!important}.labelDirectSizeFields{grid-template-columns:1fr}.labelDirectSizeFields .labelSizeName{grid-column:1}.labelDirectSizeActions{flex-wrap:wrap}.labelDirectSizeError{width:100%;margin:0}.labelDragDeleteTarget{position:fixed;bottom:max(88px,calc(env(safe-area-inset-bottom) + 72px))}.labelSizeModalBackdrop{padding:10px}.labelDirectSizeModal{width:100%;max-height:88vh}}
+@media(max-width:900px){
+ .labelDesignerPage .labelSetup{grid-template-columns:1fr 1fr!important}
+ .labelDesignerPage .labelSetup>label:first-child{grid-column:1/-1!important}
+ .labelDesignerPage .labelInlineSizeEditor{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:650px){
+ .labelDesignerPage .labelSetup{grid-template-columns:1fr!important}
+ .labelDesignerPage .labelSetup>label:first-child{grid-column:1!important}
+ .labelManagedField>.labelManagedEditor{position:fixed!important;left:10px!important;right:10px!important;top:auto!important;bottom:max(10px,env(safe-area-inset-bottom))!important;width:auto!important}
+ .labelDesignerPage .fieldChoice.chosen,.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded{grid-template-columns:1fr!important}
+ .labelDesignerPage .fieldChoice.chosen>.showName{grid-column:1!important}
+ .labelDesignerPage .labelInlineSizeEditor{grid-template-columns:1fr!important}
+ .labelDesignerPage .labelInlineSizeEditor .customSizeActions{grid-template-columns:1fr!important}
+ .labelDragDeleteTarget{position:fixed;bottom:max(88px,calc(env(safe-area-inset-bottom) + 72px))}
+}
