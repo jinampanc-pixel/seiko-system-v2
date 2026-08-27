@@ -1,0 +1,23 @@
+/* Physical printer compensation: reserve 1.5 mm at the label's right edge.
+   The interaction adapter calculates the percentage for every label width. */
+.labelDesignerPage .labelCanvas{
+  --label-right-safe-pct:3%;
+  position:relative;
+}
+
+.labelDesignerPage .labelCanvas::after{
+  content:"";
+  position:absolute;
+  z-index:65;
+  top:0;
+  right:0;
+  bottom:0;
+  width:var(--label-right-safe-pct);
+  border-left:1px dashed color-mix(in srgb,var(--gold) 72%,var(--line));
+  background:color-mix(in srgb,var(--gold) 7%,transparent);
+  pointer-events:none;
+}
+
+@media print{
+  .labelDesignerPage .labelCanvas::after{display:none!important}
+}
