@@ -1,4 +1,5 @@
-import { authenticateActor, getActorMemberships } from "../../../lib/server-erp-auth";
+import { authenticateActor, clearMembershipCache, getActorMemberships } from "../../../lib/server-erp-auth";
+import { ensurePlatformOwnerBusinesses } from "../../../lib/server-platform-access";
 import { buildFoundationBootstrap } from "../../../lib/server-session";
 
 export async function GET(request: Request) {
@@ -16,6 +17,8 @@ export async function GET(request: Request) {
     }, { status: 428, headers: { "cache-control": "no-store" } });
   }
 
+  await ensurePlatformOwnerBusinesses(actor);
+  clearMembershipCache();
   const memberships = await getActorMemberships(actor);
   if (!memberships.length) {
     return Response.json({
