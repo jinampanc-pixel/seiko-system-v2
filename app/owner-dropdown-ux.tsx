@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useAccess } from "./access-control";
 import { startDomEnhancement } from "./lib/dom-enhancement";
 
 type StoredChoice = { label: string; value: string };
@@ -42,10 +43,6 @@ function loadChoiceStore(kind: string, canonical: StoredChoice[]): ChoiceStore {
 
 function saveChoiceStore(kind: string, store: ChoiceStore, canonical: StoredChoice[]) {
   localStorage.setItem(choiceKey(kind), JSON.stringify(normalizeStore(store, canonical)));
-}
-
-function isOwnerSetup() {
-  return Boolean(document.querySelector(".orderSetup .policyRow .iconRemove"));
 }
 
 function enhanceEditableSelect(select: HTMLSelectElement, kind: string) {
@@ -249,10 +246,25 @@ function cleanSpecificationButton() {
   });
 }
 
-function enhance() {
+function removeOwnerEnhancements() {
+  document.querySelectorAll(".ownerManagedSelect").forEach(node => node.remove());
+  document.querySelectorAll<HTMLElement>(".ownerEditableNative").forEach(node => {
+    node.classList.remove("ownerEditableNative");
+    delete node.dataset.ownerComboReady;
+    if (node instanceof HTMLSelectElement) node.tabIndex = 0;
+  });
+}
+
+function setOwnerOnlyControls(owner: boolean) {
+  document.querySelectorAll<HTMLElement>(".orderSetup .policyRow .iconRemove, .orderSetup .optionEditor").forEach(control => {
+    control.hidden = !owner;
+    control.setAttribute("aria-hidden", owner ? "false" : "true");
+  });
+}
+
+function enhanceOwnerControls() {
   reorderOrderMenu();
   cleanSpecificationButton();
-  if (!isOwnerSetup()) return;
 
   document.querySelectorAll<HTMLElement>(".orderSetup .policyRow").forEach(row => {
     const typeSelect = row.querySelector<HTMLSelectElement>("select");
@@ -279,17 +291,24 @@ function enhance() {
 }
 
 export function OwnerDropdownUx() {
+  const { membership } = useAccess();
+  const isOwner = membership?.role === "owner";
+
   useEffect(() => {
+    const enhance = () => {
+      setOwnerOnlyControls(isOwner);
+      if (isOwner) enhanceOwnerControls();
+      else removeOwnerEnhancements();
+    };
     const controller = startDomEnhancement(enhance, {
       shouldSchedule: mutations => mutations.some(mutation => mutation.addedNodes.length || mutation.removedNodes.length),
     });
 
     return () => {
       controller.stop();
-      document.querySelectorAll(".ownerManagedSelect").forEach(node => node.remove());
-      document.querySelectorAll(".ownerEditableNative").forEach(node => node.classList.remove("ownerEditableNative"));
+      removeOwnerEnhancements();
     };
-  }, []);
+  }, [isOwner]);
 
   return null;
 }
