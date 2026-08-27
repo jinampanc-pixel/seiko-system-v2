@@ -132,3 +132,49 @@ export const erpAuthEvents = sqliteTable("erp_auth_events", {
   index("erp_auth_events_ip_idx").on(table.ipHash, table.at),
   index("erp_auth_events_user_idx").on(table.userId, table.at),
 ]);
+
+/** Stable external identities linked to an ERP user. Provider passwords/tokens are never stored. */
+export const erpAuthIdentities = sqliteTable("erp_auth_identities", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  provider: text("provider").notNull(),
+  providerSubject: text("provider_subject").notNull(),
+  emailAtLink: text("email_at_link"),
+  createdAt: text("created_at").notNull(),
+  lastUsedAt: text("last_used_at"),
+}, table => [
+  uniqueIndex("erp_auth_identities_provider_subject_uq").on(table.provider, table.providerSubject),
+  uniqueIndex("erp_auth_identities_user_provider_uq").on(table.userId, table.provider),
+  index("erp_auth_identities_user_idx").on(table.userId),
+]);
+
+/** Short-lived, one-use OAuth and WebAuthn challenges. */
+export const erpAuthChallenges = sqliteTable("erp_auth_challenges", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  provider: text("provider"),
+  userId: text("user_id"),
+  nonce: text("nonce"),
+  verifier: text("verifier"),
+  rpId: text("rp_id"),
+  expiresAt: text("expires_at").notNull(),
+  usedAt: text("used_at"),
+  createdAt: text("created_at").notNull(),
+}, table => [
+  index("erp_auth_challenges_exp_idx").on(table.expiresAt, table.usedAt),
+]);
+
+/** Discoverable WebAuthn credentials. Only the public key and authenticator counter are stored. */
+export const erpPasskeys = sqliteTable("erp_passkeys", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  credentialId: text("credential_id").notNull(),
+  publicKeyJwk: text("public_key_jwk").notNull(),
+  signCount: integer("sign_count").notNull().default(0),
+  label: text("label"),
+  createdAt: text("created_at").notNull(),
+  lastUsedAt: text("last_used_at"),
+}, table => [
+  uniqueIndex("erp_passkeys_credential_uq").on(table.credentialId),
+  index("erp_passkeys_user_idx").on(table.userId),
+]);
