@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { startDomEnhancement } from "./lib/dom-enhancement";
 
 const TOTAL = [0,26,44,70,100,134,172,196,242,292,346];
 const DATA = [0,16,28,44,64,86,108,124,154,182,216];
@@ -197,12 +198,14 @@ function enhance() {
 
 export function LabelProductionReady() {
   useEffect(() => {
-    let frame = 0;
-    const schedule = () => { if (frame) return; frame = requestAnimationFrame(() => { frame = 0; enhance(); }); };
-    enhance();
-    const observer = new MutationObserver(schedule); observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class","aria-label"] });
-    document.addEventListener("change", schedule, true);
-    return () => { observer.disconnect(); document.removeEventListener("change", schedule, true); if (frame) cancelAnimationFrame(frame); };
+    const controller = startDomEnhancement(enhance, {
+      observer: { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "aria-label"] },
+    });
+    document.addEventListener("change", controller.schedule, true);
+    return () => {
+      document.removeEventListener("change", controller.schedule, true);
+      controller.stop();
+    };
   }, []);
   return null;
 }
