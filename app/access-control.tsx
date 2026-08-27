@@ -264,7 +264,7 @@ function AccessPanel({ onClose }: { onClose: () => void }) {
         {error && <div className="accessError">{error}</div>}
         {loadingUsers ? <p>Loading users…</p> : <div className="accessUserList">{users.map(user => <button key={user.email} className={`accessUserRow ${user.active ? "" : "inactive"}`} onClick={() => setEditing(user)}>
           <span className="accessAvatar">{(user.displayName || user.email).slice(0, 1).toUpperCase()}</span>
-          <span><strong>{user.displayName || user.email}</strong><small>{user.email}{user.phone ? ` · ${user.phone}` : ""}</small><small className={user.hasCredentials ? "credentialReady" : "credentialMissing"}>{user.hasCredentials ? (user.mustChangePassword ? "Temporary password set" : "Login ready") : "Login not configured"}</small></span>
+          <span><strong>{user.displayName || user.email}</strong><small>{user.email}{user.phone ? ` · ${user.phone}` : ""}</small><small className={user.hasCredentials ? "credentialReady" : "credentialMissing"}>{user.hasCredentials ? (user.mustChangePassword ? "Ready · temporary password" : "Ready to sign in") : "Password login needs setup"}</small></span>
           <span className="accessRoleBadge">{titleRole(user.role)}</span><span className="accessRowChevron">›</span>
         </button>)}</div>}
         {editing && <MembershipEditor businessId={businessId} currentUser={session?.user.email || ""} actorRole={membership?.role || "viewer"} user={editing === "new" ? null : editing} onCancel={() => setEditing(null)} onSaved={async () => { setEditing(null); await loadUsers(); await refresh(); }}/>} 
@@ -287,6 +287,7 @@ function MembershipEditor({ businessId, currentUser, actorRole, user, onCancel, 
   const [active, setActive] = useState(user?.active ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const ownerLocked = user?.role === "owner" && actorRole !== "owner";
 
   const applyRole = (nextRole: AccessRole) => {
@@ -299,6 +300,18 @@ function MembershipEditor({ businessId, currentUser, actorRole, user, onCancel, 
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
     const bytes = crypto.getRandomValues(new Uint8Array(16));
     setTemporaryPassword(Array.from(bytes, value => alphabet[value % alphabet.length]).join(""));
+    setCopied(false);
+  };
+
+  const copyTemporaryPassword = async () => {
+    if (!temporaryPassword) return;
+    try {
+      await navigator.clipboard.writeText(temporaryPassword);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
   };
 
   const save = async () => {
@@ -316,21 +329,68 @@ function MembershipEditor({ businessId, currentUser, actorRole, user, onCancel, 
   };
 
   const requiresInitialPassword = !user;
-  return <div className="membershipEditorBackdrop"><div className="membershipEditor">
-    <div className="membershipEditorHead"><div><p className="eyebrow">{user ? "EDIT USER" : "NEW USER"}</p><h3>{user ? user.displayName || user.email : "Add user"}</h3></div><button className="iconButton" onClick={onCancel} aria-label="Close user editor">×</button></div>
-    {error && <div className="accessError">{error}</div>}
-    <div className="membershipIdentityGrid">
-      <label><span>Name</span><input aria-label="User name" value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={ownerLocked}/></label>
-      <label><span>Email</span><input aria-label="User email" type="email" autoComplete="off" value={email} onChange={event => setEmail(event.target.value)} disabled={Boolean(user) || ownerLocked}/></label>
-      <label><span>Phone</span><input aria-label="User phone" inputMode="tel" autoComplete="off" value={phone} onChange={event => setPhone(event.target.value)} placeholder="+91… or 10-digit mobile" disabled={ownerLocked}/></label>
-      <label><span>Role preset</span><select aria-label="Role preset" value={role} onChange={event => applyRole(event.target.value as AccessRole)} disabled={ownerLocked}>{(["owner","admin","operations","viewer"] as AccessRole[]).filter(item => item !== "owner" || actorRole === "owner").map(item => <option key={item} value={item}>{titleRole(item)}</option>)}</select></label>
-      <label className="membershipCredential"><span>{requiresInitialPassword ? "Temporary password *" : "Reset password (optional)"}</span><div className="credentialInputRow"><input aria-label="Temporary password" type="text" autoComplete="off" value={temporaryPassword} onChange={event => setTemporaryPassword(event.target.value)} placeholder={requiresInitialPassword ? "At least 12 characters" : "Leave blank to keep current password"} disabled={ownerLocked}/><button type="button" className="secondary" onClick={generateTemporaryPassword} disabled={ownerLocked}>Generate</button></div><small>{user?.hasCredentials ? (user.mustChangePassword ? "User must change the temporary password at next login." : "Entering a value here resets the password and signs the user out everywhere.") : "No ERP login has been configured for this user yet."}</small></label>
-      <label className="membershipActive"><input aria-label="Active access" type="checkbox" checked={active} onChange={event => setActive(event.target.checked)} disabled={ownerLocked || (user?.email === currentUser && user?.role === "owner")}/><span>Active access</span></label>
+  const passwordReady = Boolean(user?.hasCredentials || temporaryPassword.length >= 12);
+  const passwordStatus = temporaryPassword.length >= 12
+    ? (user?.hasCredentials ? "Reset ready to save" : "Ready to sign in after save")
+    : user?.hasCredentials
+      ? (user.mustChangePassword ? "Ready · temporary password" : "Ready to sign in")
+      : "Set an initial password";
+  const credentialHelp = temporaryPassword.length >= 12
+    ? (user?.hasCredentials
+      ? "Saving will reset the password, sign this user out on every device, and require a new private password at the next sign-in."
+      : "This temporary password makes password login ready. The user will replace it with a private password on first sign-in.")
+    : user?.hasCredentials
+      ? (user.mustChangePassword
+        ? "The user can already sign in with the temporary password and will be required to replace it on first sign-in."
+        : "Password login is ready. Leave this field blank to keep the current password, or enter a new temporary password to reset it.")
+      : "Set or generate a temporary password now. The user will be able to sign in immediately after you save this account, then must create their own private password.";
+
+  return <div className="membershipEditorBackdrop">
+    <div className="membershipEditor" role="dialog" aria-modal="true" aria-label={user ? `Edit ${user.displayName || user.email}` : "Add user"}>
+      <div className="membershipEditorHead">
+        <div><p className="eyebrow">{user ? "EDIT USER" : "NEW USER"}</p><h3>{user ? user.displayName || user.email : "Add user"}</h3></div>
+        <button className="iconButton" onClick={onCancel} aria-label="Close user editor">×</button>
+      </div>
+
+      <div className="membershipEditorBody">
+        {error && <div className="accessError">{error}</div>}
+        <div className="membershipIdentityGrid">
+          <label><span>Name</span><input aria-label="User name" value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={ownerLocked}/></label>
+          <label><span>Email</span><input aria-label="User email" type="email" autoComplete="off" value={email} onChange={event => setEmail(event.target.value)} disabled={Boolean(user) || ownerLocked}/></label>
+          <label><span>Phone</span><input aria-label="User phone" inputMode="tel" autoComplete="off" value={phone} onChange={event => setPhone(event.target.value)} placeholder="+91… or 10-digit mobile" disabled={ownerLocked}/></label>
+          <label><span>Role preset</span><select aria-label="Role preset" value={role} onChange={event => applyRole(event.target.value as AccessRole)} disabled={ownerLocked}>{(["owner","admin","operations","viewer"] as AccessRole[]).filter(item => item !== "owner" || actorRole === "owner").map(item => <option key={item} value={item}>{titleRole(item)}</option>)}</select></label>
+
+          <div className={`membershipLoginStatus ${passwordReady ? "ready" : "needsSetup"}`}>
+            <span><small>Password login</small><strong>{passwordStatus}</strong></span>
+            <span className="membershipLoginStatusDot" aria-hidden="true"/>
+          </div>
+
+          <label className="membershipCredential">
+            <span>{requiresInitialPassword || !user?.hasCredentials ? "Initial password *" : "Reset password (optional)"}</span>
+            <div className="credentialInputRow">
+              <input aria-label="Temporary password" type="text" autoComplete="off" value={temporaryPassword} onChange={event => { setTemporaryPassword(event.target.value); setCopied(false); }} placeholder={requiresInitialPassword || !user?.hasCredentials ? "At least 12 characters" : "Leave blank to keep current password"} disabled={ownerLocked}/>
+              <button type="button" className="secondary" onClick={generateTemporaryPassword} disabled={ownerLocked}>Generate</button>
+              <button type="button" className="secondary" onClick={() => void copyTemporaryPassword()} disabled={ownerLocked || !temporaryPassword}>{copied ? "Copied" : "Copy"}</button>
+            </div>
+            <small>{credentialHelp}</small>
+            {temporaryPassword && <small className="credentialShareNote">Copy/share this temporary password before closing the editor. For security, it cannot be retrieved later.</small>}
+          </label>
+
+          <label className="membershipActive"><input aria-label="Active access" type="checkbox" checked={active} onChange={event => setActive(event.target.checked)} disabled={ownerLocked || (user?.email === currentUser && user?.role === "owner")}/><span>Active access</span></label>
+        </div>
+        {user?.lastLoginAt && <p className="credentialLastLogin">Last ERP login: {new Date(user.lastLoginAt).toLocaleString()}</p>}
+        <AccessMatrix modules={modules} permissions={permissions} onModules={setModules} onPermissions={setPermissions} readOnly={ownerLocked || role === "owner"}/>
+      </div>
+
+      <footer className="membershipEditorFooter">
+        <small>{passwordReady ? "Account access is ready to save." : "Set an initial password before creating this user."}</small>
+        <div className="membershipEditorActions">
+          <button className="secondary" onClick={onCancel}>Cancel</button>
+          <button className="primary" onClick={() => void save()} disabled={saving || ownerLocked || !email.trim() || (requiresInitialPassword && temporaryPassword.length < 12)}>{saving ? "Saving…" : user ? "Save changes" : "Create user"}</button>
+        </div>
+      </footer>
     </div>
-    {user?.lastLoginAt && <p className="credentialLastLogin">Last ERP login: {new Date(user.lastLoginAt).toLocaleString()}</p>}
-    <AccessMatrix modules={modules} permissions={permissions} onModules={setModules} onPermissions={setPermissions} readOnly={ownerLocked || role === "owner"}/>
-    <div className="membershipEditorActions"><button className="secondary" onClick={onCancel}>Cancel</button><button className="primary" onClick={() => void save()} disabled={saving || ownerLocked || !email.trim() || (requiresInitialPassword && temporaryPassword.length < 12)}>{saving ? "Saving…" : user ? "Save access" : "Create user"}</button></div>
-  </div></div>;
+  </div>;
 }
 
 function AccessMatrix({ modules, permissions, onModules, onPermissions, readOnly = false }: {
