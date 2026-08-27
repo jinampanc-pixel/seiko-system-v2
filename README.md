@@ -29,13 +29,24 @@ If a generated Vite RSC cache file under `.vite-cache/deps_rsc/` fails to parse,
 
 ## Validation
 
+Before a change is considered ready:
+
 ```bash
+npm run lint
 npm test
 ```
 
-The test script runs the repository contract tests, performs the production build, and validates rendered HTML.
+Linting enforces TypeScript, React, React Hooks, accessibility and Next.js rules. The test script runs repository contract tests, performs the production build, and then validates rendered HTML routes.
 
-GitHub Actions also runs this validation automatically for pushes and pull requests targeting `main` using `.github/workflows/ci.yml`.
+GitHub Actions runs both linting and the full test/build validation automatically for pushes and pull requests targeting `main` using `.github/workflows/ci.yml`.
+
+## Architecture discipline
+
+Application state and business rules belong in the owning React/domain module. Small DOM enhancement adapters are mounted centrally by `app/app-enhancements.tsx`; shared mutation scheduling lives in `app/lib/dom-enhancement.ts`. New business logic should not be added as another global DOM patch.
+
+Browser state that belongs to one business must remain partitioned by business. Existing helpers such as `businessStorageKey()` and `orderStoreKey()` are preferred over ad-hoc local-storage keys.
+
+The existing layered CSS around Orders and Labels should only be consolidated when equivalent visual-regression coverage exists. Functional refactors must not silently change label geometry, printing dimensions, workspace behavior, or navigation.
 
 ## Cloudflare deployment
 
@@ -63,10 +74,12 @@ The repository also carries `.openai/hosting.json` for the linked ChatGPT Sites 
 ## Important files
 
 - `app/` — application UI and behavior
+- `app/app-enhancements.tsx` — deliberate registry of compatibility UI adapters
+- `app/lib/dom-enhancement.ts` — shared DOM enhancement lifecycle/scheduler
 - `worker/` — Cloudflare Worker entry
 - `vite.config.ts` — Vinext/Vite and local Cloudflare integration
 - `wrangler.jsonc` — Cloudflare Worker deployment configuration
 - `package.json` / `package-lock.json` — pinned application and toolchain dependencies
 - `AGENTS.md` — cross-model development and handoff rules
-- `.github/workflows/ci.yml` — automatic build/test validation
+- `.github/workflows/ci.yml` — automatic lint/build/test validation
 - `.github/workflows/deploy-cloudflare.yml` — manual production deployment
