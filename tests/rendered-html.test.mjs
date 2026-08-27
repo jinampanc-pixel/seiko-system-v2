@@ -12,11 +12,20 @@ async function render(pathname = "/") {
   );
 }
 
-test("renders the Jinam foundation application", async () => {
-  const response = await render();
+async function expectApplicationPage(pathname) {
+  const response = await render(pathname);
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") || "", /^text\/html/i);
   const html = await response.text();
   assert.match(html, /Jinam Foundation/i);
   assert.doesNotMatch(html, /Your site is taking shape|Building your site|codex-preview/i);
+  return html;
+}
+
+test("renders the Jinam foundation application", async () => {
+  await expectApplicationPage("/");
+});
+
+test("renders the standalone label creation route", async () => {
+  await expectApplicationPage("/labels/create?business=seiko");
 });
