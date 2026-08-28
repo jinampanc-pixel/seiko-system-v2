@@ -22,8 +22,32 @@ async function allSourceText(directory) {
 
 test("Veyn milestone one stays commercial and uses the exact logo asset", async () => {
   const catalog = await text("app/lib/business-catalog.ts");
+  assert.match(catalog, /businessId:\s*"veyn-health"[\s\S]*?businessName:\s*"véyn health"/);
   assert.match(catalog, /businessId:\s*"veyn-health"[\s\S]*?logoUrl:\s*"\/brands\/veyn-health-logo\.png"/);
+  assert.match(catalog, /businessId:\s*"veyn-health"[\s\S]*?allowedModules:\s*\["home",\s*"orders",\s*"billing",\s*"admin"\]/);
   assert.match(catalog, /businessId:\s*"veyn-health"[\s\S]*?defaultModules:\s*\["home",\s*"orders",\s*"billing",\s*"admin"\]/);
+});
+
+test("Jinam keeps each business application inside its own module boundary", async () => {
+  const catalog = await text("app/lib/business-catalog.ts");
+  const session = await text("app/lib/server-session.ts");
+  const memberships = await text("app/api/erp/memberships/route.ts");
+  assert.match(catalog, /businessId:\s*"seiko"[\s\S]*?allowedModules:\s*\["home",\s*"orders",\s*"labels",\s*"scan",\s*"trace",\s*"production",\s*"inventory",\s*"sales",\s*"delivery",\s*"admin"\]/);
+  assert.doesNotMatch(catalog.match(/businessId:\s*"seiko"[\s\S]*?defaultModules:\s*\[[^\]]+\]/)?.[0] || "", /"billing"/);
+  assert.match(session, /allowedModules = new Set<Module>\(catalog\.allowedModules\)/);
+  assert.match(session, /allowedModules\.has\(module as Module\)/);
+  assert.match(memberships, /businessCatalogEntry\(businessId\)\.allowedModules/);
+  assert.match(memberships, /businessModules\.has\(item\)/);
+});
+
+test("Veyn is rendered by its own application shell rather than SEIKO Orders", async () => {
+  const veynApp = await text("app/veyn-app.tsx");
+  const enhancements = await text("app/app-enhancements.tsx");
+  assert.match(veynApp, /export function VeynApplication/);
+  assert.match(veynApp, /<Billing businessId=\{businessId\} can=\{can\}/);
+  assert.match(veynApp, /VÉYN orders describe what a healthcare client needs/);
+  assert.doesNotMatch(veynApp, /import \{ Orders \} from "\.\/orders"/);
+  assert.match(enhancements, /<VeynApplication \/>/);
 });
 
 test("Veyn remains blood-red led with restrained green accent", async () => {
