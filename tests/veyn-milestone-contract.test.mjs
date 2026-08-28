@@ -40,14 +40,35 @@ test("Jinam keeps each business application inside its own module boundary", asy
   assert.match(memberships, /businessModules\.has\(item\)/);
 });
 
-test("Veyn is rendered by its own application shell rather than SEIKO Orders", async () => {
-  const veynApp = await text("app/veyn-app.tsx");
+test("Veyn is routed as a real business app instead of a fixed compatibility overlay", async () => {
+  const router = await text("app/business-application-router.tsx");
   const enhancements = await text("app/app-enhancements.tsx");
-  assert.match(veynApp, /export function VeynApplication/);
-  assert.match(veynApp, /<Billing businessId=\{businessId\} can=\{can\}/);
-  assert.match(veynApp, /VÉYN orders describe what a healthcare client needs/);
+  const veynApp = await text("app/veyn-app.tsx");
+  const functionalCss = await text("app/veyn-functional.css");
+  assert.match(router, /businessId === "veyn-health"/);
+  assert.match(router, /return <VeynApplication\/>/);
+  assert.doesNotMatch(enhancements, /VeynApplication/);
+  assert.match(veynApp, /<VeynOrders businessId=\{businessId\}/);
+  assert.match(veynApp, /<VeynBilling businessId=\{businessId\}/);
   assert.doesNotMatch(veynApp, /import \{ Orders \} from "\.\/orders"/);
-  assert.match(enhancements, /<VeynApplication \/>/);
+  assert.match(functionalCss, /position:relative!important/);
+});
+
+test("Veyn requirements and commercial actions are persisted through shared ERP storage", async () => {
+  const requirements = await text("app/lib/veyn-requirements.ts");
+  const orders = await text("app/veyn-orders.tsx");
+  const billing = await text("app/veyn-billing.tsx");
+  assert.match(requirements, /fetch\("\/api\/erp\/orders"/);
+  assert.match(requirements, /operation: "list"/);
+  assert.match(requirements, /operation: "upsert"/);
+  assert.match(orders, /onClick=\{\(\) => setEditing\(\{ order: blankVeynRequirement\(\), version: null \}\)\}/);
+  assert.match(orders, /Save requirement/);
+  assert.match(billing, /Create/);
+  assert.match(billing, /Record PO/);
+  assert.match(billing, /\+ Challan/);
+  assert.match(billing, /Create invoice|invoiceNumber/);
+  assert.match(billing, /quotationStatus/);
+  assert.match(billing, /saveVeynRequirement/);
 });
 
 test("Veyn remains blood-red led with restrained green accent", async () => {
@@ -56,8 +77,8 @@ test("Veyn remains blood-red led with restrained green accent", async () => {
 });
 
 test("Veyn milestone one contains the four locked commercial stages", async () => {
-  const billing = await text("app/billing.tsx");
-  for (const title of ["Quotations", "Purchase orders", "Delivery challans", "Invoices"]) {
+  const billing = await text("app/veyn-billing.tsx");
+  for (const title of ["Quotation", "Purchase order", "Delivery challan", "Invoice"]) {
     assert.ok(billing.includes(title), `${title} must remain in the billing workspace`);
   }
   const commercial = await text("app/lib/veyn-commercial.ts");
