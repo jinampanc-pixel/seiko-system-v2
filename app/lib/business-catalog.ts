@@ -19,7 +19,9 @@ const CATALOG: Record<string, BusinessCatalogEntry> = {
     businessName: "Veyn Health",
     logoUrl: "/brands/veyn-health-logo.png",
     themeKey: "veyn",
-    defaultModules: ["home", "orders", "inventory", "sales", "billing", "delivery", "admin"],
+    // Milestone 1: client orders and the commercial document chain.
+    // Delivery challans belong to Billing; Inventory/Sales/Delivery modules come later.
+    defaultModules: ["home", "orders", "billing", "admin"],
   },
   meth: {
     businessId: "meth",
