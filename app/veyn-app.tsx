@@ -2,29 +2,27 @@
 /* The supplied VÉYN logo is intentionally rendered unchanged. */
 /* eslint-disable @next/next/no-img-element */
 
-import { useMemo, useState, type CSSProperties } from "react";
-import { Billing } from "./billing";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useAccess } from "./access-control";
 import { canAccess, THEME_PRESETS, themeVariables, type BusinessMembership, type Module } from "./lib/foundation";
+import { listVeynRequirements } from "./lib/veyn-requirements";
+import { VeynBilling } from "./veyn-billing";
+import { VeynOrders } from "./veyn-orders";
 
 type VeynModule = "home" | "orders" | "billing" | "admin";
 
-const VEYN_NAV: Array<{ module: VeynModule; label: string; description: string }> = [
-  { module: "home", label: "Home", description: "Commercial overview" },
-  { module: "orders", label: "Orders", description: "Institutional requirements" },
-  { module: "billing", label: "Billing", description: "Quotation to invoice" },
-  { module: "admin", label: "Admin", description: "Business settings" },
+const VEYN_NAV: Array<{ module: VeynModule; label: string }> = [
+  { module: "home", label: "Home" },
+  { module: "orders", label: "Orders" },
+  { module: "billing", label: "Billing" },
+  { module: "admin", label: "Admin" },
 ];
 
-/**
- * VÉYN is a first-class Jinam business application, not a themed SEIKO screen.
- * It owns its navigation and workflow while reusing Jinam platform capabilities
- * such as authentication, permissions, business switching and commercial primitives.
- */
 export function VeynApplication() {
-  const { session, businessId, membership, can } = useAccess();
+  const { session, businessId, membership, can, refresh } = useAccess();
   const [module, setModule] = useState<VeynModule>("home");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [billingFocusOrderId, setBillingFocusOrderId] = useState<string | null>(null);
 
   const availableModules = useMemo(
     () => VEYN_NAV.filter(item => canAccess(membership, item.module as Module)),
@@ -34,6 +32,19 @@ export function VeynApplication() {
 
   if (businessId !== "veyn-health" || !membership) return null;
 
+  const openModule = (next: VeynModule) => {
+    setModule(next);
+    setMenuOpen(false);
+    if (next !== "billing") setBillingFocusOrderId(null);
+    if (next === "billing") setBillingFocusOrderId(null);
+  };
+
+  const openBillingForOrder = (orderId: string) => {
+    setBillingFocusOrderId(orderId);
+    setModule("billing");
+    setMenuOpen(false);
+  };
+
   const switchBusiness = (nextBusinessId: string) => {
     if (!nextBusinessId || nextBusinessId === businessId) return;
     localStorage.setItem("jinam:selected-business", nextBusinessId);
@@ -42,13 +53,10 @@ export function VeynApplication() {
 
   return <div className="jinamVeynApp" style={themeVariables(THEME_PRESETS.veyn) as CSSProperties}>
     <header className="veynTopbar">
-      <button type="button" className="veynBrand" onClick={() => setModule("home")} aria-label="VÉYN home">
+      <button type="button" className="veynBrand" onClick={() => openModule("home")} aria-label="VÉYN home">
         <img src="/brands/veyn-health-logo.png" alt="véyn health"/>
       </button>
-      <div className="veynTopbarMeta">
-        <span>Jinam</span>
-        <strong>Institutional healthcare</strong>
-      </div>
+      <div className="veynTopbarMeta"><span>Jinam</span><strong>véyn health</strong></div>
       <button type="button" className={`veynMenuToggle ${menuOpen ? "active" : ""}`} onClick={() => setMenuOpen(value => !value)} aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen}>
         <span/><span/><span/>
       </button>
@@ -56,23 +64,19 @@ export function VeynApplication() {
 
     <div className="veynShell">
       <aside className={`veynSidebar ${menuOpen ? "open" : ""}`}>
-        <div className="veynSidebarHead">
-          <small>VÉYN HEALTH</small>
-          <b>Commercial workspace</b>
-        </div>
         <nav className="moduleMenu veynModuleMenu" aria-label="VÉYN modules">
           {availableModules.map(item => <button
             type="button"
             className={`nav ${activeModule === item.module ? "active" : ""}`}
             key={item.module}
-            onClick={() => { setModule(item.module); setMenuOpen(false); }}
+            onClick={() => openModule(item.module)}
           >
             <span>{veynIcon(item.module)}</span>
-            <small><b>{item.label}</b><em>{item.description}</em></small>
+            <small><b>{item.label}</b></small>
           </button>)}
         </nav>
         <label className="veynBusinessSwitch">
-          <span>Jinam business</span>
+          <span>Business</span>
           <select aria-label="Switch business" value={businessId} onChange={event => switchBusiness(event.target.value)}>
             {session?.businesses.map(item => <option key={item.businessId} value={item.businessId}>{item.businessName}</option>)}
           </select>
@@ -82,67 +86,63 @@ export function VeynApplication() {
       {menuOpen && <button type="button" className="veynMenuBackdrop" aria-label="Close menu" onClick={() => setMenuOpen(false)}/>}
 
       <main className="veynMain">
-        {activeModule === "home" && <VeynHome membership={membership} onOpen={setModule}/>} 
-        {activeModule === "orders" && <VeynOrders canCreate={can("orders.create")} canEdit={can("orders.edit")}/>} 
-        {activeModule === "billing" && <Billing businessId={businessId} can={can}/>} 
-        {activeModule === "admin" && <VeynAdmin membership={membership}/>} 
+        {activeModule === "home" && <VeynHome businessId={businessId} membership={membership} onOpen={openModule}/>} 
+        {activeModule === "orders" && <VeynOrders businessId={businessId} canCreate={can("orders.create")} canEdit={can("orders.edit")} onOpenBilling={openBillingForOrder}/>} 
+        {activeModule === "billing" && <VeynBilling businessId={businessId} can={can} focusOrderId={billingFocusOrderId}/>} 
+        {activeModule === "admin" && <VeynAdmin membership={membership} canManageUsers={can("users.manage")} onRefresh={() => void refresh()}/>} 
       </main>
     </div>
   </div>;
 }
 
-function VeynHome({ membership, onOpen }: { membership: BusinessMembership; onOpen: (module: VeynModule) => void }) {
+function VeynHome({ businessId, membership, onOpen }: { businessId: string; membership: BusinessMembership; onOpen: (module: VeynModule) => void }) {
+  const [counts, setCounts] = useState({ open: 0, quotations: 0, challans: 0, invoices: 0 });
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    listVeynRequirements(businessId).then(records => {
+      if (cancelled) return;
+      setCounts({
+        open: records.filter(record => !["Closed", "Delivered"].includes(record.order.status)).length,
+        quotations: records.reduce((sum, record) => sum + record.order.commercial.quotations.length, 0),
+        challans: records.reduce((sum, record) => sum + record.order.commercial.deliveryChallans.length, 0),
+        invoices: records.reduce((sum, record) => sum + record.order.commercial.invoices.length, 0),
+      });
+    }).catch(cause => { if (!cancelled) setLoadError(cause instanceof Error ? cause.message : "Dashboard could not be loaded."); });
+    return () => { cancelled = true; };
+  }, [businessId]);
+
   return <section className="page veynHomePage">
-    <div className="veynHero panel">
-      <div>
-        <p className="eyebrow">VÉYN HEALTH · JINAM</p>
-        <h1>Institutional healthcare, from requirement to commercial closure.</h1>
-        <p>VÉYN keeps client requirements and commercial documents in one linked flow without inheriting SEIKO production workflows.</p>
-      </div>
-      <div className="veynHeroFlow" aria-label="Commercial workflow">
-        <span>Order</span><i>→</i><span>Quotation</span><i>→</i><span>PO</span><i>→</i><span>Challan</span><i>→</i><span>Invoice</span>
-      </div>
+    <div className="veynPageHead"><div><p className="eyebrow">VÉYN HEALTH</p><h1>Home</h1></div></div>
+    {loadError && <div className="accessError" role="alert">{loadError}</div>}
+    <div className="veynMetricGrid">
+      <button type="button" className="panel veynMetric" onClick={() => onOpen("orders")}><small>OPEN REQUIREMENTS</small><strong>{counts.open}</strong><span>Orders →</span></button>
+      <button type="button" className="panel veynMetric" onClick={() => onOpen("billing")}><small>QUOTATIONS</small><strong>{counts.quotations}</strong><span>Billing →</span></button>
+      <button type="button" className="panel veynMetric" onClick={() => onOpen("billing")}><small>CHALLANS</small><strong>{counts.challans}</strong><span>Billing →</span></button>
+      <button type="button" className="panel veynMetric" onClick={() => onOpen("billing")}><small>INVOICES</small><strong>{counts.invoices}</strong><span>Billing →</span></button>
     </div>
-
-    <div className="veynHomeGrid">
-      {canAccess(membership, "orders") && <button type="button" className="panel veynHomeCard" onClick={() => onOpen("orders")}>
-        <small>REQUIREMENTS</small><h3>Orders</h3><p>Capture the healthcare institution, requirement, delivery context and the products or services requested.</p><b>Open orders →</b>
-      </button>}
-      {canAccess(membership, "billing") && <button type="button" className="panel veynHomeCard" onClick={() => onOpen("billing")}>
-        <small>COMMERCIAL</small><h3>Billing</h3><p>Move through quotations, accepted commercial authority, delivery challans and invoices using shared source data.</p><b>Open billing →</b>
-      </button>}
-      {canAccess(membership, "admin") && <button type="button" className="panel veynHomeCard" onClick={() => onOpen("admin")}>
-        <small>CONTROL</small><h3>Admin</h3><p>Manage the VÉYN business context and use Jinam access controls without exposing another business&apos;s modules.</p><b>Open admin →</b>
-      </button>}
+    <div className="veynQuickActions">
+      {canAccess(membership, "orders") && <button type="button" className="primary" onClick={() => onOpen("orders")}>Open requirements</button>}
+      {canAccess(membership, "billing") && <button type="button" className="secondary" onClick={() => onOpen("billing")}>Open commercial pipeline</button>}
     </div>
   </section>;
 }
 
-function VeynOrders({ canCreate, canEdit }: { canCreate: boolean; canEdit: boolean }) {
-  return <section className="page veynOrdersPage">
-    <div className="panel veynOrdersHero">
-      <div><p className="eyebrow">ORDERS</p><h2>Institutional requirements</h2><p>VÉYN orders describe what a healthcare client needs. They are intentionally separate from SEIKO&apos;s person-wise measurements, labels and production workflow.</p></div>
-      <button type="button" className="primary" disabled={!canCreate}>{canCreate ? "+ New requirement" : "No create access"}</button>
-    </div>
-    <div className="veynOrderStructure">
-      <article className="panel"><small>CLIENT</small><h3>Institution & contact</h3><p>Hospital, CHC, PHC, diagnostic centre or other institutional customer, including billing and delivery locations.</p></article>
-      <article className="panel"><small>REQUIREMENT</small><h3>Products & services</h3><p>Requested items, quantities, specifications, references, tender/PO context and required delivery dates.</p></article>
-      <article className="panel"><small>COMMERCIAL LINK</small><h3>One source for documents</h3><p>The accepted requirement becomes the source for quotation, PO linkage, delivery challans and invoices instead of being retyped.</p></article>
-    </div>
-    <div className="panel veynOrderEmpty">
-      <div><h3>Order register</h3><p>The VÉYN order register is the next persistence step. The workflow boundary is now locked before live client records are introduced.</p></div>
-      <span>{canEdit ? "Edit access ready" : "View-only access"}</span>
-    </div>
-  </section>;
-}
+function VeynAdmin({ membership, canManageUsers, onRefresh }: { membership: BusinessMembership; canManageUsers: boolean; onRefresh: () => void }) {
+  const openAccess = () => {
+    const button = document.querySelector<HTMLButtonElement>(".accessMenuEntry");
+    button?.click();
+  };
 
-function VeynAdmin({ membership }: { membership: BusinessMembership }) {
   return <section className="page veynAdminPage">
-    <div className="panel">
-      <p className="eyebrow">ADMIN</p>
-      <h2>VÉYN business administration</h2>
-      <p>This area owns VÉYN-specific settings. User authentication and access remain shared Jinam platform capabilities and are available from the menu.</p>
+    <div className="veynPageHead"><div><p className="eyebrow">ADMIN</p><h1>Business administration</h1></div></div>
+    <div className="panel veynAdminCard">
       <dl className="veynAdminSummary"><div><dt>Business</dt><dd>{membership.businessName}</dd></div><div><dt>Role</dt><dd>{membership.role}</dd></div><div><dt>Modules</dt><dd>{membership.modules.join(" · ")}</dd></div></dl>
+      <div className="veynAdminActions">
+        {canManageUsers && <button type="button" className="primary" onClick={openAccess}>Users & access</button>}
+        <button type="button" className="secondary" onClick={onRefresh}>Refresh access</button>
+      </div>
     </div>
   </section>;
 }
