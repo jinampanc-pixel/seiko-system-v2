@@ -39,6 +39,13 @@ const ROLE_MODULES: Record<BusinessRole, readonly Module[]> = {
   viewer: ["home", "orders", "labels", "trace", "production", "inventory", "sales", "billing", "delivery"],
 };
 
+/* Business capability is intentionally independent of role. A role controls what
+   a user may do; this map controls which product modules exist for that business.
+   Veyn milestone 1 is deliberately limited to Orders + Billing. */
+const BUSINESS_MODULES: Partial<Record<string, readonly Module[]>> = {
+  "veyn-health": ["home", "orders", "billing", "admin"],
+};
+
 /* These identifiers are permanently retired and must not regain UI access even
    if stale bootstrap or membership data is returned during migration. */
 export const RETIRED_BUSINESS_IDS = new Set(["veyn-view"]);
@@ -46,11 +53,12 @@ export const RETIRED_BUSINESS_IDS = new Set(["veyn-view"]);
 export function normalizeMembership(value: BusinessMembership): BusinessMembership {
   if (RETIRED_BUSINESS_IDS.has(value.businessId)) return { ...value, modules: [], permissions: [] };
   const allowedForRole = new Set(ROLE_MODULES[value.role] || ROLE_MODULES.viewer);
+  const allowedForBusiness = new Set(BUSINESS_MODULES[value.businessId] || MODULES);
   const configuredModules = Array.isArray(value.modules) && value.modules.length ? value.modules : [...allowedForRole];
   const granted = new Set(configuredModules);
   return {
     ...value,
-    modules: MODULES.filter(module => allowedForRole.has(module) && granted.has(module)),
+    modules: MODULES.filter(module => allowedForRole.has(module) && allowedForBusiness.has(module) && granted.has(module)),
     permissions: permissionsForRole(value.role, value.permissions),
   };
 }
@@ -69,7 +77,8 @@ export function businessStorageKey(businessId: string, suffix: string): string {
 
 export const THEME_PRESETS: Record<string, BusinessTheme> = {
   seiko: { name: "Seiko Tailors master", primary: "#103860", primaryAlt: "#104068", accent: "#d0b080", background: "#f5f1eb", surface: "#fffaf4", ink: "#102d49", muted: "#667787", headingFont: "serif" },
-  veyn: { name: "Veyn Health master", primary: "#315b36", primaryAlt: "#4f744b", accent: "#980000", background: "#f2f5f0", surface: "#f2f5f0", ink: "#243324", muted: "#68756c", headingFont: "serif" },
+  /* Veyn: blood red leads the interface. Green remains a supporting/lower-level accent. */
+  veyn: { name: "Veyn Health master", primary: "#990b0b", primaryAlt: "#b31616", accent: "#557b50", background: "#f7f4f1", surface: "#fffdfb", ink: "#3b1717", muted: "#786968", headingFont: "serif" },
   meth: { name: "MeTh master", primary: "#422629", primaryAlt: "#603437", accent: "#c02020", background: "#f7f4f4", surface: "#ffffff", ink: "#331416", muted: "#786365", headingFont: "sans" },
   jinam: { name: "Jinam neutral", primary: "#082f4d", primaryAlt: "#155674", accent: "#d5aa60", background: "#edf2f4", surface: "#ffffff", ink: "#132b39", muted: "#647986", headingFont: "serif" },
 };
