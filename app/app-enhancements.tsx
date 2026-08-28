@@ -13,18 +13,11 @@ import { LabelProductionReady } from "./label-production-ready";
 import { LabelFinalization } from "./label-finalization";
 import { LabelDesignerInteractions } from "./label-designer-interactions";
 import { GlobalNavigation } from "./global-navigation";
-import { VeynApplication } from "./veyn-app";
 
 /**
- * Small compatibility/enhancement adapters that sit above the primary React UI.
- *
- * Keep this list deliberate and ordered. New business logic must live in its
- * owning React module rather than being added here. These adapters exist for
- * backwards-compatible UX improvements while the older screens are gradually
- * absorbed into their owning components.
- *
- * VeynApplication is not a compatibility adapter: it is mounted here only as a
- * transition point while Jinam's root is split into first-class business apps.
+ * Compatibility/enhancement adapters for the legacy SEIKO-root application.
+ * First-class business applications are routed before this layer and must not
+ * be mounted here as overlays.
  */
 export function AppEnhancements() {
   return <>
@@ -41,6 +34,5 @@ export function AppEnhancements() {
     <LabelFinalization />
     <LabelDesignerInteractions />
     <GlobalNavigation />
-    <VeynApplication />
   </>;
 }
