@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
+const router = readFileSync(new URL("../app/business-application-router.tsx", import.meta.url), "utf8");
 const enhancements = readFileSync(new URL("../app/app-enhancements.tsx", import.meta.url), "utf8");
 const scheduler = readFileSync(new URL("../app/lib/dom-enhancement.ts", import.meta.url), "utf8");
 const labelFlow = readFileSync(new URL("../app/label-flow-polish.tsx", import.meta.url), "utf8");
@@ -12,9 +13,12 @@ const orderCompact = readFileSync(new URL("../app/order-compact-ux.tsx", import.
 const workspacePager = readFileSync(new URL("../app/workspace-top-pager.tsx", import.meta.url), "utf8");
 const ownerDropdown = readFileSync(new URL("../app/owner-dropdown-ux.tsx", import.meta.url), "utf8");
 
-test("root layout mounts compatibility enhancements through one registry", () => {
-  assert.match(layout, /import \{ AppEnhancements \} from "\.\/app-enhancements"/);
-  assert.match(layout, /<AppEnhancements \/>/);
+test("root layout routes the active business before mounting legacy compatibility enhancements", () => {
+  assert.match(layout, /import \{ BusinessApplicationRouter \} from "\.\/business-application-router"/);
+  assert.match(layout, /<BusinessApplicationRouter>\{children\}<\/BusinessApplicationRouter>/);
+  assert.match(router, /import \{ AppEnhancements \} from "\.\/app-enhancements"/);
+  assert.match(router, /<AppEnhancements\/>/);
+  assert.match(router, /businessId === "veyn-health"/);
   for (const legacyImport of [
     "OwnerDropdownUx",
     "OrderSetupPolish",
