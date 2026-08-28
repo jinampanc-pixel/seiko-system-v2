@@ -52,6 +52,15 @@ const eslintConfig = defineConfig([
       "react/no-unknown-property": "warn",
     },
   },
+  {
+    files: ["app/labels/create/page.tsx"],
+    // This route intentionally renders the exact supplied business logo asset.
+    // Next image optimisation can transform that brand asset, so native <img>
+    // is the same deliberate choice already used by the main business header.
+    rules: {
+      "@next/next/no-img-element": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
