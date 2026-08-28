@@ -25,8 +25,8 @@ import "./control-consistency.css";
 import "./access-control.css";
 import "./modern-auth.css";
 import "./veyn-app.css";
-import { AppEnhancements } from "./app-enhancements";
 import { AccessProvider } from "./access-control";
+import { BusinessApplicationRouter } from "./business-application-router";
 
 export const metadata: Metadata = {
   title: "Jinam",
@@ -38,5 +38,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><AccessProvider><AppEnhancements />{children}</AccessProvider></body></html>;
+  return <html lang="en"><body><AccessProvider><BusinessApplicationRouter>{children}</BusinessApplicationRouter></AccessProvider></body></html>;
 }
