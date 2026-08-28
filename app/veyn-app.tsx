@@ -2,7 +2,7 @@
 /* The supplied VÉYN logo is intentionally rendered unchanged. */
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { Billing } from "./billing";
 import { useAccess } from "./access-control";
 import { canAccess, THEME_PRESETS, themeVariables, type BusinessMembership, type Module } from "./lib/foundation";
@@ -30,10 +30,7 @@ export function VeynApplication() {
     () => VEYN_NAV.filter(item => canAccess(membership, item.module as Module)),
     [membership],
   );
-
-  useEffect(() => {
-    if (!availableModules.some(item => item.module === module)) setModule("home");
-  }, [availableModules, module]);
+  const activeModule: VeynModule = availableModules.some(item => item.module === module) ? module : "home";
 
   if (businessId !== "veyn-health" || !membership) return null;
 
@@ -66,7 +63,7 @@ export function VeynApplication() {
         <nav className="moduleMenu veynModuleMenu" aria-label="VÉYN modules">
           {availableModules.map(item => <button
             type="button"
-            className={`nav ${module === item.module ? "active" : ""}`}
+            className={`nav ${activeModule === item.module ? "active" : ""}`}
             key={item.module}
             onClick={() => { setModule(item.module); setMenuOpen(false); }}
           >
@@ -85,10 +82,10 @@ export function VeynApplication() {
       {menuOpen && <button type="button" className="veynMenuBackdrop" aria-label="Close menu" onClick={() => setMenuOpen(false)}/>}
 
       <main className="veynMain">
-        {module === "home" && <VeynHome membership={membership} onOpen={setModule}/>} 
-        {module === "orders" && <VeynOrders canCreate={can("orders.create")} canEdit={can("orders.edit")}/>} 
-        {module === "billing" && <Billing businessId={businessId} can={can}/>} 
-        {module === "admin" && <VeynAdmin membership={membership}/>} 
+        {activeModule === "home" && <VeynHome membership={membership} onOpen={setModule}/>} 
+        {activeModule === "orders" && <VeynOrders canCreate={can("orders.create")} canEdit={can("orders.edit")}/>} 
+        {activeModule === "billing" && <Billing businessId={businessId} can={can}/>} 
+        {activeModule === "admin" && <VeynAdmin membership={membership}/>} 
       </main>
     </div>
   </div>;
