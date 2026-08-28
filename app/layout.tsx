@@ -25,6 +25,7 @@ import "./control-consistency.css";
 import "./access-control.css";
 import "./modern-auth.css";
 import "./veyn-app.css";
+import "./veyn-functional.css";
 import { AccessProvider } from "./access-control";
 import { BusinessApplicationRouter } from "./business-application-router";
 
