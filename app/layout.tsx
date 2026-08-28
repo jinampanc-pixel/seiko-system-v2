@@ -24,15 +24,16 @@ import "./global-navigation.css";
 import "./control-consistency.css";
 import "./access-control.css";
 import "./modern-auth.css";
+import "./veyn-app.css";
 import { AppEnhancements } from "./app-enhancements";
 import { AccessProvider } from "./access-control";
 
 export const metadata: Metadata = {
-  title: "Jinam Foundation",
-  description: "Business-separated operations and traceability for Jinam.",
+  title: "Jinam",
+  description: "One secure platform for the separate SEIKO, véyn health and MeTh business applications.",
   icons: { icon: "/favicon.svg" },
   manifest: "/manifest.webmanifest",
-  applicationName: "Jinam Foundation",
+  applicationName: "Jinam",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Jinam" },
 };
 
