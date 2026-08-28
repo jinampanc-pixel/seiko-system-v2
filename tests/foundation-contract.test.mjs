@@ -63,9 +63,11 @@ test("browser state and caches are partitioned by business", () => {
   assert.match(page, /queueKey=\{queueKey\}/);
 });
 
-test("module visibility is the intersection of role and membership grants", () => {
-  assert.match(foundation, /ROLE_MODULES/);
-  assert.match(foundation, /allowedForRole\.has\(module\) && granted\.has\(module\)/);
+test("roles are presets while explicit membership grants stay customizable", () => {
+  assert.match(foundation, /ROLE_MODULE_PRESETS/);
+  assert.match(foundation, /Array\.isArray\(value\.modules\) && value\.modules\.length/);
+  assert.match(foundation, /MODULES\.filter\(module => granted\.has\(module\)\)/);
+  assert.doesNotMatch(foundation, /allowedForRole\.has\(module\)/);
   assert.match(page, /canAccess\(membership, "labels"\)/);
   assert.match(page, /canAccess\(membership, "scan"\)/);
   assert.match(page, /canAccess\(membership, "trace"\)/);
