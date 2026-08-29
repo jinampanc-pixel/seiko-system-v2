@@ -47,11 +47,6 @@ export function JinamBusinessShell<T extends string>({
 
   return <div className="jinamBusinessShell" data-business={businessId} style={themeVariables(theme) as CSSProperties}>
     <header className="jinamShellTopbar">
-      <button type="button" className="jinamSystemBrand" onClick={() => navigate(nav[0]?.key ?? active)} aria-label="Jinam home">
-        <img src="/jinam-mark.svg?v=3" alt=""/>
-        <span>Jinam</span>
-      </button>
-      <span className="jinamBrandDivider" aria-hidden="true"/>
       <button type="button" className="jinamBusinessBrand" onClick={() => navigate(nav[0]?.key ?? active)} aria-label={`${businessName} home`}>
         {businessLogo ? <img src={businessLogo} alt={`${businessName} logo`}/> : <strong>{businessName}</strong>}
       </button>
@@ -64,8 +59,7 @@ export function JinamBusinessShell<T extends string>({
 
     <aside className={`jinamShellDrawer ${menuOpen ? "open" : ""}`} aria-label={`${businessName} navigation`}>
       <div className="jinamDrawerHeading">
-        <small>JINAM</small>
-        <strong>{businessName}</strong>
+        <small>{businessName}</small>
       </div>
       <nav className="moduleMenu jinamModuleMenu" aria-label={`${businessName} modules`}>
         {nav.map(item => <button type="button" className={`nav ${active === item.key ? "active" : ""}`} key={item.key} onClick={() => navigate(item.key)}>
