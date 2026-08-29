@@ -14,7 +14,7 @@ import { LabelFinalization } from "./label-finalization";
 import { LabelDesignerInteractions } from "./label-designer-interactions";
 import { GlobalNavigation } from "./global-navigation";
 import { SeikoPhase1 } from "./seiko-phase1";
-import { SeikoPhase2 } from "./seiko-phase2";
+import { SeikoPhase2Gate } from "./seiko-phase2-gate";
 
 /**
  * Compatibility/enhancement adapters for the legacy SEIKO-root application.
@@ -37,6 +37,6 @@ export function AppEnhancements() {
     <LabelDesignerInteractions />
     <GlobalNavigation />
     <SeikoPhase1 />
-    <SeikoPhase2 />
+    <SeikoPhase2Gate />
   </>;
 }
