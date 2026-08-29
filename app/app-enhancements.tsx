@@ -13,7 +13,6 @@ import { LabelProductionReady } from "./label-production-ready";
 import { LabelFinalization } from "./label-finalization";
 import { LabelDesignerInteractions } from "./label-designer-interactions";
 import { GlobalNavigation } from "./global-navigation";
-import { JinamLegacyBrand } from "./jinam-legacy-brand";
 import { SeikoPhase1 } from "./seiko-phase1";
 
 /**
@@ -36,7 +35,6 @@ export function AppEnhancements() {
     <LabelFinalization />
     <LabelDesignerInteractions />
     <GlobalNavigation />
-    <JinamLegacyBrand />
     <SeikoPhase1 />
   </>;
 }
