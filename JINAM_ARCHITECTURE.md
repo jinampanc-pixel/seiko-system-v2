@@ -1,49 +1,78 @@
 # Jinam application architecture
 
-**Jinam** is the umbrella application/platform. It provides secure shared platform capabilities to three separate business applications:
+**Jinam** is the master application/platform. It securely hosts three separate business applications:
 
 - **SEIKO** — tailoring, uniforms, production and operational ERP workflows.
-- **véyn health** — institutional healthcare requirements and commercial workflows.
-- **MeTh** — healthcare-apparel commerce and operations, with explicit cross-business production handoffs where SEIKO performs manufacturing.
+- **véyn health** — institutional healthcare requirements, products/services and commercial workflows.
+- **MeTh** — healthcare-apparel commerce, e-commerce operations, inventory and fulfilment.
 
-These businesses are not skins, tenants, or module presets of one common workflow. Each business owns its own navigation, domain records, status model, screens and operating process.
+The detailed product contract is maintained in [`JINAM_PRODUCT_ARCHITECTURE.md`](./JINAM_PRODUCT_ARCHITECTURE.md).
+
+These businesses are not skins, tenants or module presets of one common workflow. Each business owns its own navigation, domain records, status model, screens, settings, libraries, vendors, expenses and operating process.
 
 ## Hard rule: share capability, not business workflow
 
-Code belongs in the shared Jinam platform only when the underlying behaviour is genuinely common. Examples include authentication, user/business membership, permissions, audit/event infrastructure, reusable document rendering, search/table primitives, identity/trace primitives and notification infrastructure.
+Code belongs in the shared Jinam platform only when the underlying behaviour is genuinely common. Examples include authentication, user/business membership, permissions, audit/event infrastructure, reusable document rendering, import/search/table primitives, identity/trace primitives, vendor/expense primitives and notification infrastructure.
 
-A business-specific process stays inside that business application even when another business has a superficially similar screen.
+Business-specific processes stay inside their owning business application even when another business has a superficially similar screen.
 
-## Business application boundaries
+## Identity and memberships
 
-The business catalog is the authoritative module upper bound. A user membership can reduce access within a business, but it cannot enable a module that does not belong to that business application.
+One person/account may hold independent memberships in SEIKO, VÉYN and MeTh using the same email/phone identity.
 
-Role choices are starting presets, not substitutes for the business boundary.
+The active business is a hard application boundary. A membership can reduce access within the active business, but it cannot enable another business's modules or workflow.
 
-### SEIKO
+The UI should expose only the experience required for that membership. Operational workers should not be shown irrelevant owner/admin surfaces merely as disabled controls.
 
-Current application surface: Home, Orders, Labels, Scan, Trace, Production, Inventory, Sales, Delivery and Admin.
+## Shared business capabilities
 
-Billing is intentionally **not** exposed as a SEIKO module yet. Shared commercial/document primitives may later be used by SEIKO invoices, challans or quotations without copying the véyn Billing application.
+All three businesses require their own business-separated:
 
-### véyn health
+- Client/customer/institution records where applicable,
+- Product/service records,
+- Vendor records,
+- Expense/spend records,
+- Settings and permission controls,
+- Event/notification hooks suitable for WhatsApp API integration.
 
-Milestone-one application surface: Home, Orders, Billing and Admin.
+Jinam can share neutral storage/search/import/audit/rendering primitives, but the records and workflow meaning remain business-owned.
 
-The core commercial chain is:
+## SEIKO
 
-`Requirement / Order → Quotation → accepted commercial authority / PO → Delivery Challan → Invoice`
+SEIKO is the tailoring/uniform operations ERP and production application.
 
-The VÉYN Orders application is an institutional-healthcare requirement workflow. It must not import SEIKO's person-wise measurements, labels or production process.
+Its current operational surface remains the foundation while Billing/Commercial, Client Library, Product Library, Vendor/Spend and dashboard improvements are added in controlled phases.
 
-### MeTh
+SEIKO Billing must use SEIKO document semantics/templates and should not inherit the VÉYN Billing workflow merely because document-rendering primitives are shared.
 
-MeTh remains a separate business application. Its final module boundary and workflow will be revised independently rather than inherited from SEIKO or VÉYN.
+## véyn health
 
-Where SEIKO manufactures for MeTh, use an explicit linked production handoff instead of sharing mutable order state.
+VÉYN is an institutional-healthcare requirements and commercial application.
 
-## Shared commercial document capability
+The commercial chain is:
 
-The reusable layer may provide neutral primitives such as party/address blocks, document numbers and dates, line items, quantities, rates, totals, payment information, terms, QR/document retrieval, signatures and pagination.
+`Requirement / Order → Quotation → accepted commercial authority / Customer PO → Delivery Challan → Invoice → Payment`
 
-Each business still owns its document semantics, legal terms, branding and workflow. For example, a SEIKO invoice can reuse the renderer without inheriting VÉYN's Quotation → PO → Challan → Invoice application workflow.
+VÉYN Orders must not import SEIKO's person-wise measurement, label or production workflow.
+
+## MeTh
+
+MeTh is an e-commerce/commerce operations application with its own customers, products, orders, inventory, vendors, expenses and fulfilment.
+
+Where SEIKO manufactures for MeTh, use an explicit linked production handoff instead of shared mutable order state.
+
+The locked cross-business chain is:
+
+`MeTh order → SEIKO production request → SEIKO production updates → SEIKO ready/complete → MeTh packing → MeTh delivery`
+
+**VÉYN is not part of the MeTh fulfilment chain.**
+
+## Shared document capability
+
+The reusable document layer may provide neutral primitives such as party/address blocks, document numbers and dates, line items, quantities, rates, taxes, totals, payment information, terms, QR/document retrieval, signatures and pagination.
+
+Each business still owns its branding, legal terms, tax/document rules and workflow.
+
+## Event and WhatsApp architecture
+
+Meaningful business and operational state changes should emit neutral Jinam events. Businesses can later map those events to WhatsApp templates, recipients and other communication channels without hardcoding WhatsApp behaviour inside individual pages.
