@@ -13,7 +13,10 @@ const orderCompact = readFileSync(new URL("../app/order-compact-ux.tsx", import.
 const workspacePager = readFileSync(new URL("../app/workspace-top-pager.tsx", import.meta.url), "utf8");
 const ownerDropdown = readFileSync(new URL("../app/owner-dropdown-ux.tsx", import.meta.url), "utf8");
 const methApp = readFileSync(new URL("../app/meth-app.tsx", import.meta.url), "utf8");
+const veynApp = readFileSync(new URL("../app/veyn-app.tsx", import.meta.url), "utf8");
 const shell = readFileSync(new URL("../app/jinam-business-shell.tsx", import.meta.url), "utf8");
+const seikoPhase = readFileSync(new URL("../app/seiko-phase1.tsx", import.meta.url), "utf8");
+const catalog = readFileSync(new URL("../app/lib/business-catalog.ts", import.meta.url), "utf8");
 const manifest = readFileSync(new URL("../public/manifest.webmanifest", import.meta.url), "utf8");
 const favicon = readFileSync(new URL("../public/favicon.svg", import.meta.url), "utf8");
 
@@ -26,15 +29,7 @@ test("root layout routes each first-class business before mounting legacy SEIKO 
   assert.match(router, /businessId === "meth"/);
   assert.match(router, /return <MethApplication\/>/);
   assert.match(router, /<AppEnhancements\/>/);
-  for (const legacyImport of [
-    "OwnerDropdownUx",
-    "OrderSetupPolish",
-    "OrderSetupFinalize",
-    "WorkspaceTopPager",
-    "LabelFlowPolish",
-    "LabelDesignerPolish",
-    "GlobalNavigation",
-  ]) {
+  for (const legacyImport of ["OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","WorkspaceTopPager","LabelFlowPolish","LabelDesignerPolish","GlobalNavigation"]) {
     assert.doesNotMatch(layout, new RegExp(`import \\{ ${legacyImport} \\}`));
   }
 });
@@ -42,43 +37,51 @@ test("root layout routes each first-class business before mounting legacy SEIKO 
 test("MeTh never falls through to the SEIKO compatibility application", () => {
   assert.match(methApp, /JinamBusinessShell/);
   assert.match(methApp, /businessId !== "meth"/);
-  assert.match(methApp, /MeTh packs & delivers|MeTh handles packing and delivery/i);
+  assert.match(methApp, /MeTh packing & delivery|MeTh packs & delivers|packing, delivery/i);
   assert.doesNotMatch(methApp, /<Orders/);
   assert.doesNotMatch(methApp, /AppEnhancements/);
 });
 
 test("Jinam shell owns visible system identity, business switching and contextual navigation", () => {
-  assert.match(shell, /\/jinam-mark\.svg/);
+  assert.match(shell, /\/jinam-mark\.svg\?v=3/);
   assert.match(shell, />Jinam</);
   assert.match(shell, /aria-label="Switch business"/);
   assert.match(shell, /jinamContextBack/);
   assert.match(shell, /localStorage\.setItem\("jinam:selected-business"/);
+  assert.doesNotMatch(shell, /jinamDrawerHeading[\s\S]*aria-label="Close menu"/);
 });
 
-test("installed system identity is Jinam with the black mark", () => {
+test("installed system identity is Jinam with a cache-busted black mark", () => {
   assert.match(manifest, /"name": "Jinam"/);
   assert.match(manifest, /"short_name": "Jinam"/);
   assert.match(manifest, /"theme_color": "#050505"/);
   assert.match(favicon, /fill="#050505"/);
+  assert.match(layout, /favicon\.svg\?v=3/);
+});
+
+test("Phase 1 removes prototype UI from the visible SEIKO home and menu", () => {
+  assert.match(seikoPhase, /hero\.style\.display = "none"/);
+  assert.match(seikoPhase, /nextFlow\.style\.display = "none"/);
+  assert.match(seikoPhase, /ACTIVE ORDERS/);
+  assert.match(seikoPhase, /Users & access/);
+  assert.match(seikoPhase, /\["Inventory", "Sales", "Delivery"\]/);
+  assert.match(catalog, /allowedModules: \["home", "orders", "labels", "scan", "trace", "production", "admin"\]/);
+});
+
+test("Users and access is nested inside business settings rather than exposed as a shell module", () => {
+  assert.match(veynApp, /jinamSettingsCard"><h2>Users & access/);
+  assert.match(methApp, /jinamSettingsCard"><h2>Users & access/);
+  assert.match(shell, /jinamModuleMenu/);
+});
+
+test("VÉYN green remains semantic rather than assigned to arbitrary document types", () => {
+  assert.match(veynApp, /data-tone="positive"/);
+  assert.match(veynApp, /DELIVERED \/ CLOSED/);
+  assert.doesNotMatch(veynApp, /veynPositiveMetric/);
 });
 
 test("enhancement registry remains explicit and reviewable", () => {
-  for (const component of [
-    "ErpOrderSync",
-    "OwnerDropdownUx",
-    "OrderSetupPolish",
-    "OrderSetupFinalize",
-    "OrderCompactUx",
-    "WorkspaceTopPager",
-    "WorkspaceShortcuts",
-    "LabelFlowPolish",
-    "LabelDesignerPolish",
-    "LabelProductionReady",
-    "LabelFinalization",
-    "LabelDesignerInteractions",
-    "GlobalNavigation",
-    "JinamLegacyBrand",
-  ]) {
+  for (const component of ["ErpOrderSync","OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","OrderCompactUx","WorkspaceTopPager","WorkspaceShortcuts","LabelFlowPolish","LabelDesignerPolish","LabelProductionReady","LabelFinalization","LabelDesignerInteractions","GlobalNavigation","JinamLegacyBrand","SeikoPhase1"]) {
     assert.match(enhancements, new RegExp(`<${component} \\/>`));
   }
 });
@@ -91,7 +94,7 @@ test("shared DOM scheduler owns observer and animation-frame lifecycle", () => {
 });
 
 test("consolidated adapters use the shared scheduler", () => {
-  for (const source of [labelFlow, labelProduction, orderFinalize, orderCompact, workspacePager, ownerDropdown]) {
+  for (const source of [labelFlow, labelProduction, orderFinalize, orderCompact, workspacePager, ownerDropdown, seikoPhase]) {
     assert.match(source, /startDomEnhancement/);
   }
 });
