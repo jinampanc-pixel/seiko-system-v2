@@ -15,8 +15,10 @@ test("global menu uses Home and keeps business switching out of the header", () 
   assert.doesNotMatch(navigation, /Veyn Health · Read only/);
 });
 
-test("settings and business navigator stay in the normal menu stack", () => {
-  assert.match(navigationCss, /moduleMenuSettings[\s\S]*margin-top:8px!important/);
+test("settings and business navigator stay in the compact Jinam menu stack", () => {
+  assert.match(navigationCss, /moduleMenuSettings[\s\S]*margin-top:6px!important/);
+  assert.match(navigationCss, /background:rgba\(255,255,255,.99\)!important/);
+  assert.match(navigationCss, /width:min\(316px,92vw\)!important/);
   assert.doesNotMatch(navigationCss, /globalStandaloneMenu \.moduleMenuSettings\{margin-top:auto/);
   assert.match(navigation, /<BusinessNavigator businesses=\{businesses\}/);
 });
