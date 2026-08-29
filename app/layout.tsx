@@ -28,14 +28,15 @@ import "./jinam-shell.css";
 import "./veyn-app.css";
 import "./veyn-functional.css";
 import "./phase1-visual.css";
+import "./seiko-phase1.css";
 import { AccessProvider } from "./access-control";
 import { BusinessApplicationRouter } from "./business-application-router";
 
 export const metadata: Metadata = {
   title: "Jinam",
   description: "One secure platform for the separate SEIKO, véyn health and MeTh business applications.",
-  icons: { icon: "/favicon.svg" },
-  manifest: "/manifest.webmanifest",
+  icons: { icon: "/favicon.svg?v=3", shortcut: "/favicon.svg?v=3", apple: "/app-icon.svg?v=3" },
+  manifest: "/manifest.webmanifest?v=3",
   applicationName: "Jinam",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Jinam" },
 };
