@@ -6,6 +6,8 @@ const domain = readFileSync(new URL("../app/lib/meth-commerce.ts", import.meta.u
 const meth = readFileSync(new URL("../app/meth-app.tsx", import.meta.url), "utf8");
 const methUi = readFileSync(new URL("../app/meth-commerce-ui.tsx", import.meta.url), "utf8");
 const seikoSync = readFileSync(new URL("../app/seiko-meth-sync.tsx", import.meta.url), "utf8");
+const serverSync = readFileSync(new URL("../app/meth-server-sync.tsx", import.meta.url), "utf8");
+const syncRoute = readFileSync(new URL("../app/api/erp/meth/sync/route.ts", import.meta.url), "utf8");
 const enhancements = readFileSync(new URL("../app/app-enhancements.tsx", import.meta.url), "utf8");
 
 test("MeTh normalizes all sales channels into one order model", () => {
@@ -80,4 +82,26 @@ test("SEIKO explicitly mounts the MeTh handoff and receivable adapter", () => {
   assert.match(enhancements, /<SeikoMethSync \/>/);
   assert.match(seikoSync, /Create MeTh charge/);
   assert.match(seikoSync, /MeTh payable mirrors this same transaction/);
+});
+
+test("MeTh and SEIKO commerce records are server authoritative with optimistic concurrency", () => {
+  assert.match(syncRoute, /operation\?: "list" \| "changes" \| "mutate" \| "import-local"/);
+  assert.match(syncRoute, /expectedVersion/);
+  assert.match(syncRoute, /WHERE scope = \? AND collection = \? AND id = \? AND version = \?/);
+  assert.match(syncRoute, /VERSION_CONFLICT/);
+  assert.match(syncRoute, /version INTEGER NOT NULL DEFAULT 1/);
+  assert.match(syncRoute, /jinam_shared_changes/);
+  assert.match(syncRoute, /CREATE TRIGGER IF NOT EXISTS jinam_shared_records_update_audit/);
+  assert.match(serverSync, /writeAuthoritative/);
+  assert.doesNotMatch(serverSync, /merge\(local, remote\)/);
+});
+
+test("commerce synchronization is event-driven first with incremental server changes and polling only as fallback", () => {
+  assert.match(serverSync, /window\.addEventListener\("jinam-data-change", localChange\)/);
+  assert.match(serverSync, /BroadcastChannel/);
+  assert.match(serverSync, /window\.addEventListener\("focus", refresh\)/);
+  assert.match(serverSync, /window\.addEventListener\("online", refresh\)/);
+  assert.match(serverSync, /operation: "changes"/);
+  assert.match(serverSync, /FALLBACK_RECONCILE_MS = 60_000/);
+  assert.doesNotMatch(serverSync, /12_000/);
 });
