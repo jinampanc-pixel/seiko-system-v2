@@ -142,14 +142,19 @@ async function bootstrapEntry(
     throw new Error(response.code || "SYNC_LIST_FAILED");
   }
 
-  let envelopes = envelopesFrom(response);
-  if (envelopes.length === 0 && localSafetyCopy.length > 0) {
-    const imported = await post({ operation: "import-local", businessId, collection: entry.collection, records: localSafetyCopy });
+  let envelopes = envelopesFrom(response, entry.collection);
+  const remoteIds = new Set(envelopes.map(envelope => envelope.id));
+  const localOnly = localSafetyCopy.filter(record => {
+    const id = idOf(entry.collection, record);
+    return Boolean(id) && !remoteIds.has(id);
+  });
+  if (localOnly.length > 0) {
+    const imported = await post({ operation: "import-local", businessId, collection: entry.collection, records: localOnly });
     if (!imported.ok && !isOptionalServerFailure(imported.code)) throw new Error(imported.code || "SYNC_IMPORT_FAILED");
     if (imported.ok) {
       response = await post({ operation: "list", businessId, collection: entry.collection });
       if (!response.ok) throw new Error(response.code || "SYNC_LIST_FAILED");
-      envelopes = envelopesFrom(response);
+      envelopes = envelopesFrom(response, entry.collection);
     }
   }
 
@@ -241,11 +246,11 @@ function writeAuthoritative(entry: Entry, state: CollectionState, applying: { cu
   }
 }
 
-function envelopesFrom(response: SyncResponse): Envelope[] {
+function envelopesFrom(response: SyncResponse, collection: Collection): Envelope[] {
   if (Array.isArray(response.data?.envelopes)) return response.data!.envelopes!;
   const now = new Date().toISOString();
   const records = Array.isArray(response.data?.records) ? response.data!.records! : [];
-  return records.map(record => ({ id: idOf("orders", record), record, version: 1, createdAt: now, updatedAt: timestamp(record) || now, updatedBy: "server" })).filter(item => item.id);
+  return records.map(record => ({ id: idOf(collection, record), record, version: 1, createdAt: now, updatedAt: timestamp(record) || now, updatedBy: "server" })).filter(item => item.id);
 }
 
 async function post(body: Record<string, unknown>): Promise<SyncResponse> {
