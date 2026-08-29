@@ -48,9 +48,9 @@ const CATALOG: Record<string, BusinessCatalogEntry> = {
     logoUrl: "/brands/seiko-logo-transparent.png",
     themeKey: "seiko",
     app: "seiko-operations",
-    // Only end-to-end working SEIKO modules are visible during the live rollout.
-    allowedModules: ["home", "orders", "labels", "scan", "trace", "production", "admin"],
-    defaultModules: ["home", "orders", "labels", "scan", "trace", "production", "admin"],
+    // Billing is now a working SEIKO-specific workflow; unfinished legacy placeholders remain hidden.
+    allowedModules: ["home", "orders", "labels", "scan", "trace", "production", "billing", "admin"],
+    defaultModules: ["home", "orders", "labels", "scan", "trace", "production", "billing", "admin"],
     capabilities: COMMON_BUSINESS_CAPABILITIES,
   },
   "veyn-health": {
