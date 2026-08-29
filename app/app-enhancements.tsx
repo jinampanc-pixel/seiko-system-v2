@@ -15,6 +15,7 @@ import { LabelDesignerInteractions } from "./label-designer-interactions";
 import { GlobalNavigation } from "./global-navigation";
 import { SeikoPhase1 } from "./seiko-phase1";
 import { SeikoPhase2Gate } from "./seiko-phase2-gate";
+import { SeikoLibraryAutofill } from "./seiko-library-autofill";
 
 /**
  * Compatibility/enhancement adapters for the legacy SEIKO-root application.
@@ -37,6 +38,7 @@ export function AppEnhancements() {
     <LabelDesignerInteractions />
     <GlobalNavigation />
     <SeikoPhase1 />
+    <SeikoLibraryAutofill />
     <SeikoPhase2Gate />
   </>;
 }
