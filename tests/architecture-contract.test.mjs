@@ -16,7 +16,12 @@ const methApp = readFileSync(new URL("../app/meth-app.tsx", import.meta.url), "u
 const veynApp = readFileSync(new URL("../app/veyn-app.tsx", import.meta.url), "utf8");
 const shell = readFileSync(new URL("../app/jinam-business-shell.tsx", import.meta.url), "utf8");
 const seikoPhase = readFileSync(new URL("../app/seiko-phase1.tsx", import.meta.url), "utf8");
+const seikoPhase2 = readFileSync(new URL("../app/seiko-phase2.tsx", import.meta.url), "utf8");
+const seikoPhase2Gate = readFileSync(new URL("../app/seiko-phase2-gate.tsx", import.meta.url), "utf8");
+const autofill = readFileSync(new URL("../app/seiko-library-autofill.tsx", import.meta.url), "utf8");
 const catalog = readFileSync(new URL("../app/lib/business-catalog.ts", import.meta.url), "utf8");
+const businessLibrary = readFileSync(new URL("../app/lib/business-library.ts", import.meta.url), "utf8");
+const seikoBilling = readFileSync(new URL("../app/lib/seiko-billing.ts", import.meta.url), "utf8");
 const manifest = readFileSync(new URL("../public/manifest.webmanifest", import.meta.url), "utf8");
 const favicon = readFileSync(new URL("../public/favicon.svg", import.meta.url), "utf8");
 const serviceWorker = readFileSync(new URL("../public/sw.js", import.meta.url), "utf8");
@@ -72,7 +77,40 @@ test("Phase 1 removes prototype UI from the visible SEIKO home and menu", () => 
   assert.match(seikoPhase, /Users & access/);
   assert.match(seikoPhase, /\["Inventory", "Sales", "Delivery"\]/);
   assert.doesNotMatch(seikoPhase, /SEIKO · JINAM/);
-  assert.match(catalog, /allowedModules: \["home", "orders", "labels", "scan", "trace", "production", "admin"\]/);
+  assert.match(catalog, /allowedModules: \["home", "orders", "labels", "scan", "trace", "production", "billing", "admin"\]/);
+});
+
+test("SEIKO Phase 2 exposes real owner/admin libraries and billing without leaking them to other apps", () => {
+  assert.match(enhancements, /<SeikoPhase2Gate \/>/);
+  assert.match(seikoPhase2Gate, /businessId !== "seiko"/);
+  assert.match(seikoPhase2Gate, /\["owner", "admin"\]/);
+  assert.match(seikoPhase2, /Client Library/);
+  assert.match(seikoPhase2, /Product Library/);
+  assert.match(seikoPhase2, /Billing/);
+  assert.match(seikoPhase2, /Document Templates/);
+  assert.doesNotMatch(veynApp, /SeikoPhase2/);
+  assert.doesNotMatch(methApp, /SeikoPhase2/);
+});
+
+test("business libraries stay partitioned and learn from SEIKO orders", () => {
+  assert.match(businessLibrary, /jinam:\$\{businessId\}:library:\$\{kind\}:v1/);
+  assert.match(businessLibrary, /learnLibrariesFromOrders/);
+  assert.match(businessLibrary, /sourceOrderIds/);
+  assert.match(autofill, /seiko-client-library-options/);
+  assert.match(autofill, /Delivery address/);
+  assert.match(autofill, /Billing address/);
+});
+
+test("SEIKO billing links documents, tax treatment, payments and outstanding balances to orders", () => {
+  assert.match(seikoBilling, /orderId: string/);
+  assert.match(seikoBilling, /SeikoTaxMode = "gst" \| "non_gst"/);
+  assert.match(seikoBilling, /"intra_state" \| "inter_state"/);
+  assert.match(seikoBilling, /invoiceOutstanding/);
+  assert.match(seikoBilling, /paymentStoreKey/);
+  assert.match(seikoBilling, /showCustomerAcknowledgement/);
+  assert.match(seikoPhase2, /Record payment/);
+  assert.match(seikoPhase2, /GST document/);
+  assert.match(seikoPhase2, /Without GST/);
 });
 
 test("Users and access is nested inside business settings rather than exposed as a shell module", () => {
@@ -89,7 +127,7 @@ test("VÉYN green is semantic and commercial summary remains neutral", () => {
 });
 
 test("enhancement registry remains explicit and reviewable", () => {
-  for (const component of ["ErpOrderSync","OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","OrderCompactUx","WorkspaceTopPager","WorkspaceShortcuts","LabelFlowPolish","LabelDesignerPolish","LabelProductionReady","LabelFinalization","LabelDesignerInteractions","GlobalNavigation","SeikoPhase1"]) {
+  for (const component of ["ErpOrderSync","OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","OrderCompactUx","WorkspaceTopPager","WorkspaceShortcuts","LabelFlowPolish","LabelDesignerPolish","LabelProductionReady","LabelFinalization","LabelDesignerInteractions","GlobalNavigation","SeikoPhase1","SeikoLibraryAutofill","SeikoPhase2Gate"]) {
     assert.match(enhancements, new RegExp(`<${component} \\/>`));
   }
 });
@@ -102,7 +140,7 @@ test("shared DOM scheduler owns observer and animation-frame lifecycle", () => {
 });
 
 test("consolidated adapters use the shared scheduler", () => {
-  for (const source of [labelFlow, labelProduction, orderFinalize, orderCompact, workspacePager, ownerDropdown, seikoPhase]) {
+  for (const source of [labelFlow, labelProduction, orderFinalize, orderCompact, workspacePager, ownerDropdown, seikoPhase, autofill, seikoPhase2]) {
     assert.match(source, /startDomEnhancement/);
   }
 });
