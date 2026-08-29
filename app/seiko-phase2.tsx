@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { startDomEnhancement } from "./lib/dom-enhancement";
 import { orderStoreKey, type SeikoOrder } from "./lib/order-domain";
@@ -112,7 +112,11 @@ export function SeikoPhase2() {
         clientInput.setAttribute("list", "seiko-client-library-options");
         let list = document.getElementById("seiko-client-library-options") as HTMLDataListElement | null;
         if (!list) { list = document.createElement("datalist"); list.id = "seiko-client-library-options"; document.body.appendChild(list); }
-        list.innerHTML = clients.filter(item => !item.archived).map(item => `<option value="${escapeHtml(item.name)}"></option>`).join("");
+        const signature = clients.filter(item => !item.archived).map(item => `${item.id}:${item.updatedAt}`).join("|");
+        if (list.dataset.signature !== signature) {
+          list.dataset.signature = signature;
+          list.innerHTML = clients.filter(item => !item.archived).map(item => `<option value="${escapeHtml(item.name)}"></option>`).join("");
+        }
       }
 
       document.querySelectorAll<HTMLInputElement>('.orderSetup input[list^="product-suggestions-"]').forEach(input => {
@@ -162,7 +166,7 @@ function ClientLibrary({ records, onChange }: { records: ClientLibraryRecord[]; 
   return <LibraryFrame query={query} setQuery={setQuery} archived={archived} setArchived={setArchived} onAdd={() => setEditing(blank())} addLabel="Add client">
     {visible.map(record => <LibraryRow key={record.id} title={record.name} meta={[record.type, record.contactPerson, record.phone].filter(Boolean).join(" · ")} archived={record.archived} onEdit={() => setEditing({ ...record })} onArchive={() => onChange(records.map(item => item.id === record.id ? { ...item, archived: !item.archived, updatedAt: new Date().toISOString() } : item))}/>)}
     {!visible.length && <Empty text={archived ? "No archived clients." : "No clients match this view."}/>} 
-    {editing && <Editor title={editing.id ? "Client" : "New client"} onCancel={() => setEditing(null)} onSave={save}><Input label="Client name" value={editing.name} onChange={name => setEditing({ ...editing, name })}/><Input label="Client type" value={editing.type} onChange={type => setEditing({ ...editing, type })}/><Input label="Contact person" value={editing.contactPerson} onChange={contactPerson => setEditing({ ...editing, contactPerson })}/><Input label="Phone" value={editing.phone} onChange={phone => setEditing({ ...editing, phone })}/><Input label="Email" value={editing.email} onChange={email => setEditing({ ...editing, email })}/><Input label="GSTIN" value={editing.gstin} onChange={gstin => setEditing({ ...editing, gstin })}/><Input label="Billing address" value={editing.billingAddress} onChange={billingAddress => setEditing({ ...editing, billingAddress })}/><Input label="Delivery address" value={editing.deliveryAddress} onChange={deliveryAddress => setEditing({ ...editing, deliveryAddress })}/></Editor>}
+    {editing && <Editor title="Client" onCancel={() => setEditing(null)} onSave={save}><Input label="Client name" value={editing.name} onChange={name => setEditing({ ...editing, name })}/><Input label="Client type" value={editing.type} onChange={type => setEditing({ ...editing, type })}/><Input label="Contact person" value={editing.contactPerson} onChange={contactPerson => setEditing({ ...editing, contactPerson })}/><Input label="Phone" value={editing.phone} onChange={phone => setEditing({ ...editing, phone })}/><Input label="Email" value={editing.email} onChange={email => setEditing({ ...editing, email })}/><Input label="GSTIN" value={editing.gstin} onChange={gstin => setEditing({ ...editing, gstin })}/><Input label="Billing address" value={editing.billingAddress} onChange={billingAddress => setEditing({ ...editing, billingAddress })}/><Input label="Delivery address" value={editing.deliveryAddress} onChange={deliveryAddress => setEditing({ ...editing, deliveryAddress })}/></Editor>}
   </LibraryFrame>;
 }
 
