@@ -32,8 +32,12 @@ test("Jinam keeps each business application inside its own module boundary", asy
   const catalog = await text("app/lib/business-catalog.ts");
   const session = await text("app/lib/server-session.ts");
   const memberships = await text("app/api/erp/memberships/route.ts");
-  assert.match(catalog, /businessId:\s*"seiko"[\s\S]*?allowedModules:\s*\["home",\s*"orders",\s*"labels",\s*"scan",\s*"trace",\s*"production",\s*"inventory",\s*"sales",\s*"delivery",\s*"admin"\]/);
-  assert.doesNotMatch(catalog.match(/businessId:\s*"seiko"[\s\S]*?defaultModules:\s*\[[^\]]+\]/)?.[0] || "", /"billing"/);
+  const seikoProfile = catalog.match(/businessId:\s*"seiko"[\s\S]*?defaultModules:\s*\[[^\]]+\]/)?.[0] || "";
+  assert.match(catalog, /businessId:\s*"seiko"[\s\S]*?allowedModules:\s*\["home",\s*"orders",\s*"labels",\s*"scan",\s*"trace",\s*"production",\s*"admin"\]/);
+  assert.match(catalog, /businessId:\s*"seiko"[\s\S]*?defaultModules:\s*\["home",\s*"orders",\s*"labels",\s*"scan",\s*"trace",\s*"production",\s*"admin"\]/);
+  for (const hiddenUntilReady of ["billing", "inventory", "sales", "delivery"]) {
+    assert.doesNotMatch(seikoProfile, new RegExp(`"${hiddenUntilReady}"`));
+  }
   assert.match(session, /allowedModules = new Set<Module>\(catalog\.allowedModules\)/);
   assert.match(session, /allowedModules\.has\(module as Module\)/);
   assert.match(memberships, /businessCatalogEntry\(businessId\)\.allowedModules/);
