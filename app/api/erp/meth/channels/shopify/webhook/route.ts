@@ -4,14 +4,19 @@ import {
   markShopifyOrderWebhookFailed,
   MethFulfilmentError,
 } from "../../../../../../lib/server-meth-fulfilment";
+import { ensureMethOrderHandoffsFromShopify, MethHandoffError } from "../../../../../../lib/server-meth-handoffs";
 
 export async function POST(request: Request) {
   const processingRequest = request.clone();
   try {
     const result = await acceptShopifyWebhook(request);
-    let processing: { status: "duplicate" | "staged" | "processed" | "failed"; orderId?: string; message?: string } = {
-      status: result.duplicate ? "duplicate" : "staged",
-    };
+    let processing: {
+      status: "duplicate" | "staged" | "processed" | "failed";
+      orderId?: string;
+      createdHandoffs?: string[];
+      blockedHandoffs?: string[];
+      message?: string;
+    } = { status: result.duplicate ? "duplicate" : "staged" };
 
     if (!result.duplicate && (result.topic === "orders/create" || result.topic === "orders/updated")) {
       const rawBody = await processingRequest.text();
@@ -22,10 +27,22 @@ export async function POST(request: Request) {
           topic: result.topic,
           rawBody,
         });
-        processing = { status: ingested.processed ? "processed" : "staged", orderId: ingested.orderId };
+        if (ingested.processed && ingested.orderId) {
+          const handoffs = await ensureMethOrderHandoffsFromShopify(ingested.orderId);
+          processing = {
+            status: "processed",
+            orderId: ingested.orderId,
+            createdHandoffs: handoffs.created,
+            blockedHandoffs: handoffs.blocked,
+          };
+        } else {
+          processing = { status: "staged", orderId: ingested.orderId };
+        }
       } catch (cause) {
         await markShopifyOrderWebhookFailed(result.webhookId, cause);
-        const message = cause instanceof MethFulfilmentError ? cause.message : "Verified Shopify order was staged but could not yet be normalized.";
+        const message = cause instanceof MethFulfilmentError || cause instanceof MethHandoffError
+          ? cause.message
+          : "Verified Shopify order was staged but could not yet be normalized.";
         processing = { status: "failed", message };
         console.error("Shopify order ingestion failed after webhook acceptance", cause);
       }
