@@ -13,6 +13,7 @@ import { LabelProductionReady } from "./label-production-ready";
 import { LabelFinalization } from "./label-finalization";
 import { LabelDesignerInteractions } from "./label-designer-interactions";
 import { GlobalNavigation } from "./global-navigation";
+import { JinamLegacyBrand } from "./jinam-legacy-brand";
 
 /**
  * Compatibility/enhancement adapters for the legacy SEIKO-root application.
@@ -34,5 +35,6 @@ export function AppEnhancements() {
     <LabelFinalization />
     <LabelDesignerInteractions />
     <GlobalNavigation />
+    <JinamLegacyBrand />
   </>;
 }
