@@ -6,8 +6,9 @@ import { ChannelConnectionSettings } from "./channel-connection-settings";
 import { JinamBusinessShell } from "./jinam-business-shell";
 import { THEME_PRESETS } from "./lib/foundation";
 import { intercompanyStoreKey, methStoreKey, type IntercompanyTransaction, type MethChannelOrder, type ProductionHandoff } from "./lib/meth-commerce";
-import { MethCommerceSettings, MethFinanceSurface, MethOrdersSurface, MethProductionSurface } from "./meth-commerce-ui";
+import { MethCommerceSettings, MethFinanceSurface, MethProductionSurface } from "./meth-commerce-ui";
 import { MethFulfilmentRoutingSettings, MethRoutingDecisions } from "./meth-fulfilment-routing";
+import { MethOrdersSurface } from "./meth-orders-surface";
 import { MethServerSync } from "./meth-server-sync";
 
 const METH_NAV = [
