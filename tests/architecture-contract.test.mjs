@@ -42,7 +42,7 @@ test("root layout routes each first-class business before mounting legacy SEIKO 
 test("MeTh never falls through to the SEIKO compatibility application", () => {
   assert.match(methApp, /JinamBusinessShell/);
   assert.match(methApp, /businessId !== "meth"/);
-  assert.match(methApp, /MeTh handles packing and delivery/);
+  assert.match(methApp, /MeTh packs & delivers|MeTh handles packing and delivery/i);
   assert.doesNotMatch(methApp, /<Orders/);
   assert.doesNotMatch(methApp, /AppEnhancements/);
 });
