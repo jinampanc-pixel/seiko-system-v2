@@ -98,9 +98,10 @@ export async function saveMethFinishedStock(request: Request) {
   await ensureMethFulfilmentSchema(db);
   const body = await readJson<{ methSku?: string; onHand?: number }>(request);
   const methSku = cleanSku(body.methSku || "");
-  const onHand = whole(body.onHand);
+  const rawOnHand = Number(body.onHand);
   if (!methSku) throw new MethFulfilmentError("METH_SKU_REQUIRED", "Enter a MeTh SKU.", 400);
-  if (onHand < 0) throw new MethFulfilmentError("INVALID_STOCK", "Finished stock cannot be negative.", 400);
+  if (!Number.isFinite(rawOnHand) || rawOnHand < 0) throw new MethFulfilmentError("INVALID_STOCK", "Finished stock cannot be negative.", 400);
+  const onHand = whole(rawOnHand);
   const current = await db.prepare(`SELECT meth_sku,on_hand,reserved,updated_at FROM jinam_meth_finished_stock WHERE meth_sku=?`).bind(methSku).first<StockRow>();
   if (current && onHand < current.reserved) {
     throw new MethFulfilmentError("STOCK_BELOW_RESERVED", `On-hand stock cannot be below ${current.reserved} already reserved units.`, 409);
@@ -148,8 +149,7 @@ export async function ingestShopifyOrderWebhook(input: {
   const policy = await readPolicy(db);
   const mappings = await readSkuMappings(db);
   const existing = await loadOrderByExternalId(db, "shopify", externalOrderId);
-  const routingDecision: MethRoutingDecision = existing?.order.routingDecision
-    || (policy.defaultPolicy === "decide" ? "pending" : "pending");
+  const routingDecision: MethRoutingDecision = existing?.order.routingDecision || "pending";
   const lines = mapShopifyLines(payload.line_items || [], mappings, existing?.order);
   const placedAt = payload.created_at || payload.processed_at || new Date().toISOString();
   const advanced = existing?.order && !["unfulfilled", "awaiting_production", "ready_to_pack"].includes(existing.order.fulfilmentStatus)
@@ -416,10 +416,20 @@ async function releaseStock(db: Db, skuInput: string, quantityInput: number, act
 }
 
 async function claimRouting(db: Db, claimId: string, orderId: string, decision: string) {
+  const now = new Date().toISOString();
+  const existing = await db.prepare(`SELECT status FROM jinam_meth_order_routing_claims WHERE claim_id=?`).bind(claimId).first<{ status: string }>();
+  if (existing?.status === "failed") {
+    const retried = await db.prepare(
+      `UPDATE jinam_meth_order_routing_claims SET decision=?,status='processing',updated_at=?
+        WHERE claim_id=? AND status='failed' RETURNING claim_id`,
+    ).bind(decision, now, claimId).first<{ claim_id: string }>();
+    if (retried) return true;
+  }
+  if (existing) return false;
   const result = await db.prepare(
     `INSERT OR IGNORE INTO jinam_meth_order_routing_claims (claim_id,order_id,decision,status,created_at,updated_at)
      VALUES (?,?,?,'processing',?,?) RETURNING claim_id`,
-  ).bind(claimId, orderId, decision, new Date().toISOString(), new Date().toISOString()).first<{ claim_id: string }>();
+  ).bind(claimId, orderId, decision, now, now).first<{ claim_id: string }>();
   return Boolean(result);
 }
 
