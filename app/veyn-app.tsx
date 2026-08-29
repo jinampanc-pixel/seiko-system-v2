@@ -1,6 +1,4 @@
 "use client";
-/* The supplied VÉYN logo is intentionally rendered unchanged. */
-/* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useState } from "react";
 import { useAccess } from "./access-control";
