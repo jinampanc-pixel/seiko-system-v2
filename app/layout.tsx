@@ -35,8 +35,8 @@ import { BusinessApplicationRouter } from "./business-application-router";
 export const metadata: Metadata = {
   title: "Jinam",
   description: "One secure platform for the separate SEIKO, véyn health and MeTh business applications.",
-  icons: { icon: "/favicon.svg?v=3", shortcut: "/favicon.svg?v=3", apple: "/app-icon.svg?v=3" },
-  manifest: "/manifest.webmanifest?v=3",
+  icons: { icon: "/favicon.svg?v=4", shortcut: "/favicon.svg?v=4", apple: "/app-icon.svg?v=4" },
+  manifest: "/manifest.webmanifest?v=4",
   applicationName: "Jinam",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Jinam" },
 };
