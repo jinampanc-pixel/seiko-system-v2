@@ -19,6 +19,7 @@ const seikoPhase = readFileSync(new URL("../app/seiko-phase1.tsx", import.meta.u
 const catalog = readFileSync(new URL("../app/lib/business-catalog.ts", import.meta.url), "utf8");
 const manifest = readFileSync(new URL("../public/manifest.webmanifest", import.meta.url), "utf8");
 const favicon = readFileSync(new URL("../public/favicon.svg", import.meta.url), "utf8");
+const serviceWorker = readFileSync(new URL("../public/sw.js", import.meta.url), "utf8");
 
 test("root layout routes each first-class business before mounting legacy SEIKO enhancements", () => {
   assert.match(layout, /import \{ BusinessApplicationRouter \} from "\.\/business-application-router"/);
@@ -37,7 +38,9 @@ test("root layout routes each first-class business before mounting legacy SEIKO 
 test("MeTh never falls through to the SEIKO compatibility application", () => {
   assert.match(methApp, /JinamBusinessShell/);
   assert.match(methApp, /businessId !== "meth"/);
-  assert.match(methApp, /MeTh packing & delivery|MeTh packs & delivers|packing, delivery/i);
+  assert.match(methApp, /READY TO PACK/);
+  assert.match(methApp, /Linked SEIKO handoffs/);
+  assert.doesNotMatch(methApp, /Business isolated|MeTh owns its orders|SEIKO is a linked manufacturer/);
   assert.doesNotMatch(methApp, /<Orders/);
   assert.doesNotMatch(methApp, /AppEnhancements/);
 });
@@ -51,12 +54,14 @@ test("Jinam shell owns visible system identity, business switching and contextua
   assert.doesNotMatch(shell, /jinamDrawerHeading[\s\S]*aria-label="Close menu"/);
 });
 
-test("installed system identity is Jinam with a cache-busted black mark", () => {
+test("installed system identity is Jinam with a refreshed black mark", () => {
   assert.match(manifest, /"name": "Jinam"/);
   assert.match(manifest, /"short_name": "Jinam"/);
   assert.match(manifest, /"theme_color": "#050505"/);
   assert.match(favicon, /fill="#050505"/);
   assert.match(layout, /favicon\.svg\?v=3/);
+  assert.match(serviceWorker, /jinam-shell-v3/);
+  assert.match(serviceWorker, /favicon\.svg\?v=3/);
 });
 
 test("Phase 1 removes prototype UI from the visible SEIKO home and menu", () => {
