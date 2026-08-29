@@ -75,15 +75,18 @@ function VeynHome({ businessId, membership, onOpen }: { businessId: string; memb
   }, [businessId]);
 
   const open = records.filter(record => !["Closed", "Delivered"].includes(record.order.status));
+  const awaitingPo = records.filter(record => record.order.commercial.quotations.some(item => item.status === "accepted") && record.order.commercial.purchaseOrders.length === 0);
+  const deliveryOpen = records.filter(record => record.order.commercial.purchaseOrders.some(item => ["open", "part-delivered"].includes(item.status)));
+  const invoiceOutstanding = records.filter(record => record.order.commercial.invoices.some(item => ["issued", "part-paid"].includes(item.status)));
+  const paidInvoices = records.reduce((sum, record) => sum + record.order.commercial.invoices.filter(item => item.status === "paid").length, 0);
   const quotations = records.reduce((sum, record) => sum + record.order.commercial.quotations.length, 0);
   const challans = records.reduce((sum, record) => sum + record.order.commercial.deliveryChallans.length, 0);
   const invoices = records.reduce((sum, record) => sum + record.order.commercial.invoices.length, 0);
-  const completed = records.filter(record => ["Delivered", "Closed"].includes(record.order.status)).length;
   const recent = [...records].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 4);
 
   return <section className="jinamDashboard veynDashboard">
     <div className="jinamDashboardHead">
-      <div><small>VÉYN HEALTH</small><h1>Home</h1><p>Requirements and commercial activity in one operational view.</p></div>
+      <div><small>VÉYN HEALTH</small><h1>Home</h1><p>Requirements, commercial actions and fulfilment in one operational view.</p></div>
       <div className="jinamDashboardActions">
         {canAccess(membership, "orders") && <button type="button" className="primary" onClick={() => onOpen("orders")}>New / open requirement</button>}
         {canAccess(membership, "billing") && <button type="button" className="secondary" onClick={() => onOpen("billing")}>Commercial pipeline</button>}
@@ -91,18 +94,18 @@ function VeynHome({ businessId, membership, onOpen }: { businessId: string; memb
     </div>
     {loadError && <div className="accessError" role="alert">{loadError}</div>}
     <div className="jinamDashboardGrid">
-      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("orders")}><small>OPEN REQUIREMENTS</small><strong>{open.length}</strong><span>Active institutional requirements</span></button>
-      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("billing")}><small>QUOTATIONS</small><strong>{quotations}</strong><span>Commercial quotations on record</span></button>
-      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("billing")}><small>INVOICES</small><strong>{invoices}</strong><span>Invoices generated in VÉYN</span></button>
-      <article className="jinamDashboardCard" data-tone="positive"><small>DELIVERED / CLOSED</small><strong>{completed}</strong><span>Completed requirements</span></article>
+      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("orders")}><small>OPEN REQUIREMENTS</small><strong>{open.length}</strong><span>Institutional work still active</span></button>
+      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("billing")}><small>AWAITING PO</small><strong>{awaitingPo.length}</strong><span>Accepted quotations without PO</span></button>
+      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("billing")}><small>DELIVERY OPEN</small><strong>{deliveryOpen.length}</strong><span>Open or part-delivered POs</span></button>
+      <button type="button" className="jinamDashboardCard veynDashboardButton" data-tone={invoiceOutstanding.length === 0 && paidInvoices > 0 ? "positive" : undefined} onClick={() => onOpen("billing")}><small>INVOICE OUTSTANDING</small><strong>{invoiceOutstanding.length}</strong><span>{invoiceOutstanding.length ? "Issued / part-paid invoices" : paidInvoices ? `${paidInvoices} paid` : "No outstanding invoices"}</span></button>
     </div>
     <section className="jinamDashboardSection">
-      <div className="jinamDashboardSectionHead"><div><h2>Commercial flow</h2><p>Quotation → PO → Delivery Challan → Invoice</p></div><span className="veynFlowSummary">{quotations} quotations · {challans} challans · {invoices} invoices</span></div>
+      <div className="jinamDashboardSectionHead"><div><h2>Commercial flow</h2><p>Quotation → PO → Delivery Challan → Invoice → Payment</p></div><span className="veynFlowSummary">{quotations} quotations · {challans} challans · {invoices} invoices</span></div>
       <div className="jinamDashboardActions"><button type="button" className="secondary" onClick={() => onOpen("billing")}>Open billing</button><button type="button" className="secondary" onClick={() => onOpen("orders")}>Open orders</button></div>
     </section>
     <section className="jinamDashboardSection">
       <div className="jinamDashboardSectionHead"><div><h2>Recent requirements</h2><p>Most recently updated VÉYN records.</p></div></div>
-      <div className="jinamDashboardList">{recent.length ? recent.map(record => <div className="jinamDashboardRow" key={record.order.orderId}><strong>{record.order.details.institutionName || record.order.details.orderNo}</strong><span>{record.order.status} · {record.order.details.orderNo}</span></div>) : <div className="jinamDashboardRow"><strong>No requirements yet</strong><span>Create the first requirement from Orders.</span></div>}</div>
+      <div className="jinamDashboardList">{recent.length ? recent.map(record => <div className="jinamDashboardRow" key={record.order.orderId}><strong>{record.order.details.institutionName || record.order.details.orderNo}</strong><span>{record.order.status} · {record.order.details.orderNo}</span></div>) : <div className="jinamDashboardRow"><strong>No requirements yet</strong><span>Start from Orders.</span></div>}</div>
     </section>
   </section>;
 }
@@ -113,10 +116,8 @@ function VeynSettings({ membership, canManageUsers, onRefresh }: { membership: B
   return <section className="jinamSettingsPage">
     <div className="jinamSettingsHead"><small>VÉYN HEALTH</small><h1>Settings</h1></div>
     <div className="jinamSettingsGrid">
-      <article className="jinamSettingsCard"><h2>Users & access</h2><p>Manage VÉYN memberships, roles and permissions without exposing another business.</p>{canManageUsers && <button type="button" className="primary" onClick={openAccess}>Open users & access</button>}</article>
-      <article className="jinamSettingsCard"><h2>Business access</h2><p>{membership.businessName} · {membership.role}. Refresh if an administrator has just changed your access.</p><button type="button" className="secondary" onClick={onRefresh}>Refresh access</button></article>
-      <article className="jinamSettingsCard"><h2>Templates</h2><p>Quotation, delivery challan, invoice and receipt templates will be managed here when the document editor is implemented.</p></article>
-      <article className="jinamSettingsCard"><h2>Libraries & options</h2><p>Institution types, client library, products/services and managed dropdowns will live here as those workflows are completed.</p></article>
+      <article className="jinamSettingsCard"><h2>Users & access</h2><p>Manage VÉYN memberships, roles and permissions.</p>{canManageUsers && <button type="button" className="primary" onClick={openAccess}>Open users & access</button>}</article>
+      <article className="jinamSettingsCard"><h2>My access</h2><p>{membership.businessName} · {membership.role}</p><button type="button" className="secondary" onClick={onRefresh}>Refresh access</button></article>
     </div>
   </section>;
 }
