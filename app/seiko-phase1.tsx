@@ -34,6 +34,15 @@ export function SeikoPhase1() {
       });
       document.querySelectorAll<HTMLElement>(".moduleMenu .accessMenuEntry").forEach(button => { button.style.display = "none"; });
 
+      const setupBack = document.querySelector<HTMLButtonElement>(".orderSetup .orderPageHead .secondary");
+      if (setupBack && setupBack.textContent?.trim() === "Cancel") setupBack.textContent = "← Back to Order Center";
+      document.querySelectorAll<HTMLButtonElement>("button").forEach(button => {
+        const text = button.textContent?.trim();
+        if (text === "Order Center") button.textContent = "← Back to Orders";
+        if (text === "Back" && button.closest(".ordersPage,.orderSetup,.workspacePage")) button.textContent = "← Back to Orders";
+        if (text === "Back" && button.closest(".labelCreateApp,.labelDesigner")) button.textContent = "← Back to Labels";
+      });
+
       const settings = document.querySelector<HTMLElement>(".themePanel");
       if (settings && !settings.querySelector(".seikoAccessSettings")) {
         const card = document.createElement("section");
