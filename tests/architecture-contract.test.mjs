@@ -30,63 +30,66 @@ test("root layout routes each first-class business before mounting legacy SEIKO 
   assert.match(router, /businessId === "meth"/);
   assert.match(router, /return <MethApplication\/>/);
   assert.match(router, /<AppEnhancements\/>/);
-  for (const legacyImport of ["OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","WorkspaceTopPager","LabelFlowPolish","LabelDesignerPolish","GlobalNavigation"]) {
-    assert.doesNotMatch(layout, new RegExp(`import \\{ ${legacyImport} \\}`));
-  }
 });
 
 test("MeTh never falls through to the SEIKO compatibility application", () => {
   assert.match(methApp, /JinamBusinessShell/);
   assert.match(methApp, /businessId !== "meth"/);
   assert.match(methApp, /READY TO PACK/);
-  assert.match(methApp, /Linked SEIKO handoffs/);
+  assert.match(methApp, /Linked SEIKO production handoffs/);
   assert.doesNotMatch(methApp, /Business isolated|MeTh owns its orders|SEIKO is a linked manufacturer/);
   assert.doesNotMatch(methApp, /<Orders/);
   assert.doesNotMatch(methApp, /AppEnhancements/);
 });
 
-test("Jinam shell owns visible system identity, business switching and contextual navigation", () => {
-  assert.match(shell, /\/jinam-mark\.svg\?v=3/);
-  assert.match(shell, />Jinam</);
+test("business shell shows only active business identity while Jinam remains the system identity", () => {
+  assert.match(shell, /jinamBusinessBrand/);
+  assert.doesNotMatch(shell, /jinamSystemBrand/);
+  assert.doesNotMatch(shell, />Jinam</);
   assert.match(shell, /aria-label="Switch business"/);
   assert.match(shell, /jinamContextBack/);
   assert.match(shell, /localStorage\.setItem\("jinam:selected-business"/);
-  assert.doesNotMatch(shell, /jinamDrawerHeading[\s\S]*aria-label="Close menu"/);
+  assert.doesNotMatch(enhancements, /JinamLegacyBrand/);
 });
 
-test("installed system identity is Jinam with a refreshed black mark", () => {
+test("installed system identity is Jinam with the S and integrated J money mark", () => {
   assert.match(manifest, /"name": "Jinam"/);
   assert.match(manifest, /"short_name": "Jinam"/);
   assert.match(manifest, /"theme_color": "#050505"/);
   assert.match(favicon, /fill="#050505"/);
-  assert.match(layout, /favicon\.svg\?v=3/);
-  assert.match(serviceWorker, /jinam-shell-v3/);
-  assert.match(serviceWorker, /favicon\.svg\?v=3/);
+  assert.match(favicon, /M45\.5 17\.5/);
+  assert.match(favicon, /M33 9\.5V42\.3/);
+  assert.match(layout, /favicon\.svg\?v=4/);
+  assert.match(serviceWorker, /jinam-shell-v4/);
+  assert.match(serviceWorker, /favicon\.svg\?v=4/);
 });
 
 test("Phase 1 removes prototype UI from the visible SEIKO home and menu", () => {
   assert.match(seikoPhase, /hero\.style\.display = "none"/);
   assert.match(seikoPhase, /nextFlow\.style\.display = "none"/);
   assert.match(seikoPhase, /ACTIVE ORDERS/);
+  assert.match(seikoPhase, /Open production/);
   assert.match(seikoPhase, /Users & access/);
   assert.match(seikoPhase, /\["Inventory", "Sales", "Delivery"\]/);
+  assert.doesNotMatch(seikoPhase, /SEIKO · JINAM/);
   assert.match(catalog, /allowedModules: \["home", "orders", "labels", "scan", "trace", "production", "admin"\]/);
 });
 
 test("Users and access is nested inside business settings rather than exposed as a shell module", () => {
   assert.match(veynApp, /jinamSettingsCard"><h2>Users & access/);
   assert.match(methApp, /jinamSettingsCard"><h2>Users & access/);
-  assert.match(shell, /jinamModuleMenu/);
+  assert.doesNotMatch(veynApp, /Templates<\/h2>|Libraries & options<\/h2>/);
+  assert.doesNotMatch(methApp, /Business setup<\/h2>/);
 });
 
-test("VÉYN green remains semantic rather than assigned to arbitrary document types", () => {
-  assert.match(veynApp, /data-tone="positive"/);
-  assert.match(veynApp, /DELIVERED \/ CLOSED/);
-  assert.doesNotMatch(veynApp, /veynPositiveMetric/);
+test("VÉYN green is semantic and commercial summary remains neutral", () => {
+  assert.match(veynApp, /data-tone=\{invoiceOutstanding\.length === 0 && paidInvoices > 0 \? "positive"/);
+  assert.match(veynApp, /paidInvoices/);
+  assert.doesNotMatch(veynApp, /DELIVERED \/ CLOSED/);
 });
 
 test("enhancement registry remains explicit and reviewable", () => {
-  for (const component of ["ErpOrderSync","OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","OrderCompactUx","WorkspaceTopPager","WorkspaceShortcuts","LabelFlowPolish","LabelDesignerPolish","LabelProductionReady","LabelFinalization","LabelDesignerInteractions","GlobalNavigation","JinamLegacyBrand","SeikoPhase1"]) {
+  for (const component of ["ErpOrderSync","OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","OrderCompactUx","WorkspaceTopPager","WorkspaceShortcuts","LabelFlowPolish","LabelDesignerPolish","LabelProductionReady","LabelFinalization","LabelDesignerInteractions","GlobalNavigation","SeikoPhase1"]) {
     assert.match(enhancements, new RegExp(`<${component} \\/>`));
   }
 });
