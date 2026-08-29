@@ -29,6 +29,7 @@ import "./veyn-app.css";
 import "./veyn-functional.css";
 import "./phase1-visual.css";
 import "./seiko-phase1.css";
+import "./seiko-phase2.css";
 import { AccessProvider } from "./access-control";
 import { BusinessApplicationRouter } from "./business-application-router";
 
