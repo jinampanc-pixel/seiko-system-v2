@@ -17,12 +17,8 @@ import { SeikoPhase1 } from "./seiko-phase1";
 import { SeikoPhase2Gate } from "./seiko-phase2-gate";
 import { SeikoLibraryAutofill } from "./seiko-library-autofill";
 import { SeikoMethSync } from "./seiko-meth-sync";
+import { MethServerSync } from "./meth-server-sync";
 
-/**
- * Compatibility/enhancement adapters for the legacy SEIKO-root application.
- * First-class business applications are routed before this layer and must not
- * be mounted here as overlays.
- */
 export function AppEnhancements() {
   return <>
     <ErpOrderSync />
@@ -41,6 +37,7 @@ export function AppEnhancements() {
     <SeikoPhase1 />
     <SeikoLibraryAutofill />
     <SeikoPhase2Gate />
+    <MethServerSync />
     <SeikoMethSync />
   </>;
 }
