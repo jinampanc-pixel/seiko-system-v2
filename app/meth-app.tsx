@@ -7,6 +7,7 @@ import { JinamBusinessShell } from "./jinam-business-shell";
 import { THEME_PRESETS } from "./lib/foundation";
 import { intercompanyStoreKey, methStoreKey, type IntercompanyTransaction, type MethChannelOrder, type ProductionHandoff } from "./lib/meth-commerce";
 import { MethCommerceSettings, MethFinanceSurface, MethOrdersSurface, MethProductionSurface } from "./meth-commerce-ui";
+import { MethFulfilmentRoutingSettings, MethRoutingDecisions } from "./meth-fulfilment-routing";
 import { MethServerSync } from "./meth-server-sync";
 
 const METH_NAV = [
@@ -22,6 +23,7 @@ type MethModule = (typeof METH_NAV)[number]["key"];
 export function MethApplication() {
   const { businessId, membership } = useAccess();
   const [module, setModule] = useState<MethModule>("home");
+  const [routingRevision, setRoutingRevision] = useState(0);
   if (businessId !== "meth" || !membership) return null;
 
   return <>
@@ -37,7 +39,7 @@ export function MethApplication() {
     >
       {module === "home" && <MethHome onNavigate={setModule}/>} 
       {module === "orders" && <MethOrdersSurface/>}
-      {module === "production" && <MethProductionSurface/>}
+      {module === "production" && <><MethRoutingDecisions onRouted={() => setRoutingRevision(value => value + 1)}/><MethProductionSurface key={routingRevision}/></>}
       {module === "finance" && <MethFinanceSurface/>}
       {module === "settings" && <MethSettings/>}
     </JinamBusinessShell>
@@ -71,5 +73,5 @@ function MethHome({ onNavigate }: { onNavigate: (module: MethModule) => void }) 
 
 function MethSettings() {
   const openAccess = () => document.querySelector<HTMLButtonElement>(".accessMenuEntry")?.click();
-  return <section className="jinamSettingsPage"><div className="jinamSettingsHead"><small>METH</small><h1>Settings</h1></div><div className="jinamSettingsGrid"><article className="jinamSettingsCard"><h2>Users & access</h2><p>Manage who can enter MeTh and what each person can see or do.</p><button type="button" className="primary" onClick={openAccess}>Open users & access</button></article><ChannelConnectionSettings/><MethCommerceSettings/></div></section>;
+  return <section className="jinamSettingsPage"><div className="jinamSettingsHead"><small>METH</small><h1>Settings</h1></div><div className="jinamSettingsGrid"><article className="jinamSettingsCard"><h2>Users & access</h2><p>Manage who can enter MeTh and what each person can see or do.</p><button type="button" className="primary" onClick={openAccess}>Open users & access</button></article><MethFulfilmentRoutingSettings/><ChannelConnectionSettings/><MethCommerceSettings/></div></section>;
 }
