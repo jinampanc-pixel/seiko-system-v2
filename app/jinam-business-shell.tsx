@@ -45,10 +45,10 @@ export function JinamBusinessShell<T extends string>({
     window.location.assign(`/?business=${encodeURIComponent(nextBusinessId)}`);
   };
 
-  return <div className="jinamBusinessShell" style={themeVariables(theme) as CSSProperties}>
+  return <div className="jinamBusinessShell" data-business={businessId} style={themeVariables(theme) as CSSProperties}>
     <header className="jinamShellTopbar">
       <button type="button" className="jinamSystemBrand" onClick={() => navigate(nav[0]?.key ?? active)} aria-label="Jinam home">
-        <img src="/jinam-mark.svg" alt=""/>
+        <img src="/jinam-mark.svg?v=3" alt=""/>
         <span>Jinam</span>
       </button>
       <span className="jinamBrandDivider" aria-hidden="true"/>
@@ -66,7 +66,6 @@ export function JinamBusinessShell<T extends string>({
       <div className="jinamDrawerHeading">
         <small>JINAM</small>
         <strong>{businessName}</strong>
-        <button type="button" onClick={() => setMenuOpen(false)} aria-label="Close menu">×</button>
       </div>
       <nav className="moduleMenu jinamModuleMenu" aria-label={`${businessName} modules`}>
         {nav.map(item => <button type="button" className={`nav ${active === item.key ? "active" : ""}`} key={item.key} onClick={() => navigate(item.key)}>
