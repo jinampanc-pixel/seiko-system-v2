@@ -5,6 +5,11 @@ import { readFileSync } from "node:fs";
 const domain = readFileSync(new URL("../app/lib/meth-commerce.ts", import.meta.url), "utf8");
 const meth = readFileSync(new URL("../app/meth-app.tsx", import.meta.url), "utf8");
 const methUi = readFileSync(new URL("../app/meth-commerce-ui.tsx", import.meta.url), "utf8");
+const routingUi = readFileSync(new URL("../app/meth-fulfilment-routing.tsx", import.meta.url), "utf8");
+const fulfilmentServer = readFileSync(new URL("../app/lib/server-meth-fulfilment.ts", import.meta.url), "utf8");
+const handoffServer = readFileSync(new URL("../app/lib/server-meth-handoffs.ts", import.meta.url), "utf8");
+const routingRoute = readFileSync(new URL("../app/api/erp/meth/order-routing/route.ts", import.meta.url), "utf8");
+const shopifyWebhook = readFileSync(new URL("../app/api/erp/meth/channels/shopify/webhook/route.ts", import.meta.url), "utf8");
 const seikoSync = readFileSync(new URL("../app/seiko-meth-sync.tsx", import.meta.url), "utf8");
 const serverSync = readFileSync(new URL("../app/meth-server-sync.tsx", import.meta.url), "utf8");
 const syncRoute = readFileSync(new URL("../app/api/erp/meth/sync/route.ts", import.meta.url), "utf8");
@@ -29,6 +34,62 @@ test("stock allocation sends only the shortage quantity to SEIKO", () => {
   assert.match(domain, /productionRequired: ordered - stock/);
   assert.match(domain, /if \(line\.productionRequired <= 0\) throw new Error/);
   assert.match(methUi, /Only shortage quantities are sent to SEIKO/);
+});
+
+test("MeTh fulfilment can default to stock first or require an explicit stock-vs-produce decision", () => {
+  assert.match(domain, /MethFulfilmentPolicy = "stock_first" \| "decide"/);
+  assert.match(domain, /MethRoutingDecision = "pending" \| "stock_first" \| "produce"/);
+  assert.match(routingUi, /Stock first — use stock, produce shortage/);
+  assert.match(routingUi, /Decide — choose stock or production per order/);
+  assert.match(routingUi, /Use stock first/);
+  assert.match(routingUi, /Produce full order/);
+  assert.match(fulfilmentServer, /defaultPolicy: row\?\.default_policy === "decide" \? "decide" : DEFAULT_POLICY/);
+});
+
+test("decide mode holds the order before stock reservation or production allocation", () => {
+  assert.match(domain, /routingDecision === "pending"/);
+  assert.match(domain, /finishedStockAllocated: 0, productionRequired: 0/);
+  assert.match(domain, /routingDecision === "pending"\s*\? "unfulfilled"/);
+  assert.match(handoffServer, /order\.routingDecision === "pending"/);
+});
+
+test("MeTh finished stock is authoritative in D1 and reserved atomically", () => {
+  assert.match(fulfilmentServer, /jinam_meth_finished_stock/);
+  assert.match(fulfilmentServer, /on_hand INTEGER NOT NULL DEFAULT 0/);
+  assert.match(fulfilmentServer, /reserved INTEGER NOT NULL DEFAULT 0/);
+  assert.match(fulfilmentServer, /available = Math\.max\(0, whole\(current\.on_hand\) - whole\(current\.reserved\)\)/);
+  assert.match(fulfilmentServer, /WHERE meth_sku=\? AND on_hand=\? AND reserved=\? RETURNING reserved/);
+  assert.match(fulfilmentServer, /STOCK_BELOW_RESERVED/);
+  assert.match(fulfilmentServer, /rawOnHand < 0/);
+});
+
+test("failed routing claims can be retried without double-reserving stock", () => {
+  assert.match(fulfilmentServer, /jinam_meth_order_routing_claims/);
+  assert.match(fulfilmentServer, /existing\?\.status === "failed"/);
+  assert.match(fulfilmentServer, /status='processing'/);
+  assert.match(fulfilmentServer, /WHERE claim_id=\? AND status='failed' RETURNING claim_id/);
+  assert.match(fulfilmentServer, /releaseStock/);
+});
+
+test("verified Shopify order events normalize into MeTh and obey the routing policy", () => {
+  assert.match(fulfilmentServer, /input\.topic !== "orders\/create" && input\.topic !== "orders\/updated"/);
+  assert.match(fulfilmentServer, /loadOrderByExternalId\(db, "shopify", externalOrderId\)/);
+  assert.match(fulfilmentServer, /shopifyVariantId/);
+  assert.match(fulfilmentServer, /policy\.defaultPolicy/);
+  assert.match(fulfilmentServer, /routeStoredOrder\(db, saved\.id, "stock_first"/);
+  assert.match(fulfilmentServer, /processing_status='processed'/);
+  assert.match(fulfilmentServer, /processing_status='failed'/);
+  assert.match(shopifyWebhook, /ingestShopifyOrderWebhook/);
+});
+
+test("production handoffs are automatic, idempotent, and contain production shortage only", () => {
+  assert.match(handoffServer, /line\.productionRequired <= 0/);
+  assert.match(handoffServer, /createProductionHandoff\(order, line, mapping, rate\)/);
+  assert.match(handoffServer, /INSERT OR IGNORE INTO jinam_shared_records/);
+  assert.match(handoffServer, /HANDOFF_SCOPE = "seiko-meth"/);
+  assert.match(handoffServer, /blocked\.push/);
+  assert.match(routingRoute, /ensureMethOrderHandoffsForRequest/);
+  assert.match(shopifyWebhook, /ensureMethOrderHandoffsFromShopify/);
 });
 
 test("MeTh customer order remains separate from the SEIKO production handoff", () => {
