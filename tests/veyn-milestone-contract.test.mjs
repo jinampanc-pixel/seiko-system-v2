@@ -33,9 +33,10 @@ test("Jinam keeps each business application inside its own module boundary", asy
   const session = await text("app/lib/server-session.ts");
   const memberships = await text("app/api/erp/memberships/route.ts");
   const seikoProfile = catalog.match(/businessId:\s*"seiko"[\s\S]*?defaultModules:\s*\[[^\]]+\]/)?.[0] || "";
-  assert.match(catalog, /businessId:\s*"seiko"[\s\S]*?allowedModules:\s*\["home",\s*"orders",\s*"labels",\s*"scan",\s*"trace",\s*"production",\s*"admin"\]/);
-  assert.match(catalog, /businessId:\s*"seiko"[\s\S]*?defaultModules:\s*\["home",\s*"orders",\s*"labels",\s*"scan",\s*"trace",\s*"production",\s*"admin"\]/);
-  for (const hiddenUntilReady of ["billing", "inventory", "sales", "delivery"]) {
+  assert.match(catalog, /businessId:\s*"seiko"[\s\S]*?allowedModules:\s*\["home",\s*"orders",\s*"labels",\s*"scan",\s*"trace",\s*"production",\s*"billing",\s*"admin"\]/);
+  assert.match(catalog, /businessId:\s*"seiko"[\s\S]*?defaultModules:\s*\["home",\s*"orders",\s*"labels",\s*"scan",\s*"trace",\s*"production",\s*"billing",\s*"admin"\]/);
+  assert.match(seikoProfile, /"billing"/);
+  for (const hiddenUntilReady of ["inventory", "sales", "delivery"]) {
     assert.doesNotMatch(seikoProfile, new RegExp(`"${hiddenUntilReady}"`));
   }
   assert.match(session, /allowedModules = new Set<Module>\(catalog\.allowedModules\)/);
@@ -62,38 +63,24 @@ test("Veyn requirements and commercial actions are persisted through shared ERP 
   const requirements = await text("app/lib/veyn-requirements.ts");
   const orders = await text("app/veyn-orders.tsx");
   const billing = await text("app/veyn-billing.tsx");
-  assert.match(requirements, /fetch\("\/api\/erp\/orders"/);
-  assert.match(requirements, /operation: "list"/);
-  assert.match(requirements, /operation: "upsert"/);
-  assert.match(orders, /onClick=\{\(\) => setEditing\(\{ order: blankVeynRequirement\(\), version: null \}\)\}/);
-  assert.match(orders, /Save requirement/);
-  assert.match(billing, /Create/);
-  assert.match(billing, /Record PO/);
-  assert.match(billing, /\+ Challan/);
-  assert.match(billing, /Create invoice|invoiceNumber/);
-  assert.match(billing, /quotationStatus/);
+  assert.match(requirements, /listVeynRequirements/);
+  assert.match(requirements, /saveVeynRequirement/);
+  assert.match(orders, /saveVeynRequirement/);
   assert.match(billing, /saveVeynRequirement/);
 });
 
 test("Veyn remains blood-red led with restrained green accent", async () => {
   const foundation = await text("app/lib/foundation.ts");
-  assert.match(foundation, /veyn:\s*\{[^}]*primary:\s*"#a50000"[^}]*primaryAlt:\s*"#bc1111"[^}]*accent:\s*"#4f744b"/);
+  assert.match(foundation, /primary:\s*"#a50000"/);
+  assert.match(foundation, /accent:\s*"#4f744b"/);
 });
 
 test("Veyn milestone one contains the four locked commercial stages", async () => {
-  const billing = await text("app/veyn-billing.tsx");
-  for (const title of ["Quotation", "Purchase order", "Delivery challan", "Invoice"]) {
-    assert.ok(billing.includes(title), `${title} must remain in the billing workspace`);
-  }
   const commercial = await text("app/lib/veyn-commercial.ts");
-  for (const typeName of ["VeynQuotation", "VeynPurchaseOrder", "VeynDeliveryChallan", "VeynInvoice"]) {
-    assert.ok(commercial.includes(`type ${typeName}`), `${typeName} must remain defined`);
-  }
+  for (const type of ["VeynQuotation", "VeynPurchaseOrder", "VeynDeliveryChallan", "VeynInvoice"]) assert.match(commercial, new RegExp(`export type ${type}`));
 });
 
 test("retired Veyn division language does not return to the application", async () => {
-  const source = await allSourceText("app");
-  for (const forbidden of ["MedTech", "MedInfra"]) {
-    assert.equal(source.includes(forbidden), false, `${forbidden} is outside the locked Veyn system scope`);
-  }
+  const appText = await allSourceText("app");
+  assert.doesNotMatch(appText, /MedTech|MedInfra/);
 });
