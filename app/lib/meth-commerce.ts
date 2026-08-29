@@ -5,6 +5,8 @@ export type CustomerPaymentStatus = "unpaid" | "authorized" | "paid" | "part_ref
 export type SettlementStatus = "not_expected" | "pending" | "part_settled" | "settled" | "disputed";
 export type MethFulfilmentStatus = "unfulfilled" | "awaiting_production" | "in_production" | "ready_to_pack" | "packed" | "shipped" | "out_for_delivery" | "delivered" | "rto" | "returned" | "cancelled";
 export type SeikoProductionStatus = "pending" | "accepted" | "cutting" | "stitching" | "finishing" | "qc" | "completed" | "transferred" | "cancelled";
+export type MethFulfilmentPolicy = "stock_first" | "decide";
+export type MethRoutingDecision = "pending" | "stock_first" | "produce";
 
 export type ChannelReference = {
   channel: SalesChannel;
@@ -32,6 +34,7 @@ export type SkuMapping = {
 
 export type MethOrderLine = {
   id: string;
+  externalLineId?: string;
   methSku: string;
   productName: string;
   size?: string;
@@ -60,8 +63,25 @@ export type MethChannelOrder = {
   orderDiscount: number;
   customerPaymentStatus: CustomerPaymentStatus;
   settlementStatus: SettlementStatus;
+  fulfilmentPolicy?: MethFulfilmentPolicy;
+  routingDecision?: MethRoutingDecision;
   fulfilmentStatus: MethFulfilmentStatus;
   placedAt: string;
+  updatedAt: string;
+};
+
+export type MethFulfilmentPolicySettings = {
+  id: "fulfilment-policy";
+  defaultPolicy: MethFulfilmentPolicy;
+  updatedAt: string;
+  updatedBy?: string;
+};
+
+export type MethFinishedStockBalance = {
+  methSku: string;
+  onHand: number;
+  reserved: number;
+  available: number;
   updatedAt: string;
 };
 
@@ -203,11 +223,29 @@ export function normalizeChannelOrder(input: Omit<MethChannelOrder, "id" | "orde
   const external = input.channel.externalOrderId.trim();
   const channel = input.channel.channel;
   const id = input.id || stableId(`meth-order:${channel}:${external}`);
+  const fulfilmentPolicy = input.fulfilmentPolicy || "stock_first";
+  const routingDecision = input.routingDecision || (fulfilmentPolicy === "decide" ? "pending" : "stock_first");
+  const lines = input.lines.map(line => {
+    const quantity = positive(line.quantity);
+    if (routingDecision === "pending") return { ...line, quantity, finishedStockAllocated: 0, productionRequired: 0 };
+    if (routingDecision === "produce") return { ...line, quantity, finishedStockAllocated: 0, productionRequired: quantity };
+    const finishedStockAllocated = Math.min(quantity, positive(line.finishedStockAllocated));
+    return { ...line, quantity, finishedStockAllocated, productionRequired: Math.max(0, quantity - finishedStockAllocated) };
+  });
+  const productionRequired = lines.reduce((sum, line) => sum + line.productionRequired, 0);
+  const fulfilmentStatus: MethFulfilmentStatus = routingDecision === "pending"
+    ? "unfulfilled"
+    : productionRequired > 0
+      ? "awaiting_production"
+      : input.fulfilmentStatus;
   return {
     ...input,
     id,
     orderNumber: input.orderNumber || `MTH-${new Date(input.placedAt).getFullYear()}-${stableId(external).slice(-6).toUpperCase()}`,
-    lines: input.lines.map(line => ({ ...line, quantity: positive(line.quantity), finishedStockAllocated: Math.min(positive(line.quantity), positive(line.finishedStockAllocated)), productionRequired: Math.max(0, positive(line.quantity) - positive(line.finishedStockAllocated)) })),
+    fulfilmentPolicy,
+    routingDecision,
+    lines,
+    fulfilmentStatus,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -216,6 +254,25 @@ export function allocateStock(quantityOrdered: number, finishedStockAvailable: n
   const ordered = positive(quantityOrdered);
   const stock = Math.min(ordered, positive(finishedStockAvailable));
   return { finishedStockAllocated: stock, productionRequired: ordered - stock };
+}
+
+export function routeOrderFulfilment(order: MethChannelOrder, decision: Exclude<MethRoutingDecision, "pending">, finishedStockBySku: Record<string, number> = {}) {
+  const lines = order.lines.map(line => {
+    if (decision === "produce") return { ...line, finishedStockAllocated: 0, productionRequired: positive(line.quantity) };
+    const available = Object.prototype.hasOwnProperty.call(finishedStockBySku, line.methSku)
+      ? positive(finishedStockBySku[line.methSku])
+      : positive(line.finishedStockAllocated);
+    const allocation = allocateStock(line.quantity, available);
+    return { ...line, ...allocation };
+  });
+  const productionRequired = lines.reduce((sum, line) => sum + line.productionRequired, 0);
+  return {
+    ...order,
+    routingDecision: decision,
+    lines,
+    fulfilmentStatus: productionRequired > 0 ? "awaiting_production" as const : "ready_to_pack" as const,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export function activeRateForSku(rates: ManufacturingRate[], methSku: string, onDate = new Date().toISOString().slice(0, 10)) {
