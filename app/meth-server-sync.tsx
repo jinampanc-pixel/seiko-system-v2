@@ -5,40 +5,105 @@ import { useAccess } from "./access-control";
 import { intercompanyStoreKey, legalProfileStoreKey, methStoreKey } from "./lib/meth-commerce";
 
 const CHANNEL_CONNECTIONS_KEY = "jinam:meth:channel-connections:v1";
+const FALLBACK_RECONCILE_MS = 60_000;
 
 type Collection = "orders" | "sku-mappings" | "rates" | "handoffs" | "settlements" | "shipments" | "returns" | "intercompany-transactions" | "intercompany-payments" | "legal-profiles" | "channel-connections";
 type Entry = { key: string; collection: Collection; singleton?: boolean };
+type Envelope = { id: string; record: unknown; version: number; createdAt: string; updatedAt: string; updatedBy: string };
+type Change = { sequence: number; id: string; version: number; action: string; at: string; updatedBy: string; record: unknown };
+type CollectionState = { byId: Map<string, Envelope>; cursor: number };
+type SyncResponse = {
+  ok?: boolean;
+  code?: string;
+  data?: {
+    records?: unknown[];
+    envelopes?: Envelope[];
+    saved?: Envelope[];
+    conflicts?: Envelope[];
+    changes?: Change[];
+    cursor?: number;
+    hasMore?: boolean;
+    authoritative?: boolean;
+  };
+};
 
-type SyncResponse = { ok?: boolean; code?: string; data?: { records?: unknown[] } };
+type SyncMode = "bootstrap" | "push" | "pull";
 
 export function MethServerSync() {
   const { businessId } = useAccess();
   const applying = useRef(false);
   const running = useRef(false);
+  const ready = useRef(false);
+  const serverState = useRef<Map<Collection, CollectionState>>(new Map());
 
   useEffect(() => {
     if (businessId !== "meth" && businessId !== "seiko") return;
-    const entries = entriesFor(businessId);
+    const activeBusiness = businessId;
+    const entries = entriesFor(activeBusiness);
+    ready.current = false;
+    serverState.current.clear();
+    let queued: SyncMode | null = null;
+    let disposed = false;
+    const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(`jinam-commerce:${activeBusiness}`) : null;
 
-    const syncAll = async (direction: "both" | "push" = "both") => {
-      if (running.current) return;
+    const run = async (mode: SyncMode) => {
+      if (disposed) return;
+      if (running.current) {
+        queued = mode === "push" ? "push" : (queued || mode);
+        return;
+      }
       running.current = true;
       try {
-        for (const entry of entries) await syncEntry(businessId, entry, direction, applying);
-        window.dispatchEvent(new CustomEvent("jinam-sync-status", { detail: { ok: true, businessId, at: new Date().toISOString() } }));
+        if (mode === "bootstrap") {
+          let authoritative = true;
+          for (const entry of entries) authoritative = await bootstrapEntry(activeBusiness, entry, applying, serverState.current) && authoritative;
+          ready.current = true;
+          window.dispatchEvent(new CustomEvent("jinam-sync-status", { detail: { ok: true, authoritative, businessId: activeBusiness, at: new Date().toISOString() } }));
+        } else if (mode === "push") {
+          if (!ready.current || applying.current) return;
+          for (const entry of entries) await pushLocalChanges(activeBusiness, entry, applying, serverState.current);
+          channel?.postMessage({ type: "server-change", at: Date.now() });
+          window.dispatchEvent(new CustomEvent("jinam-sync-status", { detail: { ok: true, authoritative: true, businessId: activeBusiness, at: new Date().toISOString() } }));
+        } else {
+          if (!ready.current) return;
+          for (const entry of entries) await pullServerChanges(activeBusiness, entry, applying, serverState.current);
+          window.dispatchEvent(new CustomEvent("jinam-sync-status", { detail: { ok: true, authoritative: true, businessId: activeBusiness, at: new Date().toISOString() } }));
+        }
       } catch (cause) {
         console.warn("Jinam commerce sync unavailable", cause);
-        window.dispatchEvent(new CustomEvent("jinam-sync-status", { detail: { ok: false, businessId, at: new Date().toISOString() } }));
+        window.dispatchEvent(new CustomEvent("jinam-sync-status", { detail: { ok: false, authoritative: false, businessId: activeBusiness, at: new Date().toISOString() } }));
       } finally {
         running.current = false;
+        const next = queued;
+        queued = null;
+        if (next && !disposed) void run(next);
       }
     };
 
-    void syncAll("both");
-    const change = () => { if (!applying.current) void syncAll("push"); };
-    window.addEventListener("jinam-data-change", change);
-    const timer = window.setInterval(() => { void syncAll("both"); }, 12_000);
-    return () => { window.removeEventListener("jinam-data-change", change); window.clearInterval(timer); };
+    const localChange = () => { if (!applying.current) void run("push"); };
+    const refresh = () => { void run("pull"); };
+    const visibility = () => { if (document.visibilityState === "visible") refresh(); };
+    const broadcast = () => refresh();
+
+    window.addEventListener("jinam-data-change", localChange);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", visibility);
+    channel?.addEventListener("message", broadcast);
+    const timer = window.setInterval(refresh, FALLBACK_RECONCILE_MS);
+    void run("bootstrap");
+
+    return () => {
+      disposed = true;
+      ready.current = false;
+      window.removeEventListener("jinam-data-change", localChange);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+      document.removeEventListener("visibilitychange", visibility);
+      channel?.removeEventListener("message", broadcast);
+      channel?.close();
+      window.clearInterval(timer);
+    };
   }, [businessId]);
 
   return null;
@@ -64,42 +129,138 @@ function entriesFor(businessId: "meth" | "seiko"): Entry[] {
   ];
 }
 
-async function syncEntry(businessId: "meth" | "seiko", entry: Entry, direction: "both" | "push", applying: { current: boolean }) {
-  const local = readLocal(entry);
-  if (direction === "push") {
-    if (local.length) await push(businessId, entry.collection, local);
-    return;
-  }
-
-  const response = await post({ operation: "list", businessId, collection: entry.collection });
+async function bootstrapEntry(
+  businessId: "meth" | "seiko",
+  entry: Entry,
+  applying: { current: boolean },
+  states: Map<Collection, CollectionState>,
+) {
+  const localSafetyCopy = readLocal(entry);
+  let response = await post({ operation: "list", businessId, collection: entry.collection });
   if (!response.ok) {
-    if (response.code === "ERP_DB_NOT_CONFIGURED" || response.code === "FORBIDDEN") return;
+    if (isOptionalServerFailure(response.code)) return false;
     throw new Error(response.code || "SYNC_LIST_FAILED");
   }
-  const remote = Array.isArray(response.data?.records) ? response.data!.records! : [];
-  const merged = merge(local, remote);
-  if (merged.length) {
-    applying.current = true;
-    try {
-      writeLocal(entry, merged);
-      window.dispatchEvent(new Event("storage"));
-      window.dispatchEvent(new Event("jinam-data-change"));
-    } finally {
-      queueMicrotask(() => { applying.current = false; });
+
+  let envelopes = envelopesFrom(response);
+  if (envelopes.length === 0 && localSafetyCopy.length > 0) {
+    const imported = await post({ operation: "import-local", businessId, collection: entry.collection, records: localSafetyCopy });
+    if (!imported.ok && !isOptionalServerFailure(imported.code)) throw new Error(imported.code || "SYNC_IMPORT_FAILED");
+    if (imported.ok) {
+      response = await post({ operation: "list", businessId, collection: entry.collection });
+      if (!response.ok) throw new Error(response.code || "SYNC_LIST_FAILED");
+      envelopes = envelopesFrom(response);
     }
-    await push(businessId, entry.collection, merged);
+  }
+
+  const state: CollectionState = { byId: new Map(envelopes.map(envelope => [envelope.id, envelope])), cursor: Number(response.data?.cursor) || 0 };
+  states.set(entry.collection, state);
+  writeAuthoritative(entry, state, applying);
+  return true;
+}
+
+async function pushLocalChanges(
+  businessId: "meth" | "seiko",
+  entry: Entry,
+  applying: { current: boolean },
+  states: Map<Collection, CollectionState>,
+) {
+  const state = states.get(entry.collection);
+  if (!state) return;
+  const local = readLocal(entry);
+  const mutations: Array<{ record: unknown; expectedVersion: number | null }> = [];
+
+  for (const record of local) {
+    const id = idOf(entry.collection, record);
+    if (!id) continue;
+    const server = state.byId.get(id);
+    if (!server || fingerprint(server.record) !== fingerprint(record)) {
+      mutations.push({ record, expectedVersion: server ? server.version : null });
+    }
+  }
+  if (!mutations.length) return;
+
+  for (let offset = 0; offset < mutations.length; offset += 100) {
+    const response = await post({ operation: "mutate", businessId, collection: entry.collection, mutations: mutations.slice(offset, offset + 100) });
+    if (!response.ok && response.code !== "VERSION_CONFLICT" && !isOptionalServerFailure(response.code)) {
+      throw new Error(response.code || "SYNC_SAVE_FAILED");
+    }
+    for (const envelope of [...(response.data?.saved || []), ...(response.data?.conflicts || [])]) state.byId.set(envelope.id, envelope);
+    if (Number.isInteger(response.data?.cursor)) state.cursor = Number(response.data?.cursor);
+  }
+  writeAuthoritative(entry, state, applying);
+}
+
+async function pullServerChanges(
+  businessId: "meth" | "seiko",
+  entry: Entry,
+  applying: { current: boolean },
+  states: Map<Collection, CollectionState>,
+) {
+  const state = states.get(entry.collection);
+  if (!state) return;
+  let hasMore = true;
+  let changed = false;
+
+  while (hasMore) {
+    const response = await post({ operation: "changes", businessId, collection: entry.collection, sinceSequence: state.cursor });
+    if (!response.ok) {
+      if (isOptionalServerFailure(response.code)) return;
+      throw new Error(response.code || "SYNC_CHANGES_FAILED");
+    }
+    const changes = Array.isArray(response.data?.changes) ? response.data!.changes! : [];
+    for (const change of changes) {
+      const existing = state.byId.get(change.id);
+      state.byId.set(change.id, {
+        id: change.id,
+        record: change.record,
+        version: change.version,
+        createdAt: existing?.createdAt || change.at,
+        updatedAt: change.at,
+        updatedBy: change.updatedBy,
+      });
+      changed = true;
+    }
+    state.cursor = Number(response.data?.cursor) || state.cursor;
+    hasMore = Boolean(response.data?.hasMore);
+  }
+  if (changed) writeAuthoritative(entry, state, applying);
+}
+
+function writeAuthoritative(entry: Entry, state: CollectionState, applying: { current: boolean }) {
+  const records = [...state.byId.values()]
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .map(envelope => envelope.record);
+  applying.current = true;
+  try {
+    writeLocal(entry, records);
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new CustomEvent("jinam-server-change", { detail: { collection: entry.collection } }));
+  } finally {
+    queueMicrotask(() => { applying.current = false; });
   }
 }
 
-async function push(businessId: "meth" | "seiko", collection: Collection, records: unknown[]) {
-  const response = await post({ operation: "bulk-upsert", businessId, collection, records });
-  if (!response.ok && response.code !== "ERP_DB_NOT_CONFIGURED" && response.code !== "FORBIDDEN") throw new Error(response.code || "SYNC_SAVE_FAILED");
+function envelopesFrom(response: SyncResponse): Envelope[] {
+  if (Array.isArray(response.data?.envelopes)) return response.data!.envelopes!;
+  const now = new Date().toISOString();
+  const records = Array.isArray(response.data?.records) ? response.data!.records! : [];
+  return records.map(record => ({ id: idOf("orders", record), record, version: 1, createdAt: now, updatedAt: timestamp(record) || now, updatedBy: "server" })).filter(item => item.id);
 }
 
 async function post(body: Record<string, unknown>): Promise<SyncResponse> {
-  const response = await fetch("/api/erp/meth/sync", { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: JSON.stringify(body) });
+  const response = await fetch("/api/erp/meth/sync", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify(body),
+  });
   try { return await response.json() as SyncResponse; }
   catch { return { ok: false, code: `HTTP_${response.status}` }; }
+}
+
+function isOptionalServerFailure(code: string | undefined) {
+  return code === "ERP_DB_NOT_CONFIGURED" || code === "FORBIDDEN";
 }
 
 function readLocal(entry: Entry): unknown[] {
@@ -115,23 +276,17 @@ function writeLocal(entry: Entry, records: unknown[]) {
   else localStorage.setItem(entry.key, JSON.stringify(records));
 }
 
-function merge(local: unknown[], remote: unknown[]) {
-  const byId = new Map<string, unknown>();
-  for (const record of [...remote, ...local]) {
-    const id = idOf(record);
-    if (!id) continue;
-    const current = byId.get(id);
-    if (!current || timestamp(record) >= timestamp(current)) byId.set(id, record);
-  }
-  return [...byId.values()].sort((a, b) => timestamp(b).localeCompare(timestamp(a)));
-}
-
-function idOf(value: unknown) {
+function idOf(collection: Collection, value: unknown) {
   if (!value || typeof value !== "object") return "";
   const record = value as Record<string, unknown>;
   if (typeof record.id === "string") return record.id;
-  if (typeof record.businessId === "string") return `legal:${record.businessId}`;
+  if (collection === "legal-profiles" && typeof record.businessId === "string") return record.businessId;
   return "";
+}
+
+function fingerprint(value: unknown) {
+  try { return JSON.stringify(value); }
+  catch { return ""; }
 }
 
 function timestamp(value: unknown) {
