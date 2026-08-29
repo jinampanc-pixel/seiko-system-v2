@@ -1,5 +1,5 @@
-const CACHE = "jinam-shell-v3";
-const SHELL = ["/", "/manifest.webmanifest?v=3", "/app-icon.svg?v=3", "/favicon.svg?v=3", "/jinam-mark.svg?v=3"];
+const CACHE = "jinam-shell-v4";
+const SHELL = ["/", "/manifest.webmanifest?v=4", "/app-icon.svg?v=4", "/favicon.svg?v=4", "/jinam-mark.svg?v=4"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
