@@ -5,6 +5,15 @@ import { createPortal } from "react-dom";
 import { orderStoreKey, type SeikoOrder } from "./lib/order-domain";
 import { startDomEnhancement } from "./lib/dom-enhancement";
 
+function openSeikoModule(label: string) {
+  const toggle = document.querySelector<HTMLButtonElement>(".app .topbar .menuToggle");
+  if (toggle?.getAttribute("aria-expanded") !== "true") toggle?.click();
+  window.setTimeout(() => {
+    const target = Array.from(document.querySelectorAll<HTMLButtonElement>(".app .moduleMenu .nav")).find(button => button.querySelector("small")?.textContent?.trim() === label);
+    target?.click();
+  }, 0);
+}
+
 export function SeikoPhase1() {
   const [dashboardHost, setDashboardHost] = useState<HTMLElement | null>(null);
 
@@ -44,10 +53,12 @@ export function SeikoPhase1() {
       });
 
       const settings = document.querySelector<HTMLElement>(".themePanel");
+      const settingsIntro = settings?.querySelector<HTMLElement>(".settingsIntro");
+      if (settingsIntro) settingsIntro.textContent = "Manage SEIKO appearance and access.";
       if (settings && !settings.querySelector(".seikoAccessSettings")) {
         const card = document.createElement("section");
         card.className = "seikoAccessSettings";
-        card.innerHTML = '<div><b>Users & access</b><p>Manage SEIKO users, roles and permissions from Settings.</p></div><button type="button" class="secondary">Open users & access</button>';
+        card.innerHTML = '<div><b>Users & access</b><p>Manage SEIKO users, roles and permissions.</p></div><button type="button" class="secondary">Open users & access</button>';
         card.querySelector("button")?.addEventListener("click", () => document.querySelector<HTMLButtonElement>(".accessMenuEntry")?.click());
         const intro = settings.querySelector(".settingsIntro");
         intro?.insertAdjacentElement("afterend", card);
@@ -77,20 +88,22 @@ function SeikoDashboard() {
   const stats = useMemo(() => {
     const active = orders.filter(order => !order.archived && !["Completed", "Cancelled"].includes(order.status));
     return {
-      active: active.length,
+      active,
       records: active.reduce((sum, order) => sum + order.records.length, 0),
       completed: orders.filter(order => !order.archived && order.status === "Completed").length,
     };
   }, [orders]);
+  const recent = [...stats.active].slice(-4).reverse();
 
   return <section className="seikoOperationalDashboard">
-    <div className="seikoDashboardHead"><div><small>SEIKO · JINAM</small><h1>Home</h1><p>Operational dashboard for live order and production work.</p></div></div>
+    <div className="seikoDashboardHead"><div><small>SEIKO</small><h1>Home</h1><p>Live operational view of orders, records and production activity.</p></div><button type="button" className="secondary seikoProductionShortcut" onClick={() => openSeikoModule("Production")}>Open production</button></div>
     <div className="seikoDashboardMetrics">
-      <article><small>ACTIVE ORDERS</small><strong>{stats.active}</strong><span>Open SEIKO work</span></article>
+      <article><small>ACTIVE ORDERS</small><strong>{stats.active.length}</strong><span>Open SEIKO work</span></article>
       <article><small>PERSON / RECORD ENTRIES</small><strong>{stats.records}</strong><span>Across active orders</span></article>
-      <article><small>COMPLETED ORDERS</small><strong>{stats.completed}</strong><span>Saved completed work</span></article>
+      <article><small>COMPLETED ORDERS</small><strong>{stats.completed}</strong><span>Completed work</span></article>
       <article className={pendingScans === 0 ? "positive" : ""}><small>SCAN SYNC QUEUE</small><strong>{pendingScans}</strong><span>{pendingScans ? "Waiting to sync" : "All scans synced"}</span></article>
     </div>
-    <div className="seikoDashboardBand"><div><b>Quick access</b><p>Use the module tiles below for Orders, Labels, Scan and Trace. Production remains available from the menu.</p></div></div>
+    <div className="seikoDashboardBand"><div><b>Quick access</b><p>Orders, Labels, Scan and Trace are below. Production is available from the action above and the menu.</p></div></div>
+    <section className="seikoDashboardActivity"><div className="seikoDashboardActivityHead"><div><b>Active orders</b><p>Recently created active SEIKO work.</p></div></div>{recent.length ? recent.map(order => <div className="seikoDashboardActivityRow" key={order.orderId}><strong>{order.details.orderNo || order.orderId}</strong><span>{order.details.clientName || "Client"}</span><small>{order.status}</small></div>) : <div className="seikoDashboardActivityRow"><strong>No active orders</strong><span>New operational work will appear here.</span><small>—</small></div>}</section>
   </section>;
 }
