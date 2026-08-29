@@ -30,7 +30,11 @@ export function SeikoLibraryAutofill() {
       clientInput.setAttribute("list", "seiko-client-library-options");
       let datalist = document.getElementById("seiko-client-library-options") as HTMLDataListElement | null;
       if (!datalist) { datalist = document.createElement("datalist"); datalist.id = "seiko-client-library-options"; document.body.appendChild(datalist); }
-      datalist.replaceChildren(...clients.map(client => { const option = document.createElement("option"); option.value = client.name; option.label = [client.type, client.phone].filter(Boolean).join(" · "); return option; }));
+      const signature = clients.map(client => `${client.id}:${client.updatedAt}`).join("|");
+      if (datalist.dataset.signature !== signature) {
+        datalist.dataset.signature = signature;
+        datalist.replaceChildren(...clients.map(client => { const option = document.createElement("option"); option.value = client.name; option.label = [client.type, client.phone].filter(Boolean).join(" · "); return option; }));
+      }
       if (clientInput.dataset.libraryAutofillBound === "true") return;
       clientInput.dataset.libraryAutofillBound = "true";
       clientInput.addEventListener("change", () => {
