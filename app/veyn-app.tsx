@@ -2,96 +2,66 @@
 /* The supplied VÉYN logo is intentionally rendered unchanged. */
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAccess } from "./access-control";
-import { canAccess, THEME_PRESETS, themeVariables, type BusinessMembership, type Module } from "./lib/foundation";
+import { JinamBusinessShell, type JinamShellNavItem } from "./jinam-business-shell";
+import { canAccess, THEME_PRESETS, type BusinessMembership, type Module } from "./lib/foundation";
 import { listVeynRequirements } from "./lib/veyn-requirements";
 import { VeynBilling } from "./veyn-billing";
 import { VeynOrders } from "./veyn-orders";
 
 type VeynModule = "home" | "orders" | "billing" | "admin";
 
-const VEYN_NAV: Array<{ module: VeynModule; label: string }> = [
-  { module: "home", label: "Home" },
-  { module: "orders", label: "Orders" },
-  { module: "billing", label: "Billing" },
-  { module: "admin", label: "Admin" },
+const VEYN_NAV: readonly JinamShellNavItem<VeynModule>[] = [
+  { key: "home", label: "Home", icon: "⌂" },
+  { key: "orders", label: "Orders", icon: "≡" },
+  { key: "billing", label: "Billing", icon: "₹" },
+  { key: "admin", label: "Settings", icon: "⚙" },
 ];
 
 export function VeynApplication() {
-  const { session, businessId, membership, can, refresh } = useAccess();
+  const { businessId, membership, can, refresh } = useAccess();
   const [module, setModule] = useState<VeynModule>("home");
-  const [menuOpen, setMenuOpen] = useState(false);
   const [billingFocusOrderId, setBillingFocusOrderId] = useState<string | null>(null);
 
   const availableModules = useMemo(
-    () => VEYN_NAV.filter(item => canAccess(membership, item.module as Module)),
+    () => VEYN_NAV.filter(item => canAccess(membership, item.key as Module)),
     [membership],
   );
-  const activeModule: VeynModule = availableModules.some(item => item.module === module) ? module : "home";
+  const activeModule: VeynModule = availableModules.some(item => item.key === module) ? module : "home";
 
   if (businessId !== "veyn-health" || !membership) return null;
 
   const openModule = (next: VeynModule) => {
     setModule(next);
-    setMenuOpen(false);
     if (next !== "billing") setBillingFocusOrderId(null);
-    if (next === "billing") setBillingFocusOrderId(null);
   };
 
   const openBillingForOrder = (orderId: string) => {
     setBillingFocusOrderId(orderId);
     setModule("billing");
-    setMenuOpen(false);
   };
 
-  const switchBusiness = (nextBusinessId: string) => {
-    if (!nextBusinessId || nextBusinessId === businessId) return;
-    localStorage.setItem("jinam:selected-business", nextBusinessId);
-    window.location.assign(`/?business=${encodeURIComponent(nextBusinessId)}`);
-  };
+  const back = activeModule === "home" ? undefined
+    : activeModule === "billing" && billingFocusOrderId
+      ? { label: "Back to Orders", onClick: () => { setBillingFocusOrderId(null); setModule("orders"); } }
+      : { label: "Back to Home", onClick: () => { setBillingFocusOrderId(null); setModule("home"); } };
 
-  return <div className="jinamVeynApp" style={themeVariables(THEME_PRESETS.veyn) as CSSProperties}>
-    <header className="veynTopbar">
-      <button type="button" className="veynBrand" onClick={() => openModule("home")} aria-label="VÉYN home">
-        <img src="/brands/veyn-health-logo.png" alt="véyn health"/>
-      </button>
-      <div className="veynTopbarMeta"><span>Jinam</span><strong>véyn health</strong></div>
-      <button type="button" className={`veynMenuToggle ${menuOpen ? "active" : ""}`} onClick={() => setMenuOpen(value => !value)} aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen}>
-        <span/><span/><span/>
-      </button>
-    </header>
-
-    <div className="veynShell">
-      <aside className={`veynSidebar ${menuOpen ? "open" : ""}`}>
-        <nav className="moduleMenu veynModuleMenu" aria-label="VÉYN modules">
-          {availableModules.map(item => <button
-            type="button"
-            className={`nav ${activeModule === item.module ? "active" : ""}`}
-            key={item.module}
-            onClick={() => openModule(item.module)}
-          >
-            <span>{veynIcon(item.module)}</span>
-            <small><b>{item.label}</b></small>
-          </button>)}
-        </nav>
-        <label className="veynBusinessSwitch">
-          <span>Business</span>
-          <select aria-label="Switch business" value={businessId} onChange={event => switchBusiness(event.target.value)}>
-            {session?.businesses.map(item => <option key={item.businessId} value={item.businessId}>{item.businessName}</option>)}
-          </select>
-        </label>
-      </aside>
-
-      {menuOpen && <button type="button" className="veynMenuBackdrop" aria-label="Close menu" onClick={() => setMenuOpen(false)}/>}
-
-      <main className="veynMain">
-        {activeModule === "home" && <VeynHome businessId={businessId} membership={membership} onOpen={openModule}/>} 
-        {activeModule === "orders" && <VeynOrders businessId={businessId} canCreate={can("orders.create")} canEdit={can("orders.edit")} onOpenBilling={openBillingForOrder}/>} 
-        {activeModule === "billing" && <VeynBilling businessId={businessId} can={can} focusOrderId={billingFocusOrderId}/>} 
-        {activeModule === "admin" && <VeynAdmin membership={membership} canManageUsers={can("users.manage")} onRefresh={() => void refresh()}/>} 
-      </main>
-    </div>
+  return <div className="jinamVeynApp">
+    <JinamBusinessShell<VeynModule>
+      businessName={membership.businessName || "véyn health"}
+      businessLogo={membership.logoUrl || "/brands/veyn-health-logo.png"}
+      theme={membership.theme || THEME_PRESETS.veyn}
+      nav={availableModules}
+      active={activeModule}
+      onNavigate={openModule}
+      back={back}
+    >
+      {activeModule === "home" && <VeynHome businessId={businessId} membership={membership} onOpen={openModule}/>} 
+      {activeModule === "orders" && <VeynOrders businessId={businessId} canCreate={can("orders.create")} canEdit={can("orders.edit")} onOpenBilling={openBillingForOrder}/>} 
+      {activeModule === "billing" && <VeynBilling businessId={businessId} can={can} focusOrderId={billingFocusOrderId}/>} 
+      {activeModule === "admin" && <VeynSettings membership={membership} canManageUsers={can("users.manage")} onRefresh={() => void refresh()}/>} 
+    </JinamBusinessShell>
   </div>;
 }
 
@@ -119,8 +89,8 @@ function VeynHome({ businessId, membership, onOpen }: { businessId: string; memb
     <div className="veynMetricGrid">
       <button type="button" className="panel veynMetric" onClick={() => onOpen("orders")}><small>OPEN REQUIREMENTS</small><strong>{counts.open}</strong><span>Orders →</span></button>
       <button type="button" className="panel veynMetric" onClick={() => onOpen("billing")}><small>QUOTATIONS</small><strong>{counts.quotations}</strong><span>Billing →</span></button>
-      <button type="button" className="panel veynMetric" onClick={() => onOpen("billing")}><small>CHALLANS</small><strong>{counts.challans}</strong><span>Billing →</span></button>
-      <button type="button" className="panel veynMetric" onClick={() => onOpen("billing")}><small>INVOICES</small><strong>{counts.invoices}</strong><span>Billing →</span></button>
+      <button type="button" className="panel veynMetric veynPositiveMetric" onClick={() => onOpen("billing")}><small>CHALLANS</small><strong>{counts.challans}</strong><span>Billing →</span></button>
+      <button type="button" className="panel veynMetric veynPositiveMetric" onClick={() => onOpen("billing")}><small>INVOICES</small><strong>{counts.invoices}</strong><span>Billing →</span></button>
     </div>
     <div className="veynQuickActions">
       {canAccess(membership, "orders") && <button type="button" className="primary" onClick={() => onOpen("orders")}>Open requirements</button>}
@@ -129,14 +99,14 @@ function VeynHome({ businessId, membership, onOpen }: { businessId: string; memb
   </section>;
 }
 
-function VeynAdmin({ membership, canManageUsers, onRefresh }: { membership: BusinessMembership; canManageUsers: boolean; onRefresh: () => void }) {
+function VeynSettings({ membership, canManageUsers, onRefresh }: { membership: BusinessMembership; canManageUsers: boolean; onRefresh: () => void }) {
   const openAccess = () => {
     const button = document.querySelector<HTMLButtonElement>(".accessMenuEntry");
     button?.click();
   };
 
   return <section className="page veynAdminPage">
-    <div className="veynPageHead"><div><p className="eyebrow">ADMIN</p><h1>Business administration</h1></div></div>
+    <div className="veynPageHead"><div><p className="eyebrow">SETTINGS</p><h1>Settings</h1></div></div>
     <div className="panel veynAdminCard">
       <dl className="veynAdminSummary"><div><dt>Business</dt><dd>{membership.businessName}</dd></div><div><dt>Role</dt><dd>{membership.role}</dd></div><div><dt>Modules</dt><dd>{membership.modules.join(" · ")}</dd></div></dl>
       <div className="veynAdminActions">
@@ -145,8 +115,4 @@ function VeynAdmin({ membership, canManageUsers, onRefresh }: { membership: Busi
       </div>
     </div>
   </section>;
-}
-
-function veynIcon(module: VeynModule) {
-  return ({ home: "⌂", orders: "≡", billing: "₹", admin: "⚙" } as const)[module];
 }
