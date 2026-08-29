@@ -35,11 +35,14 @@ test("connector credentials are server references rather than browser secrets", 
   assert.match(settings, /never stored in browser localStorage/);
 });
 
-test("MeTh and SEIKO shared commerce records converge through D1", () => {
+test("MeTh and SEIKO shared commerce records converge through authoritative D1 changes", () => {
   assert.match(syncRoute, /jinam_shared_records/);
   assert.match(syncRoute, /SHARED = new Set<Collection>/);
   assert.match(syncRoute, /"handoffs", "intercompany-transactions", "intercompany-payments"/);
-  assert.match(bridge, /12_000/);
+  assert.match(syncRoute, /jinam_shared_changes/);
+  assert.match(bridge, /operation: "changes"/);
+  assert.match(bridge, /FALLBACK_RECONCILE_MS = 60_000/);
+  assert.doesNotMatch(bridge, /12_000/);
   assert.match(meth, /<MethServerSync\/>/);
   assert.match(enhancements, /<MethServerSync \/>/);
 });
