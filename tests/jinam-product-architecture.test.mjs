@@ -16,12 +16,10 @@ test("Jinam product contract locks the three separate business applications", as
 test("MeTh production handoff returns to MeTh for packing and delivery", async () => {
   const spec = await text("JINAM_PRODUCT_ARCHITECTURE.md");
   const architecture = await text("JINAM_ARCHITECTURE.md");
-  for (const source of [spec, architecture]) {
-    assert.match(source, /MeTh[^\n]*SEIKO production/i);
-    assert.match(source, /MeTh packing/i);
-    assert.match(source, /MeTh delivery/i);
-    assert.match(source, /VÉYN is not part of the MeTh fulfilment chain/i);
-  }
+  assert.match(spec, /MeTh creates a linked production request for \*\*SEIKO\*\*/i);
+  assert.match(spec, /MeTh handles packing and delivery/i);
+  assert.match(architecture, /MeTh order → SEIKO production request → SEIKO production updates → SEIKO ready\/complete → MeTh packing → MeTh delivery/i);
+  for (const source of [spec, architecture]) assert.match(source, /VÉYN is not part of the MeTh fulfilment chain/i);
 });
 
 test("all three businesses have vendor and expense capabilities without exposing dead modules", async () => {
