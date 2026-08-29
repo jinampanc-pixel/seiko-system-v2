@@ -126,7 +126,6 @@ export function detectChannelProvider(input: string): ChannelDetection {
 }
 
 export function nextAuthorizationStep(provider: ChannelProvider, storeUrl: string) {
-  const definition = CHANNEL_PROVIDERS[provider];
   if (provider === "shopify") return { title: "Authorize Shopify", detail: "Install/authorize the Jinam app for this store. Jinam will then receive an access token and register order/fulfilment webhooks.", requiresExternalApproval: true };
   if (provider === "woocommerce") return { title: "Grant WooCommerce access", detail: "Jinam will open the store's WooCommerce application authorization page so the owner can grant read/write API access.", requiresExternalApproval: true };
   if (provider === "amazon") return { title: "Authorize Seller Central", detail: "Complete the Amazon Seller Central/SP-API authorization flow for the seller account. A pasted marketplace URL cannot grant API access by itself.", requiresExternalApproval: true };
