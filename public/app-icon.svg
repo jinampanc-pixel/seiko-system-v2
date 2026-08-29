@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#082f4d"/>
-  <path d="M111 381V131h290v64H190v38h177v61H190v23h217v64z" fill="#d5aa60"/>
-  <text x="256" y="302" text-anchor="middle" font-family="Georgia,serif" font-size="196" font-weight="700" fill="#fff">S</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="112" fill="#050505"/>
+  <path d="M296 90v236c0 64-36 100-100 100-55 0-92-30-100-81l64-13c6 25 19 38 40 38 25 0 38-15 38-45V90h58Z" fill="white"/>
+  <path d="M342 122c46 0 79 22 79 58 0 31-21 49-61 60l-26 7c-20 6-29 12-29 22 0 12 11 19 32 19 26 0 45-10 59-26l35 42c-21 24-51 38-89 38-54 0-92-26-92-66 0-33 22-52 68-64l24-6c17-5 26-11 26-20 0-10-10-16-26-16-20 0-38 7-54 22l-33-42c23-19 52-28 87-28Z" fill="white"/>
+  <path d="M344 88v307" stroke="white" stroke-width="22" stroke-linecap="round"/>
 </svg>
