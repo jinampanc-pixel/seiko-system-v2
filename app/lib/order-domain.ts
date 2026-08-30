@@ -20,7 +20,7 @@ export const CLIENT_TYPE_PRESETS: Record<string, OrderField[]> = {
   "Healthcare Facility": [field("Staff name"), field("Employee code"), field("Department"), field("Designation")],
   "Retail / Individual": [field("Customer name"), field("Reference number")],
   "Dealer / Reseller": [field("Account / person"), field("Location")],
-  Custom: [field("Name")],
+  Custom: [field("Person / record name"), field("Group / department"), field("Reference / ID")],
 };
 
 export function field(name: string, required = false): OrderField { return { id: crypto.randomUUID(), name, type: "text", options: [], required }; }
@@ -99,16 +99,29 @@ export function workspaceColumns(order: SeikoOrder): WorkspaceColumn[] {
   return columns;
 }
 
+/** A rule can target one value or several values separated by comma, semicolon or a new line. */
+export function groupRuleValues(match: string): string[] {
+  return match.split(/[;,\n]/).map(value => value.trim()).filter(Boolean);
+}
+
+export function groupRuleMatches(match: string, sourceValue: string): boolean {
+  const needle = sourceValue.trim().toLocaleLowerCase();
+  return groupRuleValues(match).some(value => value.toLocaleLowerCase() === needle);
+}
+
 export function quantityForRecord(product: ProductPolicy, record: OrderRecord, firstRecord = false): number {
   if (product.quantityMode === "order_total") return firstRecord ? Math.max(0, Number(product.orderTotal) || 0) : 0;
   if (product.quantityMode === "by_group") {
     const sourceValue = product.quantityGroupFieldId ? String(record.values[`field:${product.quantityGroupFieldId}`] ?? "").trim() : "";
-    const rule = (product.quantityGroupRules || []).find(item => item.match.trim().toLowerCase() === sourceValue.toLowerCase());
+    const rule = (product.quantityGroupRules || []).find(item => groupRuleMatches(item.match, sourceValue));
     if (rule && Number.isFinite(Number(rule.quantity))) return Math.max(0, Number(rule.quantity));
-    return 0;
+    // Group quantities are default-driven: define the normal quantity once, then
+    // add only the groups that differ. A default of 0 is valid when only named
+    // groups receive this product.
+    return Math.max(0, Number(product.defaultQuantity) || 0);
   }
   const override = Number(record.values[`product:${product.id}:qty_override`] ?? record.values[`product:${product.id}:qty`]);
-  if (Number.isFinite(override) && override > 0) return override;
+  if (Number.isFinite(override) && override >= 0 && String(record.values[`product:${product.id}:qty_override`] ?? record.values[`product:${product.id}:qty`] ?? "").trim() !== "") return Math.max(0, override);
   return Math.max(0, Number(product.defaultQuantity) || 0);
 }
 
@@ -117,20 +130,11 @@ export function readinessIssues(order: SeikoOrder): string[] {
   const issues = validateOrder(normalized);
   if (!normalized.records.length) issues.push("No person / record entries yet. You can still save this order.");
   if (!normalized.products.some(product => product.name.trim())) issues.push("No products defined yet. Add them now or later.");
-  const activeRecords = normalized.records.filter(record => !record.held);
   for (const product of normalized.products) {
     if (product.quantityMode === "by_group") {
       const rules = product.quantityGroupRules || [];
-      if (!product.quantityGroupFieldId) issues.push(`Choose a grouping field for ${product.name || "this product"} quantity.`);
-      if (!rules.length) issues.push(`Add group quantity rules for ${product.name || "this product"}.`);
-      if (rules.some(rule => !rule.match.trim() || !Number.isFinite(Number(rule.quantity)) || Number(rule.quantity) <= 0)) issues.push(`Complete every group quantity rule for ${product.name || "this product"}.`);
-      if (product.quantityGroupFieldId && rules.length) {
-        for (const record of activeRecords) {
-          const sourceValue = String(record.values[`field:${product.quantityGroupFieldId}`] ?? "").trim();
-          const matched = rules.some(rule => rule.match.trim().toLowerCase() === sourceValue.toLowerCase() && Number(rule.quantity) > 0);
-          if (!matched) issues.push(`${product.name || "Product"}: ${record.personId} has no group quantity mapping${sourceValue ? ` for “${sourceValue}”` : " for a blank group value"}.`);
-        }
-      }
+      if (rules.length && !product.quantityGroupFieldId) issues.push(`Choose a grouping field for ${product.name || "this product"} quantity exceptions.`);
+      if (rules.some(rule => !groupRuleValues(rule.match).length || !Number.isFinite(Number(rule.quantity)) || Number(rule.quantity) < 0)) issues.push(`Complete every group quantity exception for ${product.name || "this product"}.`);
     }
     for (const spec of product.specifications.filter(item => item.mode === "by_group")) {
       if (!spec.groupFieldId) issues.push(`Choose a grouping field for ${product.name} - ${spec.name}.`);
