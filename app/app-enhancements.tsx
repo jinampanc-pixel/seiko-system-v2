@@ -1,6 +1,7 @@
 "use client";
 
 import { ErpOrderSync } from "./erp-order-sync";
+import { ErpSyncNotice } from "./erp-sync-notice";
 import { OwnerDropdownUx } from "./owner-dropdown-ux";
 import { OrderSetupPolish } from "./order-setup-polish";
 import { OrderSetupFinalize } from "./order-setup-finalize";
@@ -24,6 +25,7 @@ import { MethServerSync } from "./meth-server-sync";
 export function AppEnhancements() {
   return <>
     <ErpOrderSync />
+    <ErpSyncNotice />
     <OwnerDropdownUx />
     <OrderSetupPolish />
     <OrderSetupFinalize />
