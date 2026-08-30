@@ -1,0 +1,29 @@
+name: Apply SEIKO workspace and label final
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/seiko-workspace-label-final.yml
+      - .github/scripts/apply-seiko-workspace-label-final.cjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - run: node .github/scripts/apply-seiko-workspace-label-final.cjs
+      - run: |
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git add app/orders.tsx app/label-designer.tsx app/label-finalization.tsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Finish SEIKO workspace and precision label preview"
+          git push origin HEAD:fix/veyn-milestone-one
