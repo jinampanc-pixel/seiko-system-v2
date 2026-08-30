@@ -1,0 +1,201 @@
+/* Small, additive Stage 2 finish for the restored Stage 1 SEIKO baseline.
+   This file intentionally avoids replacing the established order/label layouts. */
+
+.workspaceReadinessCompact {
+  margin: 10px 0 !important;
+  padding: 11px 13px !important;
+  min-height: 0 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.workspaceReadinessCompact details > summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.workspaceActionsHead {
+  min-width: 76px !important;
+}
+
+.workspaceActionsHead .workspaceSelectAll,
+.rowActions .recordSelectToggle {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  padding: 0 !important;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.rowActions .recordSelectToggle {
+  margin: 0 4px 0 0;
+}
+
+.workspaceTable tr.workspaceRowSelected > td {
+  background: color-mix(in srgb, var(--brand) 7%, var(--paper)) !important;
+}
+
+.workspaceBulkBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  margin: 7px 0;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+}
+
+.workspaceBulkBar[hidden] {
+  display: none !important;
+}
+
+.workspaceBulkBar > b {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.workspaceBulkBar > span {
+  flex: 1;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.workspaceBulkBar > div {
+  display: flex;
+  gap: 6px;
+}
+
+.workspaceBulkBar button {
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.workspaceBulkDelete {
+  border-color: #b42318 !important;
+  background: var(--paper) !important;
+  color: #b42318 !important;
+}
+
+.seikoConfirmLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(9, 30, 45, .38);
+  backdrop-filter: blur(2px);
+}
+
+.seikoConfirmDialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: 0 24px 70px rgba(8, 35, 54, .22);
+}
+
+.seikoConfirmDialog h3 {
+  margin: 0 0 7px;
+  font-size: 18px;
+}
+
+.seikoConfirmDialog p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.seikoConfirmDialog > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.seikoConfirmDialog button {
+  min-height: 40px;
+  padding: 8px 14px;
+}
+
+.seikoConfirmDialog .dangerAction {
+  border-color: #b42318 !important;
+  background: #b42318 !important;
+  color: #fff !important;
+}
+
+.seikoOperationalToast,
+.labelPrintNotice {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 11000;
+  max-width: min(460px, calc(100vw - 32px));
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #18794e 35%, var(--line));
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 14px 42px rgba(8, 35, 54, .18);
+  color: var(--ink);
+  font: 750 12px/1.35 var(--ui-font);
+}
+
+.labelPrintCopies {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+}
+
+.labelPrintCopies > span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.labelPrintCopies input {
+  width: 54px;
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: center;
+}
+
+.labelPrintCopies small {
+  max-width: 150px;
+  color: var(--muted);
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+@media (max-width: 800px) {
+  .workspaceBulkBar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .workspaceBulkBar > span {
+    flex-basis: calc(100% - 140px);
+  }
+  .workspaceBulkBar > div {
+    width: 100%;
+  }
+  .labelPrintCopies {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
