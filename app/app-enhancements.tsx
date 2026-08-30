@@ -1,7 +1,6 @@
 "use client";
 
 import { ErpOrderSync } from "./erp-order-sync";
-import { OwnerDropdownUx } from "./owner-dropdown-ux";
 import { OrderCompactUx } from "./order-compact-ux";
 import { WorkspaceTopPager } from "./workspace-top-pager";
 import { WorkspaceShortcuts } from "./workspace-shortcuts";
@@ -19,10 +18,9 @@ import { MethServerSync } from "./meth-server-sync";
 export function AppEnhancements() {
   return <>
     <ErpOrderSync />
-    <OwnerDropdownUx />
-    {/* Stage 2 deliberately removes the two older order-setup DOM policy layers.
-        Both treated group quantities as exhaustive mappings and could clear or
-        relabel the default quantity. The order domain + finalizer now own this. */}
+    {/* Stage 2 deliberately removes the older order-setup policy DOM layers.
+        Group quantities are now default + exceptions, and fixed system modes use
+        native selects instead of removable/aliasable owner dropdowns. */}
     <OrderCompactUx />
     <WorkspaceTopPager />
     <WorkspaceShortcuts />
