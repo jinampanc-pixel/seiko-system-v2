@@ -1,0 +1,392 @@
+/* Final SEIKO workspace + label preview pass. This file is intentionally late-loaded. */
+
+/* ---------------- Order workspace ---------------- */
+.workspacePage{
+  width:min(98vw,1840px)!important;
+  max-width:none!important;
+  margin-inline:auto!important;
+  padding-bottom:24px!important;
+}
+.workspacePage .workspaceHead{
+  align-items:flex-end!important;
+  margin-bottom:8px!important;
+}
+.workspacePage .workspaceHead h2{
+  font-size:25px!important;
+  line-height:1.15!important;
+}
+.workspacePage .workspaceHead>div:first-child>p:last-child{
+  margin-top:4px!important;
+  font-size:11px!important;
+}
+.workspaceHeadActions{
+  display:flex!important;
+  align-items:flex-end!important;
+  gap:7px!important;
+  flex-wrap:nowrap!important;
+}
+.workspaceStatusControl{
+  display:grid;
+  gap:3px;
+}
+.workspaceStatusControl>span{
+  color:var(--muted);
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.workspaceStatusControl select{
+  height:36px;
+  min-width:118px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:0 28px 0 9px;
+  background:var(--paper);
+  color:var(--ink);
+  font-size:11px;
+  font-weight:750;
+}
+.workspaceLabelsSplit{
+  position:relative;
+  display:flex;
+  align-items:stretch;
+}
+.workspaceLabelsSplit>.workspaceLabelsButton{
+  min-height:36px!important;
+  border-radius:8px 0 0 8px!important;
+  padding:7px 11px!important;
+}
+.workspaceLabelMenuButton{
+  width:34px;
+  min-height:36px!important;
+  border-left:0!important;
+  border-radius:0 8px 8px 0!important;
+  padding:0!important;
+}
+.workspaceLabelMenu{
+  position:absolute;
+  z-index:70;
+  top:calc(100% + 5px);
+  right:0;
+  display:grid;
+  min-width:210px;
+  padding:6px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--paper);
+  box-shadow:0 16px 38px rgba(14,42,61,.18);
+}
+.workspaceLabelMenu button{
+  min-height:35px;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:var(--ink);
+  text-align:left;
+  padding:0 9px;
+  font-size:11px;
+  font-weight:700;
+}
+.workspaceLabelMenu button:hover{background:var(--pale)}
+.workspaceQuickSave{
+  min-height:36px!important;
+  padding:7px 13px!important;
+}
+.workspacePage .orderActionMenuButton{
+  width:36px!important;
+  height:36px!important;
+  min-height:36px!important;
+}
+.workspacePage .orderActionMenu{
+  top:calc(100% + 6px)!important;
+  min-width:205px!important;
+  padding:6px!important;
+}
+.workspacePage .orderActionMenu>button{
+  min-height:35px!important;
+  padding:0 9px!important;
+  font-size:11px!important;
+}
+.workspacePage .orderMenuDivider{margin:4px 0!important}
+.workspacePage .workspaceReadinessCompact{
+  min-height:36px!important;
+  margin:5px 0 6px!important;
+  padding:7px 10px!important;
+  border:1px solid color-mix(in srgb,#2d7d46 18%,var(--line))!important;
+  border-radius:8px!important;
+  background:color-mix(in srgb,#e7f3ea 60%,var(--paper))!important;
+}
+.workspacePage .workspaceReadinessCompact.needsAttention{
+  border-color:color-mix(in srgb,#a87500 26%,var(--line))!important;
+  background:color-mix(in srgb,#fff4dc 72%,var(--paper))!important;
+}
+.workspacePage .workspaceReadinessCompact b{font-size:11px!important}
+.workspacePage .workspaceReadinessCompact span{font-size:10px!important}
+.workspacePage .workspaceShortcutGuide{margin:0 0 3px!important;font-size:10px!important}
+.workspacePage>.workspaceTools{
+  position:sticky;
+  top:0;
+  z-index:26;
+  margin:4px 0!important;
+  padding:5px 0!important;
+  background:color-mix(in srgb,var(--app-background) 96%,transparent);
+  backdrop-filter:blur(8px);
+}
+.workspacePage .rowCountControl{
+  height:36px!important;
+  padding-left:6px!important;
+}
+.workspacePage .rowCountControl input{
+  width:56px!important;
+  height:28px!important;
+}
+.workspacePage .rowCountControl button{
+  height:36px!important;
+  min-height:36px!important;
+}
+.workspacePage .workspaceAddTools>.columnControl>button{
+  min-height:36px!important;
+  padding:7px 10px!important;
+}
+.workspacePage>.workspaceTools>input[aria-label="Search rows"]{
+  height:36px!important;
+  width:min(100%,360px)!important;
+}
+.workspacePage .workspacePagerTop select,
+.workspacePage .workspacePagerTop button{
+  min-height:32px!important;
+}
+.workspacePage>.workspacePager:not(.workspacePagerTop){display:none!important}
+.workspaceBulkBar{
+  min-height:36px!important;
+  margin:4px 0!important;
+  padding:5px 8px!important;
+}
+.workspaceTableWrap{
+  min-height:0!important;
+  max-height:calc(100vh - 275px)!important;
+  border-radius:9px!important;
+}
+.workspaceTable th,
+.workspaceTable td{
+  min-width:128px!important;
+  padding:4px 6px!important;
+}
+.workspaceTable th{
+  font-size:10px!important;
+  letter-spacing:.01em;
+}
+.workspaceTable td{
+  height:41px!important;
+  font-size:11px!important;
+}
+.workspaceTable input,
+.workspaceTable select{
+  height:31px!important;
+  padding:0 6px!important;
+  font-size:11px!important;
+}
+.workspaceTable .productGroup{
+  height:29px!important;
+  font-size:11px!important;
+}
+.workspaceTable.groupedWorkspace thead tr:nth-child(2) th{top:29px!important}
+.workspaceSelectHead,
+.workspaceSelectCell{
+  position:sticky!important;
+  left:0!important;
+  z-index:18!important;
+  box-sizing:border-box!important;
+  width:38px!important;
+  min-width:38px!important;
+  max-width:38px!important;
+  padding:0!important;
+  text-align:center!important;
+}
+.workspaceSelectHead{
+  z-index:32!important;
+  background:var(--navy)!important;
+}
+.workspaceSelectCell{
+  background:color-mix(in srgb,var(--pale) 62%,var(--paper))!important;
+}
+.workspaceTable .stickyId{
+  position:sticky!important;
+  left:38px!important;
+  z-index:17!important;
+}
+.workspaceTable thead .stickyId{z-index:31!important}
+.workspaceTable .personId{
+  min-width:92px!important;
+  max-width:110px!important;
+}
+.workspaceTable td:last-child,
+.workspaceTable th:last-child{
+  min-width:68px!important;
+  width:68px!important;
+}
+.rowActions{gap:2px!important}
+.rowActions button{
+  min-width:26px!important;
+  width:26px!important;
+  min-height:26px!important;
+  height:26px!important;
+}
+.workspaceActionsHead .workspaceSelectAll{display:none!important}
+.workspaceTable tr.workspaceRowSelected>.workspaceSelectCell,
+.workspaceTable tr.workspaceRowSelected>.personId{
+  background:color-mix(in srgb,var(--brand) 10%,var(--paper))!important;
+}
+
+/* ---------------- Label workspace / preview ---------------- */
+.labelDesignerPage{
+  width:min(98vw,1840px)!important;
+  max-width:none!important;
+  margin-inline:auto!important;
+}
+.labelDesignerPage .labelTopbar{
+  margin-bottom:8px!important;
+  padding:12px 14px!important;
+}
+.labelDesignerPage .labelTopbar h2{
+  font:800 25px/1.1 var(--ui-font)!important;
+}
+.labelDesignerPage .labelTopbar p{font-size:11px!important}
+.labelDesignerPage .labelSaveBar{margin-bottom:8px!important}
+.labelDesignerPage .labelControlStack{display:grid;gap:8px}
+.labelDesignerPage .simpleDesigner,
+.labelDesignerPage .labelSetup{margin-bottom:0!important}
+.labelDesignerPage .labelSelectionPreviewGrid{
+  grid-template-columns:minmax(0,1.72fr) minmax(330px,.58fr)!important;
+  grid-template-rows:minmax(560px,1fr)!important;
+  gap:12px!important;
+}
+.labelDesignerPage .labelSelectionPreviewGrid .labelCanvasPanel{
+  min-height:560px!important;
+  padding:12px!important;
+}
+.labelDesignerPage .labelSelectionPreviewGrid .labelSidebar{
+  min-height:560px!important;
+  padding:12px!important;
+}
+.labelDesignerPage .canvasToolbar{
+  min-height:44px;
+  padding:0 2px 8px!important;
+}
+.labelDesignerPage .canvasToolbar b{font-size:12px!important}
+.labelDesignerPage .canvasToolbar span{
+  margin-top:2px;
+  font-size:10px!important;
+}
+.labelDesignerPage .labelStageV2{
+  position:relative;
+  min-height:470px!important;
+  padding:30px 34px!important;
+  overflow:auto!important;
+  background-color:#e7edef!important;
+  background-image:none!important;
+}
+.labelDesignerPage .labelCanvas[data-final-ratio-ready="true"]{
+  width:min(100%,960px)!important;
+  max-width:960px!important;
+  min-width:520px!important;
+  height:auto!important;
+  aspect-ratio:var(--final-label-ratio)!important;
+  border:1px solid #5c6f7a!important;
+  box-shadow:0 16px 44px rgba(13,41,58,.24)!important;
+}
+.labelDesignerPage .labelGrid{
+  background-image:
+    linear-gradient(to right,rgba(14,67,99,.11) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(14,67,99,.11) 1px,transparent 1px),
+    linear-gradient(to right,rgba(14,67,99,.18) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(14,67,99,.18) 1px,transparent 1px)!important;
+  background-size:
+    var(--label-mm-px,8px) var(--label-mm-px,8px),
+    var(--label-mm-px,8px) var(--label-mm-px,8px),
+    calc(var(--label-mm-px,8px) * 5) calc(var(--label-mm-px,8px) * 5),
+    calc(var(--label-mm-px,8px) * 5) calc(var(--label-mm-px,8px) * 5)!important;
+}
+.labelDesignerPage .canvasElement.selected{
+  border-color:#0c6f9f!important;
+  box-shadow:0 0 0 1px #fff inset,0 0 0 1px #0c6f9f!important;
+}
+.labelDesignerPage .canvasElement.selected::after{
+  content:attr(data-size-readout);
+  position:absolute;
+  left:0;
+  bottom:100%;
+  z-index:8;
+  min-width:max-content;
+  margin-bottom:4px;
+  padding:2px 5px;
+  border-radius:4px;
+  background:#0c4365;
+  color:white;
+  font:800 8px/1.3 var(--ui-font);
+  pointer-events:none;
+}
+.labelPrecisionControls{
+  display:none;
+  grid-template-columns:minmax(110px,1fr) auto minmax(110px,1fr);
+  align-items:center;
+  gap:8px;
+  margin-top:9px;
+  padding:8px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--paper);
+}
+.labelPrecisionControls button{
+  min-height:44px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--paper);
+  color:var(--navy);
+  font-weight:800;
+}
+.labelPrecisionControls output{
+  min-width:94px;
+  text-align:center;
+  font-size:11px;
+  font-weight:900;
+}
+.labelPrecisionControls small{
+  grid-column:1/-1;
+  color:var(--muted);
+  text-align:center;
+  font-size:9px;
+}
+
+@media(max-width:1100px){
+  .workspaceHeadActions{flex-wrap:wrap!important;justify-content:flex-end}
+  .labelDesignerPage .labelSelectionPreviewGrid{
+    grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr)!important;
+  }
+}
+
+@media(max-width:820px){
+  .workspacePage{width:calc(100vw - 16px)!important}
+  .workspacePage .workspaceHead{align-items:flex-start!important}
+  .workspaceHeadActions{width:100%;justify-content:flex-start!important}
+  .workspaceStatusControl{flex:1;min-width:130px}
+  .workspaceStatusControl select{width:100%}
+  .workspacePage>.workspaceTools{position:relative!important;top:auto!important}
+  .workspaceTableWrap{max-height:62vh!important}
+  .labelDesignerPage{width:calc(100vw - 14px)!important}
+  .labelDesignerPage .labelSelectionPreviewGrid{grid-template-columns:1fr!important;grid-template-rows:auto auto!important}
+  .labelDesignerPage .labelSelectionPreviewGrid .labelCanvasPanel{min-height:0!important}
+  .labelDesignerPage .labelStageV2{min-height:320px!important;padding:18px 10px!important;overflow:auto!important}
+  .labelDesignerPage .labelCanvas[data-final-ratio-ready="true"]{
+    min-width:0!important;
+    width:100%!important;
+    max-width:100%!important;
+  }
+  .labelPrecisionControls{display:grid}
+}
+
+@media(pointer:coarse){
+  .labelPrecisionControls{display:grid}
+  .labelDesignerPage .canvasToolbar span{display:none}
+}
