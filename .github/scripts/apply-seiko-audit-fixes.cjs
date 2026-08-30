@@ -1,0 +1,140 @@
+const { readFileSync, writeFileSync } = require('node:fs');
+
+function edit(path, edits) {
+  const raw = readFileSync(path, 'utf8');
+  const eol = raw.includes('\r\n') ? '\r\n' : '\n';
+  let text = raw.replace(/\r\n/g, '\n');
+  for (const [before, after, label] of edits) {
+    if (!text.includes(before)) throw new Error(`${path}: expected pattern not found: ${label}`);
+    text = text.replace(before, after);
+  }
+  writeFileSync(path, text.replace(/\n/g, eol));
+}
+
+edit('app/order-setup-polish.tsx', [[
+  '    if (quantitySelect && quantityInput) {\n      const blocked = quantitySelect.value === "by_group" || quantitySelect.value === "per_person";',
+  '    if (quantitySelect && quantityInput) {\n      const blocked = quantitySelect.value === "per_person";',
+  'keep by-group default quantity editable',
+]]);
+
+edit('app/orders.tsx', [
+  [
+    '  const nextNumber = () => order.records.length + 1;\n  const renumberRecords = (records: OrderRecord[]) => records.map((record,index)=>({...record,personId:`P-${String(index+1).padStart(4,"0")}`}));',
+    '  const nextNumber = () => Math.max(0, ...order.records.map(record => Number(record.personId.match(/^P-(\\d+)$/)?.[1]) || 0)) + 1;',
+    'make Person IDs monotonic and stable',
+  ],
+  [
+    '<IconRemove label={`Delete ${record.personId}`} onClick={() => commitRecords(renumberRecords(order.records.filter(item => item.recordId !== record.recordId)))}/>',
+    '<IconRemove label={`Delete ${record.personId}`} onClick={() => commitRecords(order.records.filter(item => item.recordId !== record.recordId))}/>',
+    'delete without renumbering surviving records',
+  ],
+]);
+
+edit('app/label-designer-polish.tsx', [
+  [
+    '  if (/Advanced layout/i.test(toggle.textContent || "")) toggle.click();\n  toggle.hidden = true;',
+    '  toggle.hidden = false;',
+    'keep simple label setup as the default',
+  ],
+  [
+    '  if (hint) hint.textContent = "Drag an element to move it. Use the mouse wheel on a selected element to resize it.";',
+    '  if (hint) hint.textContent = "Drag to move. Use the mouse wheel to resize. Arrow keys nudge; Shift + Arrow moves 1 mm.";',
+    'explain precise advanced controls',
+  ],
+]);
+
+edit('app/label-designer.tsx', [[
+  '    const update = (id: string, change: Partial<Item>) => setItems(all => all.map(i => i.id === id ? { ...i, ...change } : i));\n    useEffect(() => { const hint = document.querySelector(".canvasToolbar span");',
+  `    const update = (id: string, change: Partial<Item>) => setItems(all => all.map(i => i.id === id ? { ...i, ...change } : i));
+    useEffect(() => {
+        const nudgeSelected = (event: globalThis.KeyboardEvent) => {
+            if (!advanced || !selectedId || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+            const target = event.target as HTMLElement | null;
+            if (target?.closest("input, textarea, select, button, [contenteditable='true']")) return;
+            event.preventDefault();
+            const step = event.shiftKey ? 1 : .25;
+            setItems(all => all.map(item => {
+                if (item.id !== selectedId) return item;
+                if (event.key === "ArrowLeft") return { ...item, x: clamp(item.x - step, 0, Math.max(0, preset.labelW - item.w)) };
+                if (event.key === "ArrowRight") return { ...item, x: clamp(item.x + step, 0, Math.max(0, preset.labelW - item.w)) };
+                if (event.key === "ArrowUp") return { ...item, y: clamp(item.y - step, 0, Math.max(0, preset.labelH - item.h)) };
+                return { ...item, y: clamp(item.y + step, 0, Math.max(0, preset.labelH - item.h)) };
+            }));
+        };
+        document.addEventListener("keydown", nudgeSelected);
+        return () => document.removeEventListener("keydown", nudgeSelected);
+    }, [advanced, selectedId, preset.labelW, preset.labelH]);
+    useEffect(() => { const hint = document.querySelector(".canvasToolbar span");`,
+  'add precise keyboard nudging to advanced label layout',
+]]);
+
+edit('app/label-finalization.tsx', [
+  [
+    'function labelOnlyPrint() {',
+    `function showPrintNotice(message: string) {
+  document.querySelector(".labelPrintNotice")?.remove();
+  const note = document.createElement("div");
+  note.className = "labelPrintNotice";
+  note.setAttribute("role", "status");
+  note.textContent = message;
+  document.body.appendChild(note);
+  window.setTimeout(() => note.remove(), 5200);
+}
+
+function syncPrintCopies() {
+  document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(page => {
+    const topbar = page.querySelector<HTMLElement>(".labelTopbar");
+    const print = Array.from(topbar?.querySelectorAll<HTMLButtonElement>("button") || []).find(button => /^Print\\b/i.test(button.textContent || ""));
+    if (!topbar || !print) return;
+    let control = topbar.querySelector<HTMLElement>(".labelPrintCopies");
+    if (!control) {
+      control = document.createElement("label");
+      control.className = "labelPrintCopies";
+      const title = document.createElement("span");
+      title.textContent = "Copies";
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = "1";
+      input.max = "50";
+      input.step = "1";
+      input.setAttribute("aria-label", "Copies of each selected label");
+      const key = \`jinam:\${activeBusiness()}:labels:print-copies\`;
+      input.value = localStorage.getItem(key) || "1";
+      const note = document.createElement("small");
+      control.append(title, input, note);
+      print.insertAdjacentElement("beforebegin", control);
+      input.addEventListener("change", () => {
+        const value = Math.max(1, Math.min(50, Math.floor(Number(input.value) || 1)));
+        input.value = String(value);
+        localStorage.setItem(key, input.value);
+        syncPrintCopies();
+      });
+    }
+    const input = control.querySelector<HTMLInputElement>("input");
+    const note = control.querySelector<HTMLElement>("small");
+    const copies = Math.max(1, Math.min(50, Math.floor(Number(input?.value) || 1)));
+    const selectedText = page.querySelector<HTMLElement>(".labelSidebar .panelHead h3")?.textContent || "";
+    const selected = Number(selectedText.match(/(\\d+)/)?.[1]) || 0;
+    if (note) note.textContent = selected ? \`\${selected} selected · \${selected * copies} prints\` : \`\${copies} each\`;
+  });
+}
+
+function labelOnlyPrint() {`,
+    'add label copy controls and print feedback',
+  ],
+  [
+    '  if (!popup) { window.alert("Allow pop-ups for this site so the label print window can open."); return; }',
+    '  if (!popup) { showPrintNotice("Allow pop-ups for this site so the label print window can open."); return; }',
+    'remove blocking popup alert',
+  ],
+  [
+    '    const labels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")];',
+    '    const copies = Math.max(1, Math.min(50, Math.floor(Number(document.querySelector<HTMLInputElement>(".labelPrintCopies input")?.value) || 1)));\n    const labels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")].flatMap(label => Array.from({ length: copies }, () => label));',
+    'honour requested label copies',
+  ],
+  [
+    '      ensureCanvasRatio();',
+    '      ensureCanvasRatio();\n      syncPrintCopies();',
+    'keep copy totals synchronized',
+  ],
+]);
