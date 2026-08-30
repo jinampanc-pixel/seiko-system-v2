@@ -14,6 +14,8 @@ const enhancements = read("app/app-enhancements.tsx");
 const layout = read("app/layout.tsx");
 const pager = read("app/workspace-top-pager.tsx");
 const rowActions = read("app/workspace-row-actions.tsx");
+const erpSync = read("app/erp-order-sync.tsx");
+const erpNotice = read("app/erp-sync-notice.tsx");
 
 test("Person IDs remain stable after row deletion and new IDs never reuse a deleted sequence", () => {
   assert.doesNotMatch(orders, /renumberRecords/);
@@ -43,6 +45,11 @@ test("workspace row operations are deliberate and pagination has one state sourc
   assert.match(pager, /dispatchEvent\(new Event\("change", \{ bubbles: true \}\)\)/);
 });
 
+test("editing an existing order returns to and updates its workspace", () => {
+  assert.match(orders, /setView\(current\.revisions\.length \? "workspace" : "center"\)/);
+  assert.match(orders, /order\.revisions\.length \? "Update workspace" : "Create workspace"/);
+});
+
 test("label creation stays simple by default while advanced placement remains precise", () => {
   assert.match(labelDesigner, /const \[advanced, setAdvanced\] = useState\(false\)/);
   assert.doesNotMatch(labelPolish, /toggle\.click\(\)/);
@@ -57,6 +64,16 @@ test("label printing supports explicit copies and avoids blocking popup alerts",
   assert.match(labelFinalization, /Copies/);
   assert.match(labelFinalization, /flatMap\(label => Array\.from\(\{ length: copies \}/);
   assert.doesNotMatch(labelFinalization, /window\.alert\(/);
+});
+
+test("shared-order version conflicts preserve recovery data and stop automatic resubmission", () => {
+  assert.match(erpSync, /erp-conflict-active/);
+  assert.match(erpSync, /hasActiveConflict/);
+  assert.match(erpSync, /if \(hasActiveConflict\(activeBusiness, localOrder\.orderId\)\) continue/);
+  assert.match(erpSync, /localStorage\.setItem\(recoveryKey/);
+  assert.match(enhancements, /<ErpSyncNotice \/>/);
+  assert.match(erpNotice, /Reload latest shared version/);
+  assert.match(erpNotice, /recovery copy/);
 });
 
 test("the restored Stage 1 label stack remains mounted and Stage 2 safe styling is additive", () => {
