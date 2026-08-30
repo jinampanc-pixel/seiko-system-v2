@@ -49,16 +49,33 @@ export function ChannelConnectionSettings() {
     };
   }, []);
 
-  const prepare = () => {
-    if (!detection.normalizedUrl) return;
+  const prepareConnection = () => {
+    if (!detection.normalizedUrl) return null;
     const base = newConnectionFromDetection({ ...detection, provider });
     const existing = connections.find(item => item.provider === provider && item.storeUrl === base.storeUrl);
+    const prepared: ChannelConnection = existing
+      ? {
+          ...existing,
+          provider,
+          label: base.label,
+          storeUrl: base.storeUrl,
+          capabilities: base.capabilities,
+          status: "needs_authorization",
+          updatedAt: new Date().toISOString(),
+        }
+      : base;
     const next = existing
-      ? connections.map(item => item.id === existing.id ? { ...item, status: "needs_authorization" as const, updatedAt: new Date().toISOString() } : item)
-      : [base, ...connections];
+      ? connections.map(item => item.id === existing.id ? prepared : item)
+      : [prepared, ...connections];
     setConnections(next);
     saveConnections(next);
-    setNotice(provider === "shopify" ? "Shopify connection prepared. Authorize it when your Shopify app credentials and store are ready." : `${CHANNEL_PROVIDERS[provider].label} connection prepared. Provider authorization is still required.`);
+    return prepared;
+  };
+
+  const prepare = () => {
+    const connection = prepareConnection();
+    if (!connection) return;
+    setNotice(`${CHANNEL_PROVIDERS[provider].label} connection prepared. Provider authorization is still required.`);
   };
 
   const authorizeShopify = async (connection: ChannelConnection) => {
@@ -81,18 +98,56 @@ export function ChannelConnectionSettings() {
     }
   };
 
+  const connectCurrent = async () => {
+    const connection = prepareConnection();
+    if (!connection) return;
+    if (provider === "shopify") {
+      await authorizeShopify(connection);
+      return;
+    }
+    setNotice(`${CHANNEL_PROVIDERS[provider].label} connection prepared. Provider authorization is still required.`);
+  };
+
   return <section className="jinamSettingsCard">
     <h2>Sales channels</h2>
     <p>Paste a store or seller link. Jinam identifies the channel where possible, then asks only for the authorization that provider actually requires.</p>
-    <div className="phase2EditorGrid">
-      <label>Store / seller link<input value={url} onChange={event => { setUrl(event.target.value); setProviderOverride(""); }} placeholder="https://your-store.myshopify.com"/></label>
-      <label>Detected platform<select value={providerOverride || detection.provider} onChange={event => setProviderOverride(event.target.value as ChannelProvider)}><option value="shopify">Shopify</option><option value="woocommerce">WooCommerce</option><option value="amazon">Amazon</option><option value="generic">Other / Custom</option></select></label>
+    <div className="channelConnectionForm">
+      <label className="channelConnectionField">
+        <span>Store / seller link</span>
+        <input
+          value={url}
+          onChange={event => { setUrl(event.target.value); setProviderOverride(""); }}
+          placeholder="your-store.myshopify.com"
+          autoComplete="url"
+          inputMode="url"
+        />
+      </label>
+      <label className="channelConnectionField">
+        <span>Detected platform</span>
+        <select value={providerOverride || detection.provider} onChange={event => setProviderOverride(event.target.value as ChannelProvider)}>
+          <option value="shopify">Shopify</option>
+          <option value="woocommerce">WooCommerce</option>
+          <option value="amazon">Amazon</option>
+          <option value="generic">Other / Custom</option>
+        </select>
+      </label>
     </div>
     {url && <div className="jinamDashboardList">
-      <div className="jinamDashboardRow"><div><strong>{detection.normalizedUrl ? CHANNEL_PROVIDERS[provider].label : "Link not recognized"}</strong><span>{detection.reason}</span></div><span>{detection.confidence} confidence</span></div>
-      {step && <div className="jinamDashboardRow"><div><strong>{step.title}</strong><span>{step.detail}</span></div><button type="button" className="primary" onClick={prepare}>Prepare connection</button></div>}
+      <div className="jinamDashboardRow">
+        <div><strong>{detection.normalizedUrl ? CHANNEL_PROVIDERS[provider].label : "Link not recognized"}</strong><span>{detection.reason}</span></div>
+        <span>{detection.confidence} confidence</span>
+      </div>
+      {step && <div className="jinamDashboardRow">
+        <div><strong>{step.title}</strong><span>{step.detail}</span></div>
+        <button
+          type="button"
+          className="primary channelConnectionAction"
+          disabled={provider === "shopify" && !!busyId}
+          onClick={provider === "shopify" ? () => void connectCurrent() : prepare}
+        >{provider === "shopify" ? (busyId ? "Starting…" : "Connect Shopify") : "Prepare connection"}</button>
+      </div>}
     </div>}
-    {notice && <p role="status">{notice}</p>}
+    {notice && <p className="channelConnectionStatus" role="status">{notice}</p>}
     <div className="jinamDashboardList">
       {connections.map(connection => <div className="jinamDashboardRow" key={connection.id}>
         <div><strong>{connection.label}</strong><span>{connection.storeUrl}</span></div>
@@ -102,7 +157,7 @@ export function ChannelConnectionSettings() {
           {connection.provider === "shopify" && connection.status !== "connected" && connection.status !== "disabled" && <button type="button" className="primary" disabled={busyId === connection.id} onClick={() => void authorizeShopify(connection)}>{busyId === connection.id ? "Starting…" : "Authorize Shopify"}</button>}
         </div>
       </div>)}
-      {!connections.length && <div className="jinamDashboardRow"><strong>No sales channel connected yet</strong><span>That is fine. When your store is ready, paste its link here and continue the guided authorization.</span></div>}
+      {!connections.length && <div className="jinamDashboardRow"><strong>No sales channel connected yet</strong><span>When your store is ready, paste its link above and connect it.</span></div>}
     </div>
     <p><small>Security rule: store URLs and connection metadata may be cached in the browser, but OAuth tokens, refresh tokens, API secrets and webhook secrets are never stored in browser localStorage. Real credentials are accepted and encrypted only by the server-side connector credential store.</small></p>
   </section>;
