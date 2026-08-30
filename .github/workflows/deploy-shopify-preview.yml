@@ -16,6 +16,7 @@ concurrency:
 env:
   PREVIEW_WORKER_NAME: seiko-system-v2-shopify-test
   PREVIEW_DB_NAME: seiko-system-v2-shopify-test-db
+  PRODUCTION_DB_NAME: seiko-system-v2-db
 
 jobs:
   deploy:
@@ -78,6 +79,90 @@ jobs:
           };
           fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
           NODE
+
+      - name: Seed preview owner login only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          LIST_JSON="$(npx wrangler d1 list --json)"
+          PROD_DB_ID="$(D1_LIST="$LIST_JSON" DB_NAME="$PRODUCTION_DB_NAME" node -e 'const rows=JSON.parse(process.env.D1_LIST||"[]"); const row=rows.find(x=>x.name===process.env.DB_NAME); process.stdout.write(row?.uuid||row?.id||"")')"
+          test -n "$PROD_DB_ID" || (echo "Could not resolve production D1 database for owner-only auth bootstrap" && exit 1)
+
+          cat > /tmp/preview-auth-schema.sql <<'SQL'
+          CREATE TABLE IF NOT EXISTS erp_users (
+            id TEXT PRIMARY KEY NOT NULL,
+            email TEXT NOT NULL,
+            phone_e164 TEXT,
+            display_name TEXT,
+            password_hash TEXT,
+            must_change_password INTEGER DEFAULT 1 NOT NULL,
+            active INTEGER DEFAULT 1 NOT NULL,
+            password_updated_at TEXT,
+            last_login_at TEXT,
+            created_at TEXT NOT NULL,
+            created_by_email TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            updated_by_email TEXT NOT NULL
+          );
+          CREATE UNIQUE INDEX IF NOT EXISTS erp_users_email_uq ON erp_users(email);
+          CREATE UNIQUE INDEX IF NOT EXISTS erp_users_phone_uq ON erp_users(phone_e164);
+          CREATE TABLE IF NOT EXISTS erp_memberships (
+            id TEXT PRIMARY KEY NOT NULL,
+            business_id TEXT NOT NULL,
+            user_id TEXT,
+            email TEXT NOT NULL,
+            display_name TEXT,
+            role TEXT NOT NULL,
+            modules_json TEXT,
+            active INTEGER DEFAULT 1 NOT NULL,
+            created_at TEXT NOT NULL,
+            created_by_email TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            updated_by_email TEXT NOT NULL,
+            UNIQUE(business_id,email)
+          );
+          SQL
+          npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --file /tmp/preview-auth-schema.sql >/dev/null
+
+          USERS_SQL="SELECT DISTINCT u.id,u.email,u.phone_e164,u.display_name,u.password_hash,u.must_change_password,u.active,u.password_updated_at,u.last_login_at,u.created_at,u.created_by_email,u.updated_at,u.updated_by_email FROM erp_users u JOIN erp_memberships m ON lower(m.email)=lower(u.email) WHERE m.role='owner' AND m.active=1 AND u.active=1 AND u.password_hash IS NOT NULL"
+          MEMBERSHIPS_SQL="SELECT m.id,m.business_id,m.user_id,m.email,m.display_name,m.role,m.modules_json,m.active,m.created_at,m.created_by_email,m.updated_at,m.updated_by_email FROM erp_memberships m WHERE lower(m.email) IN (SELECT lower(email) FROM erp_memberships WHERE role='owner' AND active=1)"
+          USERS_SQL="$USERS_SQL" node -e 'require("fs").writeFileSync("/tmp/users-query.json",JSON.stringify({sql:process.env.USERS_SQL}))'
+          MEMBERSHIPS_SQL="$MEMBERSHIPS_SQL" node -e 'require("fs").writeFileSync("/tmp/memberships-query.json",JSON.stringify({sql:process.env.MEMBERSHIPS_SQL}))'
+
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' \
+            --data-binary @/tmp/users-query.json \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query" > /tmp/owner-users.json
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' \
+            --data-binary @/tmp/memberships-query.json \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query" > /tmp/owner-memberships.json
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const readRows = path => {
+            const payload = JSON.parse(fs.readFileSync(path, 'utf8'));
+            if (!payload.success) throw new Error(`Cloudflare D1 owner bootstrap query failed for ${path}`);
+            const blocks = Array.isArray(payload.result) ? payload.result : [payload.result];
+            return blocks.flatMap(block => Array.isArray(block?.results) ? block.results : []);
+          };
+          const users = readRows('/tmp/owner-users.json');
+          const memberships = readRows('/tmp/owner-memberships.json');
+          if (!users.length) throw new Error('No active owner with an ERP password was found in production.');
+          const ownerEmails = new Set(users.map(row => String(row.email || '').toLowerCase()));
+          const safeMemberships = memberships.filter(row => ownerEmails.has(String(row.email || '').toLowerCase()));
+          const lit = value => value === null || value === undefined ? 'NULL' : typeof value === 'number' ? String(value) : `'${String(value).replace(/'/g, "''")}'`;
+          const userCols = ['id','email','phone_e164','display_name','password_hash','must_change_password','active','password_updated_at','last_login_at','created_at','created_by_email','updated_at','updated_by_email'];
+          const membershipCols = ['id','business_id','user_id','email','display_name','role','modules_json','active','created_at','created_by_email','updated_at','updated_by_email'];
+          const sql = ['BEGIN TRANSACTION;'];
+          for (const row of users) sql.push(`INSERT OR REPLACE INTO erp_users (${userCols.join(',')}) VALUES (${userCols.map(col => lit(row[col])).join(',')});`);
+          for (const row of safeMemberships) sql.push(`INSERT OR REPLACE INTO erp_memberships (${membershipCols.join(',')}) VALUES (${membershipCols.map(col => lit(row[col])).join(',')});`);
+          sql.push('COMMIT;');
+          fs.writeFileSync('/tmp/preview-owner-seed.sql', sql.join('\n'));
+          console.log(`Prepared ${users.length} owner login(s) and ${safeMemberships.length} owner membership(s) for preview.`);
+          NODE
+          npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --file /tmp/preview-owner-seed.sql >/dev/null
+          rm -f /tmp/owner-users.json /tmp/owner-memberships.json /tmp/preview-owner-seed.sql /tmp/users-query.json /tmp/memberships-query.json
 
       - name: Test and build
         run: npm test
