@@ -6,11 +6,12 @@ const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8
 const router = readFileSync(new URL("../app/business-application-router.tsx", import.meta.url), "utf8");
 const enhancements = readFileSync(new URL("../app/app-enhancements.tsx", import.meta.url), "utf8");
 const scheduler = readFileSync(new URL("../app/lib/dom-enhancement.ts", import.meta.url), "utf8");
+const labelFlow = readFileSync(new URL("../app/label-flow-polish.tsx", import.meta.url), "utf8");
 const labelProduction = readFileSync(new URL("../app/label-production-ready.tsx", import.meta.url), "utf8");
-const labelAccessibility = readFileSync(new URL("../app/label-v2-accessibility.tsx", import.meta.url), "utf8");
-const operationalFinalize = readFileSync(new URL("../app/seiko-operational-finalize.tsx", import.meta.url), "utf8");
+const orderFinalize = readFileSync(new URL("../app/order-setup-finalize.tsx", import.meta.url), "utf8");
 const orderCompact = readFileSync(new URL("../app/order-compact-ux.tsx", import.meta.url), "utf8");
 const workspacePager = readFileSync(new URL("../app/workspace-top-pager.tsx", import.meta.url), "utf8");
+const ownerDropdown = readFileSync(new URL("../app/owner-dropdown-ux.tsx", import.meta.url), "utf8");
 const methApp = readFileSync(new URL("../app/meth-app.tsx", import.meta.url), "utf8");
 const veynApp = readFileSync(new URL("../app/veyn-app.tsx", import.meta.url), "utf8");
 const shell = readFileSync(new URL("../app/jinam-business-shell.tsx", import.meta.url), "utf8");
@@ -126,11 +127,8 @@ test("VÉYN green is semantic and commercial summary remains neutral", () => {
 });
 
 test("enhancement registry remains explicit and reviewable", () => {
-  for (const component of ["ErpOrderSync","OrderCompactUx","WorkspaceTopPager","WorkspaceShortcuts","LabelProductionReady","LabelFinalization","LabelV2Accessibility","SeikoCloseConfirm","GlobalNavigation","SeikoPhase1","SeikoLibraryAutofill","SeikoPhase2Gate","MethServerSync","SeikoMethSync","SeikoOperationalFinalize"]) {
+  for (const component of ["ErpOrderSync","OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","OrderCompactUx","WorkspaceTopPager","WorkspaceShortcuts","LabelFlowPolish","LabelDesignerPolish","LabelProductionReady","LabelFinalization","LabelDesignerInteractions","GlobalNavigation","SeikoPhase1","SeikoLibraryAutofill","SeikoPhase2Gate"]) {
     assert.match(enhancements, new RegExp(`<${component} \\/>`));
-  }
-  for (const retired of ["OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","LabelFlowPolish","LabelDesignerPolish","LabelDesignerInteractions"]) {
-    assert.doesNotMatch(enhancements, new RegExp(`<${retired} \\/>`));
   }
 });
 
@@ -141,8 +139,8 @@ test("shared DOM scheduler owns observer and animation-frame lifecycle", () => {
   assert.match(scheduler, /cancelAnimationFrame/);
 });
 
-test("active compatibility adapters use the shared scheduler", () => {
-  for (const source of [labelProduction, labelAccessibility, operationalFinalize, orderCompact, workspacePager, seikoPhase, autofill, seikoPhase2]) {
+test("consolidated adapters use the shared scheduler", () => {
+  for (const source of [labelFlow, labelProduction, orderFinalize, orderCompact, workspacePager, ownerDropdown, seikoPhase, autofill, seikoPhase2]) {
     assert.match(source, /startDomEnhancement/);
   }
 });
