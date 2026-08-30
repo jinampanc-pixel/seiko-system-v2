@@ -6,13 +6,11 @@ import { startDomEnhancement } from "./lib/dom-enhancement";
 function enhanceRowCount(page: HTMLElement) {
   const input = page.querySelector<HTMLInputElement>('.rowCountControl input[aria-label="Number of rows to add"]');
   if (!input || input.dataset.replaceOnFocus === "true") return;
-
   input.dataset.replaceOnFocus = "true";
   input.type = "text";
   input.inputMode = "numeric";
   input.autocomplete = "off";
   input.setAttribute("pattern", "[0-9]*");
-
   const selectValue = () => requestAnimationFrame(() => input.select());
   input.addEventListener("focus", selectValue);
   input.addEventListener("pointerdown", event => {
@@ -22,50 +20,70 @@ function enhanceRowCount(page: HTMLElement) {
   });
 }
 
+function realPager(page: HTMLElement) {
+  return page.querySelector<HTMLElement>(":scope > .workspacePager:not(.workspacePagerTop)");
+}
+
+function clickReal(page: HTMLElement, label: string) {
+  const button = Array.from(realPager(page)?.querySelectorAll<HTMLButtonElement>("button") || [])
+    .find(item => item.textContent?.trim() === label);
+  button?.click();
+}
+
+function setRealPageSize(page: HTMLElement, value: string) {
+  const select = realPager(page)?.querySelector<HTMLSelectElement>("select");
+  if (!select || select.value === value) return;
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, value);
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
 function buildTopPager(page: HTMLElement) {
-  const bottom = page.querySelector<HTMLElement>(":scope > .workspacePager:not(.workspacePagerTop)");
+  const bottom = realPager(page);
   const tools = page.querySelector<HTMLElement>(":scope > .workspaceTools");
   if (!bottom || !tools) return;
 
-  let top = page.querySelector<HTMLElement>(".workspacePagerTop");
+  let top = tools.querySelector<HTMLElement>(":scope > .workspacePagerTop");
   if (!top) {
     top = document.createElement("div");
     top.className = "workspacePager workspacePagerTop";
-    tools.appendChild(top);
-  } else if (top.parentElement !== tools) {
+    top.setAttribute("aria-label", "Workspace pagination");
     tools.appendChild(top);
   }
 
+  const children = Array.from(bottom.children);
+  const range = children.find(child => child instanceof HTMLSpanElement && /^Showing\s/i.test(child.textContent || ""));
+  const page = children.find(child => child instanceof HTMLSpanElement && /^Page\s/i.test(child.textContent || ""));
+  const realSelect = bottom.querySelector<HTMLSelectElement>("select");
+  const previous = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Previous");
+  const next = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Next");
+
   top.replaceChildren();
+  if (range) top.appendChild(range.cloneNode(true));
 
-  Array.from(bottom.children).forEach((child, index) => {
-    if (child instanceof HTMLButtonElement) {
-      const proxy = child.cloneNode(true) as HTMLButtonElement;
-      proxy.addEventListener("click", () => {
-        const current = page.querySelectorAll<HTMLButtonElement>(":scope > .workspacePager:not(.workspacePagerTop) button")[index - 2];
-        const match = Array.from(page.querySelectorAll<HTMLButtonElement>(":scope > .workspacePager:not(.workspacePagerTop) button"))
-          .find(button => button.textContent === proxy.textContent);
-        (match || current)?.click();
-      });
-      top!.appendChild(proxy);
-      return;
-    }
+  if (realSelect) {
+    const label = document.createElement("label");
+    label.append("Rows ");
+    const select = realSelect.cloneNode(true) as HTMLSelectElement;
+    select.value = realSelect.value;
+    select.setAttribute("aria-label", "Rows per page");
+    select.addEventListener("change", () => setRealPageSize(page, select.value));
+    label.appendChild(select);
+    top.appendChild(label);
+  }
 
-    if (child instanceof HTMLLabelElement) {
-      const proxy = child.cloneNode(true) as HTMLLabelElement;
-      const proxySelect = proxy.querySelector<HTMLSelectElement>("select");
-      proxySelect?.addEventListener("change", () => {
-        const real = bottom.querySelector<HTMLSelectElement>("select");
-        if (!real || !proxySelect) return;
-        real.value = proxySelect.value;
-        real.dispatchEvent(new Event("change", { bubbles: true }));
-      });
-      top!.appendChild(proxy);
-      return;
-    }
+  const addButton = (source: HTMLButtonElement | undefined, label: string) => {
+    const proxy = document.createElement("button");
+    proxy.type = "button";
+    proxy.className = source?.className || "secondary";
+    proxy.textContent = label;
+    proxy.disabled = Boolean(source?.disabled);
+    proxy.addEventListener("click", () => clickReal(page, label));
+    top!.appendChild(proxy);
+  };
 
-    top!.appendChild(child.cloneNode(true));
-  });
+  addButton(previous, "Previous");
+  if (page) top.appendChild(page.cloneNode(true));
+  addButton(next, "Next");
 }
 
 function syncWorkspaceChrome() {
@@ -85,9 +103,15 @@ export function WorkspaceTopPager() {
         return Boolean(target.closest?.(".workspacePage")) || Array.from(mutation.addedNodes).some(node => node instanceof HTMLElement && (node.matches?.(".workspacePage") || node.querySelector?.(".workspacePage")));
       }),
     });
-    document.addEventListener("change", controller.schedule, true);
+    const scheduleAfterControl = (event: Event) => {
+      const target = event.target as Element | null;
+      if (target?.closest?.(".workspacePage")) window.setTimeout(controller.schedule, 0);
+    };
+    document.addEventListener("change", scheduleAfterControl, true);
+    document.addEventListener("click", scheduleAfterControl, true);
     return () => {
-      document.removeEventListener("change", controller.schedule, true);
+      document.removeEventListener("change", scheduleAfterControl, true);
+      document.removeEventListener("click", scheduleAfterControl, true);
       controller.stop();
     };
   }, []);
