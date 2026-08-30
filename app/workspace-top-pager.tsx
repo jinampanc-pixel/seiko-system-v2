@@ -52,7 +52,7 @@ function buildTopPager(page: HTMLElement) {
 
   const children = Array.from(bottom.children);
   const range = children.find(child => child instanceof HTMLSpanElement && /^Showing\s/i.test(child.textContent || ""));
-  const page = children.find(child => child instanceof HTMLSpanElement && /^Page\s/i.test(child.textContent || ""));
+  const pageStatus = children.find(child => child instanceof HTMLSpanElement && /^Page\s/i.test(child.textContent || ""));
   const realSelect = bottom.querySelector<HTMLSelectElement>("select");
   const previous = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Previous");
   const next = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Next");
@@ -82,7 +82,7 @@ function buildTopPager(page: HTMLElement) {
   };
 
   addButton(previous, "Previous");
-  if (page) top.appendChild(page.cloneNode(true));
+  if (pageStatus) top.appendChild(pageStatus.cloneNode(true));
   addButton(next, "Next");
 }
 
