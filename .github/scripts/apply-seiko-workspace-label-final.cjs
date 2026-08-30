@@ -75,8 +75,8 @@ function replaceOne(text, before, after, label) {
         }));
     }, [preset.labelH, preset.labelW]);
     const sizeReadout = (item: Item) => ["text", "field", "sequence"].includes(item.kind)
-        ? `${item.font.toFixed(2)} pt`
-        : `${item.w.toFixed(2)} × ${item.h.toFixed(2)} mm`;
+        ? item.font.toFixed(2) + " pt"
+        : item.w.toFixed(2) + " × " + item.h.toFixed(2) + " mm";
     useEffect(() => {
         const hint = document.querySelector(".canvasToolbar span");
         if (hint) hint.textContent = "Wheel = precise size · Shift + wheel = larger step";
@@ -136,14 +136,14 @@ const MM_PER_PT = 25.4 / 72;`,
   const rect = canvas.getBoundingClientRect();
   if (!rect.width || !labelWidthMm) return;
   const actualPxPerMm = rect.width / labelWidthMm;
-  canvas.style.setProperty("--label-mm-px", `${actualPxPerMm}px`);
+  canvas.style.setProperty("--label-mm-px", String(actualPxPerMm) + "px");
   canvas.querySelectorAll<HTMLElement>(".canvasElement.element-text,.canvasElement.element-field,.canvasElement.element-sequence").forEach(element => {
     const directPt = Number.parseFloat(element.dataset.fontPt || "0");
     const fallbackPx = Number.parseFloat(element.style.fontSize || "0");
     const pointSize = directPt || (fallbackPx ? fallbackPx / CSS_PX_PER_PT : 0);
     if (!pointSize) return;
     const responsivePx = pointSize * MM_PER_PT * actualPxPerMm;
-    element.style.fontSize = `${responsivePx}px`;
+    element.style.fontSize = String(responsivePx) + "px";
     element.style.lineHeight = "1.05";
   });
 }`;
