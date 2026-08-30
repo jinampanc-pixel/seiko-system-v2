@@ -24,6 +24,8 @@ test("Person IDs remain stable after row deletion and new IDs never reuse a dele
 test("group quantity UI and domain both use default quantity plus exceptions", () => {
   assert.match(orderDomain, /return Math\.max\(0, Number\(product\.defaultQuantity\) \|\| 0\)/);
   assert.match(orderDomain, /split\(\/\[;,\\n\]\//);
+  assert.match(orders, /min="0" placeholder="Quantity" value=\{rule\.quantity \?\? ""\}/);
+  assert.match(orders, /quantity 0 means that group does not receive this product/);
   assert.doesNotMatch(setupPolish, /quantitySelect\.value === "by_group" \|\| quantitySelect\.value === "per_person"/);
   assert.match(setupFinalize, /Set the normal quantity once, then add only the groups that differ/);
 });
@@ -34,9 +36,11 @@ test("workspace row operations are deliberate and pagination has one state sourc
   assert.match(rowActions, /Shift-click selects a range/);
   assert.match(rowActions, /Delete selected/);
   assert.match(rowActions, /Add \$\{count\} rows\?/);
+  assert.match(orders, /Undo last change/);
+  assert.match(orders, /Redo last change/);
   assert.match(pager, /realPager/);
   assert.match(pager, /setRealPageSize/);
-  assert.doesNotMatch(pager, /cloneNode\(true\).*addEventListener\("change"/s);
+  assert.match(pager, /dispatchEvent\(new Event\("change", \{ bubbles: true \}\)\)/);
 });
 
 test("label creation stays simple by default while advanced placement remains precise", () => {

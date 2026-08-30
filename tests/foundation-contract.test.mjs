@@ -94,7 +94,8 @@ test("Seiko orders preserve flexible client and person-entry behaviour", () => {
   assert.doesNotMatch(orderDomain, /Every product needs a name\./);
   for (const mode of ["same_for_all", "per_person", "default_with_exceptions", "order_total", "by_group"]) assert.match(orderDomain, new RegExp(mode));
   assert.match(orderDomain, /workspaceColumns/);
-  assert.match(orders, /renumberRecords/);
+  assert.doesNotMatch(orders, /renumberRecords/);
+  assert.match(orders, /Math\.max\(0, \.\.\.order\.records\.map\(record => Number\(record\.personId\.match/);
   assert.match(orders, /Save & close/);
   assert.match(orders, /Close without saving/);
   assert.match(orders, /Archive/);
