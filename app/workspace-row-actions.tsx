@@ -139,7 +139,7 @@ function ensureSelection(page: HTMLElement) {
     actionsHead.appendChild(checkbox);
   }
 
-  rows(page).forEach((row, index) => {
+  rows(page).forEach(row => {
     const id = rowId(row);
     const actions = row.querySelector<HTMLElement>(".rowActions");
     if (!id || !actions || actions.querySelector(".recordSelectToggle")) return;
