@@ -42,7 +42,8 @@ export function ErpSyncNotice() {
 
   useEffect(() => {
     if (!businessId) return;
-    setConflict(findExisting(businessId));
+    const refresh = () => setConflict(findExisting(businessId));
+    queueMicrotask(refresh);
     const onConflict = (event: Event) => {
       const detail = (event as CustomEvent<ConflictNotice>).detail;
       if (detail?.businessId === businessId) setConflict(detail);
