@@ -81,7 +81,8 @@
   color: #b42318 !important;
 }
 
-.seikoConfirmLayer {
+.seikoConfirmLayer,
+.erpConflictLayer {
   position: fixed;
   inset: 0;
   z-index: 10000;
@@ -92,7 +93,13 @@
   backdrop-filter: blur(2px);
 }
 
-.seikoConfirmDialog {
+.erpConflictLayer {
+  z-index: 12000;
+  background: rgba(9, 30, 45, .56);
+}
+
+.seikoConfirmDialog,
+.erpConflictDialog {
   width: min(440px, calc(100vw - 32px));
   padding: 20px;
   border: 1px solid var(--line);
@@ -101,16 +108,48 @@
   box-shadow: 0 24px 70px rgba(8, 35, 54, .22);
 }
 
-.seikoConfirmDialog h3 {
+.erpConflictDialog {
+  width: min(520px, calc(100vw - 32px));
+  border-top: 4px solid #b42318;
+}
+
+.seikoConfirmDialog h3,
+.erpConflictDialog h3 {
   margin: 0 0 7px;
   font-size: 18px;
 }
 
-.seikoConfirmDialog p {
+.seikoConfirmDialog p,
+.erpConflictDialog p {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.55;
+}
+
+.erpConflictDialog > p + p {
+  margin-top: 9px;
+}
+
+.erpConflictDialog .eyebrow {
+  margin-bottom: 5px;
+  color: #b42318;
+}
+
+.erpConflictMeta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 5px 10px;
+  margin: 16px 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--brand) 5%, var(--paper));
+  font-size: 11px;
+}
+
+.erpConflictDialog > button {
+  width: 100%;
+  min-height: 42px;
 }
 
 .seikoConfirmDialog > div {
