@@ -23,6 +23,11 @@ export async function POST(request: Request) {
   const valid = await verifyPassword(password, user?.passwordHash || null);
   if (!user || !valid) {
     await recordAuthEvent(db, request, { identifier, userId: user?.id, email: user?.email, event: "login.failed", success: false });
+    if (isIsolatedShopifyTest) {
+      return !user
+        ? error("PREVIEW_USER_NOT_FOUND", "Preview Owner record was not found.", 401)
+        : error("PREVIEW_PASSWORD_MISMATCH", "Preview Owner credential did not verify.", 401);
+    }
     return error("INVALID_CREDENTIALS", "Email/phone or password is incorrect.", 401);
   }
   if (!user.active) {
