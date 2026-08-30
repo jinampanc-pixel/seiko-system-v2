@@ -8,6 +8,7 @@ import { WorkspaceTopPager } from "./workspace-top-pager";
 import { WorkspaceShortcuts } from "./workspace-shortcuts";
 import { LabelProductionReady } from "./label-production-ready";
 import { LabelFinalization } from "./label-finalization";
+import { LabelV2Accessibility } from "./label-v2-accessibility";
 import { SeikoOperationalFinalize } from "./seiko-operational-finalize";
 import { GlobalNavigation } from "./global-navigation";
 import { SeikoPhase1 } from "./seiko-phase1";
@@ -31,6 +32,7 @@ export function AppEnhancements() {
         label polish stack. The Stage 2 designer owns its UI and interactions. */}
     <LabelProductionReady />
     <LabelFinalization />
+    <LabelV2Accessibility />
     <GlobalNavigation />
     <SeikoPhase1 />
     <SeikoLibraryAutofill />
