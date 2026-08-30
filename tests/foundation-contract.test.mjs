@@ -8,7 +8,7 @@ const serverAuth = readFileSync(new URL("../app/lib/server-erp-auth.ts", import.
 const api = readFileSync(new URL("../app/lib/seiko-api.ts", import.meta.url), "utf8");
 const foundation = readFileSync(new URL("../app/lib/foundation.ts", import.meta.url), "utf8");
 const orders = readFileSync(new URL("../app/orders.tsx", import.meta.url), "utf8");
-const labelDesigner = readFileSync(new URL("../app/label-designer.tsx", import.meta.url), "utf8");
+const labelDesigner = readFileSync(new URL("../app/label-designer-v2.tsx", import.meta.url), "utf8");
 const orderDomain = readFileSync(new URL("../app/lib/order-domain.ts", import.meta.url), "utf8");
 const productionDomain = readFileSync(new URL("../app/lib/production-domain.ts", import.meta.url), "utf8");
 const production = readFileSync(new URL("../app/production.tsx", import.meta.url), "utf8");
@@ -84,6 +84,7 @@ test("business themes support presets, manual editing and local logo analysis", 
 
 test("Seiko orders preserve flexible client and person-entry behaviour", () => {
   assert.match(orderDomain, /CLIENT_TYPE_PRESETS/);
+  assert.match(orderDomain, /Person \/ record name/);
   assert.match(orderDomain, /attnRequired/);
   assert.match(orders, /Set different values by group/);
   assert.match(orders, /\+ New source field/);
@@ -93,6 +94,8 @@ test("Seiko orders preserve flexible client and person-entry behaviour", () => {
   assert.doesNotMatch(orderDomain, /Add at least one product\./);
   assert.doesNotMatch(orderDomain, /Every product needs a name\./);
   for (const mode of ["same_for_all", "per_person", "default_with_exceptions", "order_total", "by_group"]) assert.match(orderDomain, new RegExp(mode));
+  assert.match(orderDomain, /groupRuleValues/);
+  assert.match(orderDomain, /return Math\.max\(0, Number\(product\.defaultQuantity\) \|\| 0\)/);
   assert.match(orderDomain, /workspaceColumns/);
   assert.match(orders, /renumberRecords/);
   assert.match(orders, /Save & close/);
@@ -146,50 +149,48 @@ test("product artwork and cross-business manufacturing remain traceable", () => 
   assert.match(orderDomain, /`jinam:\$\{manufacturerBusinessId\}:production-links-v1`/);
 });
 
-test("label designer preserves exact sizing and editable behaviour", () => {
+test("label designer preserves exact sizing, automatic layout and precise manual editing", () => {
   assert.match(labelDesigner, /rollW:\s*109/);
   assert.match(labelDesigner, /labelW:\s*50/);
   assert.match(labelDesigner, /labelH:\s*25/);
   assert.match(labelDesigner, /outer:\s*3/);
   assert.match(labelDesigner, /gapX:\s*3/);
   assert.match(labelDesigner, /gapY:\s*3/);
-  assert.match(labelDesigner, /\[snap, setSnap\] = useState\(true\)/);
-  assert.match(labelDesigner, /\[guides, setGuides\] = useState\(true\)/);
+  assert.match(labelDesigner, /SAFE_MM = 1\.5/);
+  assert.match(labelDesigner, /function autoArrange/);
+  assert.match(labelDesigner, /const \[advanced, setAdvanced\] = useState\(false\)/);
+  assert.match(labelDesigner, /labelV2ResizeHandle/);
+  assert.match(labelDesigner, /ArrowLeft/);
+  assert.match(labelDesigner, /Shift \+ Arrow/);
   assert.match(labelDesigner, /canvasSizeButton/);
-  assert.match(labelDesigner, /sequence/);
-  assert.match(labelDesigner, /Print \/ save PDF/);
   assert.match(labelDesigner, /presets-v1/);
-  assert.match(labelDesigner, /templates-v1/);
+  assert.match(labelDesigner, /layouts-v2/);
 });
 
-test("label output can be code only, information only or combined", () => {
-  assert.match(labelDesigner, /Code \+ information/);
-  assert.match(labelDesigner, /Code only/);
-  assert.match(labelDesigner, /Information only/);
-  assert.match(labelDesigner, /Choose myself/);
-  assert.match(labelDesigner, /Production labels/);
-  assert.match(labelDesigner, /Packing labels/);
-  assert.match(labelDesigner, /One permanent label for each garment/);
-  assert.doesNotMatch(labelDesigner, /Derived from the saved order/);
-  assert.match(labelDesigner, /flashSaveNotice/);
-  assert.doesNotMatch(labelDesigner, /BUILD CUTTING RUNS/);
-  assert.match(labelDesigner, /Outer package/);
-  assert.match(labelDesigner, /The preview and print records come only from the selected orders and products/);
-  assert.match(labelDesigner, /canvasElement\.selected/);
-  assert.match(labelDesigner, /item\.kind\s*===\s*"qr"/);
-  assert.match(labelDesigner, /preventDefault\(\)/);
+test("label output is practical, configurable and never exposes the retired Choose myself mode", () => {
+  assert.match(labelDesigner, /Create one label for/);
+  for (const value of ["item", "person", "package", "product_group", "custom"]) assert.match(labelDesigner, new RegExp(`<option value="${value}">`));
+  assert.match(labelDesigner, /One package per person/);
+  assert.match(labelDesigner, /Complete sets \/ pairs/);
+  assert.match(labelDesigner, /Same products together/);
+  assert.match(labelDesigner, /Custom grouping/);
+  assert.doesNotMatch(labelDesigner, /Choose myself/);
+  assert.match(labelDesigner, /Core information/);
+  assert.match(labelDesigner, /Person details/);
+  assert.match(labelDesigner, /Product details/);
+  assert.match(labelDesigner, /Trace & codes/);
+  assert.match(labelDesigner, /toggleCode\("qr"\)/);
+  assert.match(labelDesigner, /toggleCode\("barcode"\)/);
+  assert.match(labelDesigner, /Preview sample/);
+  assert.match(labelDesigner, /This sample changes only the preview, never the print selection/);
+  assert.match(labelDesigner, /Select all \$\{filtered\.length\} matching/);
+  assert.match(labelDesigner, /Package details/);
+  assert.match(labelDesigner, /Save label set/);
+  assert.match(labelDesigner, /layouts-v2/);
+  assert.match(labelDesigner, /tasks-v1/);
   assert.match(orders, /Print labels/);
   assert.match(page, /onOpenLabelBatches=/);
   assert.match(page, /onCreateLabel=/);
-  assert.match(labelDesigner, /Back to order/);
-  assert.match(labelDesigner, /labelFieldOptions/);
-  assert.match(labelDesigner, /spec:\$\{spec\.id\}/);
-  assert.match(labelDesigner, /Find person or product/);
-  assert.match(labelDesigner, /Select all/);
-  assert.match(labelDesigner, /recordList/);
-  assert.doesNotMatch(labelDesigner, /Page \{safeRecordPage\} of/);
-  assert.match(labelDesigner, /labelValue\(row,\s*item\.field\)/);
-  assert.match(page, /onBack=/);
 });
 
 test("one garment supports multiple worker operation credits", () => {
@@ -214,7 +215,7 @@ test("saving an order generates stable workflow identities without starting work
   assert.match(productionDomain, /garment:\$\{orderId\}:\$\{recordId\}:\$\{productId\}:\$\{unit\}/);
   assert.match(productionDomain, /status: "planned"/);
   assert.match(productionDomain, /productionReport: true; packingPlan: true; invoice: true; labels: true/);
-  assert.match(labelDesigner, /garmentScanToken\(orderId,\s*recordId,\s*productId,\s*unit\)/);
+  assert.match(labelDesigner, /garmentScanToken\(order\.orderId,\s*row\.recordId,\s*row\.productId,\s*unit\)/);
 });
 
 test("order workspace supports spreadsheet-speed data entry", () => {
