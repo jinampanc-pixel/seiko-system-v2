@@ -1,0 +1,40 @@
+name: Deploy Shopify Preview
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seiko-shopify-preview-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout preview branch
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test and build
+        run: npm test
+
+      - name: Deploy isolated preview worker
+        run: npx wrangler deploy --name seiko-system-v2-shopify-test
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
