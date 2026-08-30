@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable jsx-a11y/label-has-associated-control */
 /* eslint-disable @typescript-eslint/no-unused-vars -- old cutting-template readers remain during local data migration */
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { workspaceColumns, type SeikoOrder } from "./lib/order-domain";
 import { garmentScanToken } from "./lib/production-domain";
 type Kind = "text" | "field" | "barcode" | "qr" | "sequence";
@@ -200,16 +200,57 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
         document.addEventListener("keydown", nudgeSelected);
         return () => document.removeEventListener("keydown", nudgeSelected);
     }, [advanced, selectedId, preset.labelW, preset.labelH]);
-    useEffect(() => { const hint = document.querySelector(".canvasToolbar span"); if (hint)
-        hint.textContent = "Select text or code, then use the wheel to resize it"; const resizeSelected = (event: globalThis.WheelEvent) => { const target = (event.target as Element)?.closest?.(".canvasElement.selected") as HTMLElement | null; if (!target)
-        return; const id = target.dataset.itemId; if (!id)
-        return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); const direction = event.deltaY < 0 ? 1 : -1; setItems(all => all.map(item => { if (item.id !== id)
-        return item; if (["text", "field", "sequence"].includes(item.kind))
-        return { ...item, font: clamp(item.font + direction * .5, 4, 40) }; if (item.kind === "qr") {
-        const size = clamp(item.w + direction, 5, Math.min(preset.labelW - item.x, preset.labelH - item.y));
-        return { ...item, w: size, h: size };
-    } if (item.kind === "barcode")
-        return { ...item, w: clamp(item.w + direction, 8, preset.labelW - item.x) }; return item; })); }; document.addEventListener("wheel", resizeSelected, { capture: true, passive: false }); return () => document.removeEventListener("wheel", resizeSelected, true); }, [preset.labelH, preset.labelW]);
+    const resizeElement = useCallback((id: string, direction: 1 | -1, coarse = false) => {
+        setItems(all => all.map(item => {
+            if (item.id !== id) return item;
+            if (["text", "field", "sequence"].includes(item.kind)) {
+                const step = coarse ? 1 : .25;
+                const font = Math.round(clamp(item.font + direction * step, 4, 40) * 4) / 4;
+                return { ...item, font };
+            }
+            if (item.kind === "qr") {
+                const step = coarse ? 1 : .25;
+                const maxSize = Math.min(preset.labelW - item.x, preset.labelH - item.y);
+                const size = Math.round(clamp(item.w + direction * step, 5, maxSize) * 4) / 4;
+                return { ...item, w: size, h: size };
+            }
+            if (item.kind === "barcode") {
+                const widthStep = coarse ? 2 : .5;
+                const heightStep = coarse ? 1 : .25;
+                const w = Math.round(clamp(item.w + direction * widthStep, 8, preset.labelW - item.x) * 4) / 4;
+                const h = Math.round(clamp(item.h + direction * heightStep, 4, preset.labelH - item.y) * 4) / 4;
+                return { ...item, w, h };
+            }
+            return item;
+        }));
+    }, [preset.labelH, preset.labelW]);
+    const sizeReadout = (item: Item) => ["text", "field", "sequence"].includes(item.kind)
+        ? item.font.toFixed(2) + " pt"
+        : item.w.toFixed(2) + " × " + item.h.toFixed(2) + " mm";
+    useEffect(() => {
+        const hint = document.querySelector(".canvasToolbar span");
+        if (hint) hint.textContent = "Wheel = precise size · Shift + wheel = larger step";
+        let remainder = 0;
+        const resizeSelected = (event: globalThis.WheelEvent) => {
+            const target = (event.target as Element)?.closest?.(".canvasElement.selected") as HTMLElement | null;
+            if (!target) return;
+            const id = target.dataset.itemId;
+            if (!id) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaMode === 2 ? event.deltaY * 120 : event.deltaY;
+            remainder += delta;
+            const threshold = 72;
+            const steps = Math.min(4, Math.floor(Math.abs(remainder) / threshold));
+            if (!steps) return;
+            const direction: 1 | -1 = remainder < 0 ? 1 : -1;
+            remainder -= Math.sign(remainder) * steps * threshold;
+            for (let index = 0; index < steps; index++) resizeElement(id, direction, event.shiftKey);
+        };
+        document.addEventListener("wheel", resizeSelected, { capture: true, passive: false });
+        return () => document.removeEventListener("wheel", resizeSelected, true);
+    }, [resizeElement]);
     const setSourceMode = (next: SourceMode) => { setSourceModeState(next); const nextRecords = order ? resolveLabelRows(order, next, packageGroupBy, packageCounts, personPackagePlan, includedProducts) : []; setSelectedRows(nextRecords[0] ? [nextRecords[0].id] : []); };
     const choosePurpose = (next: LabelPurpose) => { setPurpose(next); setSourceMode(next === "production" ? "person_product" : next === "inventory" ? "product" : "person"); };
     const add = (kind: Kind) => { const id = crypto.randomUUID(); setItems(all => [...all, { id, kind, x: 5, y: 5, w: kind === "barcode" ? 28 : kind === "qr" ? 12 : 24, h: kind === "barcode" ? 8 : kind === "qr" ? 12 : 5, font: 9, value: kind === "text" ? "Text" : kind === "sequence" ? "001" : "token", field: kind === "field" ? "name" : undefined, reset: kind === "sequence" ? "order" : undefined }]); setSelectedId(id); };
@@ -272,7 +313,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
   <div className="recordList" role="list" aria-label="Available label records">{shownRecords.map(record => <button className={`record ${selectedRows.includes(record.id) ? "selected" : ""}`} key={record.id} onClick={() => setSelectedRows(currentRows => currentRows.includes(record.id) ? currentRows.filter(id => id !== record.id) : [...currentRows, record.id])}><span className="check">{selectedRows.includes(record.id) ? "✓" : ""}</span><span><b>{record.name}{record.product ? ` — ${record.product}` : ""}</b><small>{[record.group, record.size && `Size ${record.size}`, record.qty && `Qty ${record.qty}`].filter(Boolean).join(" · ") || "Order package"}</small></span></button>)}</div>
   {advanced && <div className="elementTools"><p className="eyebrow">ADD LAYOUT ELEMENT</p>{(["text", "barcode", "qr", "sequence"] as Kind[]).map(kind => <button key={kind} onClick={() => add(kind)}>{({ text: "Fixed text", field: "Saved detail", barcode: "Barcode", qr: "QR code", sequence: "Sequence" } as Record<Kind, string>)[kind]}</button>)}</div>}
  </aside>
- <main className="labelCanvasPanel panel"><div className="canvasToolbar"><div><b>{preset.labelW} × {preset.labelH} mm label</b><span>Select text or code, then use the wheel to resize it</span></div><button className="canvasSizeButton" onClick={() => setShowSizes(value => !value)}>Label sizes</button></div><div className="labelStageV2" onPointerDown={() => setSelectedId("")}><div className="labelCanvas" style={{ width: `${preset.labelW * 8}px`, height: `${preset.labelH * 8}px` }}>{snap && <div className="labelGrid"/>}{activeGuides.x && <i className="guideX"/>}{activeGuides.y && <i className="guideY"/>}{previewItems.map(item => <div key={item.id} data-item-id={item.id} className={`canvasElement element-${item.kind} ${selectedId === item.id ? "selected" : ""}`} style={{ left: `${item.x / preset.labelW * 100}%`, top: `${item.y / preset.labelH * 100}%`, width: `${item.w / preset.labelW * 100}%`, height: `${item.h / preset.labelH * 100}%`, fontSize: `${item.font * 1.333}px`, fontWeight: item.bold ? 700 : 400 }} onPointerDown={e => down(e, item)} onPointerMove={move} onPointerUp={stop} onPointerCancel={stop}>{render(item, current, selectedRows.indexOf(current.id) + 1)}</div>)}</div></div></main>
+ <main className="labelCanvasPanel panel"><div className="canvasToolbar"><div><b>{preset.labelW} × {preset.labelH} mm label</b><span>Select text or code, then use the wheel to resize it</span></div><button className="canvasSizeButton" onClick={() => setShowSizes(value => !value)}>Label sizes</button></div><div className="labelStageV2" onPointerDown={() => setSelectedId("")}><div className="labelCanvas" style={{ width: `${preset.labelW * 8}px`, height: `${preset.labelH * 8}px` }}>{snap && <div className="labelGrid"/>}{activeGuides.x && <i className="guideX"/>}{activeGuides.y && <i className="guideY"/>}{previewItems.map(item => <div key={item.id} data-item-id={item.id} data-font-pt={["text", "field", "sequence"].includes(item.kind) ? item.font : undefined} data-size-readout={sizeReadout(item)} className={`canvasElement element-${item.kind} ${selectedId === item.id ? "selected" : ""}`} style={{ left: `${item.x / preset.labelW * 100}%`, top: `${item.y / preset.labelH * 100}%`, width: `${item.w / preset.labelW * 100}%`, height: `${item.h / preset.labelH * 100}%`, fontSize: `${item.font * 1.333}px`, fontWeight: item.bold ? 700 : 400 }} onPointerDown={e => down(e, item)} onPointerMove={move} onPointerUp={stop} onPointerCancel={stop}>{render(item, current, selectedRows.indexOf(current.id) + 1)}</div>)}</div></div>{selected && <div className="labelPrecisionControls" aria-label="Selected element size controls"><button type="button" onClick={() => resizeElement(selected.id, -1)}>− Shrink</button><output>{sizeReadout(selected)}</output><button type="button" onClick={() => resizeElement(selected.id, 1)}>Stretch +</button><small>Fine step. Hold Shift while using the desktop wheel for the larger step.</small></div>}</main>
  <aside className="labelProperties panel"><div className="panelHead"><div><p className="eyebrow">PROPERTIES</p><h3>{selected ? selected.kind : "Select an element"}</h3></div>{selected && <button className="iconButton" aria-label="Remove selected element" onClick={() => { setItems(a => a.filter(i => i.id !== selected.id)); setSelectedId(""); }}>×</button>}</div>{selected ? <div className="propertyFields">{selected.kind === "text" && <label><span>Text</span><input value={selected.value} onChange={e => update(selected.id, { value: e.target.value })}/></label>}{selected.kind === "field" && <><p className="selectedDetailName">{fieldOptions.find(option => option.key === selected.field)?.label || selected.fieldLabel}</p>{selected.showLabel && <label className="inlineProperty"><input type="checkbox" checked={selected.labelBold ?? true} onChange={e => update(selected.id, { labelBold: e.target.checked })}/> Field name bold</label>}<label className="inlineProperty"><input type="checkbox" checked={selected.valueBold || false} onChange={e => update(selected.id, { valueBold: e.target.checked })}/> Value bold</label></>}{selected.kind === "sequence" && <label><span>Restart numbering</span><select value={selected.reset} onChange={e => update(selected.id, { reset: e.target.value as Item["reset"] })}><option value="order">Each order</option><option value="day">Each day</option><option value="print">Each print run</option><option value="never">Never</option></select></label>}{["text", "field", "sequence"].includes(selected.kind) && <><label><span>Font size</span><input type="number" min="4" max="40" step=".5" value={selected.font} onChange={e => update(selected.id, { font: Number(e.target.value) })}/></label>{selected.kind !== "field" && <label className="inlineProperty"><input type="checkbox" checked={selected.bold || false} onChange={e => update(selected.id, { bold: e.target.checked })}/> Bold</label>}</>}</div> : <p>Click an element to edit it.</p>}<div className="templateBox"><p className="eyebrow">SAVE TEMPLATE</p><input placeholder="Template name" value={templateName} onChange={e => setTemplateName(e.target.value)}/><input placeholder="Client type (optional)" value={clientType} onChange={e => setClientType(e.target.value)}/><select value={productScope} onChange={e => setProductScope(e.target.value)}><option value="">Any product</option>{products.map(p => <option key={p}>{p}</option>)}</select><button className="secondary" onClick={saveTemplate}>Save template</button>{templates.map(t => <button className="savedTemplate" key={t.id} onClick={() => { setItems(t.items); setPresetId(t.presetId); }}>{t.name}<small>{[t.clientType, t.product].filter(Boolean).join(" · ") || "Business-wide"}</small></button>)}</div></aside></div>
  <section className="printSheet" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${preset.columns},${preset.labelW}mm)` }}>{printRecords.map((r, index) => { const rowItems = advanced ? items : arrangeLabelItemsForRow(items, preset, r); return <div className="printedLabel" key={r.id}>{rowItems.map(item => <div className={`printedElement element-${item.kind}`} key={item.id} style={{ left: `${item.x}mm`, top: `${item.y}mm`, width: `${item.w}mm`, height: `${item.h}mm`, fontSize: `${item.font}pt`, fontWeight: item.bold ? 700 : 400 }}>{render(item, r, index + 1)}</div>)}</div>; })}</section></div>;
 }

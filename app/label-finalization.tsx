@@ -15,8 +15,8 @@ type OrderSummary = {
 type Preset = { id: string; name: string; labelW: number; labelH: number; rollW: number; columns: number; outer: number; gapX: number; gapY: number };
 
 const DEFAULT_PRESET: Preset = { id: "pixra-109", name: "109 mm roll · 2 × 50 × 25", labelW: 50, labelH: 25, rollW: 109, columns: 2, outer: 3, gapX: 3, gapY: 3 };
-const DESIGN_PX_PER_MM = 8;
 const CSS_PX_PER_PT = 96 / 72;
+const MM_PER_PT = 25.4 / 72;
 
 function activeBusiness() {
   const params = new URLSearchParams(window.location.search);
@@ -120,22 +120,17 @@ function syncPreviewTypography(canvas: HTMLElement, labelWidthMm: number) {
   const rect = canvas.getBoundingClientRect();
   if (!rect.width || !labelWidthMm) return;
   const actualPxPerMm = rect.width / labelWidthMm;
+  canvas.style.setProperty("--label-mm-px", String(actualPxPerMm) + "px");
   canvas.querySelectorAll<HTMLElement>(".canvasElement.element-text,.canvasElement.element-field,.canvasElement.element-sequence").forEach(element => {
-    const currentPx = Number.parseFloat(element.style.fontSize || "0");
-    const lastApplied = Number.parseFloat(element.dataset.finalAppliedFontPx || "0");
-    if (!element.dataset.logicalLabelFont || !lastApplied || Math.abs(currentPx - lastApplied) > .05) {
-      const logical = currentPx / CSS_PX_PER_PT;
-      if (Number.isFinite(logical) && logical > 0) element.dataset.logicalLabelFont = String(logical);
-    }
-    const logical = Number.parseFloat(element.dataset.logicalLabelFont || "0");
-    if (!logical) return;
-    const physicalFontMm = logical * CSS_PX_PER_PT / DESIGN_PX_PER_MM;
-    const responsivePx = physicalFontMm * actualPxPerMm;
-    element.style.fontSize = `${responsivePx}px`;
-    element.dataset.finalAppliedFontPx = String(responsivePx);
+    const directPt = Number.parseFloat(element.dataset.fontPt || "0");
+    const fallbackPx = Number.parseFloat(element.style.fontSize || "0");
+    const pointSize = directPt || (fallbackPx ? fallbackPx / CSS_PX_PER_PT : 0);
+    if (!pointSize) return;
+    const responsivePx = pointSize * MM_PER_PT * actualPxPerMm;
+    element.style.fontSize = String(responsivePx) + "px";
+    element.style.lineHeight = "1.05";
   });
 }
-
 function ensureCanvasRatio() {
   document.querySelectorAll<HTMLElement>(".labelDesignerPage .labelCanvasPanel").forEach(panel => {
     const canvas = panel.querySelector<HTMLElement>(".labelCanvas");
@@ -155,7 +150,7 @@ function normalizedPrintedLabel(source: HTMLElement) {
   clone.querySelectorAll<HTMLElement>(".printedElement.element-text,.printedElement.element-field,.printedElement.element-sequence").forEach(element => {
     const logicalFont = Number.parseFloat(element.style.fontSize || "0");
     if (!logicalFont) return;
-    const physicalFontMm = logicalFont * CSS_PX_PER_PT / DESIGN_PX_PER_MM;
+    const physicalFontMm = logicalFont * MM_PER_PT;
     element.style.fontSize = `${physicalFontMm}mm`;
     element.style.lineHeight = "1.05";
   });
