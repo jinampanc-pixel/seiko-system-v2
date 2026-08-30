@@ -2,7 +2,6 @@
 
 import { ErpOrderSync } from "./erp-order-sync";
 import { OwnerDropdownUx } from "./owner-dropdown-ux";
-import { OrderSetupFinalize } from "./order-setup-finalize";
 import { OrderCompactUx } from "./order-compact-ux";
 import { WorkspaceTopPager } from "./workspace-top-pager";
 import { WorkspaceShortcuts } from "./workspace-shortcuts";
@@ -21,10 +20,9 @@ export function AppEnhancements() {
   return <>
     <ErpOrderSync />
     <OwnerDropdownUx />
-    {/* The former OrderSetupPolish layer disabled and cleared the group fallback
-        quantity. Stage 2 keeps the owning React controls native and lets the
-        finalizer add only presentation/accessibility improvements. */}
-    <OrderSetupFinalize />
+    {/* Stage 2 deliberately removes the two older order-setup DOM policy layers.
+        Both treated group quantities as exhaustive mappings and could clear or
+        relabel the default quantity. The order domain + finalizer now own this. */}
     <OrderCompactUx />
     <WorkspaceTopPager />
     <WorkspaceShortcuts />
