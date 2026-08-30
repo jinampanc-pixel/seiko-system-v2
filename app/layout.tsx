@@ -25,6 +25,7 @@ import "./control-consistency.css";
 import "./access-control.css";
 import "./modern-auth.css";
 import "./jinam-shell.css";
+import "./channel-connections.css";
 import "./veyn-app.css";
 import "./veyn-functional.css";
 import "./phase1-visual.css";
