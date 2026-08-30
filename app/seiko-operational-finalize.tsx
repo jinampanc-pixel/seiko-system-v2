@@ -3,6 +3,11 @@
 import { useEffect } from "react";
 import { startDomEnhancement } from "./lib/dom-enhancement";
 
+const LABEL_CONTEXT_KEY = "jinam:seiko:label-context-order";
+const OPEN_ORDER_KEY = "jinam:seiko:open-order";
+const SETUP_RETURN_KEY = "jinam:seiko:setup-return-order";
+const NAV_INTENT_KEY = "jinam:navigation-intent";
+
 function labelName(label: HTMLLabelElement) {
   return label.querySelector<HTMLElement>(":scope > span")?.textContent?.trim().replace(/\s*\*$/, "") || "";
 }
@@ -31,7 +36,8 @@ function confirmAction(title: string, message: string, action: string, danger = 
     document.querySelector(".seikoConfirmLayer")?.remove();
     const layer = document.createElement("div");
     layer.className = "seikoConfirmLayer";
-    layer.innerHTML = `<section class="seikoConfirmDialog" role="dialog" aria-modal="true" aria-labelledby="seiko-confirm-title"><h3 id="seiko-confirm-title"></h3><p></p><div><button type="button" class="secondary cancel">Cancel</button><button type="button" class="primary confirm"></button></div></section>`;
+    layer.tabIndex = -1;
+    layer.innerHTML = '<section class="seikoConfirmDialog" role="dialog" aria-modal="true" aria-labelledby="seiko-confirm-title"><h3 id="seiko-confirm-title"></h3><p></p><div><button type="button" class="secondary cancel">Cancel</button><button type="button" class="primary confirm"></button></div></section>';
     layer.querySelector("h3")!.textContent = title;
     layer.querySelector("p")!.textContent = message;
     const confirm = layer.querySelector<HTMLButtonElement>(".confirm")!;
@@ -45,6 +51,13 @@ function confirmAction(title: string, message: string, action: string, danger = 
     document.body.appendChild(layer);
     window.setTimeout(() => confirm.focus(), 0);
   });
+}
+
+function waitFor(selector: string, action: (node: HTMLElement) => void, attempts = 50) {
+  const node = document.querySelector<HTMLElement>(selector);
+  if (node) { action(node); return; }
+  if (attempts <= 0) return;
+  window.setTimeout(() => waitFor(selector, action, attempts - 1), 30);
 }
 
 function enhanceOrderSetup() {
@@ -64,7 +77,7 @@ function enhanceOrderSetup() {
 
   setup.querySelectorAll<HTMLInputElement>(".personDetails .policyRow > input:first-child").forEach(input => {
     input.placeholder = "Person / record field, e.g. Employee name, Class, Patient ID";
-    input.setAttribute("aria-description", "Use the terminology that belongs to this order. School, company, hospital and other institution fields are all supported.");
+    input.setAttribute("aria-description", "Use terminology appropriate to this order. School, company, hospital and other institution fields are supported.");
   });
 
   setup.querySelectorAll<HTMLElement>(".productPolicy").forEach(card => {
@@ -74,11 +87,11 @@ function enhanceOrderSetup() {
     const defaultLabel = defaultInput?.closest("label")?.querySelector<HTMLElement>(":scope > span");
     const help = card.querySelector<HTMLElement>(":scope > .ruleHelp");
     if (quantitySelect?.value === "by_group" && defaultInput) {
-      if (defaultInput.disabled) defaultInput.disabled = false;
+      defaultInput.disabled = false;
       defaultInput.classList.remove("modeBlockedInput");
       defaultInput.min = "0";
       if (defaultLabel) defaultLabel.textContent = "Default qty";
-      if (help) help.textContent = "Set the normal quantity once. Add only the groups that differ; one exception can contain several values such as 1, 2, 3. Quantity 0 means that group does not receive this product.";
+      if (help) help.textContent = "Set the normal quantity once. Add only groups that differ. One exception may contain several values such as 1, 2, 3; quantity 0 means that group does not receive this product.";
       const rules = card.querySelector<HTMLElement>(".quantityGroupRules");
       const summary = rules?.querySelector<HTMLElement>(":scope > summary");
       if (summary) summary.textContent = "Quantity exceptions by group";
@@ -87,123 +100,24 @@ function enhanceOrderSetup() {
     }
     if (quantitySelect?.value === "per_person" && defaultLabel) defaultLabel.textContent = "Entered in workspace";
   });
-}
 
-const selectedRows = new Set<string>();
-let lastRowIndex = -1;
-
-function workspaceRows(table: HTMLTableElement) {
-  return Array.from(table.querySelectorAll<HTMLTableRowElement>("tbody > tr"));
-}
-
-function syncBulkBar(page: HTMLElement) {
-  const bar = page.querySelector<HTMLElement>(".workspaceBulkBar");
-  if (!bar) return;
-  const count = bar.querySelector<HTMLElement>(".workspaceBulkCount");
-  const remove = bar.querySelector<HTMLButtonElement>(".workspaceBulkDelete");
-  const clear = bar.querySelector<HTMLButtonElement>(".workspaceBulkClear");
-  if (count) count.textContent = `${selectedRows.size} ${selectedRows.size === 1 ? "row" : "rows"} selected`;
-  if (remove) remove.disabled = selectedRows.size === 0;
-  if (clear) clear.disabled = selectedRows.size === 0;
-}
-
-function enhanceWorkspaceRows(page: HTMLElement) {
-  const table = page.querySelector<HTMLTableElement>(".workspaceTable");
-  if (!table) return;
-  const header = table.querySelector<HTMLTableRowElement>("thead > tr:first-child");
-  if (header && !header.querySelector(".workspaceRowSelectHead")) {
-    const th = document.createElement("th");
-    th.className = "workspaceRowSelectHead";
-    th.rowSpan = 2;
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.setAttribute("aria-label", "Select all visible rows");
-    checkbox.addEventListener("change", () => {
-      const rows = workspaceRows(table);
-      rows.forEach(row => {
-        const id = row.querySelector<HTMLElement>(".personId")?.textContent?.trim();
-        if (!id) return;
-        if (checkbox.checked) selectedRows.add(id); else selectedRows.delete(id);
-      });
-      enhanceWorkspaceRows(page);
-      syncBulkBar(page);
+  const cancel = Array.from(setup.querySelectorAll<HTMLButtonElement>(".orderPageHead button")).find(button => /Cancel|Back to/.test(button.textContent || ""));
+  if (cancel && !cancel.dataset.contextBackReady) {
+    cancel.dataset.contextBackReady = "true";
+    const returnOrder = sessionStorage.getItem(SETUP_RETURN_KEY);
+    cancel.textContent = returnOrder ? "← Back to order" : "← Back to orders";
+    cancel.addEventListener("click", () => {
+      const orderNo = sessionStorage.getItem(SETUP_RETURN_KEY);
+      if (!orderNo) return;
+      sessionStorage.setItem(OPEN_ORDER_KEY, orderNo);
+      sessionStorage.removeItem(SETUP_RETURN_KEY);
     });
-    th.appendChild(checkbox);
-    header.insertBefore(th, header.firstChild);
   }
-
-  const rows = workspaceRows(table);
-  rows.forEach((row, index) => {
-    const id = row.querySelector<HTMLElement>(".personId")?.textContent?.trim();
-    if (!id) return;
-    let cell = row.querySelector<HTMLTableCellElement>(".workspaceRowSelectCell");
-    if (!cell) {
-      cell = document.createElement("td");
-      cell.className = "workspaceRowSelectCell";
-      row.insertBefore(cell, row.firstChild);
-    }
-    let checkbox = cell.querySelector<HTMLInputElement>("input");
-    if (!checkbox) {
-      checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.setAttribute("aria-label", `Select ${id}`);
-      cell.appendChild(checkbox);
-      checkbox.addEventListener("click", event => {
-        const currentRows = workspaceRows(table);
-        const currentIndex = currentRows.indexOf(row);
-        const currentId = row.querySelector<HTMLElement>(".personId")?.textContent?.trim();
-        if (!currentId) return;
-        if ((event as MouseEvent).shiftKey && lastRowIndex >= 0) {
-          const start = Math.min(lastRowIndex, currentIndex), end = Math.max(lastRowIndex, currentIndex);
-          for (let position = start; position <= end; position++) {
-            const rangeId = currentRows[position]?.querySelector<HTMLElement>(".personId")?.textContent?.trim();
-            if (rangeId) selectedRows.add(rangeId);
-          }
-        } else if (checkbox!.checked) selectedRows.add(currentId); else selectedRows.delete(currentId);
-        lastRowIndex = currentIndex;
-        enhanceWorkspaceRows(page);
-        syncBulkBar(page);
-      });
-    }
-    checkbox.checked = selectedRows.has(id);
-    row.classList.toggle("workspaceRowSelected", selectedRows.has(id));
-  });
-
-  const headCheck = header?.querySelector<HTMLInputElement>(".workspaceRowSelectHead input");
-  if (headCheck) {
-    const visibleIds = rows.map(row => row.querySelector<HTMLElement>(".personId")?.textContent?.trim()).filter(Boolean) as string[];
-    headCheck.checked = visibleIds.length > 0 && visibleIds.every(id => selectedRows.has(id));
-    headCheck.indeterminate = visibleIds.some(id => selectedRows.has(id)) && !headCheck.checked;
+  const continueButton = Array.from(setup.querySelectorAll<HTMLButtonElement>(".orderPageHead button")).find(button => /Create workspace|Update workspace/.test(button.textContent || ""));
+  if (continueButton && !continueButton.dataset.setupReturnReady) {
+    continueButton.dataset.setupReturnReady = "true";
+    continueButton.addEventListener("click", () => sessionStorage.removeItem(SETUP_RETURN_KEY));
   }
-}
-
-async function deleteSelectedVisibleRows(page: HTMLElement) {
-  const table = page.querySelector<HTMLTableElement>(".workspaceTable");
-  if (!table || !selectedRows.size) return;
-  const targets = workspaceRows(table).map((row, index) => ({ row, index, id: row.querySelector<HTMLElement>(".personId")?.textContent?.trim() || "" })).filter(item => item.id && selectedRows.has(item.id)).sort((a, b) => b.index - a.index);
-  if (!targets.length) return;
-  const approved = await confirmAction("Delete selected rows?", `${targets.length} selected ${targets.length === 1 ? "row" : "rows"} will be removed from this order. This can be undone immediately with Ctrl+Z.`, `Delete ${targets.length}`, true);
-  if (!approved) return;
-  for (const target of targets) {
-    const row = workspaceRows(table).find(item => item.querySelector<HTMLElement>(".personId")?.textContent?.trim() === target.id);
-    row?.querySelector<HTMLButtonElement>('.rowActions button[aria-label^="Delete"]')?.click();
-    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-  }
-  selectedRows.clear();
-  toast(`${targets.length} ${targets.length === 1 ? "row" : "rows"} deleted. Use Ctrl+Z to restore if needed.`);
-  syncBulkBar(page);
-}
-
-function ensureWorkspaceBulkBar(page: HTMLElement) {
-  const anchor = page.querySelector<HTMLElement>(".workspaceTableHelp");
-  if (!anchor || page.querySelector(".workspaceBulkBar")) return;
-  const bar = document.createElement("div");
-  bar.className = "workspaceBulkBar";
-  bar.innerHTML = '<b class="workspaceBulkCount">0 rows selected</b><span>Select checkboxes or Shift-click a range.</span><div><button type="button" class="secondary workspaceBulkClear">Clear selection</button><button type="button" class="workspaceBulkDelete">Delete selected</button></div>';
-  bar.querySelector<HTMLButtonElement>(".workspaceBulkClear")!.addEventListener("click", () => { selectedRows.clear(); enhanceWorkspaceRows(page); syncBulkBar(page); });
-  bar.querySelector<HTMLButtonElement>(".workspaceBulkDelete")!.addEventListener("click", () => void deleteSelectedVisibleRows(page));
-  anchor.insertAdjacentElement("beforebegin", bar);
-  syncBulkBar(page);
 }
 
 function enhanceReadiness(page: HTMLElement) {
@@ -242,42 +156,201 @@ function enhanceWorkspaceAdd(page: HTMLElement) {
     if (button.dataset.bulkConfirmBypass === "true") { delete button.dataset.bulkConfirmBypass; return; }
     const count = Math.max(1, Number(input.value) || 1);
     if (count === 1) { window.setTimeout(() => toast("1 row added."), 30); return; }
-    event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-    const approved = await confirmAction(`Add ${count} rows?`, `This will create ${count} new person / record rows in the order workspace.`, `Add ${count} rows`);
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    const approved = await confirmAction(`Add ${count} rows?`, `This will create ${count} new person / record rows in this order.`, `Add ${count} rows`);
     if (!approved) return;
     button.dataset.bulkConfirmBypass = "true";
     button.click();
     window.setTimeout(() => {
-      const undo = () => {
-        const cell = page.querySelector<HTMLElement>("[data-grid-row][data-grid-column]");
-        cell?.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true }));
-      };
+      const undo = () => document.querySelector<HTMLElement>("[data-grid-row][data-grid-column]")?.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true }));
       toast(`${count} rows added.`, undo);
     }, 60);
   }, true);
 }
 
+const selectedRows = new Set<string>();
+let lastSelectedIndex = -1;
+
+function workspaceRows(page: HTMLElement) {
+  return Array.from(page.querySelectorAll<HTMLTableRowElement>(".workspaceTable tbody > tr"));
+}
+
+function rowId(row: HTMLTableRowElement) {
+  return row.querySelector<HTMLElement>(".personId")?.textContent?.trim() || "";
+}
+
+function nativeDelete(row: HTMLTableRowElement) {
+  return Array.from(row.querySelectorAll<HTMLButtonElement>(".rowActions > button")).find(button => /^Delete /.test(button.getAttribute("aria-label") || ""));
+}
+
+function syncRowSelection(page: HTMLElement) {
+  const rows = workspaceRows(page);
+  rows.forEach(row => {
+    const id = rowId(row);
+    const checkbox = row.querySelector<HTMLInputElement>(".recordSelectToggle");
+    if (checkbox) checkbox.checked = selectedRows.has(id);
+    row.classList.toggle("workspaceRowSelected", selectedRows.has(id));
+  });
+  const selectAll = page.querySelector<HTMLInputElement>(".workspaceSelectAll");
+  const visibleIds = rows.map(rowId).filter(Boolean);
+  if (selectAll) {
+    selectAll.checked = visibleIds.length > 0 && visibleIds.every(id => selectedRows.has(id));
+    selectAll.indeterminate = visibleIds.some(id => selectedRows.has(id)) && !selectAll.checked;
+  }
+  const bar = page.querySelector<HTMLElement>(".workspaceBulkBar");
+  if (bar) {
+    bar.hidden = selectedRows.size === 0;
+    const count = bar.querySelector<HTMLElement>(".workspaceBulkCount");
+    if (count) count.textContent = `${selectedRows.size} ${selectedRows.size === 1 ? "row" : "rows"} selected`;
+  }
+}
+
+async function deleteSelected(page: HTMLElement) {
+  const targets = workspaceRows(page).filter(row => selectedRows.has(rowId(row)));
+  if (!targets.length) return;
+  const approved = await confirmAction("Delete selected rows?", `${targets.length} selected ${targets.length === 1 ? "row" : "rows"} will be removed. Ctrl+Z can restore the last change.`, `Delete ${targets.length}`, true);
+  if (!approved) return;
+  for (const row of [...targets].reverse()) {
+    nativeDelete(row)?.click();
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  }
+  selectedRows.clear();
+  toast(`${targets.length} ${targets.length === 1 ? "row" : "rows"} deleted.`);
+  syncRowSelection(page);
+}
+
+function enhanceWorkspaceRows(page: HTMLElement) {
+  const table = page.querySelector<HTMLTableElement>(".workspaceTable");
+  if (!table) return;
+  const actionsHead = table.querySelector<HTMLTableCellElement>("thead > tr:first-child > th:last-child");
+  if (actionsHead && !actionsHead.querySelector(".workspaceSelectAll")) {
+    actionsHead.classList.add("workspaceActionsHead");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "workspaceSelectAll";
+    checkbox.setAttribute("aria-label", "Select all visible rows");
+    checkbox.addEventListener("change", () => {
+      workspaceRows(page).forEach(row => {
+        const id = rowId(row);
+        if (!id) return;
+        if (checkbox.checked) selectedRows.add(id); else selectedRows.delete(id);
+      });
+      syncRowSelection(page);
+    });
+    actionsHead.appendChild(checkbox);
+  }
+
+  workspaceRows(page).forEach((row, index) => {
+    const id = rowId(row);
+    const actions = row.querySelector<HTMLElement>(".rowActions");
+    if (!id || !actions) return;
+    if (!actions.querySelector(".recordSelectToggle")) {
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "recordSelectToggle";
+      checkbox.setAttribute("aria-label", `Select ${id}`);
+      checkbox.addEventListener("click", event => {
+        const rows = workspaceRows(page);
+        const currentIndex = rows.indexOf(row);
+        if ((event as MouseEvent).shiftKey && lastSelectedIndex >= 0) {
+          const start = Math.min(lastSelectedIndex, currentIndex);
+          const end = Math.max(lastSelectedIndex, currentIndex);
+          for (let position = start; position <= end; position++) {
+            const rangeId = rowId(rows[position]);
+            if (rangeId) selectedRows.add(rangeId);
+          }
+        } else if (checkbox.checked) selectedRows.add(id); else selectedRows.delete(id);
+        lastSelectedIndex = currentIndex;
+        syncRowSelection(page);
+      });
+      actions.prepend(checkbox);
+    }
+
+    if (!actions.querySelector(".recordActionMenu")) {
+      const directButtons = Array.from(actions.querySelectorAll<HTMLButtonElement>(":scope > button"));
+      directButtons.forEach(button => button.classList.add("recordNativeAction"));
+      const menu = document.createElement("details");
+      menu.className = "recordActionMenu";
+      const summary = document.createElement("summary");
+      summary.textContent = "•••";
+      summary.setAttribute("aria-label", `More actions for ${id}`);
+      const panel = document.createElement("div");
+      directButtons.forEach(button => {
+        const proxy = document.createElement("button");
+        proxy.type = "button";
+        const aria = button.getAttribute("aria-label") || "Action";
+        proxy.textContent = aria.replace(new RegExp(`\\s+${id.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}$`), "");
+        if (/^Delete /.test(aria)) proxy.className = "dangerText";
+        proxy.addEventListener("click", () => { button.click(); menu.removeAttribute("open"); });
+        panel.appendChild(proxy);
+      });
+      menu.append(summary, panel);
+      actions.appendChild(menu);
+    }
+  });
+
+  let bar = page.querySelector<HTMLElement>(".workspaceBulkBar");
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.className = "workspaceBulkBar";
+    bar.hidden = true;
+    bar.innerHTML = '<b class="workspaceBulkCount"></b><span>Shift-click selects a range.</span><div><button type="button" class="secondary workspaceBulkClear">Clear</button><button type="button" class="workspaceBulkDelete">Delete selected</button></div>';
+    bar.querySelector<HTMLButtonElement>(".workspaceBulkClear")!.addEventListener("click", () => { selectedRows.clear(); syncRowSelection(page); });
+    bar.querySelector<HTMLButtonElement>(".workspaceBulkDelete")!.addEventListener("click", () => void deleteSelected(page));
+    page.querySelector(".workspaceTableWrap")?.insertAdjacentElement("beforebegin", bar);
+  }
+  syncRowSelection(page);
+}
+
+function workspaceOrderNo(page: HTMLElement) {
+  return page.querySelector<HTMLElement>(".workspaceHead h2")?.textContent?.split("·")[0]?.trim() || "";
+}
+
+function workspaceAction(page: HTMLElement, text: string) {
+  const toggle = page.querySelector<HTMLButtonElement>(".orderActionMenuButton");
+  if (toggle?.getAttribute("aria-expanded") !== "true") toggle?.click();
+  window.setTimeout(() => {
+    const button = Array.from(page.querySelectorAll<HTMLButtonElement>(".orderActionMenu button")).find(item => item.textContent?.trim() === text);
+    button?.click();
+  }, 0);
+}
+
 function enhanceWorkspaceMenu(page: HTMLElement) {
+  const orderNo = workspaceOrderNo(page);
+  const headActions = page.querySelector<HTMLElement>(".workspaceHeadActions");
+  if (headActions && !headActions.querySelector(".workspaceContextBack")) {
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "secondary workspaceContextBack";
+    back.textContent = "← Back to Orders";
+    back.addEventListener("click", () => workspaceAction(page, "Save & close"));
+    headActions.prepend(back);
+  }
+
   const menu = page.querySelector<HTMLElement>(".orderActionMenu");
   if (!menu || menu.dataset.unifiedLabelsReady) return;
   const buttons = Array.from(menu.querySelectorAll<HTMLButtonElement>(":scope > button"));
   const print = buttons.find(button => button.textContent?.trim() === "Print labels");
-  const createButtons = Array.from(menu.querySelectorAll<HTMLButtonElement>(".orderMenuIndented"));
-  const createLabel = menu.querySelector<HTMLElement>(".orderMenuSectionLabel");
   if (!print) return;
   menu.dataset.unifiedLabelsReady = "true";
   print.hidden = true;
-  createLabel?.setAttribute("hidden", "true");
-  createButtons.forEach(button => { button.hidden = true; });
+  menu.querySelector<HTMLElement>(".orderMenuSectionLabel")?.setAttribute("hidden", "true");
+  menu.querySelectorAll<HTMLButtonElement>(".orderMenuIndented").forEach(button => { button.hidden = true; });
   const labels = document.createElement("button");
   labels.type = "button";
   labels.className = "orderMenuPrimaryLabels";
   labels.textContent = "Labels";
-  labels.title = "Open saved label sets, create new labels and print from one place";
-  labels.addEventListener("click", () => print.click());
+  labels.addEventListener("click", () => {
+    if (orderNo) sessionStorage.setItem(LABEL_CONTEXT_KEY, orderNo);
+    print.click();
+  });
   const divider = menu.querySelector(".orderMenuDivider");
   divider?.insertAdjacentElement("afterend", labels);
 
+  const edit = buttons.find(button => button.textContent?.trim() === "Edit setup");
+  edit?.addEventListener("click", () => { if (orderNo) sessionStorage.setItem(SETUP_RETURN_KEY, orderNo); });
   buttons.filter(button => ["Save", "Save & close"].includes(button.textContent?.trim() || "")).forEach(button => {
     if (button.dataset.saveNoticeReady) return;
     button.dataset.saveNoticeReady = "true";
@@ -285,59 +358,140 @@ function enhanceWorkspaceMenu(page: HTMLElement) {
   });
 }
 
-function enhanceWorkspace() {
-  const page = document.querySelector<HTMLElement>(".workspacePage");
-  if (!page) return;
-  enhanceReadiness(page);
-  ensureWorkspaceBulkBar(page);
-  enhanceWorkspaceRows(page);
-  enhanceWorkspaceAdd(page);
-  enhanceWorkspaceMenu(page);
+function triggerRowAction(row: HTMLElement, action: "open" | "setup" | "labels") {
+  const orderNo = row.querySelector("b")?.textContent?.trim() || "";
+  const open = row.querySelector<HTMLButtonElement>(".openOrderButton");
+  if (!open) return;
+  if (action === "open") { open.click(); return; }
+  if (action === "setup") sessionStorage.setItem(SETUP_RETURN_KEY, orderNo);
+  if (action === "labels") sessionStorage.setItem(LABEL_CONTEXT_KEY, orderNo);
+  open.click();
+  waitFor(".workspacePage", node => {
+    const page = node as HTMLElement;
+    enhanceWorkspaceMenu(page);
+    workspaceAction(page, action === "setup" ? "Edit setup" : "Labels");
+  });
+}
+
+function enhanceOrderCenter() {
+  const center = document.querySelector<HTMLElement>(".ordersPage");
+  if (!center) return;
+  center.querySelectorAll<HTMLElement>(".orderRow").forEach(row => {
+    const menu = row.querySelector<HTMLDetailsElement>(".orderMenu");
+    if (!menu || menu.querySelector(".stage1OrderActions")) return;
+    const group = document.createElement("div");
+    group.className = "stage1OrderActions";
+    const add = (text: string, action: "open" | "setup" | "labels") => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = text;
+      button.addEventListener("click", () => { menu.removeAttribute("open"); triggerRowAction(row, action); });
+      group.appendChild(button);
+    };
+    add("Open order", "open");
+    add("Edit setup", "setup");
+    add("Labels", "labels");
+    menu.querySelector("summary")?.insertAdjacentElement("afterend", group);
+  });
+
+  const requested = sessionStorage.getItem(OPEN_ORDER_KEY);
+  if (!requested) return;
+  const row = Array.from(center.querySelectorAll<HTMLElement>(".orderRow")).find(item => item.querySelector("b")?.textContent?.trim() === requested);
+  if (!row) return;
+  sessionStorage.removeItem(OPEN_ORDER_KEY);
+  row.querySelector<HTMLButtonElement>(".openOrderButton")?.click();
+}
+
+function returnToOrder(orderNo: string) {
+  sessionStorage.setItem(OPEN_ORDER_KEY, orderNo);
+  sessionStorage.removeItem(LABEL_CONTEXT_KEY);
+  sessionStorage.setItem(NAV_INTENT_KEY, "orders");
+  window.location.assign(`${window.location.pathname}?business=seiko`);
 }
 
 function enhanceLabelLauncher() {
   const page = document.querySelector<HTMLElement>(".labelLauncher");
   if (!page) return;
-  const eyebrow = page.querySelector<HTMLElement>(".labelLauncherHead .eyebrow");
-  const heading = page.querySelector<HTMLElement>(".labelLauncherHead h2");
-  if (eyebrow) eyebrow.textContent = "LABELS";
-  if (heading) heading.textContent = "Label library & printing";
-  const libraryHeading = page.querySelector<HTMLElement>(".labelBatchModuleHead h3");
-  if (libraryHeading) libraryHeading.textContent = "Saved label sets";
-  const createHeading = page.querySelector<HTMLElement>(".labelOrderPickerHead h3");
-  const createNote = page.querySelector<HTMLElement>(".labelOrderPickerHead small");
-  if (createHeading) createHeading.textContent = "Create new labels";
-  if (createNote) createNote.textContent = "Choose an order and use, then configure what gets one label, filters, layout and numbering.";
+  const head = page.querySelector<HTMLElement>(".labelLauncherHead");
   const picker = page.querySelector<HTMLElement>(".labelOrderPicker");
-  if (picker) picker.hidden = false;
-  page.querySelectorAll<HTMLButtonElement>(".orderLabelActions button").forEach(button => { if (/Create label batch/i.test(button.textContent || "")) button.textContent = "Create labels"; });
-  page.querySelectorAll<HTMLElement>(".emptyLibrary").forEach(node => { node.textContent = node.textContent?.replace(/batches/gi, "label sets") || ""; });
-  const filter = page.querySelector<HTMLSelectElement>('select[aria-label="Filter label batches"]');
-  if (filter) Array.from(filter.options).forEach(option => { if (option.value === "all") option.textContent = "All label sets"; });
-  const search = page.querySelector<HTMLInputElement>('input[aria-label="Find a saved label batch"]');
-  if (search) search.placeholder = "Find label set, order or client";
+  if (!head || !picker) return;
+  const contextOrder = sessionStorage.getItem(LABEL_CONTEXT_KEY) || "";
+  page.classList.toggle("labelLauncherFocused", Boolean(contextOrder));
+
+  let actions = head.querySelector<HTMLElement>(".labelLauncherHeadActions");
+  if (!actions) {
+    actions = document.createElement("div");
+    actions.className = "labelLauncherHeadActions";
+    Array.from(head.querySelectorAll<HTMLButtonElement>(":scope > button")).forEach(button => actions!.appendChild(button));
+    head.appendChild(actions);
+  }
+  if (!actions.querySelector(".labelCreateToggle")) {
+    const create = document.createElement("button");
+    create.type = "button";
+    create.className = "primary labelCreateToggle";
+    create.textContent = "+ Create labels";
+    create.setAttribute("aria-expanded", contextOrder ? "true" : "false");
+    create.addEventListener("click", () => {
+      const open = !page.classList.contains("labelCreateOpen");
+      page.classList.toggle("labelCreateOpen", open);
+      create.setAttribute("aria-expanded", String(open));
+      if (open) picker.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+    actions.prepend(create);
+  }
+  if (contextOrder) {
+    page.classList.add("labelCreateOpen");
+    actions.querySelector<HTMLButtonElement>(".labelCreateToggle")?.setAttribute("aria-expanded", "true");
+    if (!actions.querySelector(".labelReturnToOrder")) {
+      const back = document.createElement("button");
+      back.type = "button";
+      back.className = "secondary labelReturnToOrder";
+      back.textContent = "← Back to order";
+      back.addEventListener("click", () => returnToOrder(contextOrder));
+      actions.prepend(back);
+    }
+    page.querySelectorAll<HTMLElement>(".labelOrderResults > article").forEach(article => {
+      const orderNo = article.querySelector("b")?.textContent?.split("·")[0]?.trim() || "";
+      article.hidden = orderNo !== contextOrder;
+    });
+    const title = picker.querySelector<HTMLElement>(".labelOrderPickerHead h3");
+    if (title) title.textContent = `Create labels for ${contextOrder}`;
+  }
 }
 
 function enhanceLabelDesigner() {
   const page = document.querySelector<HTMLElement>(".labelDesignerV2");
   if (!page) return;
-  page.querySelectorAll<HTMLButtonElement>("button").forEach(button => {
-    if (button.textContent?.trim() === "Save label set") button.classList.add("labelSetSave");
-  });
+  page.classList.add("labelWorkspaceRepaired");
+  page.querySelector<HTMLButtonElement>(".labelSetSave")?.classList.add("primary");
 }
 
 function enhance() {
   enhanceOrderSetup();
-  enhanceWorkspace();
+  enhanceOrderCenter();
+  const workspace = document.querySelector<HTMLElement>(".workspacePage");
+  if (workspace) {
+    enhanceReadiness(workspace);
+    enhanceWorkspaceAdd(workspace);
+    enhanceWorkspaceRows(workspace);
+    enhanceWorkspaceMenu(workspace);
+  }
   enhanceLabelLauncher();
   enhanceLabelDesigner();
 }
 
 export function SeikoOperationalFinalize() {
   useEffect(() => {
-    const controller = startDomEnhancement(enhance, { observer: { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled", "hidden", "class"] } });
+    const controller = startDomEnhancement(enhance, {
+      shouldSchedule: mutations => mutations.some(mutation => mutation.addedNodes.length || mutation.removedNodes.length || mutation.type === "attributes"),
+    });
     document.addEventListener("change", controller.schedule, true);
-    return () => { document.removeEventListener("change", controller.schedule, true); controller.stop(); };
+    return () => {
+      document.removeEventListener("change", controller.schedule, true);
+      controller.stop();
+      selectedRows.clear();
+      lastSelectedIndex = -1;
+    };
   }, []);
   return null;
 }
