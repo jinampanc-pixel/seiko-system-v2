@@ -84,6 +84,7 @@ jobs:
           NODE
 
       - name: Seed preview owner with test-only password
+        id: preview_owner
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -170,6 +171,7 @@ jobs:
           }
 
           fs.writeFileSync('/tmp/preview-owner-seed.sql', sql.join('\n'));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `owner_email=${ownerEmail}\n`);
           console.log(`Prepared preview Owner access for ${ownerEmail} across ${safeMemberships.length} membership(s).`);
           NODE
 
@@ -200,6 +202,29 @@ jobs:
           if [ "$HAS_ENCRYPTION_KEY" != "yes" ]; then
             openssl rand -hex 32 | npx wrangler secret put JINAM_CONNECTOR_ENCRYPTION_KEY --name "$PREVIEW_WORKER_NAME"
           fi
+
+      - name: Verify preview owner login
+        env:
+          OWNER_EMAIL: ${{ steps.preview_owner.outputs.owner_email }}
+          JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          URL="https://${PREVIEW_WORKER_NAME}.jinampanc.workers.dev/api/erp/auth/login"
+          OWNER_EMAIL="$OWNER_EMAIL" JINAM_PREVIEW_ADMIN_PASSWORD="$JINAM_PREVIEW_ADMIN_PASSWORD" node <<'NODE'
+          const fs = require('node:fs');
+          fs.writeFileSync('/tmp/preview-login.json', JSON.stringify({
+            identifier: process.env.OWNER_EMAIL,
+            password: process.env.JINAM_PREVIEW_ADMIN_PASSWORD,
+          }));
+          NODE
+          STATUS="$(curl -sS -c /tmp/preview-login.cookies -o /tmp/preview-login-response.json -w '%{http_code}' -H 'content-type: application/json' --data-binary @/tmp/preview-login.json "$URL")"
+          if [ "$STATUS" != "200" ]; then
+            echo "Preview owner login returned HTTP $STATUS"
+            cat /tmp/preview-login-response.json
+            exit 1
+          fi
+          node -e 'const fs=require("fs"); const body=JSON.parse(fs.readFileSync("/tmp/preview-login-response.json","utf8")); if(!body.ok) throw new Error("Preview owner login response was not ok"); console.log("Preview owner login verified.")'
+          rm -f /tmp/preview-login.json /tmp/preview-login-response.json /tmp/preview-login.cookies
 
       - name: Smoke test isolated preview
         run: |
