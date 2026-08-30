@@ -7,6 +7,7 @@ import { WorkspaceShortcuts } from "./workspace-shortcuts";
 import { LabelProductionReady } from "./label-production-ready";
 import { LabelFinalization } from "./label-finalization";
 import { LabelV2Accessibility } from "./label-v2-accessibility";
+import { SeikoCloseConfirm } from "./seiko-close-confirm";
 import { SeikoOperationalFinalize } from "./seiko-operational-finalize";
 import { GlobalNavigation } from "./global-navigation";
 import { SeikoPhase1 } from "./seiko-phase1";
@@ -29,6 +30,7 @@ export function AppEnhancements() {
     <LabelProductionReady />
     <LabelFinalization />
     <LabelV2Accessibility />
+    <SeikoCloseConfirm />
     <GlobalNavigation />
     <SeikoPhase1 />
     <SeikoLibraryAutofill />
