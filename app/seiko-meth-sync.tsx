@@ -24,6 +24,23 @@ function money(value: number) { return new Intl.NumberFormat("en-IN", { style: "
 
 type QuantityDraft = { handoffId: string; accepted: string; completed: string; chargeable: string };
 
+function statusBlockReason(handoff: ProductionHandoff, status: SeikoProductionStatus) {
+  if (status === "completed" && handoff.quantityCompleted <= 0) {
+    return "Save a completed / QC-passed quantity before marking this handoff Completed.";
+  }
+  if (status === "transferred") {
+    if (handoff.seikoStatus !== "completed") return "Mark this handoff Completed before transferring it to MeTh.";
+    if (handoff.quantityCompleted <= 0) return "Completed / QC-passed quantity must be greater than zero before transfer.";
+  }
+  return "";
+}
+
+function statusOptionDisabled(handoff: ProductionHandoff, status: SeikoProductionStatus) {
+  if (status === "completed") return handoff.quantityCompleted <= 0;
+  if (status === "transferred") return handoff.seikoStatus !== "completed" || handoff.quantityCompleted <= 0;
+  return false;
+}
+
 export function SeikoMethSync() {
   const [open, setOpen] = useState(false);
   const [handoffs, setHandoffs] = useState<ProductionHandoff[]>([]);
@@ -69,6 +86,11 @@ export function SeikoMethSync() {
 
   const changeStatus = (handoff: ProductionHandoff, status: SeikoProductionStatus) => {
     setNotice("");
+    const blocked = statusBlockReason(handoff, status);
+    if (blocked) {
+      setNotice(blocked);
+      return;
+    }
     saveHandoff({ ...handoff, seikoStatus: status, methStatus: translateSeikoStatus(status), updatedAt: new Date().toISOString() });
   };
 
@@ -157,6 +179,7 @@ export function SeikoMethSync() {
                   <strong>{item.id} · {item.productName}</strong>
                   <span>{item.methOrderNumber} · {item.methSku} → {item.seikoProductionSku}</span>
                   <span>Requested {item.quantityRequested} · accepted {item.quantityAccepted} · completed {item.quantityCompleted} · chargeable {item.quantityChargeable}</span>
+                  <span>Agreed manufacturing rate {money(item.agreedUnitRate)} / unit · GST {item.agreedTaxRate}%</span>
                 </div>
 
                 <div className="seikoMethControls">
@@ -171,8 +194,8 @@ export function SeikoMethSync() {
                     <option value="stitching">Stitching</option>
                     <option value="finishing">Finishing</option>
                     <option value="qc">QC</option>
-                    <option value="completed">Completed</option>
-                    <option value="transferred">Transferred to MeTh</option>
+                    <option value="completed" disabled={statusOptionDisabled(item, "completed")}>Completed</option>
+                    <option value="transferred" disabled={statusOptionDisabled(item, "transferred")}>Transferred to MeTh</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
                   <div className="seikoMethActions">
@@ -183,11 +206,11 @@ export function SeikoMethSync() {
 
                 {editing && quantityDraft && <div className="seikoMethQuantityEditor">
                   <div className="seikoMethQuantityGrid">
-                    <label>Accepted quantity<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.accepted} onChange={event => setQuantityDraft({ ...quantityDraft, accepted: event.target.value })}/></label>
-                    <label>Completed / QC-passed<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.completed} onChange={event => setQuantityDraft({ ...quantityDraft, completed: event.target.value })}/></label>
-                    <label>Chargeable to MeTh<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.chargeable} onChange={event => setQuantityDraft({ ...quantityDraft, chargeable: event.target.value })}/></label>
+                    <label>Accepted quantity (units)<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.accepted} onChange={event => setQuantityDraft({ ...quantityDraft, accepted: event.target.value })}/></label>
+                    <label>Completed / QC-passed quantity (units)<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.completed} onChange={event => setQuantityDraft({ ...quantityDraft, completed: event.target.value })}/></label>
+                    <label>Chargeable quantity (units)<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.chargeable} onChange={event => setQuantityDraft({ ...quantityDraft, chargeable: event.target.value })}/></label>
                   </div>
-                  <p className="seikoMethQuantityHint">Chargeable quantity is capped by completed quantity, and completed quantity is capped by accepted quantity.</p>
+                  <p className="seikoMethQuantityHint">Enter quantities only — not rupee amounts. Agreed rate is {money(item.agreedUnitRate)} per unit. Chargeable quantity is capped by completed quantity, and completed quantity is capped by accepted quantity.</p>
                   <div className="seikoMethActions">
                     <button className="primary" type="button" onClick={() => saveQuantities(item)}>Save quantities</button>
                     <button className="secondary" type="button" onClick={() => setQuantityDraft(null)}>Cancel</button>
