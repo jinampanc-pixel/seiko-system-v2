@@ -32,11 +32,11 @@ function finalizeOrderSetup() {
     if (!quantitySelect) return;
 
     if (quantitySelect.value === "by_group") {
-      setText(help, "Set a quantity for every required group below. Rows without a matching group are blocked from production.");
-      setText(quantityLabel, "Not used");
+      setText(help, "Set the normal quantity once, then add only the groups that differ. One exception may contain several values such as 1, 2, 3; quantity 0 means that group does not receive this product.");
+      setText(quantityLabel, "Default qty");
     } else if (quantitySelect.value === "per_person") {
-      setText(help, "Enter the quantity separately in each person’s row.");
-      setText(quantityLabel, "Not used");
+      setText(help, "Enter the quantity separately in each person / record row.");
+      setText(quantityLabel, "Entered in workspace");
     } else if (quantitySelect.value === "order_total") {
       setText(quantityLabel, "Order total");
     } else {
