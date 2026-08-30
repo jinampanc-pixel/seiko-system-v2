@@ -13,8 +13,11 @@ export async function POST(request: Request) {
   const password = body.password || "";
   if (!identifier || !password) return error("CREDENTIALS_REQUIRED", "Enter your email or phone number and password.", 400);
 
-  const limit = await rateLimitStatus(db, request, identifier);
-  if (limit.limited) return error("TOO_MANY_ATTEMPTS", "Too many unsuccessful sign-in attempts. Try again in about 15 minutes.", 429);
+  const isIsolatedShopifyTest = String((env as unknown as { JINAM_ENVIRONMENT?: string }).JINAM_ENVIRONMENT || "") === "shopify-test";
+  if (!isIsolatedShopifyTest) {
+    const limit = await rateLimitStatus(db, request, identifier);
+    if (limit.limited) return error("TOO_MANY_ATTEMPTS", "Too many unsuccessful sign-in attempts. Try again in about 15 minutes.", 429);
+  }
 
   const user = await findUserByIdentifier(db, identifier);
   const valid = await verifyPassword(password, user?.passwordHash || null);
