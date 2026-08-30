@@ -228,16 +228,18 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy
 
-      - name: Configure Shopify worker secrets
+      - name: Configure preview worker secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
           SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
+          JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
         run: |
           set -euo pipefail
           printf '%s' "$SHOPIFY_CLIENT_ID" | npx wrangler secret put SHOPIFY_CLIENT_ID --name "$PREVIEW_WORKER_NAME"
           printf '%s' "$SHOPIFY_CLIENT_SECRET" | npx wrangler secret put SHOPIFY_CLIENT_SECRET --name "$PREVIEW_WORKER_NAME"
+          printf '%s' "$JINAM_PREVIEW_ADMIN_PASSWORD" | npx wrangler secret put JINAM_PREVIEW_ADMIN_PASSWORD --name "$PREVIEW_WORKER_NAME"
           SECRET_LIST="$(npx wrangler secret list --name "$PREVIEW_WORKER_NAME" --format json)"
           HAS_ENCRYPTION_KEY="$(SECRET_LIST="$SECRET_LIST" node -e 'const rows=JSON.parse(process.env.SECRET_LIST||"[]"); process.stdout.write(rows.some(x=>x.name==="JINAM_CONNECTOR_ENCRYPTION_KEY")?"yes":"no")')"
           if [ "$HAS_ENCRYPTION_KEY" != "yes" ]; then
