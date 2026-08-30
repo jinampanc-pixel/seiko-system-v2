@@ -39,9 +39,12 @@ jobs:
         env:
           SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
           SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
+          JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
         run: |
           test -n "$SHOPIFY_CLIENT_ID" || (echo "SHOPIFY_CLIENT_ID is missing" && exit 1)
           test -n "$SHOPIFY_CLIENT_SECRET" || (echo "SHOPIFY_CLIENT_SECRET is missing" && exit 1)
+          test -n "$JINAM_PREVIEW_ADMIN_PASSWORD" || (echo "JINAM_PREVIEW_ADMIN_PASSWORD is missing" && exit 1)
+          test "${#JINAM_PREVIEW_ADMIN_PASSWORD}" -ge 12 || (echo "JINAM_PREVIEW_ADMIN_PASSWORD must be at least 12 characters" && exit 1)
 
       - name: Resolve isolated preview D1 database
         id: d1
@@ -80,10 +83,11 @@ jobs:
           fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
           NODE
 
-      - name: Seed preview owner login only
+      - name: Seed preview owner with test-only password
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
         run: |
           set -euo pipefail
           LIST_JSON="$(npx wrangler d1 list --json)"
@@ -126,43 +130,52 @@ jobs:
           SQL
           npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --file /tmp/preview-auth-schema.sql >/dev/null
 
-          USERS_SQL="SELECT DISTINCT u.id,u.email,u.phone_e164,u.display_name,u.password_hash,u.must_change_password,u.active,u.password_updated_at,u.last_login_at,u.created_at,u.created_by_email,u.updated_at,u.updated_by_email FROM erp_users u JOIN erp_memberships m ON lower(m.email)=lower(u.email) WHERE m.role='owner' AND m.active=1 AND u.active=1 AND u.password_hash IS NOT NULL"
-          MEMBERSHIPS_SQL="SELECT m.id,m.business_id,m.user_id,m.email,m.display_name,m.role,m.modules_json,m.active,m.created_at,m.created_by_email,m.updated_at,m.updated_by_email FROM erp_memberships m WHERE lower(m.email) IN (SELECT lower(email) FROM erp_memberships WHERE role='owner' AND active=1)"
-          USERS_SQL="$USERS_SQL" node -e 'require("fs").writeFileSync("/tmp/users-query.json",JSON.stringify({sql:process.env.USERS_SQL}))'
+          MEMBERSHIPS_SQL="SELECT m.id,m.business_id,m.user_id,m.email,m.display_name,m.role,m.modules_json,m.active,m.created_at,m.created_by_email,m.updated_at,m.updated_by_email FROM erp_memberships m WHERE m.active=1 AND lower(m.email) IN (SELECT lower(email) FROM erp_memberships WHERE role='owner' AND active=1) ORDER BY lower(m.email),m.business_id"
           MEMBERSHIPS_SQL="$MEMBERSHIPS_SQL" node -e 'require("fs").writeFileSync("/tmp/memberships-query.json",JSON.stringify({sql:process.env.MEMBERSHIPS_SQL}))'
 
-          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' \
-            --data-binary @/tmp/users-query.json \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query" > /tmp/owner-users.json
           curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' \
             --data-binary @/tmp/memberships-query.json \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PROD_DB_ID/query" > /tmp/owner-memberships.json
 
           node <<'NODE'
           const fs = require('node:fs');
-          const readRows = path => {
-            const payload = JSON.parse(fs.readFileSync(path, 'utf8'));
-            if (!payload.success) throw new Error(`Cloudflare D1 owner bootstrap query failed for ${path}`);
-            const blocks = Array.isArray(payload.result) ? payload.result : [payload.result];
-            return blocks.flatMap(block => Array.isArray(block?.results) ? block.results : []);
-          };
-          const users = readRows('/tmp/owner-users.json');
-          const memberships = readRows('/tmp/owner-memberships.json');
-          if (!users.length) throw new Error('No active owner with an ERP password was found in production.');
-          const ownerEmails = new Set(users.map(row => String(row.email || '').toLowerCase()));
-          const safeMemberships = memberships.filter(row => ownerEmails.has(String(row.email || '').toLowerCase()));
+          const crypto = require('node:crypto');
+          const payload = JSON.parse(fs.readFileSync('/tmp/owner-memberships.json', 'utf8'));
+          if (!payload.success) throw new Error('Cloudflare D1 owner bootstrap query failed.');
+          const blocks = Array.isArray(payload.result) ? payload.result : [payload.result];
+          const memberships = blocks.flatMap(block => Array.isArray(block?.results) ? block.results : []);
+          const ownerRows = memberships.filter(row => row.role === 'owner' && row.active);
+          if (!ownerRows.length) throw new Error('No active Owner membership was found in production.');
+
+          const ownerEmail = String(ownerRows[0].email || '').trim().toLowerCase();
+          if (!ownerEmail) throw new Error('Production Owner membership has no email.');
+          const safeMemberships = memberships.filter(row => String(row.email || '').trim().toLowerCase() === ownerEmail);
+          const password = process.env.JINAM_PREVIEW_ADMIN_PASSWORD || '';
+          if (password.length < 12) throw new Error('Preview admin password must be at least 12 characters.');
+
+          const salt = crypto.randomBytes(16);
+          const derived = crypto.pbkdf2Sync(password, salt, 600000, 32, 'sha256');
+          const b64url = value => Buffer.from(value).toString('base64url');
+          const passwordHash = `PBKDF2-SHA256$600000$${b64url(salt)}$${b64url(derived)}`;
+          const userId = ownerRows[0].user_id || `preview-owner-${crypto.createHash('sha256').update(ownerEmail).digest('hex').slice(0, 24)}`;
+          const displayName = ownerRows[0].display_name || ownerEmail;
+          const now = new Date().toISOString();
           const lit = value => value === null || value === undefined ? 'NULL' : typeof value === 'number' ? String(value) : `'${String(value).replace(/'/g, "''")}'`;
-          const userCols = ['id','email','phone_e164','display_name','password_hash','must_change_password','active','password_updated_at','last_login_at','created_at','created_by_email','updated_at','updated_by_email'];
-          const membershipCols = ['id','business_id','user_id','email','display_name','role','modules_json','active','created_at','created_by_email','updated_at','updated_by_email'];
           const sql = ['BEGIN TRANSACTION;'];
-          for (const row of users) sql.push(`INSERT OR REPLACE INTO erp_users (${userCols.join(',')}) VALUES (${userCols.map(col => lit(row[col])).join(',')});`);
-          for (const row of safeMemberships) sql.push(`INSERT OR REPLACE INTO erp_memberships (${membershipCols.join(',')}) VALUES (${membershipCols.map(col => lit(row[col])).join(',')});`);
+
+          sql.push(`INSERT INTO erp_users (id,email,phone_e164,display_name,password_hash,must_change_password,active,password_updated_at,last_login_at,created_at,created_by_email,updated_at,updated_by_email) VALUES (${lit(userId)},${lit(ownerEmail)},NULL,${lit(displayName)},${lit(passwordHash)},0,1,${lit(now)},NULL,${lit(now)},'preview-bootstrap',${lit(now)},'preview-bootstrap') ON CONFLICT(email) DO UPDATE SET id=excluded.id,display_name=excluded.display_name,password_hash=excluded.password_hash,must_change_password=0,active=1,password_updated_at=excluded.password_updated_at,updated_at=excluded.updated_at,updated_by_email=excluded.updated_by_email;`);
+
+          for (const row of safeMemberships) {
+            sql.push(`INSERT INTO erp_memberships (id,business_id,user_id,email,display_name,role,modules_json,active,created_at,created_by_email,updated_at,updated_by_email) VALUES (${lit(row.id)},${lit(row.business_id)},${lit(userId)},${lit(ownerEmail)},${lit(row.display_name || displayName)},${lit(row.role)},${lit(row.modules_json)},1,${lit(row.created_at || now)},${lit(row.created_by_email || 'preview-bootstrap')},${lit(now)},'preview-bootstrap') ON CONFLICT(business_id,email) DO UPDATE SET user_id=excluded.user_id,display_name=excluded.display_name,role=excluded.role,modules_json=excluded.modules_json,active=1,updated_at=excluded.updated_at,updated_by_email=excluded.updated_by_email;`);
+          }
+
           sql.push('COMMIT;');
           fs.writeFileSync('/tmp/preview-owner-seed.sql', sql.join('\n'));
-          console.log(`Prepared ${users.length} owner login(s) and ${safeMemberships.length} owner membership(s) for preview.`);
+          console.log(`Prepared preview Owner access for ${ownerEmail} across ${safeMemberships.length} membership(s).`);
           NODE
+
           npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --file /tmp/preview-owner-seed.sql >/dev/null
-          rm -f /tmp/owner-users.json /tmp/owner-memberships.json /tmp/preview-owner-seed.sql /tmp/users-query.json /tmp/memberships-query.json
+          rm -f /tmp/owner-memberships.json /tmp/preview-owner-seed.sql /tmp/memberships-query.json /tmp/preview-auth-schema.sql
 
       - name: Test and build
         run: npm test
