@@ -2,7 +2,6 @@
 
 import { ErpOrderSync } from "./erp-order-sync";
 import { OwnerDropdownUx } from "./owner-dropdown-ux";
-import { OrderSetupPolish } from "./order-setup-polish";
 import { OrderSetupFinalize } from "./order-setup-finalize";
 import { OrderCompactUx } from "./order-compact-ux";
 import { WorkspaceTopPager } from "./workspace-top-pager";
@@ -21,7 +20,9 @@ export function AppEnhancements() {
   return <>
     <ErpOrderSync />
     <OwnerDropdownUx />
-    <OrderSetupPolish />
+    {/* The former OrderSetupPolish layer disabled and cleared the group fallback
+        quantity. Stage 2 keeps the owning React controls native and lets the
+        finalizer add only presentation/accessibility improvements. */}
     <OrderSetupFinalize />
     <OrderCompactUx />
     <WorkspaceTopPager />
