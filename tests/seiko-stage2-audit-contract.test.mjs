@@ -16,6 +16,7 @@ const pager = read("app/workspace-top-pager.tsx");
 const rowActions = read("app/workspace-row-actions.tsx");
 const erpSync = read("app/erp-order-sync.tsx");
 const erpNotice = read("app/erp-sync-notice.tsx");
+const finalUx = read("app/seiko-workspace-label-final.css");
 
 test("Person IDs remain stable after row deletion and new IDs never reuse a deleted sequence", () => {
   assert.doesNotMatch(orders, /renumberRecords/);
@@ -38,11 +39,25 @@ test("workspace row operations are deliberate and pagination has one state sourc
   assert.match(rowActions, /Shift-click selects a range/);
   assert.match(rowActions, /Delete selected/);
   assert.match(rowActions, /Add \$\{count\} rows\?/);
+  assert.match(rowActions, /workspaceSelectHead/);
+  assert.match(rowActions, /workspaceSelectCell/);
   assert.match(orders, /Undo last change/);
   assert.match(orders, /Redo last change/);
   assert.match(pager, /realPager/);
   assert.match(pager, /setRealPageSize/);
   assert.match(pager, /dispatchEvent\(new Event\("change", \{ bubbles: true \}\)\)/);
+});
+
+test("workspace menu keeps routine actions visible and More contains only secondary order actions", () => {
+  assert.match(orders, /workspaceStatusControl/);
+  assert.match(orders, /workspaceLabelsSplit/);
+  assert.match(orders, /workspaceQuickSave/);
+  assert.match(orders, /aria-label="More order actions"/);
+  assert.match(orders, /New production label/);
+  assert.match(orders, /New packing label/);
+  assert.match(orders, /New inventory label/);
+  assert.doesNotMatch(orders, /className="orderMenuStatus"/);
+  assert.doesNotMatch(orders, /className="orderMenuSectionLabel"/);
 });
 
 test("editing an existing order returns to and updates its workspace", () => {
@@ -57,6 +72,31 @@ test("label creation stays simple by default while advanced placement remains pr
   assert.match(labelDesigner, /const step = event\.shiftKey \? 1 : \.25/);
   assert.match(labelDesigner, /ArrowLeft/);
   assert.match(labelDesigner, /ArrowRight/);
+});
+
+test("label wheel resizing uses deterministic fine physical steps and touch has explicit size buttons", () => {
+  assert.match(labelDesigner, /const resizeElement = useCallback/);
+  assert.match(labelDesigner, /const step = coarse \? 1 : \.25/);
+  assert.match(labelDesigner, /const threshold = 72/);
+  assert.match(labelDesigner, /event\.deltaMode === 1/);
+  assert.match(labelDesigner, /data-font-pt=/);
+  assert.match(labelDesigner, /data-size-readout=/);
+  assert.match(labelDesigner, /labelPrecisionControls/);
+  assert.match(labelDesigner, /− Shrink/);
+  assert.match(labelDesigner, /Stretch \+/);
+  assert.match(finalUx, /@media\(pointer:coarse\)/);
+  assert.match(finalUx, /\.labelPrecisionControls\{display:grid\}/);
+});
+
+test("label preview uses real point-to-mm typography and a physical 1 mm grid", () => {
+  assert.match(labelFinalization, /const MM_PER_PT = 25\.4 \/ 72/);
+  assert.match(labelFinalization, /actualPxPerMm = rect\.width \/ labelWidthMm/);
+  assert.match(labelFinalization, /--label-mm-px/);
+  assert.match(labelFinalization, /pointSize \* MM_PER_PT \* actualPxPerMm/);
+  assert.match(labelFinalization, /logicalFont \* MM_PER_PT/);
+  assert.doesNotMatch(labelFinalization, /DESIGN_PX_PER_MM/);
+  assert.match(finalUx, /var\(--label-mm-px,8px\)/);
+  assert.match(finalUx, /max-width:960px/);
 });
 
 test("label printing supports explicit copies and avoids blocking popup alerts", () => {
@@ -76,12 +116,13 @@ test("shared-order version conflicts preserve recovery data and stop automatic r
   assert.match(erpNotice, /recovery copy/);
 });
 
-test("the restored Stage 1 label stack remains mounted and Stage 2 safe styling is additive", () => {
+test("the restored Stage 1 label stack remains mounted and final styling stays additive", () => {
   for (const component of ["LabelFlowPolish", "LabelDesignerPolish", "LabelProductionReady", "LabelFinalization", "LabelDesignerInteractions"]) {
     assert.match(enhancements, new RegExp(`<${component} \\/>`));
   }
   assert.doesNotMatch(enhancements, /LabelV2Accessibility/);
   assert.match(layout, /seiko-stage2-safe\.css/);
+  assert.match(layout, /seiko-workspace-label-final\.css/);
   assert.doesNotMatch(layout, /seiko-operational-v2\.css/);
   assert.doesNotMatch(layout, /seiko-stage2-repair\.css/);
 });
