@@ -27,6 +27,7 @@ import "./modern-auth.css";
 import "./jinam-shell.css";
 import "./channel-connections.css";
 import "./meth-commerce-settings.css";
+import "./seiko-meth.css";
 import "./veyn-app.css";
 import "./veyn-functional.css";
 import "./phase1-visual.css";
