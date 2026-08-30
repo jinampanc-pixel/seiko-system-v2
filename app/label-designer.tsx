@@ -182,6 +182,24 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
     const displayedItems = useMemo(() => advanced ? items : arrangeLabelItems(items, preset), [advanced, items, preset]);
     const previewItems = useMemo(() => advanced ? items : arrangeLabelItemsForRow(items, preset, current), [advanced, items, preset, current]);
     const update = (id: string, change: Partial<Item>) => setItems(all => all.map(i => i.id === id ? { ...i, ...change } : i));
+    useEffect(() => {
+        const nudgeSelected = (event: globalThis.KeyboardEvent) => {
+            if (!advanced || !selectedId || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+            const target = event.target as HTMLElement | null;
+            if (target?.closest("input, textarea, select, button, [contenteditable='true']")) return;
+            event.preventDefault();
+            const step = event.shiftKey ? 1 : .25;
+            setItems(all => all.map(item => {
+                if (item.id !== selectedId) return item;
+                if (event.key === "ArrowLeft") return { ...item, x: clamp(item.x - step, 0, Math.max(0, preset.labelW - item.w)) };
+                if (event.key === "ArrowRight") return { ...item, x: clamp(item.x + step, 0, Math.max(0, preset.labelW - item.w)) };
+                if (event.key === "ArrowUp") return { ...item, y: clamp(item.y - step, 0, Math.max(0, preset.labelH - item.h)) };
+                return { ...item, y: clamp(item.y + step, 0, Math.max(0, preset.labelH - item.h)) };
+            }));
+        };
+        document.addEventListener("keydown", nudgeSelected);
+        return () => document.removeEventListener("keydown", nudgeSelected);
+    }, [advanced, selectedId, preset.labelW, preset.labelH]);
     useEffect(() => { const hint = document.querySelector(".canvasToolbar span"); if (hint)
         hint.textContent = "Select text or code, then use the wheel to resize it"; const resizeSelected = (event: globalThis.WheelEvent) => { const target = (event.target as Element)?.closest?.(".canvasElement.selected") as HTMLElement | null; if (!target)
         return; const id = target.dataset.itemId; if (!id)

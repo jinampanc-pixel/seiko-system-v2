@@ -49,8 +49,7 @@ function forceInteractiveCanvas(page: HTMLElement) {
     .find(button => /Advanced layout|Use simple setup/i.test(button.textContent || ""));
   if (!toggle) return;
   page.dataset.manualCanvasReady = "true";
-  if (/Advanced layout/i.test(toggle.textContent || "")) toggle.click();
-  toggle.hidden = true;
+  toggle.hidden = false;
 }
 
 function groupForLabel(label: string) {
@@ -256,7 +255,7 @@ function cleanCanvasChrome(page: HTMLElement) {
   const button = page.querySelector<HTMLButtonElement>(".canvasSizeButton");
   if (button && !button.classList.contains("labelFinalSizeManage")) button.hidden = true;
   const hint = page.querySelector<HTMLElement>(".canvasToolbar span");
-  if (hint) hint.textContent = "Drag an element to move it. Use the mouse wheel on a selected element to resize it.";
+  if (hint) hint.textContent = "Drag to move. Use the mouse wheel to resize. Arrow keys nudge; Shift + Arrow moves 1 mm.";
 }
 
 function tidyRecordLabels(page: HTMLElement) {

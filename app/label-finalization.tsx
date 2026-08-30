@@ -162,17 +162,66 @@ function normalizedPrintedLabel(source: HTMLElement) {
   return clone.outerHTML;
 }
 
+function showPrintNotice(message: string) {
+  document.querySelector(".labelPrintNotice")?.remove();
+  const note = document.createElement("div");
+  note.className = "labelPrintNotice";
+  note.setAttribute("role", "status");
+  note.textContent = message;
+  document.body.appendChild(note);
+  window.setTimeout(() => note.remove(), 5200);
+}
+
+function syncPrintCopies() {
+  document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(page => {
+    const topbar = page.querySelector<HTMLElement>(".labelTopbar");
+    const print = Array.from(topbar?.querySelectorAll<HTMLButtonElement>("button") || []).find(button => /^Print\b/i.test(button.textContent || ""));
+    if (!topbar || !print) return;
+    let control = topbar.querySelector<HTMLElement>(".labelPrintCopies");
+    if (!control) {
+      control = document.createElement("label");
+      control.className = "labelPrintCopies";
+      const title = document.createElement("span");
+      title.textContent = "Copies";
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = "1";
+      input.max = "50";
+      input.step = "1";
+      input.setAttribute("aria-label", "Copies of each selected label");
+      const key = `jinam:${activeBusiness()}:labels:print-copies`;
+      input.value = localStorage.getItem(key) || "1";
+      const note = document.createElement("small");
+      control.append(title, input, note);
+      print.insertAdjacentElement("beforebegin", control);
+      input.addEventListener("change", () => {
+        const value = Math.max(1, Math.min(50, Math.floor(Number(input.value) || 1)));
+        input.value = String(value);
+        localStorage.setItem(key, input.value);
+        syncPrintCopies();
+      });
+    }
+    const input = control.querySelector<HTMLInputElement>("input");
+    const note = control.querySelector<HTMLElement>("small");
+    const copies = Math.max(1, Math.min(50, Math.floor(Number(input?.value) || 1)));
+    const selectedText = page.querySelector<HTMLElement>(".labelSidebar .panelHead h3")?.textContent || "";
+    const selected = Number(selectedText.match(/(\d+)/)?.[1]) || 0;
+    if (note) note.textContent = selected ? `${selected} selected · ${selected * copies} prints` : `${copies} each`;
+  });
+}
+
 function labelOnlyPrint() {
   const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet");
   if (!sheet) return;
   const popup = window.open("", "_blank", "width=980,height=760");
-  if (!popup) { window.alert("Allow pop-ups for this site so the label print window can open."); return; }
+  if (!popup) { showPrintNotice("Allow pop-ups for this site so the label print window can open."); return; }
   popup.document.open();
   popup.document.write("<!doctype html><html><head><title>Preparing labels…</title></head><body>Preparing labels…</body></html>");
   popup.document.close();
 
   window.setTimeout(() => {
-    const labels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")];
+    const copies = Math.max(1, Math.min(50, Math.floor(Number(document.querySelector<HTMLInputElement>(".labelPrintCopies input")?.value) || 1)));
+    const labels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")].flatMap(label => Array.from({ length: copies }, () => label));
     const preset = currentPreset();
     const pitch = preset.labelH + Math.max(0, preset.gapY || 0);
     const rows: string[] = [];
@@ -211,6 +260,7 @@ export function LabelFinalization() {
       enhanceOrderSearch();
       markProductionWorkspaceFields();
       ensureCanvasRatio();
+      syncPrintCopies();
     };
     const schedule = () => {
       if (frame) return;

@@ -139,7 +139,7 @@ function lockIrrelevantDefaults() {
     const inputs = Array.from(card.querySelectorAll<HTMLInputElement>(".productPolicyTop input"));
     const quantityInput = inputs.at(-1);
     if (quantitySelect && quantityInput) {
-      const blocked = quantitySelect.value === "by_group" || quantitySelect.value === "per_person";
+      const blocked = quantitySelect.value === "per_person";
       quantityInput.disabled = blocked;
       quantityInput.classList.toggle("modeBlockedInput", blocked);
       if (blocked) quantityInput.value = "";
