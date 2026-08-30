@@ -13,6 +13,10 @@ concurrency:
   group: seiko-shopify-preview-deploy
   cancel-in-progress: true
 
+env:
+  PREVIEW_WORKER_NAME: seiko-system-v2-shopify-test
+  PREVIEW_DB_NAME: seiko-system-v2-shopify-test-db
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -30,11 +34,81 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify preview credentials exist
+        env:
+          SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
+          SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
+        run: |
+          test -n "$SHOPIFY_CLIENT_ID" || (echo "SHOPIFY_CLIENT_ID is missing" && exit 1)
+          test -n "$SHOPIFY_CLIENT_SECRET" || (echo "SHOPIFY_CLIENT_SECRET is missing" && exit 1)
+
+      - name: Resolve isolated preview D1 database
+        id: d1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          LIST_JSON="$(npx wrangler d1 list --json)"
+          DB_ID="$(D1_LIST="$LIST_JSON" DB_NAME="$PREVIEW_DB_NAME" node -e 'const rows=JSON.parse(process.env.D1_LIST||"[]"); const row=rows.find(x=>x.name===process.env.DB_NAME); process.stdout.write(row?.uuid||row?.id||"")')"
+          if [ -z "$DB_ID" ]; then
+            npx wrangler d1 create "$PREVIEW_DB_NAME" --location apac
+            LIST_JSON="$(npx wrangler d1 list --json)"
+            DB_ID="$(D1_LIST="$LIST_JSON" DB_NAME="$PREVIEW_DB_NAME" node -e 'const rows=JSON.parse(process.env.D1_LIST||"[]"); const row=rows.find(x=>x.name===process.env.DB_NAME); process.stdout.write(row?.uuid||row?.id||"")')"
+          fi
+          test -n "$DB_ID" || (echo "Could not resolve isolated preview D1 database ID" && exit 1)
+          echo "database_id=$DB_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Point build at isolated preview resources
+        env:
+          PREVIEW_DB_ID: ${{ steps.d1.outputs.database_id }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'wrangler.jsonc';
+          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+          config.name = process.env.PREVIEW_WORKER_NAME;
+          if (!Array.isArray(config.d1_databases) || !config.d1_databases[0]) throw new Error('D1 binding missing');
+          config.d1_databases[0].database_name = process.env.PREVIEW_DB_NAME;
+          config.d1_databases[0].database_id = process.env.PREVIEW_DB_ID;
+          config.vars = {
+            ...(config.vars || {}),
+            SHOPIFY_SCOPES: 'read_orders',
+            JINAM_ENVIRONMENT: 'shopify-test',
+          };
+          fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
+          NODE
+
       - name: Test and build
         run: npm test
 
       - name: Deploy isolated preview worker
-        run: npx wrangler deploy --name seiko-system-v2-shopify-test
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
+
+      - name: Configure Shopify worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
+          SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$SHOPIFY_CLIENT_ID" | npx wrangler secret put SHOPIFY_CLIENT_ID --name "$PREVIEW_WORKER_NAME"
+          printf '%s' "$SHOPIFY_CLIENT_SECRET" | npx wrangler secret put SHOPIFY_CLIENT_SECRET --name "$PREVIEW_WORKER_NAME"
+          SECRET_LIST="$(npx wrangler secret list --name "$PREVIEW_WORKER_NAME" --format json)"
+          HAS_ENCRYPTION_KEY="$(SECRET_LIST="$SECRET_LIST" node -e 'const rows=JSON.parse(process.env.SECRET_LIST||"[]"); process.stdout.write(rows.some(x=>x.name==="JINAM_CONNECTOR_ENCRYPTION_KEY")?"yes":"no")')"
+          if [ "$HAS_ENCRYPTION_KEY" != "yes" ]; then
+            openssl rand -hex 32 | npx wrangler secret put JINAM_CONNECTOR_ENCRYPTION_KEY --name "$PREVIEW_WORKER_NAME"
+          fi
+
+      - name: Smoke test isolated preview
+        run: |
+          set -euo pipefail
+          URL="https://${PREVIEW_WORKER_NAME}.jinampanc.workers.dev/"
+          STATUS="$(curl -sS -o /tmp/preview-response.html -w '%{http_code}' "$URL")"
+          echo "Preview returned HTTP $STATUS"
+          test "$STATUS" -ge 200
+          test "$STATUS" -lt 500
