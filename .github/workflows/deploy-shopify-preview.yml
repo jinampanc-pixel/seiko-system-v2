@@ -161,7 +161,7 @@ jobs:
           const displayName = ownerRows[0].display_name || ownerEmail;
           const now = new Date().toISOString();
           const lit = value => value === null || value === undefined ? 'NULL' : typeof value === 'number' ? String(value) : `'${String(value).replace(/'/g, "''")}'`;
-          const sql = ['BEGIN TRANSACTION;'];
+          const sql = [];
 
           sql.push(`INSERT INTO erp_users (id,email,phone_e164,display_name,password_hash,must_change_password,active,password_updated_at,last_login_at,created_at,created_by_email,updated_at,updated_by_email) VALUES (${lit(userId)},${lit(ownerEmail)},NULL,${lit(displayName)},${lit(passwordHash)},0,1,${lit(now)},NULL,${lit(now)},'preview-bootstrap',${lit(now)},'preview-bootstrap') ON CONFLICT(email) DO UPDATE SET id=excluded.id,display_name=excluded.display_name,password_hash=excluded.password_hash,must_change_password=0,active=1,password_updated_at=excluded.password_updated_at,updated_at=excluded.updated_at,updated_by_email=excluded.updated_by_email;`);
 
@@ -169,7 +169,6 @@ jobs:
             sql.push(`INSERT INTO erp_memberships (id,business_id,user_id,email,display_name,role,modules_json,active,created_at,created_by_email,updated_at,updated_by_email) VALUES (${lit(row.id)},${lit(row.business_id)},${lit(userId)},${lit(ownerEmail)},${lit(row.display_name || displayName)},${lit(row.role)},${lit(row.modules_json)},1,${lit(row.created_at || now)},${lit(row.created_by_email || 'preview-bootstrap')},${lit(now)},'preview-bootstrap') ON CONFLICT(business_id,email) DO UPDATE SET user_id=excluded.user_id,display_name=excluded.display_name,role=excluded.role,modules_json=excluded.modules_json,active=1,updated_at=excluded.updated_at,updated_by_email=excluded.updated_by_email;`);
           }
 
-          sql.push('COMMIT;');
           fs.writeFileSync('/tmp/preview-owner-seed.sql', sql.join('\n'));
           console.log(`Prepared preview Owner access for ${ownerEmail} across ${safeMemberships.length} membership(s).`);
           NODE
