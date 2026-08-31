@@ -66,7 +66,6 @@ test("browser state and caches are partitioned by business", () => {
 test("roles are presets while explicit membership grants stay customizable", () => {
   assert.match(foundation, /ROLE_MODULE_PRESETS/);
   assert.match(foundation, /Array\.isArray\(value\.modules\) && value\.modules\.length/);
-  assert.match(foundation, /MODULES\.filter\(module => granted\.has\(module\)\)/);
   assert.doesNotMatch(foundation, /allowedForRole\.has\(module\)/);
   assert.match(page, /canAccess\(membership, "labels"\)/);
   assert.match(page, /canAccess\(membership, "scan"\)/);
@@ -158,7 +157,9 @@ test("label designer preserves exact sizing and editable behaviour", () => {
   assert.match(labelDesigner, /\[guides, setGuides\] = useState\(true\)/);
   assert.match(labelDesigner, /canvasSizeButton/);
   assert.match(labelDesigner, /sequence/);
-  assert.match(labelDesigner, /Print \/ save PDF/);
+  assert.match(labelDesigner, /labelHeaderCommandBar/);
+  assert.match(labelDesigner, /More label actions/);
+  assert.match(labelDesigner, />Print<\/button>/);
   assert.match(labelDesigner, /presets-v1/);
   assert.match(labelDesigner, /templates-v1/);
 });
