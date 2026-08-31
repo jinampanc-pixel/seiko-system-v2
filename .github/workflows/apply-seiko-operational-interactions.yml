@@ -27,6 +27,8 @@ jobs:
           text = path.read_text()
           text = text.replace('appendMetaItem(meta, "Delivery", deliveryState(order));', 'appendMetaItem(meta, "Delivery", dueLabel(order));')
           text = text.replace("t=rep(t,'meta.appendChild(item);\\n}', 'meta.appendChild(item);\\n  return item;\\n}', 'append meta return')", "t=rep(t,'host.appendChild(item);\\n}', 'host.appendChild(item);\\n  return item;\\n}', 'append meta return')")
+          text = text.replace("r'function enhanceWorkspace\\(\\) \\{.*?\\n\\}\\n\\nfunction enhanceSettings'", "r'function enhanceWorkspace\\(page: HTMLElement\\) \\{.*?\\n\\}\\n\\nfunction enhanceSettings'")
+          text = text.replace("'''function enhanceWorkspace() {\n  document.querySelectorAll<HTMLElement>(\".workspacePage\").forEach(page => {\n    page.querySelector<HTMLElement>(\".workspaceStatusControl\")?.classList.add(\"workspaceHeaderSecondaryAction\");\n    page.querySelector<HTMLElement>(\".workspaceQuickSave\")?.classList.add(\"workspaceHeaderSecondaryAction\");\n    page.querySelector(\".workspaceMenuOperational\")?.remove();\n  });\n}\n\nfunction enhanceSettings'''", "'''function enhanceWorkspace(page: HTMLElement) {\n  page.querySelector<HTMLElement>(\".workspaceStatusControl\")?.classList.add(\"workspaceHeaderSecondaryAction\");\n  page.querySelector<HTMLElement>(\".workspaceQuickSave\")?.classList.add(\"workspaceHeaderSecondaryAction\");\n  page.querySelector(\".workspaceMenuOperational\")?.remove();\n}\n\nfunction enhanceSettings'''")
           path.write_text(text)
           PY
       - name: Apply operational interaction pass
