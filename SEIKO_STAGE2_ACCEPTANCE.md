@@ -5,17 +5,21 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 ## Home
 
 - Home has two functional areas only: a configurable operational dashboard and a configurable Quick access area for modules/features.
-- Dashboard metric cards are interactive and open their relevant module; they are not decorative statistics.
-- Dashboard visibility is user-configurable and persisted, including individual metric cards and the Active orders list.
+- Dashboard metric cards are interactive selectors for the single operational list below them; they do not duplicate module navigation. Active Orders shows active work, Completed Orders shows completed work, and Scan Sync Queue shows the real queued/syncing items.
+- Order workflow status changes on Home happen inline and never open the Order Workspace as a side effect.
+- Dashboard visibility is user-configurable and persisted. The dashboard registry is designed to accept real Sales, Payments, Production and other statistics as those modules gain trustworthy data; fake placeholder metrics are not shown.
 - Quick access module visibility is user-configurable and persisted independently of the dashboard.
-- The Active orders dashboard list must scale beyond 100 orders through search, client-type filtering, context-relevant product filtering and pagination/page-size controls.
-- Dashboard order rows are interactive and take the operator into Orders.
+- The operational order list scales beyond 100 orders through compact funnel filters, search, client-type filtering, context-relevant product filtering and pagination/page-size controls.
+- Dashboard order rows provide a distinct open-order target while status controls remain independent interactive controls.
 
 ## Order Center and Order Setup
 
-- Archive is an explicit order action. Archived orders are viewed through the `Archived orders` control and can be restored there.
-- Every Order Center record has a consistent three-dot action menu for its contextual secondary actions; the primary Open order action is not duplicated inside that menu.
-- Order Center search is complemented by compact filters for status, client type, context-relevant product and delivery timing, including overdue and next-7-days views. The weak records-present/absent filter is not part of the main filter set.
+- Archive is an order action. Archived-only viewing lives inside the compact Filters panel and the underlying React archived state remains the source of truth.
+- Every Order Center record has a consistent three-dot action menu for contextual secondary actions; opening an order is accomplished by clicking the row rather than duplicating an Open button inside or beside every record.
+- Order Center search is complemented by compact filters for status, client type, context-relevant product and delivery timing, including overdue and next-7-days views. Status filters use the same shared workflow vocabulary as Home and Workspace.
+- The shared order workflow statuses are: Draft, Active, Production, QC 1, Packing, QC 2, On Hold, Completed and Cancelled.
+- Order status belongs in the operational metadata/action area and must not appear as stray text beneath the client name.
+- The Products metadata cell reveals a hover/focus summary with each configured product, resolved total quantity, and colour/pattern specifications when those values are configured in the order.
 - Client type choices expand from saved SEIKO order data. Product choices expand from saved order products and narrow automatically to the selected client type; filters do not edit master data.
 - Billing and Payments remain first-class SEIKO modules and are not injected into each order row menu.
 - Delivery address and billing address share one row on desktop when space permits and stack responsively on smaller screens.
@@ -25,10 +29,12 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 
 ## Order Workspace
 
-- Spreadsheet entry supports paste, keyboard movement, selection, safe multi-row add, multi-row delete, undo/redo, stable Person IDs, search, column visibility, and one pagination state.
+- Spreadsheet entry supports paste, keyboard movement, cell selection, safe multi-row add, multi-row delete, undo/redo, stable Person IDs, search, column visibility, and one pagination state.
+- Add Rows and Rows per page are genuine editable numeric controls. Values are sanitized/clamped only when committed, and a top pager proxy must drive the same underlying React state as the native pager.
 - Row selection follows spreadsheet conventions instead of checkbox-list conventions: row-number headers select rows, Shift-click selects a range, Ctrl/Cmd-click adds or removes rows, and the top-left corner selects all visible rows.
+- Column headers use the same click/Shift/Ctrl-or-Cmd selection model. Selected rows and selected columns can be dragged to a new position; the reorder is persisted in order data rather than merely moving DOM elements.
 - Multi-row add and destructive operations require confirmation.
-- Save remains a visible primary action. Labels and other secondary operations belong in the three-dot workspace action menu rather than leaking into the header as duplicate buttons.
+- The source-owned three-dot workspace menu contains the shared Status control, Save now, Labels, Edit setup, Put on hold/Resume, Undo/Redo, Save & close, Archive order, Delete order and Close without saving. An enhancement layer must not create a competing second menu.
 - Save gives feedback. Save & close and Close without saving require explicit confirmation.
 - Global desktop shortcuts follow familiar spreadsheet/application conventions: Ctrl/Cmd+S saves, Ctrl/Cmd+Shift+S saves and closes, Ctrl/Cmd+P opens Labels, Ctrl/Cmd+F focuses row search, Ctrl/Cmd+Z/Y undo/redo, Ctrl/Cmd+C/V/X handle cell clipboard work, F2 edits a cell and Esc closes transient menus/editing.
 
@@ -36,7 +42,8 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 
 - Production, Packing and Inventory use one shared Label Workspace interaction model. Purpose changes only the relevant data/components offered; it never creates a separate editor or a purpose-specific patch layer.
 - Every saved label-set record and every label-source record in Label Center has a consistent three-dot contextual action menu.
-- `Save layout` and `Save label set` are clear actions. Saved layouts and saved label sets remain accessible from a compact overflow menu rather than occupying permanent large header buttons.
+- `Save label set` is a direct blue primary command in the Label Workspace header. Save layout, Saved layouts and Saved label sets remain available through the compact overflow menu.
+- Ctrl/Cmd+S in the Label Workspace opens an in-app choice between Save label set and Save layout; it must not invoke the browser Save Page dialog.
 - A Layout is a reusable physical label design: size, chosen components/information, typography, code configuration and placement. A Label set is this order/job's selected records for repeat printing.
 - Label representation is changeable in the designer: physical item, person/package, grouped package/group, product/stock group, or whole order. The create route supplies only the initial representation and never locks it.
 - Custom selection is explained and exposes explicit Information field, Free text, QR code, Barcode and Sequence components.
@@ -48,10 +55,12 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - Removing a selected information chip with its `×` changes the React editor state itself and removes that information from preview/print immediately. A DOM-only visual removal is never sufficient.
 - Information search is collapsed behind a compact magnifier control rather than permanently consuming a full row.
 - Preview sample selection is independent from print selection, so mixed orders can inspect the correct person/product label without changing labels queued for print.
-- The selected record remains the source of truth for preview values: a product/detail appears only when that record/package actually has it.
+- Person/package contents and hover details use the same shared `quantityForRecord()` logic as the order system. Products whose resolved quantity is zero are excluded. The UI never infers gender or product eligibility from a person's name.
+- Record hover/focus summaries contain only resolved positive package products and actual configured person fields; irrelevant internal order/group/client values are not shown as if they were label contents.
 - Automatic layout follows the selected-field order. Selected information can be moved up/down to control vertical order. Dragging or exact geometry edits switches to manual layout using the currently visible automatic positions as the starting coordinates.
+- Manual canvas movement supports free 0.25 mm positioning, Shift axis-lock, Alt bypass of snapping, and edge/centre alignment snapping against the canvas and other label elements. This allows values to share an exact baseline or left/centre/right alignment.
 - A selected canvas field can be replaced with another available information field, moved, resized, and edited with exact X/Y/width/height millimetre controls. Wheel resizing, keyboard nudging and mobile shrink/stretch controls use the same shared mechanics for all label purposes.
-- Record search covers all order data. Filter controls support product, package/group, package contents and every configured person/record field; sorting supports order sequence, person, product and group/package. The visible records list must be derived from those filters and sort choices, not merely display controls that do nothing.
+- Record search covers all order data. Filter controls are derived from actual representation and order data; visible records must be derived from those filters and sort choices, not merely display controls that do nothing.
 - Narrow record cards may stay compact, but hover/focus on desktop provides a subtle detailed summary popup without changing selection.
 - Trace fields support physical piece/pair position, package/set position, order position, person position, product position, and numbering within every configured person/record field. `Show of total` is configurable per trace field.
 - Preview uses the physical label aspect ratio, a 1 mm grid, point-to-mm typography, 0.25 mm keyboard nudging, deterministic wheel resizing and touch/mobile shrink/stretch controls.
