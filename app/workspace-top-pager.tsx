@@ -37,8 +37,15 @@ function buildTopPager(page: HTMLElement) {
   if (range) top.appendChild(range.cloneNode(true));
   const label = document.createElement("label"); label.append("Rows ");
   const input = document.createElement("input"); input.type = "text"; input.inputMode = "numeric"; input.className = "workspacePageSizeInput"; input.setAttribute("aria-label", "Rows per page"); input.value = native?.value || "50";
-  const commit = () => { if (!native) return; const value = String(Math.max(1, Math.min(5000, Math.floor(Number(input.value) || 1)))); input.value = value; setInputValue(native, value); native.dispatchEvent(new Event("blur", { bubbles: true })); };
-  input.addEventListener("change", commit); input.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventDefault(); commit(); input.blur(); } });
+  const commit = () => {
+    if (!native) return;
+    const value = String(Math.max(1, Math.min(5000, Math.floor(Number(input.value) || 1))));
+    input.value = value;
+    setInputValue(native, value);
+    native.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: input }));
+  };
+  input.addEventListener("change", commit);
+  input.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventDefault(); commit(); input.blur(); } });
   label.appendChild(input); top.appendChild(label);
   const proxy = (source: HTMLButtonElement | undefined, text: string) => { const button=document.createElement("button"); button.type="button"; button.className=source?.className||"secondary"; button.textContent=text; button.disabled=Boolean(source?.disabled); button.addEventListener("click",()=>clickReal(page,text)); top!.appendChild(button); };
   proxy(previous,"Previous"); if (pageStatus) top.appendChild(pageStatus.cloneNode(true)); proxy(next,"Next");
