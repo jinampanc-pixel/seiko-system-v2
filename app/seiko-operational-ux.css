@@ -1,0 +1,93 @@
+/* Operational refinement for Home, Order Center, Order Workspace and Settings. */
+
+/* Home: keep the dashboard useful instead of repeating Orders three times. */
+.seikoOperationalDashboard .homeMetricRedundant,
+.overview .moduleGrid .homeQuickAccessDuplicate{display:none!important}
+.seikoOperationalDashboard .seikoDashboardMetrics{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.seikoOperationalDashboard .seikoDashboardActivity{padding:14px!important}
+.seikoOperationalDashboard .seikoDashboardActivityHead{display:grid!important;grid-template-columns:minmax(220px,.8fr) minmax(480px,1.35fr) auto!important;align-items:end!important;gap:12px!important}
+.seikoOperationalDashboard .seikoDashboardActivityFilters{display:grid!important;grid-template-columns:1.1fr repeat(3,minmax(120px,.7fr))!important;gap:7px!important}
+.seikoOperationalDashboard .seikoDashboardActivityFilters input,
+.seikoOperationalDashboard .seikoDashboardActivityFilters select{height:36px!important;min-width:0!important;font-size:10px!important}
+.homeOrderCenterButton{min-height:36px!important;white-space:nowrap!important}
+.seikoDashboardOrderList{display:grid!important}
+.homeOrderOperationalRow{display:grid!important;grid-template-columns:150px minmax(170px,1fr) minmax(440px,2.1fr)!important;align-items:center!important;gap:10px!important;min-height:54px!important;padding:8px 10px!important;text-align:left!important}
+.homeOrderOperationalRow>strong{font-size:11px!important}
+.homeOrderOperationalRow>span:not(.homeOrderOperationalMeta){font-size:11px!important;font-weight:750!important}
+.homeOrderOperationalRow>small{display:none!important}
+.homeOrderOperationalMeta{display:grid!important;grid-template-columns:82px 82px minmax(130px,1fr) 90px!important;gap:6px!important;min-width:0!important}
+.homeOrderOperationalMeta>span{display:grid!important;gap:1px!important;padding:4px 7px!important;border:1px solid color-mix(in srgb,var(--line) 78%,transparent)!important;border-radius:7px!important;background:color-mix(in srgb,var(--paper) 92%,var(--pale))!important;min-width:0!important}
+.homeOrderOperationalMeta small{font-size:7px!important;font-weight:850!important;letter-spacing:.03em!important;text-transform:uppercase!important;color:var(--muted)!important}
+.homeOrderOperationalMeta b{overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:9px!important;color:var(--ink)!important}
+
+/* Order Center: the row itself is the open action. Status and secondary actions live in •••. */
+.ordersPage .orderRowClickable{cursor:pointer!important;transition:background .12s ease,border-color .12s ease!important}
+.ordersPage .orderRowClickable:hover{background:color-mix(in srgb,var(--brand) 4%,var(--paper))!important}
+.ordersPage .orderRowClickable:focus-visible{outline:2px solid color-mix(in srgb,var(--brand) 55%,transparent)!important;outline-offset:2px!important}
+.ordersPage .orderRowClickable>.openOrderButton[hidden],
+.ordersPage .orderRowClickable>.orderListStatus[hidden]{display:none!important}
+.orderCenterStatusBadge{display:inline-flex!important;align-items:center!important;width:max-content!important;margin-top:5px!important;padding:3px 7px!important;border-radius:999px!important;background:color-mix(in srgb,var(--brand) 8%,var(--paper))!important;color:var(--navy)!important;font-size:8px!important;font-weight:850!important}
+.orderMenuStatusControl{display:grid!important;gap:4px!important;margin:0 0 4px!important;padding:7px 8px 8px!important;border-bottom:1px solid var(--line)!important}
+.orderMenuStatusControl>span{font-size:8px!important;font-weight:850!important;text-transform:uppercase!important;color:var(--muted)!important}
+.orderMenuStatusControl select{width:100%!important;height:34px!important;border:1px solid var(--line)!important;border-radius:7px!important;background:var(--paper)!important;padding:0 26px 0 8px!important;color:var(--ink)!important;font-size:10px!important;font-weight:750!important}
+.orderMenuPrintLabels{color:var(--navy)!important}
+
+/* Order workspace: status/save are operational menu actions, not permanent header clutter. */
+.workspacePage .workspaceHeaderSecondaryAction{position:absolute!important;width:1px!important;height:1px!important;min-width:1px!important;min-height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;clip-path:inset(50%)!important;white-space:nowrap!important;opacity:0!important;pointer-events:none!important}
+.workspaceMenuOperational{display:grid!important;gap:5px!important;margin:-1px -1px 5px!important;padding:7px!important;border-bottom:1px solid var(--line)!important;background:color-mix(in srgb,var(--pale) 42%,var(--paper))!important}
+.workspaceMenuOperational label{display:grid!important;gap:3px!important}
+.workspaceMenuOperational label>span{font-size:8px!important;font-weight:900!important;letter-spacing:.035em!important;text-transform:uppercase!important;color:var(--muted)!important}
+.workspaceMenuOperational select{height:34px!important;border:1px solid var(--line)!important;border-radius:7px!important;background:var(--paper)!important;padding:0 26px 0 8px!important;color:var(--ink)!important;font-size:10px!important;font-weight:750!important}
+.workspaceMenuOperational .workspaceMenuSaveNow{min-height:34px!important;background:var(--navy)!important;color:#fff!important;text-align:center!important}
+.workspacePage .workspaceAddTools{display:flex!important;align-items:center!important;gap:7px!important}
+.workspacePage .rowCountControl{display:flex!important;align-items:stretch!important;height:36px!important;padding:0!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--paper)!important;overflow:hidden!important}
+.workspacePage .rowCountControl input{width:62px!important;height:34px!important;border:0!important;border-right:1px solid var(--line)!important;border-radius:0!important;padding:0 8px!important;text-align:center!important;font-weight:800!important}
+.workspacePage .rowCountControl button{height:34px!important;min-height:34px!important;border-radius:0!important;margin:0!important;padding:0 12px!important}
+.workspacePagerTop label{display:flex!important;align-items:center!important;gap:5px!important;font-size:9px!important;color:var(--muted)!important}
+.workspacePagerTop .workspacePageSizeInput{width:70px!important;height:32px!important;border:1px solid var(--line)!important;border-radius:7px!important;background:var(--paper)!important;padding:0 7px!important;color:var(--ink)!important;font-size:10px!important;font-weight:800!important;text-align:center!important}
+
+/* Settings: a real expandable settings area with explicit modules. */
+.themeScrim{padding:22px!important;align-items:flex-start!important;overflow:auto!important}
+.themePanel{width:min(980px,calc(100vw - 32px))!important;max-width:none!important;max-height:calc(100vh - 44px)!important;margin:auto!important;padding:20px!important;overflow:auto!important;border-radius:14px!important}
+.themePanel .themeHead{position:sticky!important;top:-20px!important;z-index:8!important;margin:-20px -20px 12px!important;padding:20px!important;background:color-mix(in srgb,var(--paper) 97%,transparent)!important;border-bottom:1px solid var(--line)!important;backdrop-filter:blur(10px)!important}
+.themePanel .seikoAccessSettings[hidden]{display:none!important}
+.settingsModuleNav{display:grid!important;grid-template-columns:repeat(2,minmax(180px,260px))!important;gap:8px!important;margin:0 0 16px!important}
+.settingsModuleNav button{display:grid!important;grid-template-columns:28px 1fr!important;align-items:center!important;gap:8px!important;min-height:48px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--paper)!important;padding:7px 10px!important;color:var(--ink)!important;text-align:left!important}
+.settingsModuleNav button small{display:grid!important;place-items:center!important;width:24px!important;height:24px!important;border-radius:7px!important;background:var(--pale)!important;color:var(--navy)!important;font-size:9px!important;font-weight:900!important}
+.settingsModuleNav button span{font-size:11px!important;font-weight:800!important}
+.settingsModuleNav button.active{border-color:color-mix(in srgb,var(--brand) 48%,var(--line))!important;background:color-mix(in srgb,var(--brand) 5%,var(--paper))!important}
+.settingsUsersModule{min-height:300px!important;padding:22px!important;border:1px solid var(--line)!important;border-radius:12px!important;background:var(--paper)!important}
+.settingsUsersModule[hidden],.settingsAppearanceModule[hidden]{display:none!important}
+.settingsUsersModule h3{margin:3px 0 7px!important;font-size:20px!important;color:var(--navy)!important}
+.settingsUsersModule p:not(.eyebrow){max-width:660px!important;color:var(--muted)!important;font-size:11px!important;line-height:1.55!important}
+.settingsUsersModule .primary{margin-top:14px!important}
+
+/* Label information should remain compact even after options are enabled. */
+.labelDesignerPage .fieldChecklist{align-items:start!important}
+.labelDesignerPage .fieldChoice{align-content:start!important;min-height:46px!important;padding:8px 9px!important}
+.labelDesignerPage .fieldChoice.chosen{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:6px 8px!important;min-height:0!important}
+.labelDesignerPage .fieldChoice.chosen>label:first-child{min-width:0!important}
+.labelDesignerPage .fieldChoice.chosen>.fieldOrderControls{align-self:start!important}
+.labelDesignerPage .fieldChoice.chosen>.showName,
+.labelDesignerPage .fieldChoice.chosen>.traceTotalChoice{grid-column:auto!important;margin:0!important;font-size:9px!important}
+.labelDesignerPage .fieldChoice.chosen>input{grid-column:1/-1!important;height:32px!important;margin:0!important;font-size:9px!important}
+.labelDesignerPage .fieldChoice.chosen>.fieldEmphasis{grid-column:1/-1!important;display:flex!important;align-items:center!important;gap:12px!important;margin:0!important;padding-top:2px!important}
+.labelDesignerPage .fieldChoice.chosen>.fieldEmphasis label{font-size:9px!important}
+.labelRecordAccuracyHint{margin:6px 0 0!important;padding:7px 9px!important;border-radius:8px!important;background:color-mix(in srgb,var(--brand) 5%,var(--paper))!important;color:var(--muted)!important;font-size:9px!important;line-height:1.45!important}
+.labelDesignerPage:not(.labelManualArrange) .canvasElement.element-field{display:block!important;white-space:normal!important;overflow:hidden!important;line-height:1.15!important}
+
+@media(max-width:1050px){
+  .seikoOperationalDashboard .seikoDashboardActivityHead{grid-template-columns:1fr!important}
+  .seikoOperationalDashboard .seikoDashboardActivityFilters{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .homeOrderOperationalRow{grid-template-columns:120px minmax(150px,1fr)!important}
+  .homeOrderOperationalMeta{grid-column:1/-1!important;grid-template-columns:repeat(4,minmax(0,1fr))!important}
+}
+@media(max-width:720px){
+  .seikoOperationalDashboard .seikoDashboardMetrics{grid-template-columns:1fr!important}
+  .seikoOperationalDashboard .seikoDashboardActivityFilters{grid-template-columns:1fr!important}
+  .homeOrderOperationalRow{grid-template-columns:1fr!important}
+  .homeOrderOperationalMeta{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .settingsModuleNav{grid-template-columns:1fr!important}
+  .themeScrim{padding:8px!important}
+  .themePanel{width:calc(100vw - 16px)!important;max-height:calc(100vh - 16px)!important}
+}
