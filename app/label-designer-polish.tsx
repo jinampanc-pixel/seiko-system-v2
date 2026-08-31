@@ -189,7 +189,7 @@ function organizeInformation(page: HTMLElement) {
       remove.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
-        const checkbox = choice.querySelector<HTMLInputElement>(":scope > label:first-child input[type="checkbox"]");
+        const checkbox = choice.querySelector<HTMLInputElement>(':scope > label:first-child input[type="checkbox"]');
         checkbox?.click();
       });
       chip.append(text, remove);
