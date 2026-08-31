@@ -12,7 +12,7 @@ const labelFinalization = read("app/label-finalization.tsx");
 const enhancements = read("app/app-enhancements.tsx");
 const layout = read("app/layout.tsx");
 const pager = read("app/workspace-top-pager.tsx");
-const rowActions = read("app/workspace-row-actions.tsx");
+const rowMenu = read("app/workspace-row-menu.tsx");
 const shortcuts = read("app/workspace-shortcuts.tsx");
 const home = read("app/seiko-phase1.tsx");
 const homeCss = read("app/seiko-phase1.css");
@@ -40,7 +40,7 @@ test("group quantity UI and domain both use default quantity plus exceptions", (
 
 test("Home is a configurable interactive dashboard plus configurable quick access", () => {
   assert.match(home, /HOME_KEY = "jinam:seiko:home-config-v2"/);
-  assert.match(home, /Customize home/);
+  assert.match(home, /Customize dashboard/);
   assert.match(home, /showActiveOrders/);
   assert.match(home, /activeOrderPageSize/);
   assert.match(home, /Filter active orders/);
@@ -54,14 +54,15 @@ test("Home is a configurable interactive dashboard plus configurable quick acces
 });
 
 test("workspace row operations are deliberate and pagination has one state source", () => {
-  assert.match(enhancements, /<WorkspaceRowActions \/>/);
+  assert.match(enhancements, /<WorkspaceRowMenu \/>/);
   assert.match(enhancements, /<SeikoCloseConfirm \/>/);
-  assert.match(rowActions, /Shift-click a range/);
-  assert.match(rowActions, /Delete selected/);
-  assert.match(rowActions, /Add \$\{count\} rows\?/);
-  assert.match(rowActions, /workspaceRowHeaderHead/);
-  assert.match(rowActions, /workspaceRowHeaderCell/);
-  assert.doesNotMatch(rowActions, /recordSelectToggle/);
+  assert.match(rowMenu, /workspaceRowMenuTrigger/);
+  assert.match(rowMenu, /Row actions/);
+  assert.match(rowMenu, /Put on hold/);
+  assert.match(rowMenu, /Delete row/);
+  assert.match(rowMenu, /role", "menuitem"/);
+  assert.match(rowMenu, /event\.key === "Escape"/);
+  assert.match(rowMenu, /pointerdown/);
   assert.match(orders, /Undo last change/);
   assert.match(orders, /Redo last change/);
   assert.match(pager, /realPager/);
