@@ -1,0 +1,36 @@
+name: Inspect SEIKO branch preview
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/inspect-seiko-branch-preview.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+      - run: npm ci
+      - name: Inspect branch worker without exposing secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WORKER_NAME: fix-veyn-milestone-one-seiko-system-v2-app
+        run: |
+          set -euo pipefail
+          echo "WORKER=$WORKER_NAME"
+          echo "--- deployments ---"
+          npx wrangler deployments list --name "$WORKER_NAME" || true
+          echo "--- bindings ---"
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/settings" \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s); if(!p.success){console.log("settings unavailable"); process.exit(0)}; const bindings=(p.result?.bindings||[]).map(b=>({name:b.name,type:b.type,namespace_id:b.namespace_id,database_id:b.id||b.database_id})); console.log(JSON.stringify({bindings,compatibility_date:p.result?.compatibility_date||null},null,2));})'
