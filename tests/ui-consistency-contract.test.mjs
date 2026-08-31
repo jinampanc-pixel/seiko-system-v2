@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const interactions = readFileSync(new URL("../app/label-designer-interactions.tsx", import.meta.url), "utf8");
+const labelPolish = readFileSync(new URL("../app/label-designer-polish.tsx", import.meta.url), "utf8");
 const labelControls = readFileSync(new URL("../app/label-controls.css", import.meta.url), "utf8");
 const labelPrintSafety = readFileSync(new URL("../app/label-print-safety.css", import.meta.url), "utf8");
 const controlConsistency = readFileSync(new URL("../app/control-consistency.css", import.meta.url), "utf8");
@@ -10,9 +11,10 @@ const navigationCss = readFileSync(new URL("../app/global-navigation.css", impor
 const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
 
 test("selected label-information chips expose a real remove affordance", () => {
-  assert.match(interactions, /labelInfoChipRemove/);
-  assert.match(interactions, /removeSelectedChip/);
-  assert.match(interactions, /input\[type="checkbox"\].*\.click\(\)/s);
+  assert.match(labelPolish, /labelInfoChipRemove/);
+  assert.match(labelPolish, /querySelector<HTMLInputElement>\('\:scope > label:first-child input\[type="checkbox"\]'\)/);
+  assert.match(labelPolish, /checkbox\?\.click\(\)/);
+  assert.doesNotMatch(interactions, /removeSelectedChip/);
   assert.match(labelControls, /\.labelInfoChipRemove/);
 });
 
