@@ -32,4 +32,8 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - Preview uses the physical label aspect ratio, a 1 mm grid, point-to-mm typography, 0.25 mm keyboard nudging, deterministic wheel resizing and touch/mobile shrink/stretch controls.
 - Print output stays in physical millimetres and preserves the 1.5 mm right-side safety boundary.
 
+## Implementation hygiene
+
+- Superseded UI adapters, split menus and custom selector wrappers must be removed when their accepted replacement lands; leaving dead overlapping enhancers in the active source is a regression risk and is not considered complete implementation.
+
 These behaviors must remain additive to the restored Stage 1 label stack unless an explicitly approved replacement supersedes them.
