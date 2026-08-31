@@ -145,7 +145,7 @@ export function LabelDesignerInteractions() {
       else if (numeric.some(input => !Number.isFinite(Number(input.value)) || Number(input.value) < 0)) message = "Enter valid measurements before saving.";
       else if (numeric.slice(0, 4).some(input => Number(input.value) <= 0)) message = "Width, height, roll width and Across must be greater than zero.";
       else if (numeric.length >= 7) {
-        const [labelW, _labelH, rollW, columns, outer, gapX] = numeric.map(input => Number(input.value));
+        const [labelW, , rollW, columns, outer, gapX] = numeric.map(input => Number(input.value));
         const required = outer * 2 + columns * labelW + Math.max(0, columns - 1) * gapX;
         if (required > rollW + .01) message = `This layout needs at least ${required.toFixed(1)} mm roll width. Increase the roll width or reduce label width, columns, margin or gap.`;
       }

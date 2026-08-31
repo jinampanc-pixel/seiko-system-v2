@@ -23,7 +23,7 @@ function tidyTopActions(page: HTMLElement) {
   if (saveBar && !meaning) {
     meaning = document.createElement("p");
     meaning.className = "labelSaveMeaning";
-    meaning.innerHTML = '<b>Layout</b> saves the reusable physical design, size, components and placement. <b>Label set</b> saves this order's selected records for repeat printing.';
+    meaning.innerHTML = "<b>Layout</b> saves the reusable physical design, size, components and placement. <b>Label set</b> saves this order's selected records for repeat printing.";
     saveBar.insertAdjacentElement("afterend", meaning);
   }
   if (saveBar) {
