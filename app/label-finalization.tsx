@@ -181,7 +181,7 @@ function askPrintCopies(selected: number, onConfirm: (copies: number) => void) {
   layer.addEventListener("click", event => { if (event.target === layer) close(); }); document.body.appendChild(layer); input.focus(); input.select();
 }
 
-function labelOnlyPrint(copies = 1)function labelOnlyPrint() {
+function labelOnlyPrint(copies = 1) {
   const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet");
   if (!sheet) return;
   const popup = window.open("", "_blank", "width=980,height=760");
