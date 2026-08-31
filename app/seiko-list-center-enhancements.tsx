@@ -8,11 +8,10 @@ type OrderFilters = {
   status: string;
   clientType: string;
   product: string;
-  records: "all" | "with" | "without";
   delivery: "all" | "due7" | "overdue" | "none";
 };
 
-const filterState: OrderFilters = { status: "", clientType: "", product: "", records: "all", delivery: "all" };
+const filterState: OrderFilters = { status: "", clientType: "", product: "", delivery: "all" };
 
 function currentBusiness() {
   return localStorage.getItem("jinam:selected-business") || "seiko";
@@ -60,6 +59,28 @@ function dueState(order: SeikoOrder) {
   return "later";
 }
 
+function activeFilterCount() {
+  return [filterState.status, filterState.clientType, filterState.product, filterState.delivery !== "all" ? filterState.delivery : ""].filter(Boolean).length;
+}
+
+function matchingProducts(orders: SeikoOrder[]) {
+  const scope = filterState.clientType ? orders.filter(order => order.details.clientType === filterState.clientType) : orders;
+  return [...new Set(scope.flatMap(order => order.products.map(product => product.name.trim()).filter(Boolean)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+function syncProductSelect(page: HTMLElement) {
+  const select = page.querySelector<HTMLSelectElement>(".orderAdvancedFilter.product select");
+  if (!select) return;
+  const orders = ordersForBusiness().filter(order => !order.archived);
+  const products = matchingProducts(orders);
+  const previous = products.includes(filterState.product) ? filterState.product : "";
+  filterState.product = previous;
+  select.replaceChildren();
+  option(select, "", filterState.clientType ? "All products for this client type" : "All products");
+  products.forEach(value => option(select, value, value));
+  select.value = previous;
+}
+
 function applyOrderFilters(page: HTMLElement) {
   const orders = ordersForBusiness();
   const byNumber = new Map(orders.map(order => [order.details.orderNo, order]));
@@ -70,58 +91,79 @@ function applyOrderFilters(page: HTMLElement) {
       (!filterState.status || order.status === filterState.status) &&
       (!filterState.clientType || order.details.clientType === filterState.clientType) &&
       (!filterState.product || order.products.some(product => product.name === filterState.product)) &&
-      (filterState.records === "all" || (filterState.records === "with" ? order.records.length > 0 : order.records.length === 0)) &&
       (filterState.delivery === "all" || dueState(order) === filterState.delivery);
     row.hidden = !matches;
   });
 
+  const shown = page.querySelectorAll(".orderList .orderRow:not([hidden])").length;
   const count = page.querySelector<HTMLElement>(".orderAdvancedFilterCount");
-  if (count) {
-    const shown = page.querySelectorAll(".orderList .orderRow:not([hidden])").length;
-    count.textContent = `${shown} shown`;
+  if (count) count.textContent = `${shown} shown`;
+  const active = page.querySelector<HTMLElement>(".orderFilterActiveCount");
+  const total = activeFilterCount();
+  if (active) {
+    active.textContent = total ? String(total) : "";
+    active.hidden = total === 0;
   }
+  page.querySelector<HTMLElement>(".orderFilterToggle")?.classList.toggle("active", total > 0);
 }
 
 function ensureOrderFilters(page: HTMLElement) {
   if (page.querySelector(".orderAdvancedFilters")) {
+    syncProductSelect(page);
     applyOrderFilters(page);
     return;
   }
   const tools = page.querySelector<HTMLElement>(".orderTools");
   if (!tools) return;
   const orders = ordersForBusiness().filter(order => !order.archived);
-  const clientTypes = [...new Set(orders.map(order => order.details.clientType).filter(Boolean))].sort();
-  const products = [...new Set(orders.flatMap(order => order.products.map(product => product.name.trim()).filter(Boolean)))].sort();
+  const clientTypes = [...new Set(orders.map(order => order.details.clientType).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "orderFilterToggle";
+  toggle.setAttribute("aria-label", "Open order filters");
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.innerHTML = '<span class="orderFilterGlyph" aria-hidden="true"><i></i><i></i><i></i></span><b>Filters</b><em class="orderFilterActiveCount" hidden></em>';
+  tools.appendChild(toggle);
 
   const bar = document.createElement("section");
   bar.className = "orderAdvancedFilters";
+  bar.hidden = true;
   const head = document.createElement("div");
   head.className = "orderAdvancedFilterHead";
-  head.innerHTML = '<div><b>Filters</b><span class="orderAdvancedFilterCount"></span></div>';
+  head.innerHTML = '<div><b>Filter orders</b><span class="orderAdvancedFilterCount"></span></div>';
   const clear = document.createElement("button");
   clear.type = "button";
   clear.className = "textButton";
-  clear.textContent = "Clear filters";
+  clear.textContent = "Clear all";
   head.appendChild(clear);
   const grid = document.createElement("div");
   grid.className = "orderAdvancedFilterGrid";
 
   const status = buildSelect("Status", "status", [["", "All statuses"], ["Draft", "Draft"], ["Active", "Active"], ["On Hold", "On Hold"], ["Completed", "Completed"], ["Cancelled", "Cancelled"]], value => { filterState.status = value; applyOrderFilters(page); });
-  const type = buildSelect("Client type", "clientType", [["", "All client types"], ...clientTypes.map(value => [value, value] as [string, string])], value => { filterState.clientType = value; applyOrderFilters(page); });
-  const product = buildSelect("Product", "product", [["", "All products"], ...products.map(value => [value, value] as [string, string])], value => { filterState.product = value; applyOrderFilters(page); });
-  const records = buildSelect("Records", "records", [["all", "Any record count"], ["with", "Has person / records"], ["without", "No person / records"]], value => { filterState.records = value as OrderFilters["records"]; applyOrderFilters(page); });
+  const type = buildSelect("Client type", "clientType", [["", "All client types"], ...clientTypes.map(value => [value, value] as [string, string])], value => {
+    filterState.clientType = value;
+    syncProductSelect(page);
+    applyOrderFilters(page);
+  });
+  const product = buildSelect("Product", "product", [["", "All products"], ...matchingProducts(orders).map(value => [value, value] as [string, string])], value => { filterState.product = value; applyOrderFilters(page); });
   const delivery = buildSelect("Delivery", "delivery", [["all", "Any delivery date"], ["due7", "Due in next 7 days"], ["overdue", "Overdue"], ["none", "No delivery date"]], value => { filterState.delivery = value as OrderFilters["delivery"]; applyOrderFilters(page); });
-  grid.append(status, type, product, records, delivery);
+  grid.append(status, type, product, delivery);
   bar.append(head, grid);
   tools.insertAdjacentElement("afterend", bar);
 
+  toggle.addEventListener("click", () => {
+    const open = bar.hidden;
+    bar.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+  });
   clear.addEventListener("click", () => {
     filterState.status = "";
     filterState.clientType = "";
     filterState.product = "";
-    filterState.records = "all";
     filterState.delivery = "all";
-    bar.querySelectorAll<HTMLSelectElement>("select").forEach(select => select.selectedIndex = 0);
+    bar.querySelectorAll<HTMLSelectElement>("select").forEach(select => { select.selectedIndex = 0; });
+    syncProductSelect(page);
     applyOrderFilters(page);
   });
   applyOrderFilters(page);
@@ -131,6 +173,20 @@ function closeOtherMenus(except?: HTMLDetailsElement) {
   document.querySelectorAll<HTMLDetailsElement>(".seikoRowActionMenu[open]").forEach(menu => {
     if (menu !== except) menu.open = false;
   });
+}
+
+function waitForWorkspaceAction(label: string, attempts = 60) {
+  const page = document.querySelector<HTMLElement>(".workspacePage");
+  if (!page) {
+    if (attempts > 0) window.setTimeout(() => waitForWorkspaceAction(label, attempts - 1), 40);
+    return;
+  }
+  const toggle = page.querySelector<HTMLButtonElement>(".orderActionMenuButton");
+  if (toggle?.getAttribute("aria-expanded") !== "true") toggle?.click();
+  window.setTimeout(() => {
+    const action = Array.from(page.querySelectorAll<HTMLButtonElement>(".orderActionMenu button")).find(button => button.textContent?.trim() === label);
+    action?.click();
+  }, 0);
 }
 
 function ensureOrderMenus(page: HTMLElement) {
@@ -152,10 +208,14 @@ function ensureOrderMenus(page: HTMLElement) {
     const panel = document.createElement("div");
     panel.className = "seikoRowActionPanel";
 
-    const openAction = document.createElement("button");
-    openAction.type = "button";
-    openAction.textContent = "Open order";
-    openAction.addEventListener("click", () => { menu.open = false; open.click(); });
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.textContent = "Edit setup";
+    edit.addEventListener("click", () => {
+      menu.open = false;
+      open.click();
+      waitForWorkspaceAction("Edit setup");
+    });
 
     const labelsAction = document.createElement("button");
     labelsAction.type = "button";
@@ -170,7 +230,7 @@ function ensureOrderMenus(page: HTMLElement) {
     archiveAction.textContent = order.archived ? "Restore order" : "Archive order";
     archiveAction.addEventListener("click", () => { menu.open = false; archive.click(); });
 
-    panel.append(openAction, labelsAction, archiveAction);
+    panel.append(edit, labelsAction, archiveAction);
     menu.append(summary, panel);
     menu.addEventListener("toggle", () => { if (menu.open) closeOtherMenus(menu); });
     row.appendChild(menu);
@@ -184,7 +244,7 @@ function removeSavedLabelSet(batchName: string) {
     localStorage.setItem(key, JSON.stringify(saved.filter(item => item.name !== batchName)));
     window.location.reload();
   } catch {
-    // Keep the current library intact if its stored value is unreadable.
+    // Preserve the current library if its stored value is unreadable.
   }
 }
 
@@ -241,60 +301,24 @@ function ensureLabelCenterMenus(page: HTMLElement) {
   });
 }
 
-function ensureChipRemove(page: HTMLElement) {
-  page.querySelectorAll<HTMLButtonElement>(".labelInfoSelectedStrip .labelInfoChip").forEach(chip => {
-    if (chip.querySelector(".labelInfoChipRemove")) return;
-    const label = chip.textContent?.trim() || "";
-    chip.dataset.fieldLabel = label;
-    const remove = document.createElement("span");
-    remove.className = "labelInfoChipRemove";
-    remove.setAttribute("aria-hidden", "true");
-    remove.textContent = "×";
-    chip.appendChild(remove);
-  });
-}
-
-function deselectChip(chip: HTMLButtonElement) {
-  const page = chip.closest<HTMLElement>(".labelDesignerPage");
-  const label = chip.dataset.fieldLabel || chip.childNodes[0]?.textContent?.trim() || "";
-  if (!page || !label) return;
-  const choice = Array.from(page.querySelectorAll<HTMLElement>(".fieldChecklist .fieldChoice")).find(item => item.querySelector("label span")?.textContent?.trim() === label);
-  const checkbox = choice?.querySelector<HTMLInputElement>('label input[type="checkbox"]');
-  if (checkbox?.checked) checkbox.click();
-}
-
 function enhance() {
   document.querySelectorAll<HTMLElement>(".ordersPage").forEach(page => {
     ensureOrderFilters(page);
     ensureOrderMenus(page);
   });
   document.querySelectorAll<HTMLElement>(".labelLauncher").forEach(page => ensureLabelCenterMenus(page));
-  document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(page => ensureChipRemove(page));
 }
 
 export function SeikoListCenterEnhancements() {
   useEffect(() => {
     const controller = startDomEnhancement(enhance);
-    const capture = (event: MouseEvent) => {
-      const target = event.target as Element | null;
-      const remove = target?.closest<HTMLElement>(".labelInfoChipRemove");
-      if (!remove) return;
-      const chip = remove.closest<HTMLButtonElement>(".labelInfoChip");
-      if (!chip) return;
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      deselectChip(chip);
-    };
     const outside = (event: PointerEvent) => {
       const target = event.target as Element | null;
       if (!target?.closest(".seikoRowActionMenu")) closeOtherMenus();
     };
-    document.addEventListener("click", capture, true);
     document.addEventListener("pointerdown", outside, true);
     document.addEventListener("change", controller.schedule, true);
     return () => {
-      document.removeEventListener("click", capture, true);
       document.removeEventListener("pointerdown", outside, true);
       document.removeEventListener("change", controller.schedule, true);
       controller.stop();
