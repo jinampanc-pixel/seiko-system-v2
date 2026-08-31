@@ -34,16 +34,6 @@ function setNativeSelect(select: HTMLSelectElement, value: string) {
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function openSeikoModule(label: string) {
-  const toggle = document.querySelector<HTMLButtonElement>(".app .topbar .menuToggle");
-  if (toggle?.getAttribute("aria-expanded") !== "true") toggle?.click();
-  window.setTimeout(() => {
-    const target = Array.from(document.querySelectorAll<HTMLButtonElement>(".app .moduleMenu .nav"))
-      .find(button => button.querySelector("small")?.textContent?.trim() === label);
-    target?.click();
-  }, 0);
-}
-
 function waitForWorkspaceAction(label: string, attempts = 60) {
   const page = document.querySelector<HTMLElement>(".workspacePage");
   if (!page) {
@@ -61,26 +51,31 @@ function waitForWorkspaceAction(label: string, attempts = 60) {
 
 function dueLabel(order: SeikoOrder) {
   const date = order.details.deliveryDate;
-  if (!date) return "No delivery date";
+  if (!date) return "Not set";
   const due = new Date(`${date}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const days = Math.ceil((due.getTime() - today.getTime()) / 86400000);
   const display = due.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
   if (days < 0) return `${display} · ${Math.abs(days)}d overdue`;
-  if (days === 0) return `${display} · due today`;
+  if (days === 0) return `${display} · today`;
   if (days <= 7) return `${display} · ${days}d`;
   return display;
+}
+
+function appendMetaItem(host: HTMLElement, label: string, value: string) {
+  const item = document.createElement("span");
+  const small = document.createElement("small");
+  small.textContent = label;
+  const strong = document.createElement("b");
+  strong.textContent = value;
+  item.append(small, strong);
+  host.appendChild(item);
 }
 
 function enhanceHome() {
   const dashboard = document.querySelector<HTMLElement>(".seikoOperationalDashboard");
   if (!dashboard) return;
-
-  dashboard.querySelectorAll<HTMLElement>(".seikoMetricCard").forEach(card => {
-    const label = card.querySelector("small")?.textContent?.trim() || "";
-    card.classList.toggle("homeMetricRedundant", /PERSON \/ RECORD ENTRIES/i.test(label));
-  });
 
   document.querySelectorAll<HTMLElement>(".overview .moduleGrid .moduleCard").forEach(card => {
     const title = card.querySelector("h3")?.textContent?.trim() || "";
@@ -90,21 +85,7 @@ function enhanceHome() {
   const activity = dashboard.querySelector<HTMLElement>(".seikoDashboardActivity");
   if (!activity) return;
   activity.classList.add("operationalHomeOrders");
-  const head = activity.querySelector<HTMLElement>(".seikoDashboardActivityHead > div:first-child");
-  const heading = head?.querySelector("b");
-  const copy = head?.querySelector("p");
-  if (heading) heading.textContent = "Active work";
-  if (copy) copy.textContent = "Open orders with delivery, products, record count and status in one place.";
-
-  const activityHead = activity.querySelector<HTMLElement>(".seikoDashboardActivityHead");
-  if (activityHead && !activityHead.querySelector(".homeOrderCenterButton")) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "secondary homeOrderCenterButton";
-    button.textContent = "Order Center →";
-    button.addEventListener("click", () => openSeikoModule("Orders"));
-    activityHead.appendChild(button);
-  }
+  activity.querySelector(".homeOrderCenterButton")?.remove();
 
   const orders = readOrders();
   const byNumber = new Map(orders.map(order => [order.details.orderNo, order]));
@@ -119,22 +100,14 @@ function enhanceHome() {
       meta.className = "homeOrderOperationalMeta";
       row.appendChild(meta);
     }
+    const signature = [order.records.length, order.products.filter(product => product.name.trim()).length, dueLabel(order), order.status].join("|");
+    if (meta.dataset.signature === signature) return;
+    meta.dataset.signature = signature;
     meta.replaceChildren();
-    const parts = [
-      ["Records", String(order.records.length)],
-      ["Products", String(order.products.filter(product => product.name.trim()).length)],
-      ["Delivery", dueLabel(order)],
-      ["Status", order.status],
-    ];
-    parts.forEach(([label, value]) => {
-      const item = document.createElement("span");
-      const small = document.createElement("small");
-      small.textContent = label;
-      const strong = document.createElement("b");
-      strong.textContent = value;
-      item.append(small, strong);
-      meta!.appendChild(item);
-    });
+    appendMetaItem(meta, "Records", String(order.records.length));
+    appendMetaItem(meta, "Products", String(order.products.filter(product => product.name.trim()).length));
+    appendMetaItem(meta, "Delivery", dueLabel(order));
+    appendMetaItem(meta, "Status", order.status);
   });
 }
 
@@ -160,6 +133,8 @@ function enhanceOrderCenter(page: HTMLElement) {
     row.setAttribute("aria-label", `Open order ${order.details.orderNo} for ${order.details.clientName || "client"}`);
 
     const detail = row.querySelector<HTMLElement>(":scope > div:first-child");
+    const legacyMeta = detail?.querySelector<HTMLElement>(":scope > small");
+    if (legacyMeta) legacyMeta.hidden = true;
     let badge = detail?.querySelector<HTMLElement>(".orderCenterStatusBadge");
     if (detail && !badge) {
       badge = document.createElement("span");
@@ -167,6 +142,22 @@ function enhanceOrderCenter(page: HTMLElement) {
       detail.appendChild(badge);
     }
     if (badge) badge.textContent = order.status;
+
+    let meta = row.querySelector<HTMLElement>(".orderCenterOperationalMeta");
+    if (!meta) {
+      meta = document.createElement("div");
+      meta.className = "orderCenterOperationalMeta";
+      menu.insertAdjacentElement("beforebegin", meta);
+    }
+    const metaSignature = [order.details.clientType, order.records.length, order.products.filter(product => product.name.trim()).length, dueLabel(order), order.revisions.length].join("|");
+    if (meta.dataset.signature !== metaSignature) {
+      meta.dataset.signature = metaSignature;
+      meta.replaceChildren();
+      appendMetaItem(meta, "Client type", order.details.clientType || "—");
+      appendMetaItem(meta, "Records", String(order.records.length));
+      appendMetaItem(meta, "Products", String(order.products.filter(product => product.name.trim()).length));
+      appendMetaItem(meta, "Delivery", dueLabel(order));
+    }
 
     if (row.dataset.rowOpenReady !== "true") {
       row.dataset.rowOpenReady = "true";
