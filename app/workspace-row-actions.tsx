@@ -63,18 +63,25 @@ function sync(page: HTMLElement) {
   const visibleIds = new Set(visible.map(rowId).filter(Boolean));
   for (const id of [...selectedRows]) if (!visibleIds.has(id)) selectedRows.delete(id);
 
-  visible.forEach(row => {
+  visible.forEach((row, index) => {
     const id = rowId(row);
-    const checkbox = row.querySelector<HTMLInputElement>(".recordSelectToggle");
-    if (checkbox) checkbox.checked = selectedRows.has(id);
     row.classList.toggle("workspaceRowSelected", selectedRows.has(id));
+    const selector = row.querySelector<HTMLButtonElement>(".workspaceRowSelector");
+    if (selector) {
+      selector.classList.toggle("selected", selectedRows.has(id));
+      selector.setAttribute("aria-pressed", selectedRows.has(id) ? "true" : "false");
+      selector.textContent = String(index + 1);
+    }
   });
 
-  const selectAll = page.querySelector<HTMLInputElement>(".workspaceSelectAll");
+  const corner = page.querySelector<HTMLButtonElement>(".workspaceSelectCorner");
   const ids = [...visibleIds];
-  if (selectAll) {
-    selectAll.checked = ids.length > 0 && ids.every(id => selectedRows.has(id));
-    selectAll.indeterminate = ids.some(id => selectedRows.has(id)) && !selectAll.checked;
+  if (corner) {
+    const all = ids.length > 0 && ids.every(id => selectedRows.has(id));
+    const some = ids.some(id => selectedRows.has(id));
+    corner.classList.toggle("selected", all);
+    corner.classList.toggle("partial", some && !all);
+    corner.setAttribute("aria-pressed", all ? "true" : "false");
   }
 
   const bar = page.querySelector<HTMLElement>(".workspaceBulkBar");
@@ -83,6 +90,31 @@ function sync(page: HTMLElement) {
     const count = bar.querySelector<HTMLElement>(".workspaceBulkCount");
     if (count) count.textContent = `${selectedRows.size} ${selectedRows.size === 1 ? "row" : "rows"} selected`;
   }
+}
+
+function selectRow(page: HTMLElement, row: HTMLTableRowElement, event: MouseEvent) {
+  const visibleRows = rows(page);
+  const currentIndex = visibleRows.indexOf(row);
+  const id = rowId(row);
+  if (!id || currentIndex < 0) return;
+
+  if (event.shiftKey && lastSelectedIndex >= 0) {
+    const start = Math.min(lastSelectedIndex, currentIndex);
+    const end = Math.max(lastSelectedIndex, currentIndex);
+    if (!event.ctrlKey && !event.metaKey) selectedRows.clear();
+    for (let position = start; position <= end; position++) {
+      const rangeId = rowId(visibleRows[position]);
+      if (rangeId) selectedRows.add(rangeId);
+    }
+  } else if (event.ctrlKey || event.metaKey) {
+    if (selectedRows.has(id)) selectedRows.delete(id); else selectedRows.add(id);
+    lastSelectedIndex = currentIndex;
+  } else {
+    selectedRows.clear();
+    selectedRows.add(id);
+    lastSelectedIndex = currentIndex;
+  }
+  sync(page);
 }
 
 async function deleteSelected(page: HTMLElement) {
@@ -110,29 +142,6 @@ async function deleteSelected(page: HTMLElement) {
   toast(`${ids.length} ${ids.length === 1 ? "row" : "rows"} deleted.`);
 }
 
-function makeCheckbox(page: HTMLElement, row: HTMLTableRowElement, id: string) {
-  const checkbox = document.createElement("input");
-  checkbox.type = "checkbox";
-  checkbox.className = "recordSelectToggle";
-  checkbox.setAttribute("aria-label", `Select ${id}`);
-  checkbox.addEventListener("click", event => {
-    const visibleRows = rows(page);
-    const currentIndex = visibleRows.indexOf(row);
-    if ((event as MouseEvent).shiftKey && lastSelectedIndex >= 0) {
-      const start = Math.min(lastSelectedIndex, currentIndex);
-      const end = Math.max(lastSelectedIndex, currentIndex);
-      for (let position = start; position <= end; position++) {
-        const rangeId = rowId(visibleRows[position]);
-        if (rangeId) selectedRows.add(rangeId);
-      }
-    } else if (checkbox.checked) selectedRows.add(id);
-    else selectedRows.delete(id);
-    lastSelectedIndex = currentIndex;
-    sync(page);
-  });
-  return checkbox;
-}
-
 function ensureSelection(page: HTMLElement) {
   const key = workspaceKey(page);
   if (currentWorkspace !== key) {
@@ -145,44 +154,51 @@ function ensureSelection(page: HTMLElement) {
   const firstHeadRow = table?.querySelector<HTMLTableRowElement>("thead > tr:first-child");
   if (!table || !firstHeadRow) return;
 
-  if (!firstHeadRow.querySelector(".workspaceSelectHead")) {
+  // Remove the old checkbox-based selector if a previously rendered workspace still has it.
+  table.querySelectorAll(".workspaceSelectHead,.workspaceSelectCell").forEach(node => node.remove());
+
+  if (!firstHeadRow.querySelector(".workspaceRowHeaderHead")) {
     const cell = document.createElement("th");
-    cell.className = "workspaceSelectHead";
+    cell.className = "workspaceRowHeaderHead";
     cell.rowSpan = 2;
-    cell.setAttribute("aria-label", "Select rows");
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.className = "workspaceSelectAll";
-    checkbox.setAttribute("aria-label", "Select all visible rows");
-    checkbox.addEventListener("change", () => {
-      rows(page).forEach(row => {
-        const id = rowId(row);
-        if (!id) return;
-        if (checkbox.checked) selectedRows.add(id); else selectedRows.delete(id);
-      });
+    const corner = document.createElement("button");
+    corner.type = "button";
+    corner.className = "workspaceSelectCorner";
+    corner.setAttribute("aria-label", "Select all visible rows");
+    corner.setAttribute("aria-pressed", "false");
+    corner.title = "Select all visible rows";
+    corner.addEventListener("click", () => {
+      const ids = rows(page).map(rowId).filter(Boolean);
+      const allSelected = ids.length > 0 && ids.every(id => selectedRows.has(id));
+      if (allSelected) ids.forEach(id => selectedRows.delete(id)); else ids.forEach(id => selectedRows.add(id));
+      lastSelectedIndex = ids.length ? 0 : -1;
       sync(page);
     });
-    cell.appendChild(checkbox);
+    cell.appendChild(corner);
     firstHeadRow.insertBefore(cell, firstHeadRow.firstElementChild);
   }
 
   rows(page).forEach(row => {
     const id = rowId(row);
-    if (!id) return;
-    let cell = row.querySelector<HTMLTableCellElement>(".workspaceSelectCell");
-    if (!cell) {
-      cell = document.createElement("td");
-      cell.className = "workspaceSelectCell";
-      cell.appendChild(makeCheckbox(page, row, id));
-      row.insertBefore(cell, row.firstElementChild);
-    }
+    if (!id || row.querySelector(".workspaceRowHeaderCell")) return;
+    const cell = document.createElement("td");
+    cell.className = "workspaceRowHeaderCell";
+    const selector = document.createElement("button");
+    selector.type = "button";
+    selector.className = "workspaceRowSelector";
+    selector.setAttribute("aria-label", `Select row ${id}`);
+    selector.setAttribute("aria-pressed", "false");
+    selector.title = "Click to select row · Shift-click range · Ctrl/Cmd-click add/remove";
+    selector.addEventListener("click", event => selectRow(page, row, event));
+    cell.appendChild(selector);
+    row.insertBefore(cell, row.firstElementChild);
   });
 
   if (!page.querySelector(".workspaceBulkBar")) {
     const bar = document.createElement("div");
     bar.className = "workspaceBulkBar";
     bar.hidden = true;
-    bar.innerHTML = '<b class="workspaceBulkCount"></b><span>Shift-click selects a range on this page.</span><div><button type="button" class="secondary workspaceBulkClear">Clear</button><button type="button" class="workspaceBulkDelete">Delete selected</button></div>';
+    bar.innerHTML = '<b class="workspaceBulkCount"></b><span>Spreadsheet selection: click a row number, Shift-click a range, Ctrl/Cmd-click to add or remove rows.</span><div><button type="button" class="secondary workspaceBulkClear">Clear</button><button type="button" class="workspaceBulkDelete">Delete selected</button></div>';
     bar.querySelector<HTMLButtonElement>(".workspaceBulkClear")!.addEventListener("click", () => {
       selectedRows.clear();
       lastSelectedIndex = -1;
