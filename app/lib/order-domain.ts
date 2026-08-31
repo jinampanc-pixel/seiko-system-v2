@@ -99,9 +99,22 @@ export function workspaceColumns(order: SeikoOrder): WorkspaceColumn[] {
   return columns;
 }
 
-/** A rule can target one value or several values separated by comma, semicolon or a new line. */
+/**
+ * A group rule can target one value, several comma/semicolon/new-line values,
+ * or a compact whole-number range such as 1-7.
+ */
 export function groupRuleValues(match: string): string[] {
-  return match.split(/[;,\n]/).map(value => value.trim()).filter(Boolean);
+  return match.split(/[;,\n]/).flatMap(raw => {
+    const value = raw.trim();
+    if (!value) return [];
+    const range = value.match(/^(-?\d+)\s*[-–]\s*(-?\d+)$/);
+    if (!range) return [value];
+    const start = Number(range[1]);
+    const end = Number(range[2]);
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || Math.abs(end - start) > 500) return [value];
+    const direction = start <= end ? 1 : -1;
+    return Array.from({ length: Math.abs(end - start) + 1 }, (_, index) => String(start + index * direction));
+  });
 }
 
 export function groupRuleMatches(match: string, sourceValue: string): boolean {
