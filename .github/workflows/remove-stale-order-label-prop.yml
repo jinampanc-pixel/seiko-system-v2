@@ -1,0 +1,40 @@
+name: Remove stale SEIKO order label prop
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/remove-stale-order-label-prop.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Remove obsolete Orders prop
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/page.tsx')
+          text = path.read_text()
+          old = ' onCreateLabel={(order, purpose) => { setLabelBatchOrder(null); setLabelOrder(order); setLabelPurpose(purpose); setModule("labels"); }}'
+          if old not in text:
+              raise SystemExit('stale onCreateLabel prop not found')
+          text = text.replace(old, '', 1)
+          path.write_text(text)
+          PY
+      - name: Commit cleanup and remove workflow
+        run: |
+          git rm .github/workflows/remove-stale-order-label-prop.yml
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git add app .github
+          git commit -m "Remove stale SEIKO order label shortcut"
+          git push origin HEAD:fix/veyn-milestone-one
