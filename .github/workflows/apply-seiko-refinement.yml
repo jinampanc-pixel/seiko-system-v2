@@ -1,0 +1,33 @@
+name: Apply SEIKO refinement
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/apply-seiko-refinement.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply exact refinement patch
+        run: python scripts/apply-seiko-refinement.py
+      - name: Commit refinement and remove one-shot files
+        run: |
+          git rm scripts/apply-seiko-refinement.py .github/workflows/apply-seiko-refinement.yml
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git add app/label-designer.tsx app/label-finalization.tsx
+          git commit -m "Refine SEIKO packing label behavior"
+          git push origin HEAD:fix/veyn-milestone-one
