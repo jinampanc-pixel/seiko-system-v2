@@ -1,0 +1,64 @@
+/* Focused SEIKO refinement pass: workspace actions and packing-label ergonomics. */
+
+/* Workspace keeps the actual spreadsheet columns; legacy injected selection columns are not part of the production grid. */
+.workspacePage .workspaceRowHeaderHead,
+.workspacePage .workspaceRowHeaderCell,
+.workspacePage .workspaceSelectHead,
+.workspacePage .workspaceSelectCell,
+.workspacePage .workspaceBulkBar{display:none!important}
+.workspacePage .workspaceTable .stickyId{left:0!important}
+.workspacePage .workspaceHeadActions>div:last-child{position:relative;z-index:90}
+.workspacePage .orderActionMenu{z-index:120!important;right:0!important;left:auto!important;overflow:visible!important}
+.workspacePage .workspaceHead{position:relative;z-index:35}
+.workspacePage .workspaceTools{z-index:30!important}
+.workspacePage .workspaceTableWrap{z-index:1}
+
+.workspaceNativeRowActions{position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:visible!important}
+.workspaceNativeRowAction{position:absolute!important;width:1px!important;height:1px!important;min-width:1px!important;min-height:1px!important;opacity:0!important;pointer-events:none!important;overflow:hidden!important}
+.workspaceRowMenu{position:relative;display:flex;align-items:center;justify-content:center;overflow:visible}
+.workspaceRowMenuTrigger{display:flex!important;align-items:center!important;justify-content:center!important;gap:2px!important;width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--paper)!important;color:var(--navy)!important;padding:0!important}
+.workspaceRowMenuTrigger span{display:block;width:3px;height:3px;border-radius:50%;background:currentColor}
+.workspaceRowMenuTrigger:hover,.workspaceRowMenu.open .workspaceRowMenuTrigger{border-color:color-mix(in srgb,var(--navy) 32%,var(--line))!important;background:var(--pale)!important}
+.workspaceRowMenuPopup{display:none;position:absolute;z-index:160;right:0;top:calc(100% + 5px);width:156px;padding:5px;border:1px solid var(--line);border-radius:9px;background:var(--paper);box-shadow:0 14px 34px rgba(14,42,61,.18)}
+.workspaceRowMenu.open .workspaceRowMenuPopup{display:grid}
+.workspaceRowMenuPopup button{min-height:34px;border:0;border-radius:6px;background:transparent;color:var(--ink);padding:0 9px;text-align:left;font-size:10px;font-weight:750}
+.workspaceRowMenuPopup button:hover{background:var(--pale)}
+.workspaceRowMenuDelete{color:var(--red)!important}
+.workspacePage .workspaceTable td:last-child,.workspacePage .workspaceTable th:last-child{width:54px!important;min-width:54px!important;max-width:54px!important}
+
+/* Keep actions inside the workspace header at narrower desktop widths instead of spilling out. */
+@media(max-width:1050px){
+  .workspacePage .workspaceHead{align-items:flex-start!important;gap:10px!important}
+  .workspacePage .workspaceHeadActions{flex-wrap:wrap!important;justify-content:flex-end!important;max-width:58%!important}
+}
+@media(max-width:760px){
+  .workspacePage .workspaceHeadActions{max-width:none!important;width:100%!important;justify-content:flex-start!important}
+}
+
+/* Packing label control cleanup. */
+.labelDesignerPage .labelSaveBar button[hidden]{display:none!important}
+.labelDesignerPage .canvasToolbar .labelArrangeButton{display:inline-flex!important;align-items:center;justify-content:center;min-height:34px!important;margin-left:auto;padding:0 12px!important;white-space:nowrap}
+.labelDesignerPage .canvasToolbar .labelArrangeButton.active{border-color:var(--navy)!important;background:var(--navy)!important;color:#fff!important}
+.labelDesignerPage.labelManualArrange .canvasElement{cursor:move!important;touch-action:none!important}
+.labelDesignerPage.labelManualArrange .canvasElement:hover{outline:1px dashed color-mix(in srgb,var(--navy) 55%,transparent)}
+.labelDesignerPage.labelManualArrange .canvasElement.selected{cursor:move!important}
+.labelDesignerPage.labelManualArrange .labelStageV2::after{content:"Drag a field to reposition · mouse wheel resizes · arrow keys nudge";position:absolute;left:12px;bottom:8px;z-index:5;padding:4px 7px;border-radius:6px;background:rgba(12,67,101,.88);color:#fff;font-size:9px;font-weight:750;pointer-events:none}
+
+.labelRecordHoverCard{position:fixed;z-index:10000;display:grid;gap:5px;padding:10px 11px;border:1px solid color-mix(in srgb,var(--navy) 20%,var(--line));border-radius:10px;background:color-mix(in srgb,var(--paper) 98%,transparent);box-shadow:0 14px 36px rgba(14,42,61,.22);backdrop-filter:blur(8px);pointer-events:none}
+.labelRecordHoverCard b{color:var(--navy);font-size:12px;line-height:1.25}
+.labelRecordHoverCard span{color:var(--muted);font-size:10px;line-height:1.45;white-space:normal;overflow-wrap:anywhere}
+
+/* Copies are requested only after Print is invoked. */
+.labelCopiesLayer{position:fixed;inset:0;z-index:11000;display:grid;place-items:center;padding:18px;background:rgba(7,30,45,.28);backdrop-filter:blur(3px)}
+.labelCopiesDialog{width:min(360px,calc(100vw - 32px));padding:18px;border:1px solid var(--line);border-radius:13px;background:var(--paper);box-shadow:0 22px 60px rgba(9,37,55,.28)}
+.labelCopiesDialog h3{margin:0;color:var(--navy);font-size:18px}
+.labelCopiesDialog p{margin:6px 0 14px;color:var(--muted);font-size:11px;line-height:1.45}
+.labelCopiesDialog label{display:grid;gap:5px;color:var(--muted);font-size:10px;font-weight:800}
+.labelCopiesDialog input{height:42px;border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:0 10px;color:var(--ink);font-size:14px;font-weight:800}
+.labelCopiesActions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.labelCopiesActions button{min-height:38px;padding:0 14px}
+
+@media(max-width:700px){
+  .labelDesignerPage .canvasToolbar .labelArrangeButton{margin-left:0}
+  .labelRecordHoverCard{display:none}
+}
