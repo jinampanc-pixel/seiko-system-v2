@@ -13,6 +13,9 @@ const enhancements = read("app/app-enhancements.tsx");
 const layout = read("app/layout.tsx");
 const pager = read("app/workspace-top-pager.tsx");
 const rowActions = read("app/workspace-row-actions.tsx");
+const shortcuts = read("app/workspace-shortcuts.tsx");
+const home = read("app/seiko-phase1.tsx");
+const homeCss = read("app/seiko-phase1.css");
 const erpSync = read("app/erp-order-sync.tsx");
 const erpNotice = read("app/erp-sync-notice.tsx");
 const finalUx = read("app/seiko-workspace-label-final.css");
@@ -35,6 +38,21 @@ test("group quantity UI and domain both use default quantity plus exceptions", (
   assert.match(setupFinalize, /Set the normal quantity once, then add only the groups that differ/);
 });
 
+test("Home is a configurable interactive dashboard plus configurable quick access", () => {
+  assert.match(home, /HOME_KEY = "jinam:seiko:home-config-v2"/);
+  assert.match(home, /Customize home/);
+  assert.match(home, /showActiveOrders/);
+  assert.match(home, /activeOrderPageSize/);
+  assert.match(home, /Filter active orders/);
+  assert.match(home, /All client types/);
+  assert.match(home, /All products/);
+  assert.match(home, /quickAccess/);
+  assert.match(home, /openSeikoModule\(metric\.module\)/);
+  assert.match(home, /seikoDashboardActivityRow/);
+  assert.match(homeCss, /\.seikoDashboardMetrics/);
+  assert.match(homeCss, /\.overview>\.moduleGrid::before\{content:"Quick access"/);
+});
+
 test("workspace row operations are deliberate and pagination has one state source", () => {
   assert.match(enhancements, /<WorkspaceRowActions \/>/);
   assert.match(enhancements, /<SeikoCloseConfirm \/>/);
@@ -51,15 +69,18 @@ test("workspace row operations are deliberate and pagination has one state sourc
   assert.match(pager, /dispatchEvent\(new Event\("change", \{ bubbles: true \}\)\)/);
 });
 
-test("workspace menu keeps routine actions visible and More contains only secondary order actions", () => {
+test("workspace keeps primary Save visible and routes secondary Labels through More", () => {
   assert.match(orders, /workspaceStatusControl/);
-  assert.match(orders, /workspaceLabelsButton/);
-  assert.doesNotMatch(orders, /workspaceLabelsSplit/);
+  assert.doesNotMatch(orders, /workspaceLabelsButton/);
   assert.match(orders, /workspaceQuickSave/);
   assert.match(orders, /aria-label="More order actions"/);
-  assert.match(orders, />Labels<\/button>/);
-  assert.doesNotMatch(orders, /className="orderMenuStatus"/);
-  assert.doesNotMatch(orders, /className="orderMenuSectionLabel"/);
+  assert.match(orders, /onOpenLabelBatches\(\);}}>Labels<\/button>/);
+  assert.match(shortcuts, /key === "s"/);
+  assert.match(shortcuts, /clickMenuAction\(page, "Save & close"\)/);
+  assert.match(shortcuts, /clickMenuAction\(page, "Labels"\)/);
+  assert.match(shortcuts, /key === "f"/);
+  assert.match(shortcuts, /key === "x"/);
+  assert.match(shortcuts, /event\.key === "F2"/);
 });
 
 test("editing an existing order returns to and updates its workspace", () => {
@@ -75,24 +96,41 @@ test("PDF acceptance keeps archive, setup policy controls and group rules explic
   assert.doesNotMatch(ownerDropdown, /enhanceEditableSelect/);
 });
 
-test("label creation stays simple by default while advanced placement remains precise", () => {
+test("label creation stays automatic by default while manual placement remains precise", () => {
   assert.match(labelDesigner, /const \[advanced, setAdvanced\] = useState\(false\)/);
-  assert.doesNotMatch(labelPolish, /toggle\.click\(\)/);
-  assert.match(labelPolish, /toggle\.hidden = false/);
+  assert.match(labelDesigner, /Manual layout/);
+  assert.match(labelDesigner, /Automatic layout/);
   assert.match(labelDesigner, /const step = event\.shiftKey \? 1 : \.25/);
   assert.match(labelDesigner, /ArrowLeft/);
   assert.match(labelDesigner, /ArrowRight/);
+  assert.match(labelDesigner, /setItems\(arrangeLabelItems\(items, preset\)\)/);
 });
 
-test("label information and preview follow the PDF acceptance model", () => {
+test("shared Label Workspace owns information state and purpose only controls relevance", () => {
+  assert.match(labelDesigner, /labelInfoSelectedStripReact/);
+  assert.match(labelDesigner, /onClick=\{\(\) => toggleField\(item\.field \|\| "", label\)\}/);
+  assert.match(labelDesigner, /if \(selectedId === existing\.id\) setSelectedId\(""\)/);
+  assert.match(labelDesigner, /fieldRelevantForPurpose/);
+  assert.match(labelDesigner, /purpose === "packing"/);
+  assert.match(labelDesigner, /purpose === "production"/);
+  assert.match(labelDesigner, /purpose === "inventory"/);
+  assert.match(labelDesigner, /if \(key === "group"\) return false/);
+  assert.match(labelDesigner, /product_name:\$\{product\.id\}/);
+  assert.match(labelDesigner, /product_quantity:\$\{product\.id\}/);
+  assert.doesNotMatch(labelPolish, /selectedFieldChipRemove/);
+});
+
+test("label information and preview follow the accepted order-derived model", () => {
   assert.match(labelDesigner, /Label represents/);
   assert.match(labelDesigner, /Each physical item/);
   assert.match(labelDesigner, /Custom selection/);
   assert.match(labelDesigner, /labelPreviewSample/);
   assert.match(labelDesigner, /Object\.values\(record\.values\)\.join/);
   assert.doesNotMatch(labelDesigner, /customerUpdateChoice/);
-  assert.match(labelPolish, /Layout Library/);
-  assert.match(labelPolish, /labelSetSave/);
+  assert.match(labelDesigner, /labelWorkspaceMoreMenu/);
+  assert.match(labelDesigner, /Saved layouts/);
+  assert.match(labelDesigner, /Saved label sets/);
+  assert.match(labelDesigner, /labelSetSave/);
   assert.doesNotMatch(labelProductionReady, /\["style","Style"\]/);
   assert.match(labelDesigner, /recordFilterBar/);
   assert.match(labelDesigner, /recordFilterField/);
@@ -103,6 +141,20 @@ test("label information and preview follow the PDF acceptance model", () => {
   assert.match(labelDesigner, /trace_product_position/);
   assert.match(labelDesigner, /trace_field:/);
   assert.match(labelDesigner, /Show of total/);
+});
+
+test("label elements can be reordered, replaced, moved and resized in the shared editor", () => {
+  assert.match(labelDesigner, /moveFieldItem/);
+  assert.match(labelDesigner, /Move \$\{option\.label\} up/);
+  assert.match(labelDesigner, /Move \$\{option\.label\} down/);
+  assert.match(labelDesigner, /<span>Information<\/span><select value=\{selected\.field/);
+  assert.match(labelDesigner, /<span>X mm<\/span>/);
+  assert.match(labelDesigner, /<span>Y mm<\/span>/);
+  assert.match(labelDesigner, /<span>Width mm<\/span>/);
+  assert.match(labelDesigner, /<span>Height mm<\/span>/);
+  assert.match(labelDesigner, /const arranged = advanced \? items : arrangeLabelItems\(items, preset\)/);
+  assert.match(labelDesigner, /data-record-preview=/);
+  assert.match(finalUx, /record:hover::after/);
 });
 
 test("label wheel resizing uses deterministic fine physical steps and touch has explicit size buttons", () => {
@@ -130,11 +182,15 @@ test("label preview uses real point-to-mm typography and a physical 1 mm grid", 
   assert.match(finalUx, /max-width:960px/);
 });
 
-test("label printing supports explicit copies and avoids blocking popup alerts", () => {
-  assert.match(labelFinalization, /labelPrintCopies/);
-  assert.match(labelFinalization, /Copies/);
+test("label copies are requested after Print instead of occupying the header", () => {
+  assert.match(labelFinalization, /function askPrintCopies/);
+  assert.match(labelFinalization, /labelPrintCopiesDialog/);
+  assert.match(labelFinalization, /function labelOnlyPrint\(copies = 1\)/);
+  assert.match(labelFinalization, /askPrintCopies\(selected, copies => labelOnlyPrint\(copies\)\)/);
   assert.match(labelFinalization, /flatMap\(label => Array\.from\(\{ length: copies \}/);
+  assert.doesNotMatch(labelFinalization, /function syncPrintCopies/);
   assert.doesNotMatch(labelFinalization, /window\.alert\(/);
+  assert.match(finalUx, /\.labelPrintCopies\{display:none!important\}/);
 });
 
 test("shared-order version conflicts preserve recovery data and stop automatic resubmission", () => {
@@ -157,7 +213,6 @@ test("the restored Stage 1 label stack remains mounted and final styling stays a
   assert.doesNotMatch(layout, /seiko-operational-v2\.css/);
   assert.doesNotMatch(layout, /seiko-stage2-repair\.css/);
 });
-
 
 test("label workspace exposes direct representation, custom components, layout meaning and calibrated size management", () => {
   const createRoute = read("app/labels/create/page.tsx");
