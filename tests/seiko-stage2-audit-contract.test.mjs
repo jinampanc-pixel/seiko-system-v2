@@ -38,11 +38,12 @@ test("group quantity UI and domain both use default quantity plus exceptions", (
 test("workspace row operations are deliberate and pagination has one state source", () => {
   assert.match(enhancements, /<WorkspaceRowActions \/>/);
   assert.match(enhancements, /<SeikoCloseConfirm \/>/);
-  assert.match(rowActions, /Shift-click selects a range/);
+  assert.match(rowActions, /Shift-click a range/);
   assert.match(rowActions, /Delete selected/);
   assert.match(rowActions, /Add \$\{count\} rows\?/);
-  assert.match(rowActions, /workspaceSelectHead/);
-  assert.match(rowActions, /workspaceSelectCell/);
+  assert.match(rowActions, /workspaceRowHeaderHead/);
+  assert.match(rowActions, /workspaceRowHeaderCell/);
+  assert.doesNotMatch(rowActions, /recordSelectToggle/);
   assert.match(orders, /Undo last change/);
   assert.match(orders, /Redo last change/);
   assert.match(pager, /realPager/);
