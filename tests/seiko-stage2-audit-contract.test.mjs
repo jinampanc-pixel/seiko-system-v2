@@ -93,6 +93,15 @@ test("label information and preview follow the PDF acceptance model", () => {
   assert.match(labelPolish, /Layout Library/);
   assert.match(labelPolish, /labelSetSave/);
   assert.doesNotMatch(labelProductionReady, /\["style","Style"\]/);
+  assert.match(labelDesigner, /recordFilterBar/);
+  assert.match(labelDesigner, /recordFilterField/);
+  assert.match(labelDesigner, /recordSort/);
+  assert.match(labelDesigner, /withTracePositions/);
+  assert.match(labelDesigner, /trace_order_position/);
+  assert.match(labelDesigner, /trace_person_position/);
+  assert.match(labelDesigner, /trace_product_position/);
+  assert.match(labelDesigner, /trace_field:/);
+  assert.match(labelDesigner, /Show of total/);
 });
 
 test("label wheel resizing uses deterministic fine physical steps and touch has explicit size buttons", () => {

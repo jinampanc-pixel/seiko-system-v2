@@ -495,3 +495,49 @@
   .orderSetup .clientDetails .seikoBillingAddress{grid-column:1!important}
   .ordersPage .orderArchiveButton{grid-area:menu!important;justify-self:end!important}
 }
+
+/* ---------------- PDF acceptance: record filter/sort controls ---------------- */
+.labelDesignerPage .recordFilterBar{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(125px,.72fr)!important;
+  gap:6px!important;
+  margin:7px 0 9px!important;
+}
+.labelDesignerPage .recordFilterBar label{
+  display:grid!important;
+  gap:3px!important;
+  min-width:0!important;
+}
+.labelDesignerPage .recordFilterBar label>span{
+  color:var(--muted)!important;
+  font-size:8px!important;
+  font-weight:850!important;
+  letter-spacing:.02em!important;
+}
+.labelDesignerPage .recordFilterBar select{
+  box-sizing:border-box!important;
+  width:100%!important;
+  min-width:0!important;
+  height:32px!important;
+  border:1px solid var(--line)!important;
+  border-radius:7px!important;
+  background:var(--paper)!important;
+  padding:0 26px 0 7px!important;
+  color:var(--ink)!important;
+  font-size:9px!important;
+  font-weight:650!important;
+}
+.labelDesignerPage .recordFilterBar select:disabled{opacity:.48!important}
+.labelDesignerPage .traceTotalChoice{
+  display:flex!important;
+  align-items:center!important;
+  gap:5px!important;
+  grid-column:1/-1!important;
+  margin:1px 0!important;
+  color:var(--muted)!important;
+  font-size:9px!important;
+  font-weight:700!important;
+}
+@media(max-width:650px){
+  .labelDesignerPage .recordFilterBar{grid-template-columns:1fr!important}
+}

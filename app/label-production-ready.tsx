@@ -143,7 +143,7 @@ function renderRealQrs(root: ParentNode = document) {
 function categoryFor(choice: HTMLElement) {
   const text = choice.querySelector("label span")?.textContent?.trim() || "";
   if (/^(Person / workpiece|Group / label type)$/i.test(text) || /^Person detail\s*·/i.test(text)) return "person";
-  if (/Trace code|Piece number|sequence|barcode|qr/i.test(text)) return "trace";
+  if (/Trace code|Piece \/ pair number|Package \/ set number|Label number \/ order total|Person number \/ total|Product number \/ total|Number within|sequence|barcode|qr/i.test(text)) return "trace";
   if (/^(Order number|Client)$/i.test(text)) return "core";
   return "product";
 }
