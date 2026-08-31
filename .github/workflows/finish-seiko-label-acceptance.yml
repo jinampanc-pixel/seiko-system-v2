@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/finish-seiko-label-acceptance.yml
       - .github/scripts/finish-seiko-label-acceptance.cjs
+      - .github/scripts/finish-seiko-label-acceptance.py
 
 permissions:
   contents: write
@@ -20,7 +21,7 @@ jobs:
           ref: fix/veyn-milestone-one
           fetch-depth: 0
       - name: Apply final label acceptance behavior
-        run: node .github/scripts/finish-seiko-label-acceptance.cjs
+        run: python .github/scripts/finish-seiko-label-acceptance.py
       - name: Add final filter UI styles
         run: |
           cat >> app/seiko-workspace-label-final.css <<'CSS'
@@ -73,7 +74,7 @@ jobs:
           CSS
       - name: Clean updater and commit
         run: |
-          git rm .github/scripts/finish-seiko-label-acceptance.cjs .github/workflows/finish-seiko-label-acceptance.yml
+          git rm .github/scripts/finish-seiko-label-acceptance.cjs .github/scripts/finish-seiko-label-acceptance.py .github/workflows/finish-seiko-label-acceptance.yml
           git config user.name "jinampanc-pixel"
           git config user.email "jinampanc@gmail.com"
           git add app tests .github
