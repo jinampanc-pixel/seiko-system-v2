@@ -78,7 +78,7 @@ test("workspace row and column operations are state-backed and page size is trul
   assert.match(structure, /workspaceRowHeader/);
   assert.match(structure, /workspaceMovableColumnHeader/);
   assert.match(structure, /event\.shiftKey/);
-  assert.match(structure, /event\.ctrlKey \|\| event\.metaKey/);
+  assert.match(structure, /event\.ctrlKey\s*\|\|\s*event\.metaKey/);
   assert.match(structure, /draggable=true/);
   assert.match(orders, /aria-label="Rows per page"/);
   assert.match(orders, /pageSizeDraft/);
