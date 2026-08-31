@@ -120,6 +120,19 @@ function stackAutomaticPreview(page: HTMLElement) {
   });
 }
 
+
+function openLabelSaveChoice(page: HTMLElement) {
+  document.querySelector(".labelSaveChoiceLayer")?.remove();
+  const layer = document.createElement("div"); layer.className = "labelSaveChoiceLayer";
+  layer.innerHTML = '<section class="labelSaveChoiceDialog" role="dialog" aria-modal="true" aria-labelledby="label-save-choice-title"><h3 id="label-save-choice-title">Save label work</h3><p>Choose what Ctrl/Cmd + S should save.</p><div><button type="button" class="primary saveSet">Save label set</button><button type="button" class="secondary saveLayout">Save layout</button><button type="button" class="textButton cancel">Cancel</button></div></section>';
+  const close = () => layer.remove();
+  layer.querySelector<HTMLButtonElement>(".cancel")?.addEventListener("click", close);
+  layer.addEventListener("click", event => { if (event.target === layer) close(); });
+  layer.querySelector<HTMLButtonElement>(".saveSet")?.addEventListener("click", () => { page.querySelector<HTMLButtonElement>(".labelHeaderSaveSet")?.click(); close(); });
+  layer.querySelector<HTMLButtonElement>(".saveLayout")?.addEventListener("click", () => { const details=page.querySelector<HTMLDetailsElement>(".labelHeaderMore"); if(details) details.open=true; requestAnimationFrame(()=>{Array.from(page.querySelectorAll<HTMLButtonElement>(".labelHeaderMoreMenu button")).find(button=>/^(Save|Update) layout$/.test(button.textContent?.trim()||""))?.click(); close();}); });
+  document.body.appendChild(layer); layer.querySelector<HTMLButtonElement>(".saveSet")?.focus();
+}
+
 function enhancePage(page: HTMLElement) {
   cleanHeaderAndSetup(page);
   addArrangeControl(page);
@@ -152,11 +165,14 @@ export function LabelWorkspaceRefinement() {
       window.setTimeout(controller.schedule, 0);
     };
 
+    const saveShortcut = (event: KeyboardEvent) => { if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.key.toLowerCase() !== "s") return; const page=document.querySelector<HTMLElement>(".labelDesignerPage"); if(!page) return; event.preventDefault(); event.stopImmediatePropagation(); openLabelSaveChoice(page); };
+    document.addEventListener("keydown", saveShortcut, true);
     document.addEventListener("click", removeChip, true);
     document.addEventListener("change", controller.schedule, true);
     window.addEventListener("scroll", removeHoverCard, true);
     window.addEventListener("resize", removeHoverCard);
     return () => {
+      document.removeEventListener("keydown", saveShortcut, true);
       document.removeEventListener("click", removeChip, true);
       document.removeEventListener("change", controller.schedule, true);
       window.removeEventListener("scroll", removeHoverCard, true);

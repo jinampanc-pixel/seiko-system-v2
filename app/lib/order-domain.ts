@@ -1,6 +1,7 @@
 export type QuantityMode = "same_for_all" | "by_group" | "per_person" | "default_with_exceptions" | "order_total";
 export type ValueMode = "same_for_all" | "by_group" | "per_person" | "default_with_exceptions";
-export type OrderStatus = "Draft" | "Active" | "On Hold" | "Completed" | "Cancelled";
+export const ORDER_STATUSES = ["Draft", "Active", "Production", "QC 1", "Packing", "QC 2", "On Hold", "Completed", "Cancelled"] as const;
+export type OrderStatus = typeof ORDER_STATUSES[number];
 
 export type OrderField = { id: string; name: string; type: "text" | "number" | "date" | "dropdown"; options: string[]; required: boolean };
 export type ArtworkAttachment = { id: string; name: string; mimeType: string; size: number; storageKey: string; addedAt: string };
@@ -12,7 +13,7 @@ export type MeasurementPolicy = { id: string; name: string; type: "number" | "te
 export type OrderRecord = { recordId: string; personId: string; values: Record<string, string | number>; held?: boolean };
 export type OrderDetails = { orderNo: string; orderDate: string; deliveryDate: string; clientName: string; clientType: string; contactPerson: string; attnRequired: boolean; contactNumber: string; shipTo: string; billTo: string; remarks: string };
 export type OrderRevision = { revision: number; at: string; reason: string; recordCount: number };
-export type SeikoOrder = { orderId: string; status: OrderStatus; archived: boolean; details: OrderDetails; fields: OrderField[]; products: ProductPolicy[]; measurements: MeasurementPolicy[]; records: OrderRecord[]; revisions: OrderRevision[]; updatedAt: string };
+export type SeikoOrder = { orderId: string; status: OrderStatus; archived: boolean; details: OrderDetails; fields: OrderField[]; products: ProductPolicy[]; measurements: MeasurementPolicy[]; records: OrderRecord[]; revisions: OrderRevision[]; updatedAt: string; workspace?: { columnOrder?: string[] } };
 
 export const CLIENT_TYPE_PRESETS: Record<string, OrderField[]> = {
   "School / Institution": [field("Name"), field("Class / Section"), field("Roll number")],
@@ -96,7 +97,10 @@ export function workspaceColumns(order: SeikoOrder): WorkspaceColumn[] {
       });
     }
   }
-  return columns;
+  const savedOrder = order.workspace?.columnOrder || [];
+  if (!savedOrder.length) return columns;
+  const rank = new Map(savedOrder.map((id, index) => [id, index]));
+  return [...columns].sort((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER));
 }
 
 /**

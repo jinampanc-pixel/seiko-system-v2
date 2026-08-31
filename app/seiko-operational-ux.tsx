@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { startDomEnhancement } from "./lib/dom-enhancement";
-import type { SeikoOrder } from "./lib/order-domain";
+import { groupRuleMatches, quantityForRecord, type SeikoOrder } from "./lib/order-domain";
 
 type SavedLabelTask = {
   orderId?: string;
@@ -71,45 +71,34 @@ function appendMetaItem(host: HTMLElement, label: string, value: string) {
   strong.textContent = value;
   item.append(small, strong);
   host.appendChild(item);
+  return item;
 }
 
 function enhanceHome() {
-  const dashboard = document.querySelector<HTMLElement>(".seikoOperationalDashboard");
-  if (!dashboard) return;
+  document.querySelectorAll<HTMLElement>(".overview .moduleGrid .moduleCard").forEach(card => { if (card.querySelector("h3")?.textContent?.trim() === "Orders") card.hidden = true; });
+}
 
-  document.querySelectorAll<HTMLElement>(".overview .moduleGrid .moduleCard").forEach(card => {
-    const title = card.querySelector("h3")?.textContent?.trim() || "";
-    card.classList.toggle("homeQuickAccessDuplicate", title === "Orders");
+function resolvedSpecification(order: SeikoOrder, product: SeikoOrder["products"][number], spec: SeikoOrder["products"][number]["specifications"][number]) {
+  const values = new Set<string>();
+  order.records.forEach((record, index) => {
+    if (record.held || quantityForRecord(product, record, index === 0) <= 0) return;
+    let value = spec.defaultValue || "";
+    if (spec.mode === "per_person") value = String(record.values[`spec:${spec.id}`] || "");
+    if (spec.mode === "default_with_exceptions") value = String(record.values[`spec:${spec.id}:override`] ?? spec.defaultValue ?? "");
+    if (spec.mode === "by_group") { const source=spec.groupFieldId ? String(record.values[`field:${spec.groupFieldId}`] || "") : ""; value=(spec.groupRules||[]).find(rule=>groupRuleMatches(rule.match,source))?.value || spec.defaultValue || ""; }
+    if (value.trim()) values.add(value.trim());
   });
-
-  const activity = dashboard.querySelector<HTMLElement>(".seikoDashboardActivity");
-  if (!activity) return;
-  activity.classList.add("operationalHomeOrders");
-  activity.querySelector(".homeOrderCenterButton")?.remove();
-
-  const orders = readOrders();
-  const byNumber = new Map(orders.map(order => [order.details.orderNo, order]));
-  activity.querySelectorAll<HTMLElement>(".seikoDashboardActivityRow").forEach(row => {
-    const orderNo = row.querySelector("strong")?.textContent?.trim() || "";
-    const order = byNumber.get(orderNo);
-    if (!order) return;
-    row.classList.add("homeOrderOperationalRow");
-    let meta = row.querySelector<HTMLElement>(".homeOrderOperationalMeta");
-    if (!meta) {
-      meta = document.createElement("span");
-      meta.className = "homeOrderOperationalMeta";
-      row.appendChild(meta);
-    }
-    const signature = [order.records.length, order.products.filter(product => product.name.trim()).length, dueLabel(order), order.status].join("|");
-    if (meta.dataset.signature === signature) return;
-    meta.dataset.signature = signature;
-    meta.replaceChildren();
-    appendMetaItem(meta, "Records", String(order.records.length));
-    appendMetaItem(meta, "Products", String(order.products.filter(product => product.name.trim()).length));
-    appendMetaItem(meta, "Delivery", dueLabel(order));
-    appendMetaItem(meta, "Status", order.status);
+  return [...values].join(", ");
+}
+function orderProductSummary(order: SeikoOrder) {
+  return order.products.filter(product=>product.name.trim()).map(product=>{
+    const total=order.records.reduce((sum,record,index)=>sum+(record.held?0:quantityForRecord(product,record,index===0)),0);
+    const specs=product.specifications.filter(spec=>spec.role==="colour"||spec.role==="pattern"||/colou?r|pattern/i.test(spec.name)).map(spec=>{const value=resolvedSpecification(order,product,spec);return value?`${spec.name}: ${value}`:"";}).filter(Boolean);
+    return `${product.name} · Qty ${total}${specs.length?` · ${specs.join(" · ")}`:""}`;
   });
 }
+function removeProductHover(){document.querySelector(".orderProductHoverCard")?.remove();}
+function showProductHover(target: HTMLElement, order: SeikoOrder){removeProductHover();const card=document.createElement("div");card.className="orderProductHoverCard";const title=document.createElement("b");title.textContent=`${order.details.orderNo} products`;const body=document.createElement("div");orderProductSummary(order).forEach(line=>{const row=document.createElement("span");row.textContent=line;body.appendChild(row);});card.append(title,body);document.body.appendChild(card);const box=target.getBoundingClientRect(),measured=card.getBoundingClientRect();card.style.left=`${Math.max(8,Math.min(window.innerWidth-measured.width-8,box.left))}px`;card.style.top=`${Math.max(8,Math.min(window.innerHeight-measured.height-8,box.bottom+6))}px`;}
 
 function enhanceOrderCenter(page: HTMLElement) {
   const orders = readOrders();
@@ -155,8 +144,11 @@ function enhanceOrderCenter(page: HTMLElement) {
       meta.replaceChildren();
       appendMetaItem(meta, "Client type", order.details.clientType || "—");
       appendMetaItem(meta, "Records", String(order.records.length));
-      appendMetaItem(meta, "Products", String(order.products.filter(product => product.name.trim()).length));
+      const productMeta = appendMetaItem(meta, "Products", String(order.products.filter(product => product.name.trim()).length));
+      productMeta.classList.add("orderProductMeta"); productMeta.tabIndex = 0;
+      if (productMeta.dataset.productHoverReady !== "true") { productMeta.dataset.productHoverReady="true"; productMeta.addEventListener("pointerenter",()=>showProductHover(productMeta,order)); productMeta.addEventListener("pointerleave",removeProductHover); productMeta.addEventListener("focus",()=>showProductHover(productMeta,order)); productMeta.addEventListener("blur",removeProductHover); }
       appendMetaItem(meta, "Delivery", dueLabel(order));
+      appendMetaItem(meta, "Status", order.status);
     }
 
     if (row.dataset.rowOpenReady !== "true") {
@@ -212,50 +204,9 @@ function enhanceOrderCenter(page: HTMLElement) {
 }
 
 function enhanceWorkspace(page: HTMLElement) {
-  const statusWrap = page.querySelector<HTMLElement>(".workspaceStatusControl");
-  const nativeStatus = statusWrap?.querySelector<HTMLSelectElement>("select");
-  const nativeSave = page.querySelector<HTMLButtonElement>(".workspaceQuickSave");
-  const menu = page.querySelector<HTMLElement>(".orderActionMenu");
-  if (!statusWrap || !nativeStatus || !nativeSave) return;
-  statusWrap.classList.add("workspaceHeaderSecondaryAction");
-  nativeSave.classList.add("workspaceHeaderSecondaryAction");
-
-  const trigger = page.querySelector<HTMLButtonElement>(".orderActionMenuButton");
-  if (trigger) trigger.title = `Order actions · ${nativeStatus.value}`;
-  if (!menu) return;
-
-  let operational = menu.querySelector<HTMLElement>(".workspaceMenuOperational");
-  if (!operational) {
-    operational = document.createElement("section");
-    operational.className = "workspaceMenuOperational";
-    const status = document.createElement("label");
-    status.innerHTML = "<span>Status</span>";
-    const select = nativeStatus.cloneNode(true) as HTMLSelectElement;
-    select.removeAttribute("class");
-    select.addEventListener("change", () => setNativeSelect(nativeStatus, select.value));
-    status.appendChild(select);
-    const save = document.createElement("button");
-    save.type = "button";
-    save.className = "workspaceMenuSaveNow";
-    save.textContent = "Save now";
-    save.addEventListener("click", () => nativeSave.click());
-    operational.append(status, save);
-    menu.prepend(operational);
-  }
-  const menuStatus = operational.querySelector<HTMLSelectElement>("select");
-  if (menuStatus) menuStatus.value = nativeStatus.value;
-}
-
-function activateSettingsModule(panel: HTMLElement, module: "appearance" | "users") {
-  panel.dataset.settingsModule = module;
-  panel.querySelectorAll<HTMLButtonElement>(".settingsModuleNav button").forEach(button => {
-    const active = button.dataset.module === module;
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-selected", String(active));
-  });
-  panel.querySelectorAll<HTMLElement>(".settingsAppearanceModule").forEach(item => { item.hidden = module !== "appearance"; });
-  const users = panel.querySelector<HTMLElement>(".settingsUsersModule");
-  if (users) users.hidden = module !== "users";
+  page.querySelector<HTMLElement>(".workspaceStatusControl")?.classList.add("workspaceHeaderSecondaryAction");
+  page.querySelector<HTMLElement>(".workspaceQuickSave")?.classList.add("workspaceHeaderSecondaryAction");
+  page.querySelector(".workspaceMenuOperational")?.remove();
 }
 
 function enhanceSettings(panel: HTMLElement) {

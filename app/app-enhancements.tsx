@@ -9,6 +9,7 @@ import { OrderCompactUx } from "./order-compact-ux";
 import { WorkspaceTopPager } from "./workspace-top-pager";
 import { WorkspaceShortcuts } from "./workspace-shortcuts";
 import { WorkspaceRowMenu } from "./workspace-row-menu";
+import { WorkspaceStructureInteractions } from "./workspace-structure-interactions";
 import { SeikoCloseConfirm } from "./seiko-close-confirm";
 import { LabelFlowPolish } from "./label-flow-polish";
 import { LabelDesignerPolish } from "./label-designer-polish";
@@ -36,6 +37,7 @@ export function AppEnhancements() {
     <WorkspaceTopPager />
     <WorkspaceShortcuts />
     <WorkspaceRowMenu />
+    <WorkspaceStructureInteractions />
     <SeikoCloseConfirm />
     <LabelFlowPolish />
     <LabelDesignerPolish />

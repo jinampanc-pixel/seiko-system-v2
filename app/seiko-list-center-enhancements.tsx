@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { startDomEnhancement } from "./lib/dom-enhancement";
-import type { SeikoOrder } from "./lib/order-domain";
+import { ORDER_STATUSES, type SeikoOrder } from "./lib/order-domain";
 
 type OrderFilters = {
   status: string;
@@ -140,7 +140,7 @@ function ensureOrderFilters(page: HTMLElement) {
   const grid = document.createElement("div");
   grid.className = "orderAdvancedFilterGrid";
 
-  const status = buildSelect("Status", "status", [["", "All statuses"], ["Draft", "Draft"], ["Active", "Active"], ["On Hold", "On Hold"], ["Completed", "Completed"], ["Cancelled", "Cancelled"]], value => { filterState.status = value; applyOrderFilters(page); });
+  const status = buildSelect("Status", "status", [["", "All statuses"], ...ORDER_STATUSES.map(value => [value, value] as [string, string])], value => { filterState.status = value; applyOrderFilters(page); });
   const type = buildSelect("Client type", "clientType", [["", "All client types"], ...clientTypes.map(value => [value, value] as [string, string])], value => {
     filterState.clientType = value;
     syncProductSelect(page);
@@ -148,7 +148,15 @@ function ensureOrderFilters(page: HTMLElement) {
   });
   const product = buildSelect("Product", "product", [["", "All products"], ...matchingProducts(orders).map(value => [value, value] as [string, string])], value => { filterState.product = value; applyOrderFilters(page); });
   const delivery = buildSelect("Delivery", "delivery", [["all", "Any delivery date"], ["due7", "Due in next 7 days"], ["overdue", "Overdue"], ["none", "No delivery date"]], value => { filterState.delivery = value as OrderFilters["delivery"]; applyOrderFilters(page); });
-  grid.append(status, type, product, delivery);
+  const archivedNative = tools.querySelector<HTMLInputElement>('label input[type="checkbox"]');
+  const archivedWrap = document.createElement("label"); archivedWrap.className = "orderAdvancedFilter archived";
+  const archivedTitle = document.createElement("span"); archivedTitle.textContent = "Orders";
+  const archivedToggle = document.createElement("label"); archivedToggle.className = "orderArchivedFilterToggle";
+  const archivedProxy = document.createElement("input"); archivedProxy.type = "checkbox"; archivedProxy.checked = Boolean(archivedNative?.checked);
+  archivedToggle.append(archivedProxy, document.createTextNode(" Archived only")); archivedWrap.append(archivedTitle, archivedToggle);
+  archivedProxy.addEventListener("change", () => { if (!archivedNative || archivedNative.checked === archivedProxy.checked) return; archivedNative.click(); });
+  if (archivedNative) archivedNative.closest("label")!.classList.add("orderArchivedNativeHidden");
+  grid.append(status, type, product, delivery, archivedWrap);
   bar.append(head, grid);
   tools.insertAdjacentElement("afterend", bar);
 
