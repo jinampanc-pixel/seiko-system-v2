@@ -8,6 +8,7 @@ const ux = read("app/seiko-operational-ux.tsx");
 const css = read("app/seiko-operational-ux.css");
 const pager = read("app/workspace-top-pager.tsx");
 const labels = read("app/label-workspace-refinement.tsx");
+const labelDesigner = read("app/label-designer.tsx");
 const layout = read("app/layout.tsx");
 
 test("operational UX refinement remains mounted and late styled", () => {
@@ -16,11 +17,11 @@ test("operational UX refinement remains mounted and late styled", () => {
 });
 
 test("Home removes duplicate navigation and enriches active work", () => {
-  assert.match(ux, /homeMetricRedundant/);
   assert.match(ux, /homeQuickAccessDuplicate/);
   assert.match(ux, /homeOrderOperationalMeta/);
+  assert.match(ux, /homeOrderCenterButton/);
   assert.match(ux, /Delivery/);
-  assert.match(ux, /Order Center →/);
+  assert.doesNotMatch(ux, /Order Center →/);
   assert.match(css, /\.homeOrderOperationalRow/);
 });
 
@@ -50,11 +51,13 @@ test("Settings exposes Appearance first and Users & access second", () => {
   assert.match(css, /\.settingsModuleNav/);
 });
 
-test("person-package label filtering avoids misleading exact product filters and explains recipient provenance", () => {
-  assert.match(labels, /personPackageWorkspace/);
-  assert.match(labels, /option\.value === "product" \|\| option\.value === "product_summary"/);
-  assert.match(labels, /never infers gender or product eligibility from a name/);
-  assert.match(labels, /Find person, class\/group or a product contained in the package/);
+test("person-package label filtering uses resolved positive package contents", () => {
+  assert.match(labelDesigner, /quantityForRecord/);
+  assert.match(labelDesigner, /contains_product/);
+  assert.match(labelDesigner, /packageProducts\(record\)\.includes\(recordFilterValue\)/);
+  assert.match(labelDesigner, /Products with a resolved quantity of 0 are excluded/);
+  assert.match(labelDesigner, /Find person, class\/group or a product contained in the package/);
+  assert.doesNotMatch(labels, /personPackageWorkspace/);
 });
 
 test("automatic label fields flow vertically instead of collapsing into one corner", () => {
