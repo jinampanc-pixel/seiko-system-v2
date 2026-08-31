@@ -30,10 +30,28 @@ function clickReal(page: HTMLElement, label: string) {
   button?.click();
 }
 
-function setRealPageSize(page: HTMLElement, value: string) {
+function currentPageSize(page: HTMLElement, select?: HTMLSelectElement | null) {
+  const remembered = Number(page.dataset.workspacePageSize || "");
+  if (Number.isFinite(remembered) && remembered > 0) return remembered;
+  const native = Number(select?.value || "");
+  return Number.isFinite(native) && native > 0 ? native : 50;
+}
+
+function setRealPageSize(page: HTMLElement, rawValue: string) {
+  const value = Math.max(1, Math.min(5000, Math.floor(Number(rawValue) || 1)));
   const select = realPager(page)?.querySelector<HTMLSelectElement>("select");
-  if (!select || select.value === value) return;
-  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, value);
+  if (!select) return;
+
+  page.dataset.workspacePageSize = String(value);
+  let option = Array.from(select.options).find(item => Number(item.value) === value);
+  if (!option) {
+    option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = String(value);
+    option.dataset.customPageSize = "true";
+    select.appendChild(option);
+  }
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, String(value));
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
@@ -57,27 +75,49 @@ function buildTopPager(page: HTMLElement) {
   const previous = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Previous");
   const next = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Next");
 
+  if (realSelect) {
+    const native = Number(realSelect.value || "");
+    const remembered = Number(page.dataset.workspacePageSize || "");
+    if ((!remembered || remembered <= 0) && native > 0) page.dataset.workspacePageSize = String(native);
+  }
+
   top.replaceChildren();
   if (range) top.appendChild(range.cloneNode(true));
 
-  if (realSelect) {
-    const label = document.createElement("label");
-    label.append("Rows ");
-    const select = realSelect.cloneNode(true) as HTMLSelectElement;
-    select.value = realSelect.value;
-    select.setAttribute("aria-label", "Rows per page");
-    select.addEventListener("change", () => setRealPageSize(page, select.value));
-    label.appendChild(select);
-    top.appendChild(label);
-  }
+  const label = document.createElement("label");
+  label.append("Rows ");
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = "1";
+  input.max = "5000";
+  input.step = "1";
+  input.inputMode = "numeric";
+  input.className = "workspacePageSizeInput";
+  input.setAttribute("aria-label", "Rows per page");
+  input.value = String(currentPageSize(page, realSelect));
+  const commit = () => {
+    const value = Math.max(1, Math.min(5000, Math.floor(Number(input.value) || 1)));
+    input.value = String(value);
+    setRealPageSize(page, String(value));
+  };
+  input.addEventListener("change", commit);
+  input.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commit();
+      input.blur();
+    }
+  });
+  label.appendChild(input);
+  top.appendChild(label);
 
-  const addButton = (source: HTMLButtonElement | undefined, label: string) => {
+  const addButton = (source: HTMLButtonElement | undefined, labelText: string) => {
     const proxy = document.createElement("button");
     proxy.type = "button";
     proxy.className = source?.className || "secondary";
-    proxy.textContent = label;
+    proxy.textContent = labelText;
     proxy.disabled = Boolean(source?.disabled);
-    proxy.addEventListener("click", () => clickReal(page, label));
+    proxy.addEventListener("click", () => clickReal(page, labelText));
     top!.appendChild(proxy);
   };
 
