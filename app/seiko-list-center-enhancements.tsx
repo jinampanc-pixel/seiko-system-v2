@@ -268,7 +268,7 @@ function enhance() {
     ensureOrderFilters(page);
     ensureOrderMenus(page);
   });
-  document.querySelectorAll<HTMLElement>(".labelLauncherPage").forEach(page => ensureLabelCenterMenus(page));
+  document.querySelectorAll<HTMLElement>(".labelLauncher").forEach(page => ensureLabelCenterMenus(page));
   document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(page => ensureChipRemove(page));
 }
 
