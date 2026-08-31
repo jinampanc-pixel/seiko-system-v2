@@ -4,7 +4,6 @@ import { readFileSync } from "node:fs";
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const orders = read("app/orders.tsx");
-const orderDomain = read("app/lib/order-domain.ts");
 const setupPolish = read("app/order-setup-polish.tsx");
 const setupFinalize = read("app/order-setup-finalize.tsx");
 const labelDesigner = read("app/label-designer.tsx");
@@ -17,6 +16,9 @@ const rowActions = read("app/workspace-row-actions.tsx");
 const erpSync = read("app/erp-order-sync.tsx");
 const erpNotice = read("app/erp-sync-notice.tsx");
 const finalUx = read("app/seiko-workspace-label-final.css");
+const orderDomain = read("app/lib/order-domain.ts");
+const ownerDropdown = read("app/owner-dropdown-ux.tsx");
+const labelProductionReady = read("app/label-production-ready.tsx");
 
 test("Person IDs remain stable after row deletion and new IDs never reuse a deleted sequence", () => {
   assert.doesNotMatch(orders, /renumberRecords/);
@@ -50,12 +52,11 @@ test("workspace row operations are deliberate and pagination has one state sourc
 
 test("workspace menu keeps routine actions visible and More contains only secondary order actions", () => {
   assert.match(orders, /workspaceStatusControl/);
-  assert.match(orders, /workspaceLabelsSplit/);
+  assert.match(orders, /workspaceLabelsButton/);
+  assert.doesNotMatch(orders, /workspaceLabelsSplit/);
   assert.match(orders, /workspaceQuickSave/);
   assert.match(orders, /aria-label="More order actions"/);
-  assert.match(orders, /New production label/);
-  assert.match(orders, /New packing label/);
-  assert.match(orders, /New inventory label/);
+  assert.match(orders, />Labels<\/button>/);
   assert.doesNotMatch(orders, /className="orderMenuStatus"/);
   assert.doesNotMatch(orders, /className="orderMenuSectionLabel"/);
 });
@@ -65,6 +66,14 @@ test("editing an existing order returns to and updates its workspace", () => {
   assert.match(orders, /order\.revisions\.length \? "Update workspace" : "Create workspace"/);
 });
 
+test("PDF acceptance keeps archive, setup policy controls and group rules explicit", () => {
+  assert.match(orders, /Archived orders/);
+  assert.match(orders, /orderArchiveButton/);
+  assert.match(setupFinalize, /Group values or range, e.g. 1-7/);
+  assert.match(orderDomain, /range = value\.match/);
+  assert.doesNotMatch(ownerDropdown, /enhanceEditableSelect/);
+});
+
 test("label creation stays simple by default while advanced placement remains precise", () => {
   assert.match(labelDesigner, /const \[advanced, setAdvanced\] = useState\(false\)/);
   assert.doesNotMatch(labelPolish, /toggle\.click\(\)/);
@@ -72,6 +81,18 @@ test("label creation stays simple by default while advanced placement remains pr
   assert.match(labelDesigner, /const step = event\.shiftKey \? 1 : \.25/);
   assert.match(labelDesigner, /ArrowLeft/);
   assert.match(labelDesigner, /ArrowRight/);
+});
+
+test("label information and preview follow the PDF acceptance model", () => {
+  assert.match(labelDesigner, /Label represents/);
+  assert.match(labelDesigner, /Each physical item/);
+  assert.match(labelDesigner, /Custom selection/);
+  assert.match(labelDesigner, /labelPreviewSample/);
+  assert.match(labelDesigner, /Object\.values\(record\.values\)\.join/);
+  assert.doesNotMatch(labelDesigner, /customerUpdateChoice/);
+  assert.match(labelPolish, /Layout Library/);
+  assert.match(labelPolish, /labelSetSave/);
+  assert.doesNotMatch(labelProductionReady, /\["style","Style"\]/);
 });
 
 test("label wheel resizing uses deterministic fine physical steps and touch has explicit size buttons", () => {

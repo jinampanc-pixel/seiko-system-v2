@@ -142,10 +142,10 @@ function renderRealQrs(root: ParentNode = document) {
 
 function categoryFor(choice: HTMLElement) {
   const text = choice.querySelector("label span")?.textContent?.trim() || "";
-  if (/^Person detail\s*·/i.test(text)) return "person";
+  if (/^(Person / workpiece|Group / label type)$/i.test(text) || /^Person detail\s*·/i.test(text)) return "person";
   if (/Trace code|Piece number|sequence|barcode|qr/i.test(text)) return "trace";
-  if (/\s·\s/.test(text) || /Product|Size|Package contents|Cutting bundle|Calculated quantity|variations/i.test(text)) return "product";
-  return "core";
+  if (/^(Order number|Client)$/i.test(text)) return "core";
+  return "product";
 }
 function enhanceInformation(page: HTMLElement) {
   const section = page.querySelector<HTMLElement>(".simpleDesigner:not(.labelInfoCollapsed)");
@@ -155,7 +155,7 @@ function enhanceInformation(page: HTMLElement) {
   let bar = section.querySelector<HTMLElement>(".labelInfoCategoryBar");
   if (!bar) {
     bar = document.createElement("div"); bar.className = "labelInfoCategoryBar";
-    const categories = [["core","Core information"],["person","Person details"],["product","Product details"],["trace","Trace & codes"],["style","Style"]] as const;
+    const categories = [["core","Core information"],["person","Person details"],["product","Product details"],["trace","Trace & codes"]] as const;
     categories.forEach(([id,label], index) => {
       const button = document.createElement("button"); button.type = "button"; button.textContent = label; button.dataset.category = id; if (index === 0) button.classList.add("active");
       button.addEventListener("click", () => {

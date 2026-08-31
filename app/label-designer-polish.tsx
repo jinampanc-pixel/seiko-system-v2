@@ -23,10 +23,10 @@ function tidyTopActions(page: HTMLElement) {
   if (saveBar) {
     Array.from(saveBar.querySelectorAll<HTMLButtonElement>("button")).forEach(button => {
       const text = button.textContent?.trim() || "";
-      if (text.startsWith("Save batch")) button.textContent = "Save label set";
-      if (text.startsWith("Update batch")) button.textContent = "Update label set";
+      if (text.startsWith("Save batch")) { button.textContent = "Save label set"; button.classList.remove("textButton"); button.classList.add("primary", "labelSetSave"); }
+      if (text.startsWith("Update batch")) { button.textContent = "Update label set"; button.classList.remove("textButton"); button.classList.add("primary", "labelSetSave"); }
       if (text.startsWith("Batches")) button.childNodes[0].textContent = "Saved sets ";
-      if (text.startsWith("Layouts")) button.childNodes[0].textContent = "Saved layouts ";
+      if (text.startsWith("Layouts")) button.childNodes[0].textContent = "Layout Library ";
     });
   }
 

@@ -273,7 +273,7 @@ export function OrderSetupPolish() {
       try {
         if (!document.querySelector(".orderSetup")) return;
         addSetupClasses();
-        document.querySelectorAll<HTMLElement>(".orderSetup .sourceFieldPicker").forEach(manageSourcePicker);
+        // Group source fields stay as native order-field selectors. OrderSetupFinalize removes legacy wrappers.
         lockIrrelevantDefaults();
         buildProductMeasurements();
       } finally {

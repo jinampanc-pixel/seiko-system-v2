@@ -167,7 +167,7 @@ test("label output can be code only, information only or combined", () => {
   assert.match(labelDesigner, /Code \+ information/);
   assert.match(labelDesigner, /Code only/);
   assert.match(labelDesigner, /Information only/);
-  assert.match(labelDesigner, /Choose myself/);
+  assert.match(labelDesigner, /Custom selection/);
   assert.match(labelDesigner, /Production labels/);
   assert.match(labelDesigner, /Packing labels/);
   assert.match(labelDesigner, /One permanent label for each garment/);

@@ -88,24 +88,6 @@ export function SeikoPhase2() {
         addNav("billing", "Billing", "₹");
       }
 
-      document.querySelectorAll<HTMLElement>(".ordersPage .orderRow").forEach(row => {
-        const orderNo = row.querySelector("b")?.textContent?.trim() || "";
-        const orders = readStore<SeikoOrder[]>(orderStoreKey(businessId), []);
-        const order = orders.find(item => item.details.orderNo === orderNo);
-        const actionMenu = row.querySelector<HTMLElement>(".orderMenu");
-        if (!order || !actionMenu || actionMenu.querySelector('[data-phase2-order-actions="true"]')) return;
-        const group = document.createElement("div");
-        group.dataset.phase2OrderActions = "true";
-        group.className = "phase2OrderActions";
-        const action = (label: string, handler: () => void) => {
-          const button = document.createElement("button"); button.type = "button"; button.textContent = label; button.addEventListener("click", handler); group.appendChild(button);
-        };
-        action("Open / edit", () => row.querySelector<HTMLButtonElement>(".openOrderButton")?.click());
-        action("Billing", () => { setFocusOrderId(order.orderId); setView("billing"); });
-        action("Payments", () => { setFocusOrderId(order.orderId); setView("billing"); });
-        actionMenu.insertBefore(group, actionMenu.querySelector("button"));
-      });
-
       const clientField = Array.from(document.querySelectorAll<HTMLLabelElement>(".orderSetup .clientDetails label")).find(label => label.textContent?.includes("Client name"));
       const clientInput = clientField?.querySelector<HTMLInputElement>("input");
       if (clientInput) {
