@@ -107,25 +107,6 @@ export function LabelDesignerInteractions() {
           else checklist.appendChild(classification);
         }
       }
-
-      const selectedStrip = section.querySelector<HTMLElement>(".labelInfoSelectedStrip");
-      selectedStrip?.querySelectorAll<HTMLButtonElement>(".labelInfoChip").forEach(chip => {
-        if (chip.dataset.removeReady === "true") return;
-        const label = chip.textContent?.trim();
-        if (!label) return;
-        chip.dataset.fieldLabel = label;
-        chip.dataset.removeReady = "true";
-        chip.replaceChildren();
-        const text = document.createElement("span");
-        text.className = "labelInfoChipText";
-        text.textContent = label;
-        const remove = document.createElement("span");
-        remove.className = "labelInfoChipRemove";
-        remove.setAttribute("aria-hidden", "true");
-        remove.textContent = "×";
-        chip.append(text, remove);
-        chip.setAttribute("aria-label", `${label}. Click to edit; use the × to remove.`);
-      });
     };
 
     const enhance = () => {
@@ -153,19 +134,6 @@ export function LabelDesignerInteractions() {
       if (!collapsed) scheduleEnhance();
     };
 
-    const removeSelectedChip = (removeControl: HTMLElement) => {
-      const chip = removeControl.closest<HTMLButtonElement>(".labelInfoChip");
-      const section = chip?.closest<HTMLElement>(".simpleDesigner");
-      const checklist = section?.querySelector<HTMLElement>(".fieldChecklist");
-      const label = chip?.dataset.fieldLabel;
-      if (!chip || !checklist || !label) return;
-      const choice = Array.from(checklist.querySelectorAll<HTMLElement>(":scope > .fieldChoice")).find(item =>
-        item.querySelector("label span")?.textContent?.trim() === label
-      );
-      choice?.querySelector<HTMLInputElement>('input[type="checkbox"]')?.click();
-      scheduleEnhance();
-    };
-
     const validateSizeEditor = (editor: HTMLElement) => {
       editor.querySelector(".labelSizeValidation")?.remove();
       const inputs = Array.from(editor.querySelectorAll<HTMLInputElement>("input"));
@@ -176,6 +144,11 @@ export function LabelDesignerInteractions() {
       if (!name?.value.trim()) message = "Give this label size a name.";
       else if (numeric.some(input => !Number.isFinite(Number(input.value)) || Number(input.value) < 0)) message = "Enter valid measurements before saving.";
       else if (numeric.slice(0, 4).some(input => Number(input.value) <= 0)) message = "Width, height, roll width and Across must be greater than zero.";
+      else if (numeric.length >= 7) {
+        const [labelW, _labelH, rollW, columns, outer, gapX] = numeric.map(input => Number(input.value));
+        const required = outer * 2 + columns * labelW + Math.max(0, columns - 1) * gapX;
+        if (required > rollW + .01) message = `This layout needs at least ${required.toFixed(1)} mm roll width. Increase the roll width or reduce label width, columns, margin or gap.`;
+      }
 
       if (!message) return true;
 
@@ -191,15 +164,6 @@ export function LabelDesignerInteractions() {
     const handleControlClick = (event: MouseEvent) => {
       const target = event.target as Element | null;
       if (!target) return;
-
-      const chipRemove = target.closest<HTMLElement>(".labelDesignerPage .labelInfoChipRemove");
-      if (chipRemove) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        removeSelectedChip(chipRemove);
-        return;
-      }
 
       const infoToggle = target.closest<HTMLButtonElement>(".labelDesignerPage .labelInfoToggle");
       if (infoToggle) {

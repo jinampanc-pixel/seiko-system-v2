@@ -157,3 +157,21 @@ test("the restored Stage 1 label stack remains mounted and final styling stays a
   assert.doesNotMatch(layout, /seiko-operational-v2\.css/);
   assert.doesNotMatch(layout, /seiko-stage2-repair\.css/);
 });
+
+
+test("label workspace exposes direct representation, custom components, layout meaning and calibrated size management", () => {
+  const createRoute = read("app/labels/create/page.tsx");
+  const polish = read("app/label-designer-polish.tsx");
+  assert.doesNotMatch(createRoute, /DesignerSourceLock/);
+  assert.match(createRoute, /initialSourceMode=\{selectedRepresentation\.sourceMode\}/);
+  assert.match(labelDesigner, /Label represents/);
+  assert.match(labelDesigner, /labelCustomComponents/);
+  for (const component of ["Information field", "Free text", "QR code", "Barcode", "Sequence"]) assert.match(labelDesigner, new RegExp(component));
+  assert.match(labelDesigner, /editingSizeId/);
+  assert.match(labelDesigner, /Copy & edit/);
+  assert.match(labelDesigner, /requiredRoll/);
+  assert.match(labelDesigner, /fieldRelevantForPurpose/);
+  assert.match(polish, /labelSaveMeaning/);
+  assert.match(polish, /Layout.*reusable physical design/);
+  assert.match(polish, /labelInfoSearchToggle/);
+});

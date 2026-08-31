@@ -19,11 +19,18 @@ test("order workspace uses spreadsheet row headers rather than checkbox selector
 });
 
 test("order center has detailed filters and a three-dot action menu for each order", () => {
-  for (const field of ["Status", "Client type", "Product", "Records", "Delivery"]) assert.match(centers, new RegExp(field));
+  for (const field of ["Status", "Client type", "Product", "Delivery"]) assert.match(centers, new RegExp(field));
+  assert.doesNotMatch(centers, /Records", "records/);
+  assert.match(centers, /orderFilterToggle/);
+  assert.match(centers, /orderFilterGlyph/);
+  assert.match(centers, /matchingProducts/);
+  assert.match(centers, /filterState\.clientType/);
   assert.match(centers, /Due in next 7 days/);
   assert.match(centers, /Overdue/);
   assert.match(centers, /orderCenterActionMenu/);
+  assert.match(centers, /Edit setup/);
   assert.match(centers, /Create labels/);
+  assert.doesNotMatch(centers, /openAction\.textContent = "Open order"/);
   assert.match(centers, /Archive order/);
   assert.match(centers, /Restore order/);
 });
@@ -38,10 +45,12 @@ test("label center has consistent three-dot menus for saved sets and source reco
   assert.match(centers, /Create label set/);
 });
 
-test("selected label-information chip x deselects the underlying field", () => {
-  assert.match(centers, /labelInfoChipRemove/);
-  assert.match(centers, /deselectChip/);
-  assert.match(centers, /checkbox\.click\(\)/);
+test("selected label-information chip x deselects the underlying React field", () => {
+  const polish = read("app/label-designer-polish.tsx");
+  const interactions = read("app/label-designer-interactions.tsx");
+  assert.match(polish, /labelInfoChipRemove/);
+  assert.match(polish, /checkbox\?\.click\(\)/);
+  assert.doesNotMatch(interactions, /removeSelectedChip/);
   assert.match(labels, /const toggleField/);
   assert.match(labels, /setItems\(all => all\.filter/);
 });

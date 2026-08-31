@@ -144,7 +144,7 @@ function categoryFor(choice: HTMLElement) {
   const text = choice.querySelector("label span")?.textContent?.trim() || "";
   if (/^(Person \/ workpiece|Group \/ label type)$/i.test(text) || /^Person detail\s*·/i.test(text)) return "person";
   if (/Trace code|Piece \/ pair number|Package \/ set number|Label number \/ order total|Person number \/ total|Product number \/ total|Number within|sequence|barcode|qr/i.test(text)) return "trace";
-  if (/^(Order number|Client)$/i.test(text)) return "core";
+  if (/^(Order number|Order date|Delivery date|Client name|Client type|Contact person \/ Attn|Phone number|Delivery address|Billing address|Remarks)$/i.test(text)) return "core";
   return "product";
 }
 function enhanceInformation(page: HTMLElement) {
@@ -161,7 +161,7 @@ function enhanceInformation(page: HTMLElement) {
       button.addEventListener("click", () => {
         bar!.querySelectorAll("button").forEach(item => item.classList.toggle("active", item === button));
         const classification = section.querySelector<HTMLElement>(".classificationInformation");
-        if (classification) classification.hidden = id !== "core";
+        if (classification) classification.hidden = id !== "person";
         checklist.querySelectorAll<HTMLElement>(".fieldChoice").forEach(choice => {
           if (id === "style") { choice.hidden = !choice.classList.contains("chosen"); choice.classList.toggle("fieldChoiceExpanded", choice.classList.contains("chosen")); }
           else { choice.hidden = choice.dataset.readyCategory !== id; if (!choice.hidden) choice.classList.remove("fieldChoiceExpanded"); }

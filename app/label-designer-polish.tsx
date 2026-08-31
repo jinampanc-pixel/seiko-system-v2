@@ -18,8 +18,14 @@ function tidyTopActions(page: HTMLElement) {
     print.title = "Print the selected labels. Your browser print dialog can also save them as PDF.";
   }
 
-  page.querySelector(".labelSaveMeaning")?.remove();
   const saveBar = page.querySelector<HTMLElement>(".labelSaveBar");
+  let meaning = page.querySelector<HTMLElement>(".labelSaveMeaning");
+  if (saveBar && !meaning) {
+    meaning = document.createElement("p");
+    meaning.className = "labelSaveMeaning";
+    meaning.innerHTML = '<b>Layout</b> saves the reusable physical design, size, components and placement. <b>Label set</b> saves this order's selected records for repeat printing.';
+    saveBar.insertAdjacentElement("afterend", meaning);
+  }
   if (saveBar) {
     Array.from(saveBar.querySelectorAll<HTMLButtonElement>("button")).forEach(button => {
       const text = button.textContent?.trim() || "";
@@ -104,12 +110,27 @@ function organizeInformation(page: HTMLElement) {
 
     const tools = document.createElement("div");
     tools.className = "labelInfoTools";
+    const searchToggle = document.createElement("button");
+    searchToggle.type = "button";
+    searchToggle.className = "labelInfoSearchToggle";
+    searchToggle.setAttribute("aria-label", "Search label information");
+    searchToggle.textContent = "⌕";
     const search = document.createElement("input");
     search.type = "search";
-    search.placeholder = "Find a field or measurement…";
+    search.hidden = true;
+    search.placeholder = "Search fields…";
     search.setAttribute("aria-label", "Find label information");
-    tools.appendChild(search);
+    tools.append(searchToggle, search);
     checklist.insertAdjacentElement("beforebegin", tools);
+    searchToggle.addEventListener("click", () => {
+      search.hidden = !search.hidden;
+      searchToggle.classList.toggle("active", !search.hidden);
+      if (!search.hidden) search.focus();
+      else { search.value = ""; search.dispatchEvent(new Event("input")); }
+    });
+    search.addEventListener("keydown", event => {
+      if (event.key === "Escape") { search.hidden = true; searchToggle.classList.remove("active"); search.value = ""; search.dispatchEvent(new Event("input")); searchToggle.focus(); }
+    });
     search.addEventListener("input", () => {
       const query = search.value.trim().toLowerCase();
       checklist.querySelectorAll<HTMLElement>(".fieldChoice").forEach(choice => {
@@ -157,8 +178,21 @@ function organizeInformation(page: HTMLElement) {
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "labelInfoChip";
-      chip.textContent = label;
       chip.title = `Edit ${label}`;
+      const text = document.createElement("span");
+      text.className = "labelInfoChipText";
+      text.textContent = label;
+      const remove = document.createElement("span");
+      remove.className = "labelInfoChipRemove";
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", `Remove ${label}`);
+      remove.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const checkbox = choice.querySelector<HTMLInputElement>(":scope > label:first-child input[type="checkbox"]");
+        checkbox?.click();
+      });
+      chip.append(text, remove);
       chip.addEventListener("click", () => {
         section.classList.remove("labelInfoCollapsed");
         const toggle = section.querySelector<HTMLButtonElement>(".labelInfoToggle");

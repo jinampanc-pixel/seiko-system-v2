@@ -42,3 +42,16 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - Acceptance is revalidated only after lint, all contracts, production build, render checks, and the existing branch-preview smoke test are green on the cleaned source.
 
 These behaviors must remain additive to the restored Stage 1 label stack unless an explicitly approved replacement supersedes them.
+
+## Current list and label UX acceptance
+- Order Center filters stay compact behind a descending-lines filter control. Client types come from live SEIKO orders; Product options automatically narrow to the selected client type. The weak Records yes/no filter is not part of the main filter set.
+- An Order Center row keeps `Open order` as its primary action. Its three-dot menu contains secondary work only: Edit setup, Create labels and Archive/Restore.
+- `Label represents` remains directly changeable inside the label workspace; the create route provides only its initial value and does not lock it.
+- The three label setup controls use the same title/control/helper geometry.
+- `Layout Library` remains directly discoverable. A Layout is reusable physical design/size/components/placement; a Label set is the selected order records for repeat printing.
+- `Custom selection` exposes explicit Information field, Free text, QR code, Barcode and Sequence components.
+- Authorised users can create and edit custom size presets. The built-in calibrated Pixra preset is protected but can be copied and edited. Roll geometry is validated; preview and printing continue to use physical millimetres, simple layouts reflow, and advanced elements are clamped into a changed physical boundary.
+- The selected-information chip × is wired directly to the React-owned field checkbox and must remove that field from state, preview and printing immediately.
+- Information search is collapsed behind a magnifier control rather than permanently consuming a full row.
+- Core information is limited to order-level fields defined in Order Setup; Person details contains person/record fields, Product details contains product data, and Trace & codes contains generated trace information. Classification/group belongs to Person details.
+- Available label information is purpose-aware for Production, Packing and Inventory while `Person / workpiece` remains a valid person identity field for packing where relevant.

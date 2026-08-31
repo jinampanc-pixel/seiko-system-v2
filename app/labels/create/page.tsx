@@ -145,30 +145,6 @@ function ConfigurationEditor({ kind, config, purposeId, onChange, onClose }: { k
   </div>;
 }
 
-function DesignerSourceLock({ sourceMode, displayLabel }: { sourceMode: SourceMode; displayLabel: string }) {
-  useEffect(() => {
-    let attempts = 0;
-    const apply = () => {
-      attempts += 1;
-      const select = document.querySelector<HTMLSelectElement>(".labelDesignerPage .labelSetup label:first-child select");
-      if (!select) { if (attempts < 30) window.setTimeout(apply, 40); return; }
-      if (!Array.from(select.options).some(option => option.value === sourceMode)) select.add(new Option(displayLabel, sourceMode));
-      select.disabled = false;
-      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, sourceMode);
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-      const label = select.closest("label"); if (!label) return;
-      label.classList.add("launcherSourceLocked");
-      const title = label.querySelector<HTMLElement>(":scope > span"); if (title) title.textContent = "Label represents";
-      let locked = label.querySelector<HTMLElement>(".designerSourceLockedValue");
-      if (!locked) { locked = document.createElement("div"); locked.className = "designerSourceLockedValue"; label.appendChild(locked); }
-      locked.innerHTML = `<b>${displayLabel}</b><small>Change from Back to setup</small>`;
-      select.disabled = true;
-    };
-    apply();
-  }, [displayLabel, sourceMode]);
-  return null;
-}
-
 export default function CreateLabelsPage() {
   const [ready, setReady] = useState(false);
   const [businessId, setBusinessId] = useState("seiko");
@@ -228,7 +204,7 @@ export default function CreateLabelsPage() {
   if (!ready) return <div className="labelCreateApp app" style={themeVariables(theme) as CSSProperties}><main className="labelCreateRoute"><div className="panel">Loading label workspace…</div></main></div>;
 
   if (started && selectedOrder) return <div className="labelCreateApp app" data-label-source={selectedRepresentation.sourceMode} style={themeVariables(theme) as CSSProperties}>
-    <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header><DesignerSourceLock sourceMode={selectedRepresentation.sourceMode} displayLabel={selectedRepresentation.label}/><LabelDesigner businessId={businessId} order={selectedOrder} initialPurpose={selectedPurpose.behavior} canManageSizes={canManage} onBack={() => setStarted(false)}/></div>
+    <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header><LabelDesigner businessId={businessId} order={selectedOrder} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} onBack={() => setStarted(false)}/></div>
   </div>;
 
   return <div className="labelCreateApp app" style={themeVariables(theme) as CSSProperties}><div className="surface">
