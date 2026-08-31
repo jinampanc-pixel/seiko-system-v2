@@ -32,7 +32,7 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - Label information is grouped as Core information, Person details, Product details, and Trace & codes. There is no unexplained Style group and no customer-update control in label information.
 - Core information is limited to saved order-level details from Order Setup. Person details contains person/record fields, Product details contains product data, and Trace & codes contains generated trace information. Classification/group belongs to Person details.
 - Available label information is purpose-aware for Production, Packing and Inventory while `Person / workpiece` remains a valid person identity field for packing where relevant.
-- Removing a selected information chip with its `×` must click the React-owned field checkbox, actually deselect the underlying field, and remove it from preview/print state immediately.
+- Removing a selected information chip with its `×` must click the React-owned field checkbox, actually deselect the underlying field, and remove it from preview/print state immediately; visually removing only the chip is never sufficient.
 - Information search is collapsed behind a compact magnifier control rather than permanently consuming a full row.
 - Preview sample selection is independent from the print selection, so mixed orders can inspect the correct person/product label without changing the labels queued for print.
 - Packing cards show package contents and totals rather than misleading garment-size summaries.
@@ -46,6 +46,6 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 
 - Superseded UI adapters, split menus and custom selector wrappers must be removed when their accepted replacement lands; leaving dead overlapping enhancers in the active source is a regression risk and is not considered complete implementation.
 - Temporary one-shot patch workflows/scripts used during an in-chat edit must remove themselves after their source commit; they are never part of the accepted application architecture.
-- Acceptance is revalidated only after lint, all contracts, production build, render checks, and the existing branch-preview smoke test are green on the cleaned source.
+- Acceptance is revalidated only after lint, all contracts, production build, render checks, and the existing branch-preview smoke test are green on the same cleaned source head.
 
 These behaviors must remain additive to the restored Stage 1 label stack unless an explicitly approved replacement supersedes them.
