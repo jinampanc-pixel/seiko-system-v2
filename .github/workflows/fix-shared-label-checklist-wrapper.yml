@@ -1,0 +1,37 @@
+name: Fix shared label checklist wrapper
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/fix-shared-label-checklist-wrapper.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Remove duplicated checklist wrapper
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/label-designer.tsx')
+          text = path.read_text(encoding='utf-8')
+          old = '<div className="fieldChecklist"><div className="fieldChecklist">'
+          if old not in text:
+              raise SystemExit('duplicated checklist wrapper not found')
+          path.write_text(text.replace(old, '<div className="fieldChecklist">', 1), encoding='utf-8')
+          PY
+          git rm .github/workflows/fix-shared-label-checklist-wrapper.yml
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git add app/label-designer.tsx .github
+          git commit -m "Fix shared label information checklist structure"
+          git push origin HEAD:fix/veyn-milestone-one
