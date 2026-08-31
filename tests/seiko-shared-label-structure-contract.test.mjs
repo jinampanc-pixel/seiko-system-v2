@@ -7,7 +7,7 @@ const designer = read("app/label-designer.tsx");
 const finalization = read("app/label-finalization.tsx");
 
 test("shared label information has one checklist and one valid helper boundary", () => {
-  assert.doesNotMatch(designer, /fieldChecklist\"><div className="fieldChecklist/);
+  assert.doesNotMatch(designer, /fieldChecklist"><div className="fieldChecklist/);
   assert.doesNotMatch(designer, /function\s+\w+function\s+\w+/);
   assert.doesNotMatch(finalization, /function\s+\w+\([^)]*\)function\s+\w+/);
 });
