@@ -15,7 +15,6 @@ const pager = read("app/workspace-top-pager.tsx");
 const rowMenu = read("app/workspace-row-menu.tsx");
 const shortcuts = read("app/workspace-shortcuts.tsx");
 const home = read("app/seiko-phase1.tsx");
-const homeCss = read("app/seiko-phase1.css");
 const erpSync = read("app/erp-order-sync.tsx");
 const erpNotice = read("app/erp-sync-notice.tsx");
 const finalUx = read("app/seiko-workspace-label-final.css");
