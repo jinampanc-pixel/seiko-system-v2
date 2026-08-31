@@ -179,7 +179,10 @@ test("label output can be code only, information only or combined", () => {
   assert.match(labelDesigner, /canvasElement\.selected/);
   assert.match(labelDesigner, /item\.kind\s*===\s*"qr"/);
   assert.match(labelDesigner, /preventDefault\(\)/);
-  assert.match(orders, /Print labels/);
+  assert.match(orders, /workspaceLabelsButton/);
+  assert.match(orders, /New production label/);
+  assert.match(orders, /New packing label/);
+  assert.match(orders, /New inventory label/);
   assert.match(page, /onOpenLabelBatches=/);
   assert.match(page, /onCreateLabel=/);
   assert.match(labelDesigner, /Back to order/);
