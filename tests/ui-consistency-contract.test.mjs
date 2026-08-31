@@ -12,7 +12,7 @@ const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8
 
 test("selected label-information chips expose a real remove affordance", () => {
   assert.match(labelPolish, /labelInfoChipRemove/);
-  assert.match(labelPolish, /querySelector<HTMLInputElement>\('\:scope > label:first-child input\[type="checkbox"\]'\)/);
+  assert.match(labelPolish, /querySelector<HTMLInputElement>\(':scope > label:first-child input\[type="checkbox"\]'\)/);
   assert.match(labelPolish, /checkbox\?\.click\(\)/);
   assert.doesNotMatch(interactions, /removeSelectedChip/);
   assert.match(labelControls, /\.labelInfoChipRemove/);
