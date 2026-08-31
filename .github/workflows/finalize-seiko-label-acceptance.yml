@@ -1,0 +1,40 @@
+name: Finalize SEIKO label acceptance
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/finalize-seiko-label-acceptance.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+      - run: npm ci
+      - name: Apply exact label refinements
+        run: python .github/scripts/finalize-seiko-label-acceptance.py
+      - name: Validate full SEIKO application
+        run: npm test
+      - name: Commit validated refinements and remove one-shot files
+        run: |
+          git rm .github/scripts/finalize-seiko-label-acceptance.py .github/workflows/finalize-seiko-label-acceptance.yml
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git add app/label-designer.tsx
+          git commit -m "Finalize SEIKO packing label acceptance"
+          git push origin HEAD:fix/veyn-milestone-one
