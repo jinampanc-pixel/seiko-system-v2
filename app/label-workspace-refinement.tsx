@@ -9,13 +9,6 @@ function packingWorkspace(page: HTMLElement) {
 }
 
 function cleanHeaderAndSetup(page: HTMLElement) {
-  page.querySelectorAll<HTMLButtonElement>(".labelSaveBar button").forEach(button => {
-    const label = button.textContent?.trim() || "";
-    if (/^(Layout Library|Layouts\b|Saved sets\b|Batches\b)/i.test(label)) {
-      button.hidden = true;
-      button.style.display = "none";
-    }
-  });
   page.querySelector(".labelSaveMeaning")?.remove();
   page.querySelectorAll<HTMLElement>(".labelSetupHelp").forEach(help => {
     if (/Physical size and roll geometry drive preview and printing in millimetres/i.test(help.textContent || "")) help.remove();
@@ -94,49 +87,6 @@ function removePackingGenericChoices(page: HTMLElement) {
   });
 }
 
-function personPackageWorkspace(page: HTMLElement) {
-  if (!packingWorkspace(page)) return false;
-  return Array.from(page.querySelectorAll<HTMLElement>(".recordList .record small"))
-    .some(item => /Complete person package|Total\s+\d+/i.test(item.textContent || ""));
-}
-
-function resetControlledSelect(select: HTMLSelectElement) {
-  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, "");
-  select.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-function refineRecordFilters(page: HTMLElement) {
-  const bar = page.querySelector<HTMLElement>(".recordFilterBar");
-  const search = page.querySelector<HTMLInputElement>(".recordSearch");
-  if (!bar || !search) return;
-  const filterSelect = bar.querySelector<HTMLSelectElement>("label:first-child select");
-  if (!filterSelect) return;
-
-  const personPackage = personPackageWorkspace(page);
-  Array.from(filterSelect.options).forEach(option => {
-    const inaccurateForPackage = personPackage && (option.value === "product" || option.value === "product_summary");
-    option.hidden = inaccurateForPackage;
-    option.disabled = inaccurateForPackage;
-  });
-  if (personPackage && ["product", "product_summary"].includes(filterSelect.value)) resetControlledSelect(filterSelect);
-
-  search.placeholder = personPackage
-    ? "Find person, class/group or a product contained in the package"
-    : "Find person, product, class, group or any order field";
-
-  let hint = bar.parentElement?.querySelector<HTMLElement>(".labelRecordAccuracyHint");
-  if (personPackage) {
-    if (!hint) {
-      hint = document.createElement("p");
-      hint.className = "labelRecordAccuracyHint";
-      bar.insertAdjacentElement("afterend", hint);
-    }
-    hint.textContent = "Person/package contents come from the saved order quantities. The label tool never infers gender or product eligibility from a name. Search a product name above to find packages containing it; if a product is unexpected, correct that person/group quantity in the order.";
-  } else {
-    hint?.remove();
-  }
-}
-
 function stackAutomaticPreview(page: HTMLElement) {
   if (page.classList.contains("labelManualArrange")) return;
 
@@ -175,7 +125,6 @@ function enhancePage(page: HTMLElement) {
   addArrangeControl(page);
   enhanceRecordHover(page);
   removePackingGenericChoices(page);
-  refineRecordFilters(page);
   stackAutomaticPreview(page);
 }
 
