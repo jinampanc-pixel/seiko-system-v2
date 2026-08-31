@@ -128,7 +128,7 @@ function arrangeLabelItems(items: Item[], preset: Preset) {
 function arrangeLabelItemsForRow(items: Item[], preset: Preset, row: RecordRow) {
     return arrangeLabelItems(items.filter(item => item.kind !== "field" || hasLabelValue(labelValue(row, item.field))), preset);
 }
-export function LabelDesigner({ businessId, canManageSizes, order, onBack, initialPurpose = null }: {
+export function LabelDesigner({ businessId, canManageSizes, order, onBack, initialPurpose = null, initialSourceMode }: {
     businessId: string;
     canManageSizes: boolean;
     order?: SeikoOrder | null;
