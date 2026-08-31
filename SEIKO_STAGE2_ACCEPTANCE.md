@@ -45,6 +45,7 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 ## Implementation hygiene
 
 - Superseded UI adapters, split menus and custom selector wrappers must be removed when their accepted replacement lands; leaving dead overlapping enhancers in the active source is a regression risk and is not considered complete implementation.
+- Temporary one-shot patch workflows/scripts used during an in-chat edit must remove themselves after their source commit; they are never part of the accepted application architecture.
 - Acceptance is revalidated only after lint, all contracts, production build, render checks, and the existing branch-preview smoke test are green on the cleaned source.
 
 These behaviors must remain additive to the restored Stage 1 label stack unless an explicitly approved replacement supersedes them.
