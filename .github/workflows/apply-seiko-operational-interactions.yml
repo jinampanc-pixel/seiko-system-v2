@@ -1,0 +1,31 @@
+name: Apply SEIKO operational interactions
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/scripts/apply-seiko-operational-interactions.py
+      - .github/workflows/apply-seiko-operational-interactions.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Apply operational interaction pass
+        run: python .github/scripts/apply-seiko-operational-interactions.py
+      - name: Remove updater and commit source
+        run: |
+          git rm -f .github/scripts/apply-seiko-operational-interactions.py .github/workflows/apply-seiko-operational-interactions.yml
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git add app .github
+          git commit -m "Refine SEIKO operational interactions"
+          git push origin HEAD:fix/veyn-milestone-one
