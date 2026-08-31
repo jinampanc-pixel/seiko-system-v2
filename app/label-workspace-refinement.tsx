@@ -94,11 +94,89 @@ function removePackingGenericChoices(page: HTMLElement) {
   });
 }
 
+function personPackageWorkspace(page: HTMLElement) {
+  if (!packingWorkspace(page)) return false;
+  return Array.from(page.querySelectorAll<HTMLElement>(".recordList .record small"))
+    .some(item => /Complete person package|Total\s+\d+/i.test(item.textContent || ""));
+}
+
+function resetControlledSelect(select: HTMLSelectElement) {
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, "");
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function refineRecordFilters(page: HTMLElement) {
+  const bar = page.querySelector<HTMLElement>(".recordFilterBar");
+  const search = page.querySelector<HTMLInputElement>(".recordSearch");
+  if (!bar || !search) return;
+  const filterSelect = bar.querySelector<HTMLSelectElement>("label:first-child select");
+  if (!filterSelect) return;
+
+  const personPackage = personPackageWorkspace(page);
+  Array.from(filterSelect.options).forEach(option => {
+    const inaccurateForPackage = personPackage && (option.value === "product" || option.value === "product_summary");
+    option.hidden = inaccurateForPackage;
+    option.disabled = inaccurateForPackage;
+  });
+  if (personPackage && ["product", "product_summary"].includes(filterSelect.value)) resetControlledSelect(filterSelect);
+
+  search.placeholder = personPackage
+    ? "Find person, class/group or a product contained in the package"
+    : "Find person, product, class, group or any order field";
+
+  let hint = bar.parentElement?.querySelector<HTMLElement>(".labelRecordAccuracyHint");
+  if (personPackage) {
+    if (!hint) {
+      hint = document.createElement("p");
+      hint.className = "labelRecordAccuracyHint";
+      bar.insertAdjacentElement("afterend", hint);
+    }
+    hint.textContent = "Person/package contents come from the saved order quantities. The label tool never infers gender or product eligibility from a name. Search a product name above to find packages containing it; if a product is unexpected, correct that person/group quantity in the order.";
+  } else {
+    hint?.remove();
+  }
+}
+
+function stackAutomaticPreview(page: HTMLElement) {
+  if (page.classList.contains("labelManualArrange")) return;
+
+  page.querySelectorAll<HTMLElement>(".labelCanvas").forEach(canvas => {
+    const fields = Array.from(canvas.querySelectorAll<HTMLElement>(".canvasElement.element-field"));
+    if (!fields.length) return;
+    const hasQr = Boolean(canvas.querySelector(".canvasElement.element-qr"));
+    const start = 7;
+    const usable = 82;
+    const step = Math.min(18, usable / Math.max(1, fields.length));
+    const height = Math.max(8, step - 2);
+    fields.forEach((field, index) => {
+      field.style.left = "4%";
+      field.style.top = `${start + index * step}%`;
+      field.style.width = hasQr ? "66%" : "92%";
+      field.style.height = `${height}%`;
+    });
+  });
+
+  page.querySelectorAll<HTMLElement>(".printSheet .printedLabel").forEach(label => {
+    const fields = Array.from(label.querySelectorAll<HTMLElement>(".printedElement.element-field"));
+    if (!fields.length) return;
+    const hasQr = Boolean(label.querySelector(".printedElement.element-qr"));
+    const step = Math.min(4, 19 / Math.max(1, fields.length));
+    fields.forEach((field, index) => {
+      field.style.left = "2mm";
+      field.style.top = `${2 + index * step}mm`;
+      field.style.width = hasQr ? "33mm" : "46mm";
+      field.style.height = `${Math.max(2.2, step - .3)}mm`;
+    });
+  });
+}
+
 function enhancePage(page: HTMLElement) {
   cleanHeaderAndSetup(page);
   addArrangeControl(page);
   enhanceRecordHover(page);
   removePackingGenericChoices(page);
+  refineRecordFilters(page);
+  stackAutomaticPreview(page);
 }
 
 export function LabelWorkspaceRefinement() {
@@ -126,10 +204,12 @@ export function LabelWorkspaceRefinement() {
     };
 
     document.addEventListener("click", removeChip, true);
+    document.addEventListener("change", controller.schedule, true);
     window.addEventListener("scroll", removeHoverCard, true);
     window.addEventListener("resize", removeHoverCard);
     return () => {
       document.removeEventListener("click", removeChip, true);
+      document.removeEventListener("change", controller.schedule, true);
       window.removeEventListener("scroll", removeHoverCard, true);
       window.removeEventListener("resize", removeHoverCard);
       removeHoverCard();
