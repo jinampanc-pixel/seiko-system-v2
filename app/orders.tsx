@@ -22,7 +22,7 @@ function loadOrders(businessId: string): SeikoOrder[] {
   try { return (JSON.parse(localStorage.getItem(orderStoreKey(businessId)) || "[]") as SeikoOrder[]).map(order => ({ ...order, details: { ...order.details, attnRequired: order.details.attnRequired ?? false }, products: order.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [], specifications: product.specifications.map(spec => ({ ...spec, attachments: spec.attachments || [] })) })) })); } catch { return []; }
 }
 
-export function Orders({ businessId, canManageSuggestions = false, initialOrder = null, onOpenLabelBatches, onCreateLabel }: { businessId: string; canManageSuggestions?: boolean; initialOrder?: SeikoOrder|null; onOpenLabelBatches?: (order: SeikoOrder) => void; onCreateLabel?: (order: SeikoOrder, purpose: "production"|"packing"|"inventory") => void }) {
+export function Orders({ businessId, canManageSuggestions = false, initialOrder = null, onOpenLabelBatches }: { businessId: string; canManageSuggestions?: boolean; initialOrder?: SeikoOrder|null; onOpenLabelBatches?: (order: SeikoOrder) => void }) {
   const [orders, setOrders] = useState<SeikoOrder[]>(() => { const loaded = loadOrders(businessId); loaded.forEach(order => generateOrderArtifacts(businessId, order)); return loaded; });
   const [view, setView] = useState<View>(initialOrder ? "workspace" : "center");
   const [current, setCurrent] = useState<SeikoOrder | null>(initialOrder ? { ...initialOrder, products: initialOrder.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [] })) } : null);
@@ -38,7 +38,7 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
   const visible = useMemo(() => orders.filter(order => order.archived === archivedOnly && `${order.details.orderNo} ${order.details.clientName} ${order.details.clientType} ${order.status}`.toLowerCase().includes(query.toLowerCase())), [archivedOnly, orders, query]);
 
   if (view === "setup" && current) return <OrderSetup businessId={businessId} order={current} errors={setupErrors} suggestions={suggestions} canManageSuggestions={canManageSuggestions} onRemoveSuggestion={removeSuggestion} onChange={order => { setCurrent(order); setSetupErrors([]); }} onCancel={() => setView(current.revisions.length ? "workspace" : "center")} onContinue={() => { const errors = validateOrder(current); setSetupErrors(errors); if (errors.length) return; learnSuggestion("clientTypes", current.details.clientType); current.products.forEach(product => learnSuggestion("products", product.name, current.details.clientType)); current.measurements.forEach(measurement => learnSuggestion("measurements", measurement.name, current.details.clientType)); save(current, current.revisions.length ? "Order definition updated" : "Order draft created"); setView("workspace"); }}/>
-  if (view === "workspace" && current) return <OrderWorkspace businessId={businessId} canManageSuggestions={canManageSuggestions} order={current} onOpenLabelBatches={()=>onOpenLabelBatches?.(current)} onCreateLabel={purpose=>onCreateLabel?.(current,purpose)} onChange={setCurrent} onEditSetup={() => setView("setup")} onSave={(close) => save(current, "Order saved", close)} onClose={() => { if (confirm("Close without saving the latest changes? The last saved revision remains safe.")) { setView("center"); setCurrent(null); } }}/>
+  if (view === "workspace" && current) return <OrderWorkspace businessId={businessId} canManageSuggestions={canManageSuggestions} order={current} onOpenLabelBatches={()=>onOpenLabelBatches?.(current)} onChange={setCurrent} onEditSetup={() => setView("setup")} onSave={(close) => save(current, "Order saved", close)} onClose={() => { if (confirm("Close without saving the latest changes? The last saved revision remains safe.")) { setView("center"); setCurrent(null); } }}/>
 
   return <div className="page ordersPage"><section className="orderCenterHead"><div><p className="eyebrow">ORDER CENTER</p><h2>Orders</h2><p>Create, find and continue client orders.</p></div><button className="primary" onClick={() => { const next = Math.max(0, ...orders.map(order => Number(order.details.orderNo.split("-").at(-1)) || 0)) + 1; setCurrent(newOrder(next)); setView("setup"); }}>+ New order</button></section>
     <div className="orderTools"><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search order, client, type or status"/><label><input type="checkbox" checked={archivedOnly} onChange={event => setArchivedOnly(event.target.checked)}/> Archived orders</label></div>
@@ -63,7 +63,7 @@ function OrderSetup({ businessId, order, errors, suggestions, canManageSuggestio
   function removeSourceField(id: string) { const products = order.products.map(product => ({ ...product, quantityGroupFieldId: product.quantityGroupFieldId === id ? undefined : product.quantityGroupFieldId, specifications: product.specifications.map(spec => spec.groupFieldId === id ? { ...spec, groupFieldId: undefined } : spec) })); onChange({ ...order, fields: order.fields.filter(item => item.id !== id), products }); }
 }
 
-function OrderWorkspace({ businessId, canManageSuggestions, order, onChange, onEditSetup, onOpenLabelBatches, onCreateLabel, onSave, onClose }: { businessId: string; canManageSuggestions: boolean; order: SeikoOrder; onChange: (order: SeikoOrder) => void; onEditSetup: () => void; onOpenLabelBatches: () => void; onCreateLabel: (purpose:"production"|"packing"|"inventory")=>void; onSave: (close: boolean) => void; onClose: () => void }) {
+function OrderWorkspace({ businessId, canManageSuggestions, order, onChange, onEditSetup, onOpenLabelBatches, onSave, onClose }: { businessId: string; canManageSuggestions: boolean; order: SeikoOrder; onChange: (order: SeikoOrder) => void; onEditSetup: () => void; onOpenLabelBatches: () => void; onSave: (close: boolean) => void; onClose: () => void }) {
   const columns = workspaceColumns(order);
   const issues = readinessIssues(order);
   const [query, setQuery] = useState("");
@@ -72,8 +72,6 @@ function OrderWorkspace({ businessId, canManageSuggestions, order, onChange, onE
   const [rowCount, setRowCount] = useState(1);
   const [orderMenuOpen,setOrderMenuOpen]=useState(false);
   const orderMenuRef=useRef<HTMLDivElement>(null);
-  const [labelMenuOpen,setLabelMenuOpen]=useState(false);
-  const labelMenuRef=useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<{ anchor: [number, number]; end: [number, number] } | null>(null);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [columnMenuOpen, setColumnMenuOpen] = useState(false);
@@ -86,7 +84,6 @@ function OrderWorkspace({ businessId, canManageSuggestions, order, onChange, onE
   useEffect(()=>{const stop=()=>setDragSelecting(false);document.addEventListener("mouseup",stop);return()=>document.removeEventListener("mouseup",stop)},[]);
   useEffect(()=>{const close=(event: globalThis.MouseEvent)=>{if(columnControlRef.current&&!columnControlRef.current.contains(event.target as Node))setColumnMenuOpen(false)};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[]);
   useEffect(()=>{const close=(event:globalThis.MouseEvent)=>{if(orderMenuRef.current&&!orderMenuRef.current.contains(event.target as Node))setOrderMenuOpen(false)};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[]);
-  useEffect(()=>{const close=(event:globalThis.MouseEvent)=>{if(labelMenuRef.current&&!labelMenuRef.current.contains(event.target as Node))setLabelMenuOpen(false)};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[]);
   const [undoStack, setUndoStack] = useState<OrderRecord[][]>([]);
   const [redoStack, setRedoStack] = useState<OrderRecord[][]>([]);
   const cloneRecords = (records: OrderRecord[]) => records.map(record => ({ ...record, values: { ...record.values } }));
