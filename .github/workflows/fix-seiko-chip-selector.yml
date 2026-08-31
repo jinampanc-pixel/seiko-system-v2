@@ -1,0 +1,38 @@
+name: Fix SEIKO label chip selector
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/fix-seiko-chip-selector.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Fix selector and self-clean
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/label-designer-polish.tsx')
+          text = path.read_text()
+          old = 'const checkbox = choice.querySelector<HTMLInputElement>(":scope > label:first-child input[type="checkbox"]");'
+          new = 'const checkbox = choice.querySelector<HTMLInputElement>(\':scope > label:first-child input[type="checkbox"]\');'
+          if old not in text:
+              raise SystemExit('chip selector target not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          git rm .github/workflows/fix-seiko-chip-selector.yml
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git add app .github
+          git commit -m "Fix SEIKO label chip selector syntax"
+          git push origin HEAD:fix/veyn-milestone-one
