@@ -43,7 +43,8 @@ test("workspace source owns status and save while rows-per-page accepts custom v
   assert.match(orders, />Save now<\/button>/);
   assert.match(pager, /workspacePageSizeInput/);
   assert.match(pager, /Math\.max\(1, Math\.min\(5000/);
-  assert.match(pager, /dataset\.customPageSize/);
+  assert.match(pager, /FocusEvent\("focusout"/);
+  assert.match(pager, /setInputValue\(native, value\)/);
   assert.doesNotMatch(pager, /cloneNode\(true\) as HTMLSelectElement/);
 });
 
