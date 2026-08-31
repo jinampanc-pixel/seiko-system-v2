@@ -19,6 +19,16 @@ jobs:
         with:
           ref: fix/veyn-milestone-one
           fetch-depth: 0
+      - name: Correct updater source targets
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/apply-seiko-operational-interactions.py')
+          text = path.read_text()
+          text = text.replace('appendMetaItem(meta, "Delivery", deliveryState(order));', 'appendMetaItem(meta, "Delivery", dueLabel(order));')
+          text = text.replace("t=rep(t,'meta.appendChild(item);\\n}', 'meta.appendChild(item);\\n  return item;\\n}', 'append meta return')", "t=rep(t,'host.appendChild(item);\\n}', 'host.appendChild(item);\\n  return item;\\n}', 'append meta return')")
+          path.write_text(text)
+          PY
       - name: Apply operational interaction pass
         run: python .github/scripts/apply-seiko-operational-interactions.py
       - name: Remove updater and commit source
