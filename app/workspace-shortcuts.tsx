@@ -158,7 +158,7 @@ export function WorkspaceShortcuts() {
       }
       if (modifier && key === "p") {
         event.preventDefault();
-        page.querySelector<HTMLButtonElement>(".workspaceLabelsButton")?.click();
+        clickMenuAction(page, "Labels");
         return;
       }
       if (modifier && key === "f") {

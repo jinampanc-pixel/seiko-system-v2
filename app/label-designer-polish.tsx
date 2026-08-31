@@ -104,9 +104,6 @@ function organizeInformation(page: HTMLElement) {
     });
     section.querySelector(".simpleDesignerHead")?.appendChild(toggle);
 
-    const selectedStrip = document.createElement("div");
-    selectedStrip.className = "labelInfoSelectedStrip";
-    section.querySelector(".simpleDesignerHead")?.insertAdjacentElement("afterend", selectedStrip);
 
     const tools = document.createElement("div");
     tools.className = "labelInfoTools";
@@ -169,7 +166,7 @@ function organizeInformation(page: HTMLElement) {
   refreshFieldHeadings(checklist);
 
   const selectedStrip = section.querySelector<HTMLElement>(".labelInfoSelectedStrip");
-  if (selectedStrip) {
+  if (selectedStrip && !selectedStrip.classList.contains("labelInfoSelectedStripReact")) {
     selectedStrip.replaceChildren();
     const selectedChoices = Array.from(checklist.querySelectorAll<HTMLElement>(".fieldChoice.chosen"));
     selectedChoices.forEach(choice => {

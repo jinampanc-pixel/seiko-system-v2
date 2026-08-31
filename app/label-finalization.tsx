@@ -167,45 +167,21 @@ function showPrintNotice(message: string) {
   window.setTimeout(() => note.remove(), 5200);
 }
 
-function syncPrintCopies() {
-  document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(page => {
-    const topbar = page.querySelector<HTMLElement>(".labelTopbar");
-    const print = Array.from(topbar?.querySelectorAll<HTMLButtonElement>("button") || []).find(button => /^Print\b/i.test(button.textContent || ""));
-    if (!topbar || !print) return;
-    let control = topbar.querySelector<HTMLElement>(".labelPrintCopies");
-    if (!control) {
-      control = document.createElement("label");
-      control.className = "labelPrintCopies";
-      const title = document.createElement("span");
-      title.textContent = "Copies";
-      const input = document.createElement("input");
-      input.type = "number";
-      input.min = "1";
-      input.max = "50";
-      input.step = "1";
-      input.setAttribute("aria-label", "Copies of each selected label");
-      const key = `jinam:${activeBusiness()}:labels:print-copies`;
-      input.value = localStorage.getItem(key) || "1";
-      const note = document.createElement("small");
-      control.append(title, input, note);
-      print.insertAdjacentElement("beforebegin", control);
-      input.addEventListener("change", () => {
-        const value = Math.max(1, Math.min(50, Math.floor(Number(input.value) || 1)));
-        input.value = String(value);
-        localStorage.setItem(key, input.value);
-        syncPrintCopies();
-      });
-    }
-    const input = control.querySelector<HTMLInputElement>("input");
-    const note = control.querySelector<HTMLElement>("small");
-    const copies = Math.max(1, Math.min(50, Math.floor(Number(input?.value) || 1)));
-    const selectedText = page.querySelector<HTMLElement>(".labelSidebar .panelHead h3")?.textContent || "";
-    const selected = Number(selectedText.match(/(\d+)/)?.[1]) || 0;
-    if (note) note.textContent = selected ? `${selected} selected · ${selected * copies} prints` : `${copies} each`;
-  });
+function askPrintCopies(selected: number, onConfirm: (copies: number) => void) {
+  document.querySelector(".labelPrintCopiesDialog")?.remove();
+  const storageKey = `jinam:${activeBusiness()}:labels:print-copies`;
+  const layer = document.createElement("div");
+  layer.className = "seikoConfirmLayer labelPrintCopiesDialog";
+  layer.innerHTML = '<section class="seikoConfirmDialog" role="dialog" aria-modal="true" aria-labelledby="label-copies-title"><h3 id="label-copies-title">Print labels</h3><p class="labelCopiesSummary"></p><label class="labelCopiesField"><span>Copies of each selected label</span><input type="number" min="1" max="50" step="1"></label><div><button type="button" class="secondary cancel">Cancel</button><button type="button" class="primary confirm">Continue to print</button></div></section>';
+  const input = layer.querySelector<HTMLInputElement>("input")!; input.value = localStorage.getItem(storageKey) || "1";
+  const sync = () => { const copies = Math.max(1, Math.min(50, Math.floor(Number(input.value) || 1))); input.value = String(copies); const summary = layer.querySelector<HTMLElement>(".labelCopiesSummary"); if (summary) summary.textContent = `${selected} selected · ${selected * copies} total print${selected * copies === 1 ? "" : "s"}`; };
+  sync(); input.addEventListener("input", sync);
+  const close = () => layer.remove(); layer.querySelector<HTMLButtonElement>(".cancel")!.addEventListener("click", close);
+  layer.querySelector<HTMLButtonElement>(".confirm")!.addEventListener("click", () => { const copies = Math.max(1, Math.min(50, Math.floor(Number(input.value) || 1))); localStorage.setItem(storageKey, String(copies)); close(); onConfirm(copies); });
+  layer.addEventListener("click", event => { if (event.target === layer) close(); }); document.body.appendChild(layer); input.focus(); input.select();
 }
 
-function labelOnlyPrint() {
+function labelOnlyPrint(copies = 1)function labelOnlyPrint() {
   const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet");
   if (!sheet) return;
   const popup = window.open("", "_blank", "width=980,height=760");
@@ -215,7 +191,6 @@ function labelOnlyPrint() {
   popup.document.close();
 
   window.setTimeout(() => {
-    const copies = Math.max(1, Math.min(50, Math.floor(Number(document.querySelector<HTMLInputElement>(".labelPrintCopies input")?.value) || 1)));
     const labels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")].flatMap(label => Array.from({ length: copies }, () => label));
     const preset = currentPreset();
     const pitch = preset.labelH + Math.max(0, preset.gapY || 0);
@@ -255,7 +230,6 @@ export function LabelFinalization() {
       enhanceOrderSearch();
       markProductionWorkspaceFields();
       ensureCanvasRatio();
-      syncPrintCopies();
     };
     const schedule = () => {
       if (frame) return;
@@ -268,7 +242,7 @@ export function LabelFinalization() {
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>(".labelDesignerPage .labelTopbar .primary");
       if (!button || button.disabled || !/^Print\b/i.test(button.textContent || "")) return;
       event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-      labelOnlyPrint();
+      const selected = document.querySelectorAll(".labelDesignerPage .recordList .record.selected").length; askPrintCopies(selected, copies => labelOnlyPrint(copies));
     };
     document.addEventListener("click", click, true);
     window.addEventListener("resize", schedule);
