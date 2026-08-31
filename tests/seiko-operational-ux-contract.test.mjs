@@ -6,6 +6,7 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8"
 const enhancements = read("app/app-enhancements.tsx");
 const ux = read("app/seiko-operational-ux.tsx");
 const css = read("app/seiko-operational-ux.css");
+const orders = read("app/orders.tsx");
 const pager = read("app/workspace-top-pager.tsx");
 const labels = read("app/label-workspace-refinement.tsx");
 const labelDesigner = read("app/label-designer.tsx");
@@ -16,13 +17,12 @@ test("operational UX refinement remains mounted and late styled", () => {
   assert.match(layout, /seiko-operational-ux\.css/);
 });
 
-test("Home removes duplicate navigation and enriches active work", () => {
-  assert.match(ux, /homeQuickAccessDuplicate/);
-  assert.match(ux, /homeOrderOperationalMeta/);
-  assert.match(ux, /homeOrderCenterButton/);
-  assert.match(ux, /Delivery/);
+test("Home removes duplicate Orders navigation without inventing another Order Center shortcut", () => {
+  assert.match(ux, /function enhanceHome\(\)/);
+  assert.match(ux, /\.overview \.moduleGrid \.moduleCard/);
+  assert.match(ux, /=== "Orders"/);
+  assert.match(ux, /card\.hidden = true/);
   assert.doesNotMatch(ux, /Order Center →/);
-  assert.match(css, /\.homeOrderOperationalRow/);
 });
 
 test("Order Center opens rows directly and keeps status plus conditional printing in the action menu", () => {
@@ -34,10 +34,13 @@ test("Order Center opens rows directly and keeps status plus conditional printin
   assert.match(ux, /waitForWorkspaceAction\("Labels"\)/);
 });
 
-test("workspace menu owns status and save while rows-per-page accepts custom values", () => {
+test("workspace source owns status and save while rows-per-page accepts custom values", () => {
   assert.match(ux, /workspaceHeaderSecondaryAction/);
   assert.match(ux, /workspaceMenuOperational/);
-  assert.match(ux, /Save now/);
+  assert.doesNotMatch(ux, /Save now/);
+  assert.match(orders, /workspaceNativeMenuStatus/);
+  assert.match(orders, /workspaceMenuSaveNow/);
+  assert.match(orders, />Save now<\/button>/);
   assert.match(pager, /workspacePageSizeInput/);
   assert.match(pager, /Math\.max\(1, Math\.min\(5000/);
   assert.match(pager, /dataset\.customPageSize/);
