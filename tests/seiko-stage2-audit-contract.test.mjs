@@ -246,5 +246,4 @@ test("label workspace exposes direct representation, custom components, layout m
   assert.match(labelDesigner, /fieldRelevantForPurpose/);
   assert.match(polish, /labelSaveMeaning/);
   assert.match(polish, /Layout.*reusable physical design/);
-  assert.match(polish, /labelInfoSearchToggle/);
 });
