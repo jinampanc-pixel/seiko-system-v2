@@ -38,17 +38,23 @@ test("group quantity UI and domain both use default quantity plus exceptions", (
   assert.match(setupFinalize, /Set the normal quantity once, then add only the groups that differ/);
 });
 
-test("Home is a configurable interactive dashboard plus configurable quick access", () => {
-  assert.match(home, /HOME_KEY = "jinam:seiko:home-config-v2"/);
+test("Home is a configurable dashboard with one operational order-entry surface", () => {
+  assert.match(home, /HOME_KEY = "jinam:seiko:home-config-v3"/);
   assert.match(home, /Customize dashboard/);
   assert.match(home, /showActiveOrders/);
   assert.match(home, /activeOrderPageSize/);
+  assert.match(home, /homeWorkFilterToggle/);
   assert.match(home, /Filter active orders/);
   assert.match(home, /All client types/);
   assert.match(home, /All products/);
+  assert.match(home, /Clear filters/);
   assert.match(home, /quickAccess/);
-  assert.match(home, /openSeikoModule\(metric\.module\)/);
+  assert.match(home, /seikoMetricReadout/);
+  assert.match(home, /openSeikoOrder\(order\)/);
   assert.match(home, /seikoDashboardActivityRow/);
+  assert.doesNotMatch(home, /PERSON \/ RECORD ENTRIES/);
+  assert.doesNotMatch(home, /quickAccess: \{ Orders:/);
+  assert.doesNotMatch(home, /openSeikoModule\(metric\.module\)/);
   assert.match(homeCss, /\.seikoDashboardMetrics/);
   assert.match(homeCss, /\.overview>\.moduleGrid::before\{content:"Quick access"/);
 });
@@ -70,7 +76,7 @@ test("workspace row operations are deliberate and pagination has one state sourc
   assert.match(pager, /dispatchEvent\(new Event\("change", \{ bubbles: true \}\)\)/);
 });
 
-test("workspace keeps primary Save visible and routes secondary Labels through More", () => {
+test("workspace keeps native Save and status as the state source while the operational menu can proxy them", () => {
   assert.match(orders, /workspaceStatusControl/);
   assert.doesNotMatch(orders, /workspaceLabelsButton/);
   assert.match(orders, /workspaceQuickSave/);
@@ -121,17 +127,28 @@ test("shared Label Workspace owns information state and purpose only controls re
   assert.doesNotMatch(labelPolish, /selectedFieldChipRemove/);
 });
 
-test("label information and preview follow the accepted order-derived model", () => {
+test("label package contents use the shared order quantity resolver and exclude zero quantities", () => {
+  assert.match(labelDesigner, /quantityForRecord/);
+  assert.match(labelDesigner, /const qty = product \? quantityForRecord\(product, record, recordIndex === 0\) : 1/);
+  assert.match(labelDesigner, /groupRuleMatches\(rule\.match, groupValue\)/);
+  assert.match(labelDesigner, /\(Number\(row\.qty\) \|\| 0\) <= 0/);
+  assert.match(labelDesigner, /package_products: JSON\.stringify\(packageProductNames\)/);
+  assert.match(labelDesigner, /contains_product/);
+  assert.match(labelDesigner, /Products with a resolved quantity of 0 are excluded/);
+});
+
+test("label information, header commands and preview follow the accepted order-derived model", () => {
   assert.match(labelDesigner, /Label represents/);
   assert.match(labelDesigner, /Each physical item/);
   assert.match(labelDesigner, /Custom selection/);
   assert.match(labelDesigner, /labelPreviewSample/);
-  assert.match(labelDesigner, /Object\.values\(record\.values\)\.join/);
+  assert.match(labelDesigner, /recordPreviewText\(record, sourceMode\)/);
   assert.doesNotMatch(labelDesigner, /customerUpdateChoice/);
-  assert.match(labelDesigner, /labelWorkspaceMoreMenu/);
+  assert.match(labelDesigner, /labelHeaderCommandBar/);
+  assert.match(labelDesigner, /labelHeaderMoreMenu/);
   assert.match(labelDesigner, /Saved layouts/);
   assert.match(labelDesigner, /Saved label sets/);
-  assert.match(labelDesigner, /labelSetSave/);
+  assert.match(labelDesigner, />Print<\/button>/);
   assert.doesNotMatch(labelProductionReady, /\["style","Style"\]/);
   assert.match(labelDesigner, /recordFilterBar/);
   assert.match(labelDesigner, /recordFilterField/);
