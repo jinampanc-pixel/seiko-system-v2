@@ -19,6 +19,15 @@ jobs:
         with:
           ref: fix/veyn-milestone-one
           fetch-depth: 0
+      - name: Normalize updater patch strings
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/apply-seiko-label-ux-acceptance.py')
+          text = path.read_text()
+          text = text.replace("'''.replace(\"\\n\", \"\\r\\n\")", "'''")
+          path.write_text(text)
+          PY
       - name: Apply source changes
         run: python .github/scripts/apply-seiko-label-ux-acceptance.py
       - name: Add final UX styles
@@ -26,130 +35,32 @@ jobs:
           cat >> app/seiko-workspace-label-final.css <<'CSS'
 
           /* ---------------- Current acceptance: label controls ---------------- */
-          .labelDesignerPage .labelSaveBar{
-            display:flex!important;
-            align-items:center!important;
-            justify-content:flex-end!important;
-            gap:7px!important;
-            flex-wrap:wrap!important;
-          }
+          .labelDesignerPage .labelSaveBar{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:7px!important;flex-wrap:wrap!important}
           .labelDesignerPage .labelSaveBar>button{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:34px!important}
-          .labelDesignerPage .labelSaveMeaning{
-            margin:-2px 0 8px!important;
-            padding:7px 10px!important;
-            border:1px solid color-mix(in srgb,var(--line) 72%,transparent)!important;
-            border-radius:8px!important;
-            background:color-mix(in srgb,var(--pale) 55%,var(--paper))!important;
-            color:var(--muted)!important;
-            font-size:9.5px!important;
-            line-height:1.35!important;
-          }
+          .labelDesignerPage .labelSaveMeaning{margin:-2px 0 8px!important;padding:7px 10px!important;border:1px solid color-mix(in srgb,var(--line) 72%,transparent)!important;border-radius:8px!important;background:color-mix(in srgb,var(--pale) 55%,var(--paper))!important;color:var(--muted)!important;font-size:9.5px!important;line-height:1.35!important}
           .labelDesignerPage .labelSaveMeaning b{color:var(--ink)!important}
-
-          .labelDesignerPage .labelSetup{
-            align-items:stretch!important;
-          }
-          .labelDesignerPage .labelSetup>label,
-          .labelDesignerPage .labelSetup>.managedSizeControl{
-            display:grid!important;
-            grid-template-rows:auto 44px minmax(28px,auto)!important;
-            gap:6px!important;
-            align-content:start!important;
-            min-width:0!important;
-            margin:0!important;
-          }
-          .labelDesignerPage .labelSetup>label>select{
-            display:block!important;
-            width:100%!important;
-            height:44px!important;
-            min-height:44px!important;
-            opacity:1!important;
-            pointer-events:auto!important;
-          }
+          .labelDesignerPage .labelSetup{align-items:stretch!important}
+          .labelDesignerPage .labelSetup>label,.labelDesignerPage .labelSetup>.managedSizeControl{display:grid!important;grid-template-rows:auto 44px minmax(28px,auto)!important;gap:6px!important;align-content:start!important;min-width:0!important;margin:0!important}
+          .labelDesignerPage .labelSetup>label>select{display:block!important;width:100%!important;height:44px!important;min-height:44px!important;opacity:1!important;pointer-events:auto!important}
           .labelDesignerPage .labelSetup .launcherSourceLocked .designerSourceLockedValue{display:none!important}
           .labelDesignerPage .labelSetup .launcherSourceLocked>select{display:block!important}
-          .labelDesignerPage .labelSetupHelp{
-            display:block!important;
-            min-height:28px!important;
-            margin:0!important;
-            color:var(--muted)!important;
-            font-size:9px!important;
-            line-height:1.3!important;
-          }
+          .labelDesignerPage .labelSetupHelp{display:block!important;min-height:28px!important;margin:0!important;color:var(--muted)!important;font-size:9px!important;line-height:1.3!important}
           .labelDesignerPage .managedSizeControl>span:first-child{align-self:end!important;color:var(--ink)!important;font-size:10px!important;font-weight:800!important}
           .labelDesignerPage .managedSizeMenu{min-width:340px!important}
           .labelDesignerPage .managedSizeOptionRow{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;align-items:center!important;gap:4px!important}
-          .labelDesignerPage .managedSizeOptionRow>.managedEdit{
-            min-height:30px!important;
-            border:0!important;
-            border-radius:6px!important;
-            background:var(--pale)!important;
-            padding:0 8px!important;
-            color:var(--navy)!important;
-            font-size:9px!important;
-            font-weight:800!important;
-          }
-
-          .labelDesignerPage .labelCustomComponents{
-            display:grid!important;
-            grid-template-columns:minmax(220px,.8fr) minmax(0,1.7fr)!important;
-            gap:14px!important;
-            align-items:center!important;
-            margin:0!important;
-            padding:12px 14px!important;
-          }
+          .labelDesignerPage .managedSizeOptionRow>.managedEdit{min-height:30px!important;border:0!important;border-radius:6px!important;background:var(--pale)!important;padding:0 8px!important;color:var(--navy)!important;font-size:9px!important;font-weight:800!important}
+          .labelDesignerPage .labelCustomComponents{display:grid!important;grid-template-columns:minmax(220px,.8fr) minmax(0,1.7fr)!important;gap:14px!important;align-items:center!important;margin:0!important;padding:12px 14px!important}
           .labelDesignerPage .labelCustomComponents h3{margin:1px 0 2px!important;font-size:14px!important}
           .labelDesignerPage .labelCustomComponents small{color:var(--muted)!important;font-size:9px!important;line-height:1.3!important}
           .labelCustomComponentButtons{display:flex!important;flex-wrap:wrap!important;justify-content:flex-end!important;gap:6px!important}
-          .labelCustomComponentButtons button{
-            min-height:36px!important;
-            border:1px solid var(--line)!important;
-            border-radius:8px!important;
-            background:var(--paper)!important;
-            padding:0 10px!important;
-            color:var(--navy)!important;
-            font-size:10px!important;
-            font-weight:800!important;
-          }
-
-          .labelDesignerPage .labelInfoTools{
-            display:flex!important;
-            justify-content:flex-end!important;
-            align-items:center!important;
-            min-height:34px!important;
-            margin:3px 0 7px!important;
-          }
-          .labelDesignerPage .labelInfoSearchToggle{
-            display:grid!important;
-            place-items:center!important;
-            width:34px!important;
-            height:34px!important;
-            border:1px solid var(--line)!important;
-            border-radius:8px!important;
-            background:var(--paper)!important;
-            color:var(--navy)!important;
-            padding:0!important;
-            font-size:20px!important;
-            line-height:1!important;
-          }
+          .labelCustomComponentButtons button{min-height:36px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--paper)!important;padding:0 10px!important;color:var(--navy)!important;font-size:10px!important;font-weight:800!important}
+          .labelDesignerPage .labelInfoTools{display:flex!important;justify-content:flex-end!important;align-items:center!important;min-height:34px!important;margin:3px 0 7px!important}
+          .labelDesignerPage .labelInfoSearchToggle{display:grid!important;place-items:center!important;width:34px!important;height:34px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--paper)!important;color:var(--navy)!important;padding:0!important;font-size:20px!important;line-height:1!important}
           .labelDesignerPage .labelInfoSearchToggle.active{background:var(--pale)!important}
-          .labelDesignerPage .labelInfoTools input[type="search"]{
-            width:min(360px,calc(100% - 42px))!important;
-            height:34px!important;
-            margin-left:6px!important;
-            border:1px solid var(--line)!important;
-            border-radius:8px!important;
-            padding:0 9px!important;
-            font-size:10px!important;
-          }
+          .labelDesignerPage .labelInfoTools input[type="search"]{width:min(360px,calc(100% - 42px))!important;height:34px!important;margin-left:6px!important;border:1px solid var(--line)!important;border-radius:8px!important;padding:0 9px!important;font-size:10px!important}
           .labelDesignerPage .labelInfoTools input[hidden]{display:none!important}
           .labelDesignerPage .labelInfoChipRemove{cursor:pointer!important}
-
-          @media(max-width:800px){
-            .labelDesignerPage .labelCustomComponents{grid-template-columns:1fr!important}
-            .labelCustomComponentButtons{justify-content:flex-start!important}
-            .labelDesignerPage .managedSizeMenu{min-width:min(92vw,340px)!important}
-          }
+          @media(max-width:800px){.labelDesignerPage .labelCustomComponents{grid-template-columns:1fr!important}.labelCustomComponentButtons{justify-content:flex-start!important}.labelDesignerPage .managedSizeMenu{min-width:min(92vw,340px)!important}}
           CSS
       - name: Update acceptance lock and self-clean
         run: |
