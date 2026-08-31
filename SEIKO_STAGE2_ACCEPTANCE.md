@@ -73,6 +73,7 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - Superseded UI adapters, split menus, purpose-specific patches and custom selector wrappers must be removed when their accepted shared replacement lands; leaving dead overlapping enhancers in the active source is a regression risk and is not considered complete implementation.
 - Temporary one-shot patch workflows/scripts used during an in-chat edit must remove themselves after their source commit; they are never part of the accepted application architecture.
 - Spreadsheet row/column selection handlers must remain lint-clean explicit control flow; side-effect-only ternaries are not accepted in interaction code.
+- Regression contracts assert the current owning source component or shared state path; they must not force retired enhancement hooks or duplicated controls back into the application.
 - Acceptance is revalidated only after lint, all contracts, production build, render checks, and the existing branch-preview smoke test are green on the same cleaned source head.
 
 These behaviors must remain additive to the restored Stage 1 label stack unless an explicitly approved replacement supersedes them.
