@@ -1,0 +1,42 @@
+name: Update SEIKO branch preview alias
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/update-seiko-branch-preview.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+      - run: npm ci
+      - name: Test current branch
+        run: npm test
+      - name: Upload current branch as the existing preview alias
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler versions upload --name seiko-system-v2-app --preview-alias fix-veyn-milestone-one
+      - name: Remove one-shot workflow
+        run: |
+          git rm .github/workflows/update-seiko-branch-preview.yml .github/workflows/inspect-seiko-app-worker.yml
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git commit -m "Remove SEIKO preview maintenance workflows"
+          git push origin HEAD:fix/veyn-milestone-one
