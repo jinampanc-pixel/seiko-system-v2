@@ -180,8 +180,10 @@ test("label output can be code only, information only or combined", () => {
   assert.match(labelDesigner, /canvasElement\.selected/);
   assert.match(labelDesigner, /item\.kind\s*===\s*"qr"/);
   assert.match(labelDesigner, /preventDefault\(\)/);
-  assert.match(orders, /workspaceLabelsButton/);
+  assert.doesNotMatch(orders, /workspaceLabelsButton/);
   assert.doesNotMatch(orders, /workspaceLabelsSplit/);
+  assert.match(orders, /aria-label="More order actions"/);
+  assert.match(orders, /onOpenLabelBatches\(\);}}>Labels<\/button>/);
   assert.match(page, /onOpenLabelBatches=/);
   assert.doesNotMatch(page, /onCreateLabel=/);
   assert.match(labelDesigner, /Back to order/);
