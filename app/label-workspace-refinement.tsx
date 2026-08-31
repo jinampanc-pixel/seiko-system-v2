@@ -25,7 +25,7 @@ function cleanHeaderAndSetup(page: HTMLElement) {
 function addArrangeControl(page: HTMLElement) {
   const toolbar = page.querySelector<HTMLElement>(".canvasToolbar");
   const native = Array.from(page.querySelectorAll<HTMLButtonElement>(".simpleDesignerHead > button.secondary"))
-    .find(button => /Advanced layout|Use simple setup/i.test(button.textContent || ""));
+    .find(button => /Advanced layout|Use simple setup|Manual layout|Automatic layout/i.test(button.textContent || ""));
   if (!toolbar || !native) return;
   let button = toolbar.querySelector<HTMLButtonElement>(".labelArrangeButton");
   if (!button) {
@@ -36,15 +36,16 @@ function addArrangeControl(page: HTMLElement) {
     toolbar.appendChild(button);
     button.addEventListener("click", () => native.click());
   }
-  const advanced = /Use simple setup/i.test(native.textContent || "");
-  button.textContent = advanced ? "Finish arranging" : "Arrange label";
-  button.classList.toggle("active", advanced);
-  page.classList.toggle("labelManualArrange", advanced);
+  const manual = /Use simple setup|Automatic layout/i.test(native.textContent || "");
+  button.textContent = manual ? "Finish arranging" : "Arrange label";
+  button.classList.toggle("active", manual);
+  page.classList.toggle("labelManualArrange", manual);
 }
 
 function fullRecordText(record: HTMLElement) {
   const title = record.querySelector("b")?.textContent?.trim() || "Label record";
-  const detail = record.querySelector("small")?.textContent?.trim() || "";
+  const compact = record.querySelector("small")?.textContent?.trim() || "";
+  const detail = record.dataset.recordPreview?.trim() || compact;
   return { title, detail };
 }
 
@@ -65,7 +66,7 @@ function showHoverCard(record: HTMLElement) {
   card.append(heading, body);
   document.body.appendChild(card);
   const box = record.getBoundingClientRect();
-  const width = Math.min(360, Math.max(250, box.width + 70));
+  const width = Math.min(420, Math.max(280, box.width + 100));
   card.style.width = `${width}px`;
   const measured = card.getBoundingClientRect();
   const left = box.left - measured.width - 10 >= 8 ? box.left - measured.width - 10 : Math.min(window.innerWidth - measured.width - 8, box.right + 10);
@@ -108,11 +109,12 @@ export function LabelWorkspaceRefinement() {
 
     const removeChip = (event: MouseEvent) => {
       const target = event.target as Element | null;
-      const remove = target?.closest<HTMLElement>(".labelInfoChipRemove");
+      const remove = target?.closest<HTMLElement>(".labelInfoChipRemove, .labelInfoChip > b");
       if (!remove) return;
       const page = remove.closest<HTMLElement>(".labelDesignerPage");
       const chip = remove.closest<HTMLElement>(".labelInfoChip");
-      const label = chip?.querySelector(".labelInfoChipText")?.textContent?.trim();
+      const label = chip?.querySelector<HTMLElement>(".labelInfoChipText")?.textContent?.trim()
+        || chip?.querySelector<HTMLElement>("span:not(.srOnly)")?.textContent?.trim();
       if (!page || !label) return;
       const choice = Array.from(page.querySelectorAll<HTMLElement>(".fieldChoice")).find(item => item.querySelector("label span")?.textContent?.trim() === label);
       const checkbox = choice?.querySelector<HTMLInputElement>('input[type="checkbox"]');
