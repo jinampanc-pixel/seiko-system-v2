@@ -37,6 +37,7 @@ import "./seiko-stage2-safe.css";
 import "./seiko-workspace-label-final.css";
 import "./seiko-list-center-enhancements.css";
 import "./seiko-refinement.css";
+import "./seiko-operational-ux.css";
 import { AccessProvider } from "./access-control";
 import { BusinessApplicationRouter } from "./business-application-router";
 
