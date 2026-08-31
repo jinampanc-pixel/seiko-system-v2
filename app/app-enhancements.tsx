@@ -21,6 +21,7 @@ import { SeikoPhase1 } from "./seiko-phase1";
 import { SeikoPhase2Gate } from "./seiko-phase2-gate";
 import { SeikoLibraryAutofill } from "./seiko-library-autofill";
 import { SeikoListCenterEnhancements } from "./seiko-list-center-enhancements";
+import { SeikoOperationalUx } from "./seiko-operational-ux";
 import { SeikoMethSync } from "./seiko-meth-sync";
 import { MethServerSync } from "./meth-server-sync";
 
@@ -47,6 +48,7 @@ export function AppEnhancements() {
     <SeikoLibraryAutofill />
     <SeikoPhase2Gate />
     <SeikoListCenterEnhancements />
+    <SeikoOperationalUx />
     <MethServerSync />
     <SeikoMethSync />
   </>;
