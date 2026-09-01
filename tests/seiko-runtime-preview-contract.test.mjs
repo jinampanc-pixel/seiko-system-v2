@@ -74,7 +74,6 @@ test("label package applicability is record-specific", () => {
   assert.doesNotMatch(resolver, /quantityMode === "by_group"[\s\S]{0,240}return quantity/);
 });
 
-
 test("label movement supports visual baseline alignment across font sizes", () => {
   assert.match(labels, /visualBaselineOffset/);
   assert.match(labels, /bestBaseline = \.6/);
@@ -98,6 +97,13 @@ test("main menu and settings keep access inside a stable full-height structure",
   assert.match(page, /settingsModuleNav/);
   assert.match(page, /Users & access/);
   assert.doesNotMatch(home, /<div><small>SEIKO<\/small><h1>Home<\/h1>/);
+});
+
+test("settings dialog has one React owner rather than overlapping injected modules", () => {
+  assert.doesNotMatch(home, /seikoAccessSettings/);
+  assert.match(operationalUx, /Settings is React-owned/);
+  assert.match(page, /settingsAppearanceModule/);
+  assert.match(page, /settingsUsersModule/);
 });
 
 test("saved label sets expose print and calibrated PDF actions", () => {
