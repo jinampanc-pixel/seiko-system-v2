@@ -30,8 +30,10 @@ jobs:
           npm run test:contracts >/tmp/contracts.log 2>&1
           code=$?
           set -e
+          export CONTRACT_EXIT="$code"
           python3 - <<'PY'
           from pathlib import Path
+          import os
           text = Path('/tmp/contracts.log').read_text(errors='replace')
           lines = text.splitlines()
           hits = [i for i, line in enumerate(lines) if ('not ok' in line or 'AssertionError' in line or 'ERR_ASSERTION' in line or 'failureType' in line)]
@@ -41,7 +43,7 @@ jobs:
               selected.append('---')
           if not selected:
               selected = lines[-180:]
-          Path('ci-contract-diagnostic.txt').write_text('CONTRACT EXIT: ' + str(int('"$code"')) + '\n\n' + '\n'.join(selected)[-18000:])
+          Path('ci-contract-diagnostic.txt').write_text('CONTRACT EXIT: ' + os.environ.get('CONTRACT_EXIT', '?') + '\n\n' + '\n'.join(selected)[-18000:])
           PY
       - name: Commit diagnostic and self-clean
         run: |
