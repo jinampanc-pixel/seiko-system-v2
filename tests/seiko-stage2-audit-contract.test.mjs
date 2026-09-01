@@ -159,9 +159,10 @@ test("Save label set is a direct primary action and Ctrl or Cmd S asks what to s
   assert.match(refinement, /labelHeaderMore/);
 });
 
-test("editing an existing order returns to and updates its workspace", () => {
-  assert.match(orders, /setView\(current\.revisions\.length \? "workspace" : "center"\)/);
-  assert.match(orders, /order\.revisions\.length \? "Update workspace" : "Create workspace"/);
+test("editing an existing order returns to its actual setup origin", () => {
+  assert.match(orders, /setView\(existingOrder \? setupReturnView : "workspace"\)/);
+  assert.match(orders, /returnView === "workspace" \? "Update workspace" : "Save changes"/);
+  assert.match(orders, /onCancel=\{\(\) => setView\(current\.revisions\.length \? setupReturnView : "center"\)\}/);
 });
 
 test("PDF acceptance keeps archive, setup policy controls and group rules explicit", () => {
