@@ -80,6 +80,9 @@ test("workspace row and column operations are state-backed and page size is trul
   assert.match(structure, /event\.shiftKey/);
   assert.match(structure, /event\.ctrlKey\s*\|\|\s*event\.metaKey/);
   assert.match(structure, /draggable=true/);
+  assert.match(structure, /workspaceStructureSelectedColumn/);
+  assert.match(orders, /data-column-id=\{column\.id\}/);
+  assert.match(orders, /event\.key==="Enter"/);
   assert.match(orders, /aria-label="Rows per page"/);
   assert.match(orders, /pageSizeDraft/);
   assert.match(pager, /setInputValue/);
@@ -192,6 +195,14 @@ test("shared Label Workspace owns information state and purpose only controls re
   assert.doesNotMatch(labelPolish, /selectedFieldChipRemove/);
 });
 
+test("Label Information exposes only configured order/workspace product fields", () => {
+  assert.doesNotMatch(labelDesigner, /Applicable product/);
+  assert.doesNotMatch(labelDesigner, /packageSlots/);
+  assert.match(labelDesigner, /product_name:\$\{product\.id\}/);
+  assert.match(labelDesigner, /product_quantity:\$\{product\.id\}/);
+  assert.match(labelDesigner, /filter\(item => !item\.field\?\.startsWith\("package_product:"\)\)/);
+});
+
 test("label package contents use the shared order quantity resolver and exclude zero quantities", () => {
   assert.match(labelDesigner, /labelQuantityForRecord/);
   assert.match(labelDesigner, /quantityForRecord\(product, record, recordIndex === 0\)/);
@@ -227,10 +238,10 @@ test("label information, header commands and preview follow the accepted order-d
   assert.match(labelDesigner, /Show of total/);
 });
 
-test("label elements can be reordered, replaced, moved and resized in the shared editor", () => {
-  assert.match(labelDesigner, /moveFieldItem/);
-  assert.match(labelDesigner, /Move \$\{option\.label\} up/);
-  assert.match(labelDesigner, /Move \$\{option\.label\} down/);
+test("label elements can be replaced, moved and resized without redundant arrow controls", () => {
+  assert.doesNotMatch(labelDesigner, /fieldOrderControls/);
+  assert.doesNotMatch(labelDesigner, />↑<\/button>/);
+  assert.doesNotMatch(labelDesigner, />↓<\/button>/);
   assert.match(labelDesigner, /<span>Information<\/span><select value=\{selected\.field/);
   assert.match(labelDesigner, /<span>X mm<\/span>/);
   assert.match(labelDesigner, /<span>Y mm<\/span>/);

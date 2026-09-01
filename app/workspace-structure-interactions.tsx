@@ -8,7 +8,7 @@ const selectedRows = new Set<string>(), selectedColumns = new Set<string>();
 function ordered<T extends HTMLElement>(selector: string) { return Array.from(document.querySelectorAll<T>(selector)); }
 function paint() {
   ordered<HTMLElement>(".workspaceTable tbody tr[data-record-id]").forEach(row => row.classList.toggle("workspaceStructureSelected", selectedRows.has(row.dataset.recordId || "")));
-  ordered<HTMLElement>(".workspaceMovableColumnHeader[data-column-id]").forEach(cell => cell.classList.toggle("workspaceStructureSelected", selectedColumns.has(cell.dataset.columnId || "")));
+  ordered<HTMLElement>(".workspaceTable [data-column-id]").forEach(cell => cell.classList.toggle("workspaceStructureSelectedColumn", selectedColumns.has(cell.dataset.columnId || "")));
 }
 function selectRange(ids: string[], from: string, to: string, target: Set<string>) { const a=ids.indexOf(from), b=ids.indexOf(to); if(a<0||b<0)return; target.clear(); for(let i=Math.min(a,b);i<=Math.max(a,b);i++) target.add(ids[i]); }
 function closeContextMenu(){document.querySelector(".workspaceContextMenu")?.remove();}

@@ -101,3 +101,17 @@
 .workspaceMovableColumnHeader.workspaceDropBefore::before,.workspaceMovableColumnHeader.workspaceDropAfter::after{content:"";position:absolute;z-index:20;top:0;bottom:0;width:3px;background:var(--brand)}
 .workspaceMovableColumnHeader.workspaceDropBefore::before{left:-2px}.workspaceMovableColumnHeader.workspaceDropAfter::after{right:-2px}
 .workspaceTable tr.workspaceDropBefore .workspaceRowHeader,.workspaceTable tr.workspaceDropAfter .workspaceRowHeader,.workspaceMovableColumnHeader.workspaceDropBefore,.workspaceMovableColumnHeader.workspaceDropAfter{background:color-mix(in srgb,var(--brand) 10%,var(--paper))!important}
+
+
+/* Final workspace spreadsheet polish */
+.workspaceTable .workspaceRowHeaderCorner{background:var(--navy)!important;color:#fff!important;border-color:rgba(255,255,255,.22)!important;font-weight:800!important}
+.workspaceTable tbody tr.workspaceStructureSelected>th,.workspaceTable tbody tr.workspaceStructureSelected>td{background:color-mix(in srgb,var(--brand) 13%,var(--paper))!important}
+.workspaceTable .workspaceStructureSelectedColumn{background:color-mix(in srgb,var(--brand) 11%,var(--paper))!important;box-shadow:inset 1px 0 color-mix(in srgb,var(--brand) 42%,transparent),inset -1px 0 color-mix(in srgb,var(--brand) 42%,transparent)}
+.workspaceTable thead .workspaceStructureSelectedColumn{background:color-mix(in srgb,var(--navy) 78%,var(--brand))!important;color:#fff!important}
+.workspaceAddTools{display:flex!important;align-items:center!important}
+.workspaceAddTools .rowCountControl{display:flex!important;align-items:stretch!important;min-height:34px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--paper)!important;overflow:hidden!important}
+.workspaceAddTools .rowCountLabel{display:flex!important;align-items:center!important;padding:0 9px!important;border-right:1px solid var(--line)!important;color:var(--muted)!important;font-size:9px!important;font-weight:800!important;white-space:nowrap!important}
+.workspaceAddTools .rowCountControl input{box-sizing:border-box!important;width:58px!important;min-width:58px!important;height:32px!important;border:0!important;border-radius:0!important;background:transparent!important;padding:0 5px!important;text-align:center!important;font-weight:800!important}
+.workspaceAddTools .rowCountControl button{min-width:52px!important;height:32px!important;min-height:32px!important;border:0!important;border-left:1px solid color-mix(in srgb,var(--navy) 75%,transparent)!important;border-radius:0!important;padding:0 10px!important}
+.workspaceTable thead tr:first-child>th{height:31px!important;vertical-align:middle!important}
+.workspaceTable thead tr:nth-child(2)>th{height:29px!important;vertical-align:middle!important}
