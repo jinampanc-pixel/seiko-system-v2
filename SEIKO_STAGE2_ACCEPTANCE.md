@@ -26,11 +26,14 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - Person / record fields follow the selected client type and must not hardcode school-only terminology.
 - Quantity mode, specification type, and value-assignment mode are fixed workflow choices and stay native selects; they are not owner-editable master data.
 - Group quantity rules use one default quantity plus exceptions. An exception may target several values or a numeric range such as `1-7`, and quantity `0` is valid.
+- Order Setup remembers where it was opened from. Edit setup from Order Center returns to Order Center and uses Save changes; Edit setup from Workspace returns to Workspace and uses Update workspace. A new order still creates and enters a Workspace.
+- Order date is a normal Client details field with the same visual treatment as the surrounding fields; the order number remains compact header metadata.
 
 ## Order Workspace
 
 - Spreadsheet entry supports paste, keyboard movement, cell selection, safe multi-row add, multi-row delete, undo/redo, stable Person IDs, search, column visibility, and one pagination state.
 - Add Rows and Rows per page are genuine editable numeric controls. Values are sanitized/clamped only when committed, and a top pager proxy must drive the same underlying React state as the native pager.
+- Add Rows is one compact control with a label, editable quantity and Add action; the total row count is secondary text and must not break the toolbar layout.
 - Row selection follows spreadsheet conventions instead of checkbox-list conventions: row-number headers select rows, Shift-click selects a range, Ctrl/Cmd-click adds or removes rows, and the top-left corner selects all visible rows.
 - Column headers use the same click/Shift/Ctrl-or-Cmd selection model. Selected rows and selected columns can be dragged to a new position; column widths can be resized from the header edge; order, hidden columns, widths and alignment are persisted in order data rather than merely moving DOM elements.
 - The row-number `#` column stays narrow and functional; it is a selection/reorder handle rather than a normal data-width column.
@@ -46,7 +49,7 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 
 - Production, Packing and Inventory use one shared Label Workspace interaction model. Purpose changes only the relevant data/components offered; it never creates a separate editor or a purpose-specific patch layer.
 - Every saved label-set record and every label-source record in Label Center has a consistent three-dot contextual action menu.
-- `Save label set` is a direct blue primary command in the Label Workspace header. Save layout, Saved layouts and Saved label sets remain available through the compact overflow menu.
+- Label Workspace keeps contextual Back outside the header card. Header actions are a compact three-line Label actions menu followed by Print. Save/Update label set is the first action inside that menu, followed by Save/Update layout, Saved layouts and Saved label sets.
 - Ctrl/Cmd+S in the Label Workspace opens an in-app choice between Save label set and Save layout; it must not invoke the browser Save Page dialog.
 - A Layout is a reusable physical label design: size, chosen components/information, typography, code configuration and placement. A Label set is this order/job's selected records for repeat printing.
 - Label representation is changeable in the designer: physical item, person/package, grouped package/group, product/stock group, or whole order. The create route supplies only the initial representation and never locks it.
@@ -56,7 +59,7 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - Generic `Group / label type` is not offered as label information. Generic `Person / workpiece` is shown only where the label purpose/representation genuinely identifies a production workpiece; Packing and Inventory rely on the actual order-defined person/record fields when relevant.
 - Classification/grouping uses fields defined in that order's setup and is shown only when grouping is meaningful for the selected representation.
 - Workspace row data is the authoritative source for person/package applicability. A blank product measurement/specification in that person's workspace row must never be populated by borrowing a value from another product or another ambiguous legacy measurement.
-- Person/package layouts use reusable Package product slots (name, quantity and details). Each slot resolves only the current preview/print record's positive, applicable products. Product-specific values from one package item are never merged into another package item.
+- Person/package layouts use reusable Applicable product slots (Product, Quantity and Details). Each slot resolves only the current preview/print record's positive applicable products. The same Product details area also exposes configured product-specific fields; those values exist only for products actually present in that person's resolved package.
 - One reusable label layout must work across mixed records: empty/inapplicable fields are omitted for each record and automatic layout reflows the remaining fields upward, so a male record can resolve Shirt/Male Pant while a female record can resolve Ijar/Kurti in the same template positions.
 - Removing a selected information chip with its `×` changes the React editor state itself and removes that information from preview/print immediately. A DOM-only visual removal is never sufficient.
 - Information search is collapsed behind a compact magnifier control rather than permanently consuming a full row.
@@ -67,6 +70,7 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - The label canvas is directly editable: there is no required Arrange / Finish arranging mode. Clicking or dragging a field begins direct physical editing from its current automatic position.
 - Manual canvas movement supports free 0.25 mm positioning, Shift axis-lock, Alt bypass of snapping, and edge/centre alignment snapping against the canvas and other label elements. This allows values to share an exact baseline or left/centre/right alignment.
 - A selected canvas field can be replaced with another available information field, moved, resized, and edited with exact X/Y/width/height millimetre controls. Wheel resizing, keyboard nudging and mobile shrink/stretch controls use the same shared mechanics for all label purposes.
+- Selected/expanded Label Information cards remain compact even when Show field name, Show of total, Name bold or Value bold are enabled; extra controls do not turn one field into a large card.
 - Record search covers all order data. Filter controls are derived from actual representation and order data; the Value control is writable/searchable with order-derived suggestions, and visible records are derived from those filters and sort choices rather than merely display controls that do nothing.
 - Narrow record cards may stay compact, but hover/focus on desktop provides a subtle detailed summary popup without changing selection.
 - Trace fields support physical piece/pair position, package/set position, order position, person position, product position, and numbering within every configured person/record field. `Show of total` is configurable per trace field.
