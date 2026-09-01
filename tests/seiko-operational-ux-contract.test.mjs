@@ -73,3 +73,5 @@ test("automatic label fields use the source-owned physical arrangement", () => {
   assert.match(labelDesigner, /advanced \? items : arrangeLabelItemsForRow/);
   assert.match(css, /fieldChoice\.chosen/);
 });
+
+// Revalidation marker: these assertions track the current source-owned operational paths.
