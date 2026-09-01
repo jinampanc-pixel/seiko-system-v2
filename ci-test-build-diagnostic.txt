@@ -1,0 +1,298 @@
+CONTRACTS_EXIT=1
+BUILD_EXIT=0
+
+=== CONTRACTS ===
+cations" | "measurements";\n' +
+      'type RecordRow = {\n' +
+      '    id: string;\n' +
+      '    name: string;\n' +
+      '    group: string;\n' +
+      '    product: string;\n' +
+      '    size: string;\n' +
+      '    qty: string;\n' +
+      '    token: string;\n' +
+      '    order: string;\n' +
+      '    client: string;\n' +
+      '    values: Record<string, string>;\n' +
+      '};\n' +
+      'type Item = {\n' +
+      '    id: string;\n' +
+---
+      '        return []; const resolved = resolveLabelRows(order, sourceMode, packageGroupBy, packageCounts, personPackagePlan, includedProducts), labels = Object.fromEntries(labelFieldOptions(order).filter(option => !option.key.startsWith("field_name:")).map(option => [`field_name:${option.key}`, option.label.replace(/ \\(resolved\\)$/, "")])); return resolved.map(row => ({ ...row, values: { ...row.values, ...labels } })); }, [order, sourceMode, packageGroupBy, packageCounts, personPackagePlan, includedProducts]);\n' +
+      '    const [selectedRows, setSelectedRows] = useState(() => records[0] ? [records[0].id] : []), [items, setItems] = useState<Item[]>(() => defaultLabelItems(order, initialPurpose, defaultSourceMode)), [selectedId, setSelectedId] = useState(""), [snap, setSnap] = useState(true), [guides, setGuides] = useState(true);\n' +
+      '    const [outputMode, setOutputMode] = useState<OutputMode>("combined");\n' +
+      '    const [advanced, setAdvance'... 80817 more characters
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    "use client";
+    /* eslint-disable jsx-a11y/label-has-associated-control */
+    /* eslint-disable @typescript-eslint/no-unused-vars -- old cutting-template readers remain during local data migration */
+    import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+    import { groupRuleMatches, quantityForRecord, workspaceColumns, type SeikoOrder } from "./lib/order-domain";
+    import { garmentScanToken } from "./lib/production-domain";
+    type Kind = "text" | "field" | "barcode" | "qr" | "sequence";
+    type OutputMode = "combined" | "code" | "information" | "custom";
+    type SourceMode = "person_product" | "person" | "group" | "product" | "order";
+    type LabelPurpose = "production" | "packing" | "inventory";
+    type PersonPackagePlan = "together" | "sets" | "products";
+    type GroupCriterion = "order" | "product" | "size" | "specifications" | "measurements";
+    type RecordRow = {
+        id: string;
+        name: string;
+        group: string;
+        product: string;
+        size: string;
+        qty: string;
+        token: string;
+        order: string;
+        client: string;
+        values: Record<string, string>;
+    };
+    type Item = {
+        id: string;
+        kind: Kind;
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+---
+      '    const [selectedRows, setSelectedRows] = useState(() => records[0] ? [records[0].id] : []), [items, setItems] = useState<Item[]>(() => defaultLabelItems(order, initialPurpose, defaultSourceMode)), [selectedId, setSelectedId] = useState(""), [snap, setSnap] = useState(true), [guides, setGuides] = useState(true);\n' +
+      '    const [outputMode, setOutputMode] = useState<OutputMode>("combined");\n' +
+      '    const [advanced, setAdvance'... 80817 more characters
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    "use client";
+    /* eslint-disable jsx-a11y/label-has-associated-control */
+    /* eslint-disable @typescript-eslint/no-unused-vars -- old cutting-template readers remain during local data migration */
+    import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+    import { groupRuleMatches, quantityForRecord, workspaceColumns, type SeikoOrder } from "./lib/order-domain";
+    import { garmentScanToken } from "./lib/production-domain";
+    type Kind = "text" | "field" | "barcode" | "qr" | "sequence";
+    type OutputMode = "combined" | "code" | "information" | "custom";
+    type SourceMode = "person_product" | "person" | "group" | "product" | "order";
+    type LabelPurpose = "production" | "packing" | "inventory";
+    type PersonPackagePlan = "together" | "sets" | "products";
+    type GroupCriterion = "order" | "product" | "size" | "specifications" | "measurements";
+    type RecordRow = {
+        id: string;
+        name: string;
+        group: string;
+        product: string;
+        size: string;
+        qty: string;
+        token: string;
+        order: string;
+        client: string;
+        values: Record<string, string>;
+    };
+    type Item = {
+        id: string;
+        kind: Kind;
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        font: number;
+---
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: editing an existing order returns to and updates its workspace
+not ok 136 - editing an existing order returns to and updates its workspace
+  ---
+  duration_ms: 0.972715
+  type: 'test'
+  location: '/home/runner/work/seiko-system-v2/seiko-system-v2/tests/seiko-stage2-audit-contract.test.mjs:162:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /setView\(current\.revisions\.length \? "workspace" : "center"\)/. Input:
+    
+    '"use client";\n' +
+      '\n' +
+      'import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";\n' +
+      'import { blankMeasurement, blankProduct, blankSpecification, CLIENT_TYPE_PRESETS, field, ORDER_STATUSES, orderStoreKey, readinessIssues, saveRevision, validateOrder, workspaceColumns, type ArtworkAttachment, type OrderField, type OrderRecord, type OrderStatus, type SeikoOrder } from "./lib/order-domain";\n' +
+      'import { generateOrderArtifacts } from "./lib/production-domain";\n' +
+      '\n' +
+      'type View = "center" | "setup" | "workspace";\n' +
+      'type OrderSuggestions = { clientTypes: string[]; byClientType: Record<string, { products: string[]; measurements: string[] }> };\n' +
+      '\n' +
+      'const defaultSuggestions: OrderSuggestions = { clientTypes: [], byClientType: {} };\n' +
+      'function suggestionStoreKey(businessId: string) { return `jinam:${businessId}:order-suggestions-v1`; }\n' +
+      'function loadSuggestions(businessId: string): OrderSuggestions { try { const saved = JSON.parse(localStorage.getItem(suggestionStoreKey(businessId)) || "null"); return saved ? { clientTypes: saved.clientTypes || [], byClientType: saved.byClientType || {} } : defaultSuggestions; } catch { return defaultSuggestions; } }\n' +
+      '\n' +
+      'function newOrder(sequence = 1): SeikoOrder {\n' +
+      '  const now = new Date();\n' +
+      '  const date = now.toISOString().slice(0, 10);\n' +
+      '  return { orderId: crypto.randomUUID(), status: "Draft", archived: false, details: { orderNo: `${date.slice(0, 7)}-${String(sequence).padStart(3, "0")}`, orderDate: date, deliveryDate: "", clientName: "", clientType: "School / Institution", contactPerson: "", attnRequired: false, contactNumber: "", shipTo: "", billTo: "", remarks: "" }, fields: CLIENT_TYPE_PRESETS["School / Institution"].map(item => ({ ...item, id: crypto.randomUUID() })), products: [blankProduct()], measurements: [], records: [], revisions: [], updatedAt: now.toISOString() };\n' +
+      '}\n' +
+      '\n' +
+      'function loadOrders(businessId: string): SeikoOrder[] {\n' +
+      '  if (typeof window === "undefined") return [];\n' +
+      '  try { return (JSON.parse(localStorage.getItem(orderStoreKey(businessId)) || "[]") as SeikoOrder[]).map(order => ({ ...order, details: { ...order.details, attnRequired: order.details.attnRequired ?? false }, products: order.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [], specifications: product.specifications.map(spec => ({ ...spec, attachments: spec.attachments || [] })) })) })); } catch { return []; }\n' +
+      '}\n' +
+      '\n' +
+      'export function Orders({ businessId, canManageSuggestions = false, initialOrder = null, onOpenLabelBatches }: { businessId: string; canManageSuggestions?: boolean; initialOrder?: SeikoOrder|null; onOpenLabelBatches?: (order: SeikoOrder) => void }) {\n' +
+      '  const [orders, setOrders] = useState<SeikoOrder[]>(() => { const loaded = loadOrders(businessId); loaded.forEach(order => generateOrderArtifacts(businessId, order)); return loaded; });\n' +
+---
+      '\n' +
+      '  return <div className="page ordersPage"><section className="orderCenterHead"><div><p className="eyebrow">ORDER CENTER</p><h2>Orders</h2><p>Create, find and continue client orders.</p></div><button className="primary" onClick={() => { const next = Math.max(0, ...orders.map(order => Number(order.details.orderNo.split("-").at(-1)) || 0)) + 1; setSetupReturnView("center"); setCurrent(newOrder(next)); setView("setup"); }}>+ New order</button></section>\n' +
+      '    <div className="orderTools"><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search order, client, type or status"/><label><input type="checkbox" checked={archivedOnly} onChange={event => setArchivedOnly(event.target.checked)}/> Archived orders</label></div>\n' +
+      '    <section className="orderList panel">{visible.length ? visible.map(order => <article className="orderRow" key={order.orderId}><div><b>{order.details.orderNo}</b><span>{order.details.clientName}</span><small>{order.details.clientType} · {order.records.length} person/record entries · {order.revisions.length} revisions</small></div><label className="orderListStatus"><span className="srOnly">Status for {order.details.orderNo}</span><select className={`status-${order.status.toLowerCase().replace(" ", "-")}`} value={order.status} onChange={event=>persist(orders.map(item=>item.orderId===order.orderId?{...item,status:event.target.value as OrderStatus,updatedAt:new Date().toISOString()}:item))}>{ORDER_STATUSES.map(status=><option key={status}>{status}</option>)}</select></label><button className="openOrderButton" onClick={() => { setCurrent({ ...order, products: order.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [] })) }); setView("workspace"); }}>Open order</button><button type="button" className="orderArchiveButton" onClick={() => persist(orders.map(item => item.orderId === order.orderId ? { ...i'... 59067 more characters
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    "use client";
+    
+    import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+    import { blankMeasurement, blankProduct, blankSpecification, CLIENT_TYPE_PRESETS, field, ORDER_STATUSES, orderStoreKey, readinessIssues, saveRevision, validateOrder, workspaceColumns, type ArtworkAttachment, type OrderField, type OrderRecord, type OrderStatus, type SeikoOrder } from "./lib/order-domain";
+    import { generateOrderArtifacts } from "./lib/production-domain";
+    
+    type View = "center" | "setup" | "workspace";
+    type OrderSuggestions = { clientTypes: string[]; byClientType: Record<string, { products: string[]; measurements: string[] }> };
+    
+    const defaultSuggestions: OrderSuggestions = { clientTypes: [], byClientType: {} };
+    function suggestionStoreKey(businessId: string) { return `jinam:${businessId}:order-suggestions-v1`; }
+    function loadSuggestions(businessId: string): OrderSuggestions { try { const saved = JSON.parse(localStorage.getItem(suggestionStoreKey(businessId)) || "null"); return saved ? { clientTypes: saved.clientTypes || [], byClientType: saved.byClientType || {} } : defaultSuggestions; } catch { return defaultSuggestions; } }
+    
+    function newOrder(sequence = 1): SeikoOrder {
+      const now = new Date();
+      const date = now.toISOString().slice(0, 10);
+      return { orderId: crypto.randomUUID(), status: "Draft", archived: false, details: { orderNo: `${date.slice(0, 7)}-${String(sequence).padStart(3, "0")}`, orderDate: date, deliveryDate: "", clientName: "", clientType: "School / Institution", contactPerson: "", attnRequired: false, contactNumber: "", shipTo: "", billTo: "", remarks: "" }, fields: CLIENT_TYPE_PRESETS["School / Institution"].map(item => ({ ...item, id: crypto.randomUUID() })), products: [blankProduct()], measurements: [], records: [], revisions: [], updatedAt: now.toISOString() };
+    }
+    
+    function loadOrders(businessId: string): SeikoOrder[] {
+      if (typeof window === "undefined") return [];
+      try { return (JSON.parse(localStorage.getItem(orderStoreKey(businessId)) || "[]") as SeikoOrder[]).map(order => ({ ...order, details: { ...order.details, attnRequired: order.details.attnRequired ?? false }, products: order.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [], specifications: product.specifications.map(spec => ({ ...spec, attachments: spec.attachments || [] })) })) })); } catch { return []; }
+    }
+    
+    export function Orders({ businessId, canManageSuggestions = false, initialOrder = null, onOpenLabelBatches }: { businessId: string; canManageSuggestions?: boolean; initialOrder?: SeikoOrder|null; onOpenLabelBatches?: (order: SeikoOrder) => void }) {
+      const [orders, setOrders] = useState<SeikoOrder[]>(() => { const loaded = loadOrders(businessId); loaded.forEach(order => generateOrderArtifacts(businessId, order)); return loaded; });
+      const [view, setView] = useState<View>(initialOrder ? "workspace" : "center");
+      const [setupReturnView, setSetupReturnView] = useState<"center" | "workspace">(initialOrder ? "workspace" : "center");
+      const [current, setCurrent] = useState<SeikoOrder | null>(initialOrder ? { ...initialOrder, products: initialOrder.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [] })) } : null);
+      const [query, setQuery] = useState("");
+      const [archivedOnly, setArchivedOnly] = useState(false);
+---
+      '  return <div className="page ordersPage"><section className="orderCenterHead"><div><p className="eyebrow">ORDER CENTER</p><h2>Orders</h2><p>Create, find and continue client orders.</p></div><button className="primary" onClick={() => { const next = Math.max(0, ...orders.map(order => Number(order.details.orderNo.split("-").at(-1)) || 0)) + 1; setSetupReturnView("center"); setCurrent(newOrder(next)); setView("setup"); }}>+ New order</button></section>\n' +
+      '    <div className="orderTools"><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search order, client, type or status"/><label><input type="checkbox" checked={archivedOnly} onChange={event => setArchivedOnly(event.target.checked)}/> Archived orders</label></div>\n' +
+      '    <section className="orderList panel">{visible.length ? visible.map(order => <article className="orderRow" key={order.orderId}><div><b>{order.details.orderNo}</b><span>{order.details.clientName}</span><small>{order.details.clientType} · {order.records.length} person/record entries · {order.revisions.length} revisions</small></div><label className="orderListStatus"><span className="srOnly">Status for {order.details.orderNo}</span><select className={`status-${order.status.toLowerCase().replace(" ", "-")}`} value={order.status} onChange={event=>persist(orders.map(item=>item.orderId===order.orderId?{...item,status:event.target.value as OrderStatus,updatedAt:new Date().toISOString()}:item))}>{ORDER_STATUSES.map(status=><option key={status}>{status}</option>)}</select></label><button className="openOrderButton" onClick={() => { setCurrent({ ...order, products: order.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [] })) }); setView("workspace"); }}>Open order</button><button type="button" className="orderArchiveButton" onClick={() => persist(orders.map(item => item.orderId === order.orderId ? { ...i'... 59067 more characters
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    "use client";
+    
+    import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+    import { blankMeasurement, blankProduct, blankSpecification, CLIENT_TYPE_PRESETS, field, ORDER_STATUSES, orderStoreKey, readinessIssues, saveRevision, validateOrder, workspaceColumns, type ArtworkAttachment, type OrderField, type OrderRecord, type OrderStatus, type SeikoOrder } from "./lib/order-domain";
+    import { generateOrderArtifacts } from "./lib/production-domain";
+    
+    type View = "center" | "setup" | "workspace";
+    type OrderSuggestions = { clientTypes: string[]; byClientType: Record<string, { products: string[]; measurements: string[] }> };
+    
+    const defaultSuggestions: OrderSuggestions = { clientTypes: [], byClientType: {} };
+    function suggestionStoreKey(businessId: string) { return `jinam:${businessId}:order-suggestions-v1`; }
+    function loadSuggestions(businessId: string): OrderSuggestions { try { const saved = JSON.parse(localStorage.getItem(suggestionStoreKey(businessId)) || "null"); return saved ? { clientTypes: saved.clientTypes || [], byClientType: saved.byClientType || {} } : defaultSuggestions; } catch { return defaultSuggestions; } }
+    
+    function newOrder(sequence = 1): SeikoOrder {
+      const now = new Date();
+      const date = now.toISOString().slice(0, 10);
+      return { orderId: crypto.randomUUID(), status: "Draft", archived: false, details: { orderNo: `${date.slice(0, 7)}-${String(sequence).padStart(3, "0")}`, orderDate: date, deliveryDate: "", clientName: "", clientType: "School / Institution", contactPerson: "", attnRequired: false, contactNumber: "", shipTo: "", billTo: "", remarks: "" }, fields: CLIENT_TYPE_PRESETS["School / Institution"].map(item => ({ ...item, id: crypto.randomUUID() })), products: [blankProduct()], measurements: [], records: [], revisions: [], updatedAt: now.toISOString() };
+    }
+    
+    function loadOrders(businessId: string): SeikoOrder[] {
+      if (typeof window === "undefined") return [];
+      try { return (JSON.parse(localStorage.getItem(orderStoreKey(businessId)) || "[]") as SeikoOrder[]).map(order => ({ ...order, details: { ...order.details, attnRequired: order.details.attnRequired ?? false }, products: order.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [], specifications: product.specifications.map(spec => ({ ...spec, attachments: spec.attachments || [] })) })) })); } catch { return []; }
+    }
+    
+    export function Orders({ businessId, canManageSuggestions = false, initialOrder = null, onOpenLabelBatches }: { businessId: string; canManageSuggestions?: boolean; initialOrder?: SeikoOrder|null; onOpenLabelBatches?: (order: SeikoOrder) => void }) {
+      const [orders, setOrders] = useState<SeikoOrder[]>(() => { const loaded = loadOrders(businessId); loaded.forEach(order => generateOrderArtifacts(businessId, order)); return loaded; });
+      const [view, setView] = useState<View>(initialOrder ? "workspace" : "center");
+      const [setupReturnView, setSetupReturnView] = useState<"center" | "workspace">(initialOrder ? "workspace" : "center");
+      const [current, setCurrent] = useState<SeikoOrder | null>(initialOrder ? { ...initialOrder, products: initialOrder.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [] })) } : null);
+      const [query, setQuery] = useState("");
+      const [archivedOnly, setArchivedOnly] = useState(false);
+      const [setupErrors, setSetupErrors] = useState<string[]>([]);
+---
+
+=== BUILD ===
+
+> site-creator-vinext-starter@0.1.0 build
+> WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build
+
+
+  vinext build  (Vite 8.0.13)
+
+[34m[1/5] analyze client references...[39m
+[2K
+transforming...✓ 295 modules transformed.
+rendering chunks...
+[32m✓ built in 1.26s[39m
+[34m[2/5] analyze server references...[39m
+[2K
+transforming...✓ 131 modules transformed.
+rendering chunks...
+[32m✓ built in 770ms[39m
+[34m[3/5] build rsc environment...[39m
+[2K
+transforming...✓ 293 modules transformed.
+rendering chunks...
+computing gzip size...
+[32m✓ built in 1.31s[39m
+[34m[4/5] build client environment...[39m
+[2K
+transforming...✓ 172 modules transformed.
+rendering chunks...
+computing gzip size...
+[32m✓ built in 1.32s[39m
+[34m[5/5] build ssr environment...[39m
+[2K
+transforming...✓ 137 modules transformed.
+rendering chunks...
+computing gzip size...
+[32m✓ built in 1.16s[39m
+[0m
+  Route (app)
+  ┌ ? /                                      
+  ├ λ /api/erp/auth/change-password          
+  ├ λ /api/erp/auth/login                    
+  ├ λ /api/erp/auth/logout                   
+  ├ λ /api/erp/auth/methods                  
+  ├ λ /api/erp/auth/oauth/apple/callback     
+  ├ λ /api/erp/auth/oauth/apple/start        
+  ├ λ /api/erp/auth/oauth/google/callback    
+  ├ λ /api/erp/auth/oauth/google/start       
+  ├ λ /api/erp/auth/passkey/login/options    
+  ├ λ /api/erp/auth/passkey/login/verify     
+  ├ λ /api/erp/auth/passkey/register/options 
+  ├ λ /api/erp/auth/passkey/register/verify  
+  ├ λ /api/erp/memberships                   
+  ├ λ /api/erp/meth/channels/shopify/callback
+  ├ λ /api/erp/meth/channels/shopify/start   
+  ├ λ /api/erp/meth/channels/shopify/webhook 
+  ├ λ /api/erp/meth/fulfilment-policy        
+  ├ λ /api/erp/meth/order-routing            
+  ├ λ /api/erp/meth/stock-balances           
+  ├ λ /api/erp/meth/sync                     
+  ├ λ /api/erp/orders                        
+  ├ λ /api/erp/preferences                   
+  ├ λ /api/erp/session                       
+  ├ λ /api/seiko                             
+  └ ? /labels/create                         
+
+  λ API  ? Unknown
+
+  ? Some routes could not be classified. vinext currently uses static analysis
+    and cannot detect dynamic API usage (headers(), cookies(), etc.) at build time.
+    Automatic classification will be improved in a future release.
+
+  Build complete. Run `vinext start` to start the production server.
