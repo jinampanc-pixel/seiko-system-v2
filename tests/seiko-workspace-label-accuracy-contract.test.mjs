@@ -7,11 +7,19 @@ const orders = read("app/orders.tsx");
 const domain = read("app/lib/order-domain.ts");
 const shortcuts = read("app/workspace-shortcuts.tsx");
 const labels = read("app/label-designer.tsx");
+const orderCss = read("app/order-enhancements.css");
 
 test("Home clear filters is always a working reset", () => {
   assert.match(home, /aria-label="Clear all order filters"/);
   assert.match(home, /clearFilters\(\);setFiltersOpen\(false\)/);
   assert.doesNotMatch(home, /disabled=\{!activeFilterCount\} onClick=\{clearFilters\}/);
+});
+
+test("contextual Back navigation uses the locked shared style", () => {
+  assert.match(home, /startsWith\("← Back"\)/);
+  assert.match(home, /contextBackButton/);
+  assert.match(orders, /workspaceBackButton contextBackButton/);
+  assert.match(orderCss, /\.contextBackButton,\.workspaceBackButton/);
 });
 
 test("workspace separates order actions from spreadsheet actions", () => {
@@ -31,6 +39,7 @@ test("workspace column widths and display preferences are persisted", () => {
   assert.match(orders, /startColumnResize/);
   assert.match(orders, /persistWorkspace\(\{ columnWidths:/);
   assert.match(orders, /workspaceRowNumberCol/);
+  assert.match(orderCss, /\.workspaceRowNumberCol\{width:44px!important\}/);
 });
 
 test("label Value filter is writable and fuzzy-searches resolved values", () => {
