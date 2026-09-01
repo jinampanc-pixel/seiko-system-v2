@@ -1,0 +1,31 @@
+name: Run corrected SEIKO runtime accuracy fix
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/run-seiko-sept1-runtime-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Apply corrected runtime source fixes
+        run: python3 .github/scripts/fix-seiko-sept1-runtime-v2.py
+      - name: Commit source and remove temporary patch machinery
+        shell: bash
+        run: |
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git rm -f .github/scripts/fix-seiko-sept1-runtime.py .github/workflows/run-seiko-sept1-runtime.yml .github/scripts/fix-seiko-sept1-runtime-v2.py .github/workflows/run-seiko-sept1-runtime-v2.yml
+          git add app
+          git commit -m "Fix SEIKO status filters navigation and workspace drops"
+          git push origin HEAD:fix/veyn-milestone-one
