@@ -32,9 +32,9 @@ jobs:
         run: npm test
       - name: Commit validated refinements and remove one-shot files
         run: |
-          git rm .github/scripts/finalize-seiko-label-acceptance.py .github/workflows/finalize-seiko-label-acceptance.yml
+          git rm -f .github/scripts/finalize-seiko-label-acceptance.py .github/workflows/finalize-seiko-label-acceptance.yml .github/workflows/fix-label-direct-edit-and-applicability.yml
           git config user.name "jinampanc-pixel"
           git config user.email "jinampanc@gmail.com"
-          git add app/label-designer.tsx
-          git commit -m "Finalize SEIKO packing label acceptance"
+          git add app tests SEIKO_STAGE2_ACCEPTANCE.md
+          git commit -m "Finalize direct label editing and applicability"
           git push origin HEAD:fix/veyn-milestone-one
