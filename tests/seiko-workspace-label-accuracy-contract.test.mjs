@@ -52,20 +52,23 @@ test("label Value filter is writable and fuzzy-searches resolved values", () => 
   assert.match(labels, /\.toLowerCase\(\)\.includes\(filterNeedle\)/);
 });
 
-test("person package layouts use record-resolved applicable product slots", () => {
-  assert.match(labels, /package_product:\$\{slot\}:name/);
-  assert.match(labels, /package_product:\$\{slot\}:quantity/);
-  assert.match(labels, /package_product:\$\{slot\}:details/);
+test("person package layouts use configured product fields and record-resolved applicability", () => {
+  const optionStart = labels.indexOf("function labelFieldOptions");
+  const optionEnd = labels.indexOf("function normalizedMeasurementValues", optionStart);
+  const options = labels.slice(optionStart, optionEnd);
+  assert.ok(optionStart >= 0 && optionEnd > optionStart);
+  assert.doesNotMatch(options, /Applicable product/);
+  assert.doesNotMatch(options, /packageSlots/);
+  assert.match(options, /product_name:\$\{product\.id\}/);
+  assert.match(options, /product_quantity:\$\{product\.id\}/);
   assert.match(labels, /labelQuantityForRecord/);
   assert.match(labels, /orderUsesProductEvidence/);
   assert.match(labels, /valuesWithNormalizedMeasurements/);
   assert.match(labels, /normalizedMeasurementValues\(order, candidate\.values\)/);
-  assert.doesNotMatch(labels, /Use <b>Applicable product<\/b> slots/);
-  assert.match(labels, /Applicable product \$\{slot\}/);
-  assert.doesNotMatch(labels, /source === "person" && \(key === "product" \|\| exactProductField\)/);
   assert.match(labels, /specificProductValues/);
   assert.match(labels, /product_name:\$\{productId\}/);
   assert.match(labels, /product_quantity:\$\{productId\}/);
+  assert.match(labels, /filter\(item => !item\.field\?\.startsWith\("package_product:"\)\)/);
 });
 
 test("workspace row and column headers expose state-backed context actions", () => {
@@ -149,8 +152,6 @@ test("group/default quantities cannot bypass record-level product applicability"
   assert.match(resolver, /evidenceColumns\.some\(column => hasLabelValue\(recordValues\[column\.id\]\)\) \? quantity : 0/);
   assert.doesNotMatch(resolver, /quantityMode === "by_group"[\s\S]{0,240}return quantity/);
 });
-
-
 
 test("Order Setup return path and label workspace header are source-owned", () => {
   const listCenter = read("app/seiko-list-center-enhancements.tsx");
