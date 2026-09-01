@@ -1,0 +1,30 @@
+name: Fix SEIKO workspace and label accuracy
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/fix-seiko-workspace-label-ux.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Apply source-owned workspace and label fixes
+        run: python3 .github/scripts/fix-seiko-workspace-label-ux.py
+      - name: Commit cleaned source
+        run: |
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git rm -f .github/scripts/fix-seiko-workspace-label-ux.py .github/workflows/fix-seiko-workspace-label-ux.yml
+          git add app tests
+          git commit -m "Fix workspace tools and record-accurate labels"
+          git push origin HEAD:fix/veyn-milestone-one
