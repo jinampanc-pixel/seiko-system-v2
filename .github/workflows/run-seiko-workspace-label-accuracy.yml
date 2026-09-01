@@ -18,6 +18,18 @@ jobs:
         with:
           ref: fix/veyn-milestone-one
           fetch-depth: 0
+      - name: Correct label row signature marker
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/patch-seiko-workspace-label-accuracy.py')
+          text = path.read_text()
+          old = 'function orderLabelRows(order: SeikoOrder, source: SourceMode) {'
+          new = 'function orderLabelRows(order: SeikoOrder, source: SourceMode): RecordRow[] {'
+          if text.count(old) != 2:
+              raise SystemExit(f'expected two orderLabelRows patch markers, found {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
       - name: Apply patch
         run: python3 .github/patch-seiko-workspace-label-accuracy.py
       - name: Commit clean source
