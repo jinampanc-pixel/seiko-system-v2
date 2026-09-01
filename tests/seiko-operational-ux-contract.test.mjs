@@ -29,7 +29,7 @@ test("Order Center opens rows directly and keeps status plus conditional printin
   assert.match(ux, /orderRowClickable/);
   assert.match(ux, /open\.hidden = true/);
   assert.match(ux, /statusWrap\?\.removeAttribute\("hidden"\)/);
-  assert.doesNotMatch(ux, /orderCenterStatusBadge/);
+  assert.doesNotMatch(ux, /className = "orderCenterStatusBadge"/);
   assert.match(ux, /orderMenuStatusControl/);
   assert.match(ux, /hasPrintable = tasks\.some/);
   assert.match(ux, /Print labels/);

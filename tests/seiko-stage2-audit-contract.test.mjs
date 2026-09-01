@@ -106,8 +106,10 @@ test("workspace menu owns order status, save and secondary order actions", () =>
   assert.doesNotMatch(operationalUx, /className = "workspaceMenuOperational"/);
 });
 
-test("Order Center keeps status in operational metadata, rich workflow filters and archived state inside filters", () => {
-  assert.match(operationalUx, /appendMetaItem\(meta, "Status", order\.status\)/);
+test("Order Center keeps interactive status, rich workflow filters and archived state inside filters", () => {
+  assert.match(operationalUx, /statusWrap\?\.removeAttribute\("hidden"\)/);
+  assert.match(operationalUx, /orderCenterInlineStatus/);
+  assert.doesNotMatch(operationalUx, /appendMetaItem\(meta, "Status", order\.status\)/);
   assert.match(operationalUx, /orderProductSummary/);
   assert.match(operationalUx, /quantityForRecord/);
   assert.match(operationalUx, /resolvedSpecification/);
