@@ -225,6 +225,7 @@ function ensureOrderMenus(page: HTMLElement) {
     edit.textContent = "Edit setup";
     edit.addEventListener("click", () => {
       menu.open = false;
+      sessionStorage.setItem(`jinam:${currentBusiness()}:order-setup-origin`, "center");
       open.click();
       waitForWorkspaceAction("Edit setup");
     });

@@ -633,3 +633,40 @@
 .workspaceContextMenu button:disabled{opacity:.4}
 .labelCreateRouteHead .contextBackButton{margin:0 0 8px!important;padding-left:0!important;border:0!important;background:transparent!important}
 @media(max-width:700px){.workspaceCompactToolsPanel{grid-template-columns:1fr;max-height:70vh;overflow:auto}}
+
+
+/* 2026-09-01 final origin-aware setup + label workspace refinement */
+.workspacePage>.workspaceTools{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important;padding:5px 0!important}
+.workspacePage .workspaceCompactTools{flex:0 0 auto!important;margin:0!important}
+.workspacePage .workspaceAddTools{display:flex!important;align-items:center!important;flex:0 0 auto!important}
+.workspacePage .rowCountControl{display:grid!important;grid-template-columns:auto 48px 52px!important;align-items:center!important;gap:0!important;height:34px!important;padding:0!important;border:1px solid var(--line)!important;border-radius:8px!important;overflow:hidden!important;background:var(--paper)!important}
+.workspacePage .rowCountLabel{padding:0 8px!important;color:var(--muted)!important;font-size:9px!important;font-weight:800!important;white-space:nowrap!important}
+.workspacePage .rowCountControl input{box-sizing:border-box!important;width:48px!important;height:32px!important;border:0!important;border-left:1px solid var(--line)!important;border-right:1px solid var(--line)!important;border-radius:0!important;text-align:center!important;font-weight:800!important}
+.workspacePage .rowCountControl button{box-sizing:border-box!important;width:52px!important;height:32px!important;min-height:32px!important;border:0!important;border-radius:0!important;padding:0!important}
+.workspacePage .workspaceRowTotal{flex:0 0 auto!important;color:var(--muted)!important;font-size:9px!important;white-space:nowrap!important}
+.workspacePage>.workspaceTools>input[aria-label="Search rows"]{flex:1 1 240px!important;min-width:180px!important;max-width:360px!important;margin-left:auto!important}
+.workspacePage .workspacePagerTop{flex:0 0 auto!important;margin-left:0!important}
+.orderSetup .autoOrderInfo{display:flex!important;align-items:center!important;gap:6px!important}
+.orderSetup .autoOrderInfo>span{display:inline-flex!important;align-items:center!important;gap:5px!important;min-height:30px!important;padding:0 9px!important;border:1px solid var(--line)!important;border-radius:7px!important;background:var(--pale)!important;font-size:10px!important}
+.orderSetup .autoOrderInfo>span>b{font-size:9px!important;color:var(--navy)!important}
+.labelDesignerPage>.labelWorkspaceBackRow{display:flex!important;align-items:center!important;margin:0 0 6px!important;padding:0 2px!important}
+.labelDesignerPage>.labelWorkspaceBackRow .contextBackButton{margin:0!important}
+.labelDesignerPage .labelHeaderCommandBar{display:flex!important;align-items:center!important;gap:7px!important}
+.labelDesignerPage .labelHeaderMore{position:relative!important}
+.labelDesignerPage .labelHeaderMenuButton{display:grid!important;place-content:center!important;gap:4px!important;width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--paper)!important;cursor:pointer!important;list-style:none!important}
+.labelDesignerPage .labelHeaderMenuButton::-webkit-details-marker{display:none!important}
+.labelDesignerPage .labelHeaderMenuButton>span{display:block!important;width:18px!important;height:2px!important;border-radius:2px!important;background:var(--navy)!important}
+.labelDesignerPage .labelHeaderMenuButton:hover,.labelDesignerPage .labelHeaderMore[open]>.labelHeaderMenuButton{background:var(--pale)!important}
+.labelDesignerPage .labelHeaderMoreMenu{right:0!important;min-width:205px!important}
+.labelDesignerPage .labelHeaderMoreMenu .labelHeaderMenuPrimary{background:var(--navy)!important;color:#fff!important;font-weight:850!important}
+.labelDesignerPage .fieldChecklist{align-items:start!important;grid-auto-rows:min-content!important;gap:6px!important}
+.labelDesignerPage .fieldChoice{box-sizing:border-box!important;min-height:42px!important;height:auto!important;padding:7px 9px!important;align-content:start!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded{display:grid!important;grid-template-columns:minmax(150px,1fr) auto auto!important;grid-auto-rows:min-content!important;align-items:center!important;gap:5px 7px!important;min-height:0!important;padding:7px 9px!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>label:first-child{grid-column:1!important;grid-row:1!important;margin:0!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.fieldOrderControls{grid-column:2!important;grid-row:1!important;display:flex!important;gap:3px!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.showName{grid-column:3!important;grid-row:1!important;margin:0!important;white-space:nowrap!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.traceTotalChoice{grid-column:3!important;margin:0!important;white-space:nowrap!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>input[aria-label^="Printed name for"]{grid-column:1/-1!important;width:100%!important;height:29px!important;min-height:29px!important;margin:0!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.fieldEmphasis{grid-column:1/-1!important;display:flex!important;align-items:center!important;gap:12px!important;margin:0!important;padding:4px 0 0!important;border-top:1px solid color-mix(in srgb,var(--line) 68%,transparent)!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.fieldEmphasis label{margin:0!important;font-size:9px!important;white-space:nowrap!important}
+@media(max-width:900px){.workspacePage>.workspaceTools>input[aria-label="Search rows"]{order:4!important;flex-basis:100%!important;max-width:none!important;margin-left:0!important}.workspacePage .workspacePagerTop{margin-left:auto!important}}

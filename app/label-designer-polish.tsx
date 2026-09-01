@@ -7,9 +7,6 @@ function sourceMode() {
 }
 
 function tidyTopActions(page: HTMLElement) {
-  const back = Array.from(page.querySelectorAll<HTMLButtonElement>(".labelTopbar button.secondary"))
-    .find(item => item.textContent?.includes("Back to order") || item.textContent?.includes("Back to setup"));
-  if (back) back.textContent = "← Back to setup";
 
   const print = Array.from(page.querySelectorAll<HTMLButtonElement>(".labelTopbar button.primary"))
     .find(item => item.textContent?.includes("Print"));
@@ -61,6 +58,7 @@ function forceInteractiveCanvas(page: HTMLElement) {
 function groupForLabel(label: string) {
   if (label.startsWith("Person detail ·")) return "Person details";
   if (/^(Trace code|Label number|Person number|Product number|Number within|Piece \/ pair|Package \/ set)/i.test(label)) return "Trace & codes";
+  if (/^Applicable product \d+ ·/i.test(label)) return "Product details";
   if (label.includes(" · ")) return `Product details · ${label.split(" · ")[0]}`;
   return "Core information";
 }

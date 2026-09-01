@@ -61,8 +61,11 @@ test("person package layouts use record-resolved applicable product slots", () =
   assert.match(labels, /valuesWithNormalizedMeasurements/);
   assert.match(labels, /normalizedMeasurementValues\(order, candidate\.values\)/);
   assert.doesNotMatch(labels, /Use <b>Applicable product<\/b> slots/);
-  assert.match(labels, /Package product \$\{slot\}/);
-  assert.match(labels, /source === "person" && \(key === "product" \|\| exactProductField\)/);
+  assert.match(labels, /Applicable product \$\{slot\}/);
+  assert.doesNotMatch(labels, /source === "person" && \(key === "product" \|\| exactProductField\)/);
+  assert.match(labels, /specificProductValues/);
+  assert.match(labels, /product_name:\$\{productId\}/);
+  assert.match(labels, /product_quantity:\$\{productId\}/);
 });
 
 test("workspace row and column headers expose state-backed context actions", () => {
@@ -147,3 +150,28 @@ test("group/default quantities cannot bypass record-level product applicability"
   assert.doesNotMatch(resolver, /quantityMode === "by_group"[\s\S]{0,240}return quantity/);
 });
 
+
+
+test("Order Setup return path and label workspace header are source-owned", () => {
+  const listCenter = read("app/seiko-list-center-enhancements.tsx");
+  const create = read("app/labels/create/page.tsx");
+  assert.match(orders, /setupReturnView/);
+  assert.match(listCenter, /order-setup-origin/);
+  assert.match(orders, /returnView === "workspace" \? "← Back to Workspace" : "← Back to Orders"/);
+  assert.match(orders, /<Field label="Order date" type="date"/);
+  assert.doesNotMatch(orders, /className="orderDateEditor"/);
+  assert.match(create, /backLabel="← Back to label setup"/);
+  assert.match(labels, /labelWorkspaceBackRow/);
+  assert.match(labels, /className="labelHeaderMenuButton"/);
+  assert.match(labels, /labelHeaderMenuPrimary/);
+  assert.doesNotMatch(labels, /className="primary labelHeaderSaveSet"/);
+});
+
+test("workspace add rows and expanded label information stay compact", () => {
+  const finalCss = read("app/seiko-workspace-label-final.css");
+  assert.match(orders, /rowCountLabel">Add rows/);
+  assert.match(orders, /className="workspaceRowTotal"/);
+  assert.match(finalCss, /grid-template-columns:auto 48px 52px/);
+  assert.match(finalCss, /fieldChoice\.chosen\.fieldChoiceExpanded/);
+  assert.match(finalCss, /grid-template-columns:minmax\(150px,1fr\) auto auto/);
+});
