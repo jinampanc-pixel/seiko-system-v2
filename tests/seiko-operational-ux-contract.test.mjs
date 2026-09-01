@@ -60,7 +60,8 @@ test("Settings exposes Appearance first and Users & access second", () => {
 test("person-package label filtering uses resolved positive package contents", () => {
   assert.match(labelDesigner, /quantityForRecord/);
   assert.match(labelDesigner, /contains_product/);
-  assert.match(labelDesigner, /packageProducts\(record\)\.includes\(recordFilterValue\)/);
+  assert.match(labelDesigner, /const filterNeedle = recordFilterValue\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(labelDesigner, /packageProducts\(record\)\.some\(value => value\.toLowerCase\(\)\.includes\(filterNeedle\)\)/);
   assert.match(labelDesigner, /Products with a resolved quantity of 0 are excluded/);
   assert.match(labelDesigner, /Find person, class\/group or a product contained in the package/);
   assert.doesNotMatch(labels, /personPackageWorkspace/);

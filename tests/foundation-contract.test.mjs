@@ -188,7 +188,7 @@ test("label output can be code only, information only or combined", () => {
   assert.match(orders, /onOpenLabelBatches\(\);}}>Labels<\/button>/);
   assert.match(page, /onOpenLabelBatches=/);
   assert.doesNotMatch(page, /onCreateLabel=/);
-  assert.match(labelDesigner, /Back to order/);
+  assert.match(labelDesigner, /Back to Order/);
   assert.match(labelDesigner, /labelFieldOptions/);
   assert.match(labelDesigner, /spec:\$\{spec\.id\}/);
   assert.match(labelDesigner, /Find person, product, class, group or any order field/);
