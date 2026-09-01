@@ -1,0 +1,53 @@
+name: Diagnose SEIKO contracts
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/diagnose-seiko-contracts.yml
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Run contract suite and capture failure
+        shell: bash
+        run: |
+          npm ci >/tmp/install.log 2>&1
+          set +e
+          npm run test:contracts >/tmp/contracts.log 2>&1
+          code=$?
+          set -e
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('/tmp/contracts.log').read_text(errors='replace')
+          lines = text.splitlines()
+          hits = [i for i, line in enumerate(lines) if ('not ok' in line or 'AssertionError' in line or 'ERR_ASSERTION' in line or 'failureType' in line)]
+          selected = []
+          for i in hits:
+              selected.extend(lines[max(0, i-4):min(len(lines), i+30)])
+              selected.append('---')
+          if not selected:
+              selected = lines[-180:]
+          Path('ci-contract-diagnostic.txt').write_text('CONTRACT EXIT: ' + str(int('"$code"')) + '\n\n' + '\n'.join(selected)[-18000:])
+          PY
+      - name: Commit diagnostic and self-clean
+        run: |
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git rm .github/workflows/diagnose-seiko-contracts.yml
+          git add ci-contract-diagnostic.txt
+          git commit -m "Capture SEIKO contract failure diagnostic"
+          git push origin HEAD:fix/veyn-milestone-one
