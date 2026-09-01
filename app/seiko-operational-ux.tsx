@@ -116,8 +116,8 @@ function enhanceOrderCenter(page: HTMLElement) {
     if (!order || !open || !nativeStatus || !panel || !menu) return;
 
     open.hidden = true;
-    statusWrap?.removeAttribute("hidden");
-    statusWrap?.classList.add("orderCenterInlineStatus");
+    statusWrap?.setAttribute("hidden", "");
+    statusWrap?.classList.remove("orderCenterInlineStatus");
     row.classList.add("orderRowClickable");
     row.tabIndex = 0;
     row.setAttribute("aria-label", `Open order ${order.details.orderNo} for ${order.details.clientName || "client"}`);
@@ -131,7 +131,7 @@ function enhanceOrderCenter(page: HTMLElement) {
     if (!meta) {
       meta = document.createElement("div");
       meta.className = "orderCenterOperationalMeta";
-      menu.insertAdjacentElement("beforebegin", meta);
+      detail?.appendChild(meta);
     }
     const metaSignature = [order.details.clientType, order.records.length, order.products.filter(product => product.name.trim()).length, dueLabel(order), order.revisions.length].join("|");
     if (meta.dataset.signature !== metaSignature) {

@@ -12,6 +12,9 @@ function paint() {
 }
 function selectRange(ids: string[], from: string, to: string, target: Set<string>) { const a=ids.indexOf(from), b=ids.indexOf(to); if(a<0||b<0)return; target.clear(); for(let i=Math.min(a,b);i<=Math.max(a,b);i++) target.add(ids[i]); }
 function closeContextMenu(){document.querySelector(".workspaceContextMenu")?.remove();}
+function clearDropHints(){document.querySelectorAll(".workspaceDropBefore,.workspaceDropAfter").forEach(node=>node.classList.remove("workspaceDropBefore","workspaceDropAfter"));}
+function dropPosition(event:DragEvent,element:HTMLElement,axis:"x"|"y"){const box=element.getBoundingClientRect();return axis==="y"?(event.clientY<box.top+box.height/2?"before":"after"):(event.clientX<box.left+box.width/2?"before":"after");}
+function paintDropHint(element:HTMLElement,position:"before"|"after"){clearDropHints();element.classList.add(position==="before"?"workspaceDropBefore":"workspaceDropAfter");}
 function contextMenu(x:number,y:number,items:Array<{label:string;command:string;disabled?:boolean}>,dispatch:(command:string)=>void){
   closeContextMenu();
   const menu=document.createElement("div");menu.className="workspaceContextMenu";menu.setAttribute("role","menu");
@@ -27,9 +30,9 @@ function configureRows() {
     handle.addEventListener("click", event => { const ids=rows.map(item=>item.dataset.recordId||""); if(event.shiftKey&&rowAnchor) selectRange(ids,rowAnchor,id,selectedRows); else if(event.ctrlKey||event.metaKey){if(selectedRows.has(id)) selectedRows.delete(id); else selectedRows.add(id); rowAnchor=id;} else {selectedRows.clear();selectedRows.add(id);rowAnchor=id;} paint(); });
     handle.addEventListener("contextmenu",event=>{event.preventDefault();if(!selectedRows.has(id)){selectedRows.clear();selectedRows.add(id);rowAnchor=id;paint();}const ids=[...selectedRows];const allHeld=ids.every(recordId=>document.querySelector<HTMLTableRowElement>(`.workspaceTable tbody tr[data-record-id="${CSS.escape(recordId)}"]`)?.classList.contains("recordHeld"));contextMenu(event.clientX,event.clientY,[{label:"Insert row above",command:"insert-above"},{label:"Insert row below",command:"insert-below"},{label:allHeld?"Resume selected rows":"Put selected rows on hold",command:"toggle-hold"},{label:`Delete selected row${ids.length===1?"":"s"}`,command:"delete"}],command=>window.dispatchEvent(new CustomEvent("seiko:workspace-row-command",{detail:{command,ids,targetId:id}})));});
     handle.addEventListener("dragstart", event => { if(!selectedRows.has(id)){selectedRows.clear();selectedRows.add(id);rowAnchor=id;paint();} event.dataTransfer?.setData("text/plain","seiko-rows"); event.dataTransfer!.effectAllowed="move"; });
-    handle.addEventListener("dragover", event => { event.preventDefault(); row.classList.add("workspaceStructureDropTarget"); });
-    handle.addEventListener("dragleave",()=>row.classList.remove("workspaceStructureDropTarget"));
-    handle.addEventListener("drop", event => { event.preventDefault(); row.classList.remove("workspaceStructureDropTarget"); window.dispatchEvent(new CustomEvent("seiko:workspace-reorder-rows",{detail:{ids:[...selectedRows],targetId:id}})); });
+    handle.addEventListener("dragover", event => { event.preventDefault(); paintDropHint(row,dropPosition(event,row,"y")); });
+    handle.addEventListener("dragleave",event=>{if(!row.contains(event.relatedTarget as Node|null))clearDropHints();});
+    handle.addEventListener("drop", event => { event.preventDefault(); const position=dropPosition(event,row,"y"); clearDropHints(); window.dispatchEvent(new CustomEvent("seiko:workspace-reorder-rows",{detail:{ids:[...selectedRows],targetId:id,position}})); });
   });
   const corner=document.querySelector<HTMLElement>(".workspaceRowHeaderCorner"); if(corner&&!corner.dataset.structureReady){corner.dataset.structureReady="true";corner.addEventListener("click",()=>{selectedRows.clear();rows.forEach(row=>selectedRows.add(row.dataset.recordId||""));paint();});}
 }
@@ -39,9 +42,9 @@ function configureColumns() {
     cell.addEventListener("click",event=>{if((event.target as Element)?.closest?.(".columnResizeHandle"))return;const ids=cells.map(item=>item.dataset.columnId||"");if(event.shiftKey&&columnAnchor)selectRange(ids,columnAnchor,id,selectedColumns);else if(event.ctrlKey||event.metaKey){if(selectedColumns.has(id))selectedColumns.delete(id);else selectedColumns.add(id);columnAnchor=id;}else{selectedColumns.clear();selectedColumns.add(id);columnAnchor=id;}paint();});
     cell.addEventListener("contextmenu",event=>{if((event.target as Element)?.closest?.(".columnResizeHandle"))return;event.preventDefault();if(!selectedColumns.has(id)){selectedColumns.clear();selectedColumns.add(id);columnAnchor=id;paint();}const ids=[...selectedColumns];contextMenu(event.clientX,event.clientY,[{label:`Hide selected column${ids.length===1?"":"s"}`,command:"hide"},{label:"Reset column width",command:"reset-width"},{label:"Align left",command:"align-left"},{label:"Align centre",command:"align-center"},{label:"Align right",command:"align-right"},{label:"Sort A → Z",command:"sort-asc"},{label:"Sort Z → A",command:"sort-desc"}],command=>window.dispatchEvent(new CustomEvent("seiko:workspace-column-command",{detail:{command,ids}})));});
     cell.addEventListener("dragstart",event=>{if(!selectedColumns.has(id)){selectedColumns.clear();selectedColumns.add(id);columnAnchor=id;paint();}event.dataTransfer?.setData("text/plain","seiko-columns");event.dataTransfer!.effectAllowed="move";});
-    cell.addEventListener("dragover",event=>{event.preventDefault();cell.classList.add("workspaceStructureDropTarget");});cell.addEventListener("dragleave",()=>cell.classList.remove("workspaceStructureDropTarget"));
-    cell.addEventListener("drop",event=>{event.preventDefault();cell.classList.remove("workspaceStructureDropTarget");window.dispatchEvent(new CustomEvent("seiko:workspace-reorder-columns",{detail:{ids:[...selectedColumns],targetId:id}}));});
+    cell.addEventListener("dragover",event=>{event.preventDefault();paintDropHint(cell,dropPosition(event,cell,"x"));});cell.addEventListener("dragleave",event=>{if(!cell.contains(event.relatedTarget as Node|null))clearDropHints();});
+    cell.addEventListener("drop",event=>{event.preventDefault();const position=dropPosition(event,cell,"x");clearDropHints();window.dispatchEvent(new CustomEvent("seiko:workspace-reorder-columns",{detail:{ids:[...selectedColumns],targetId:id,position}}));});
   });
 }
 function enhance(){configureRows();configureColumns();paint();}
-export function WorkspaceStructureInteractions(){useEffect(()=>{const controller=startDomEnhancement(enhance,{observer:{childList:true,subtree:true}});return()=>{closeContextMenu();controller.stop();};},[]);return null;}
+export function WorkspaceStructureInteractions(){useEffect(()=>{const controller=startDomEnhancement(enhance,{observer:{childList:true,subtree:true}});const clear=()=>clearDropHints();document.addEventListener("dragend",clear,true);return()=>{document.removeEventListener("dragend",clear,true);clearDropHints();closeContextMenu();controller.stop();};},[]);return null;}

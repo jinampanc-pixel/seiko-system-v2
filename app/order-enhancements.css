@@ -88,3 +88,16 @@
 .columnResizeHandle{position:absolute;z-index:8;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;touch-action:none}.columnResizeHandle::after{content:"";position:absolute;top:20%;bottom:20%;left:3px;width:1px;background:rgba(255,255,255,.38)}
 .workspaceTable td[data-align="left"] input,.workspaceTable td[data-align="left"] select{text-align:left}.workspaceTable td[data-align="center"] input,.workspaceTable td[data-align="center"] select{text-align:center}.workspaceTable td[data-align="right"] input,.workspaceTable td[data-align="right"] select{text-align:right}
 @media(max-width:800px){.workspaceSheetBar{overflow-x:auto;align-items:flex-start}.workspaceSheetHint{display:none}.workspaceSheetMenu>div,.workspaceSheetColumns>.columnMenu{position:fixed;left:12px;right:12px;top:auto;width:auto;min-width:0}}
+
+
+/* Runtime accuracy v3 */
+.orderSetup .orderPageHead>div:first-child,.labelTopbar>div:first-child,.labelPurposeHead>div:first-child,.labelLauncherHead>div:first-child{display:grid!important;justify-items:start!important;align-content:start!important}
+.orderSetup .orderSetupBack,.labelDesignerPage .contextBackButton,.labelLauncher .contextBackButton{margin-bottom:5px!important}
+.orderSetup .orderDateEditor{display:inline-grid!important;grid-template-columns:auto minmax(132px,160px)!important;align-items:center!important;gap:7px!important}
+.orderSetup .orderDateEditor>b{font-size:9px!important;color:var(--navy)!important}
+.orderSetup .orderDateEditor>input{height:30px!important;min-height:30px!important;padding:0 7px!important}
+.workspaceTable tr.workspaceDropBefore{box-shadow:inset 0 3px 0 var(--brand)!important}
+.workspaceTable tr.workspaceDropAfter{box-shadow:inset 0 -3px 0 var(--brand)!important}
+.workspaceMovableColumnHeader.workspaceDropBefore::before,.workspaceMovableColumnHeader.workspaceDropAfter::after{content:"";position:absolute;z-index:20;top:0;bottom:0;width:3px;background:var(--brand)}
+.workspaceMovableColumnHeader.workspaceDropBefore::before{left:-2px}.workspaceMovableColumnHeader.workspaceDropAfter::after{right:-2px}
+.workspaceTable tr.workspaceDropBefore .workspaceRowHeader,.workspaceTable tr.workspaceDropAfter .workspaceRowHeader,.workspaceMovableColumnHeader.workspaceDropBefore,.workspaceMovableColumnHeader.workspaceDropAfter{background:color-mix(in srgb,var(--brand) 10%,var(--paper))!important}
