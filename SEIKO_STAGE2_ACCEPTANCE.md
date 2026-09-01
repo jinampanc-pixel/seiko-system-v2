@@ -33,10 +33,14 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - Add Rows and Rows per page are genuine editable numeric controls. Values are sanitized/clamped only when committed, and a top pager proxy must drive the same underlying React state as the native pager.
 - Row selection follows spreadsheet conventions instead of checkbox-list conventions: row-number headers select rows, Shift-click selects a range, Ctrl/Cmd-click adds or removes rows, and the top-left corner selects all visible rows.
 - Column headers use the same click/Shift/Ctrl-or-Cmd selection model. Selected rows and selected columns can be dragged to a new position; column widths can be resized from the header edge; order, hidden columns, widths and alignment are persisted in order data rather than merely moving DOM elements.
+- The row-number `#` column stays narrow and functional; it is a selection/reorder handle rather than a normal data-width column.
+- Spreadsheet commands live behind one compact Tools control instead of a permanent multi-tab toolbar row. Tools includes Undo/Redo, copy/clear/fill, insert rows, column visibility, alignment and sorting.
+- Right-clicking a selected row number opens row actions such as insert above/below, hold/resume and delete. Right-clicking a selected column header opens column actions such as hide, reset width, alignment and sorting. These commands change the real React/order state.
 - Multi-row add and destructive operations require confirmation.
-- The source-owned three-dot workspace menu is order-level only: shared Status, Save now, Labels, Edit setup, Save & close, Archive order, Delete order and Close without saving. Hold/resume exists only through Status, while Undo/Redo and spreadsheet operations live in the workspace spreadsheet toolbar.
+- The source-owned three-dot workspace menu is order-level only: shared Status, Save now, Labels, Edit setup, Save & close, Archive order, Delete order and Close without saving. Hold/resume exists only through Status or row-level context actions, while Undo/Redo and spreadsheet operations live in the compact Tools control.
 - Save gives feedback. Save & close and Close without saving require explicit confirmation.
 - Global desktop shortcuts follow familiar spreadsheet/application conventions: Ctrl/Cmd+S saves, Ctrl/Cmd+Shift+S saves and closes, Ctrl/Cmd+P opens Labels, Ctrl/Cmd+F focuses row search, Ctrl/Cmd+Z/Y undo/redo, Ctrl/Cmd+C/V/X handle cell clipboard work, F2 edits a cell and Esc closes transient menus/editing.
+- Contextual Back navigation uses one consistent top-left treatment on Order Setup, Order Workspace, Label Creation and Label Workspace wherever a meaningful previous context exists.
 
 ## Label Center and shared Label Workspace
 
@@ -46,16 +50,18 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - Ctrl/Cmd+S in the Label Workspace opens an in-app choice between Save label set and Save layout; it must not invoke the browser Save Page dialog.
 - A Layout is a reusable physical label design: size, chosen components/information, typography, code configuration and placement. A Label set is this order/job's selected records for repeat printing.
 - Label representation is changeable in the designer: physical item, person/package, grouped package/group, product/stock group, or whole order. The create route supplies only the initial representation and never locks it.
-- Custom selection is explained and exposes explicit Information field, Free text, QR code, Barcode and Sequence components.
+- Custom selection exposes explicit Information field, Free text, QR code, Barcode and Sequence components without explanatory implementation jargon in the workspace.
 - Label information is grouped as Core information, Person details, Product details, and Trace & codes. There is no unexplained Style group and no customer-update control in label information.
 - Core information is limited to saved order-level details from Order Setup. Person details contains the actual person/record fields configured for the order. Product details contains product-specific fields, quantities, measurements and specifications. Trace & codes contains generated trace information.
 - Generic `Group / label type` is not offered as label information. Generic `Person / workpiece` is shown only where the label purpose/representation genuinely identifies a production workpiece; Packing and Inventory rely on the actual order-defined person/record fields when relevant.
 - Classification/grouping uses fields defined in that order's setup and is shown only when grouping is meaningful for the selected representation.
-- Product-specific fields remain available where a label genuinely identifies that product. Person/package labels instead expose reusable Applicable product slots (name, quantity and details), so one layout position resolves the actual Shirt, Kurti or other applicable product for each record and never displays an inapplicable product merely because it exists on the order.
+- Workspace row data is the authoritative source for person/package applicability. A blank product measurement/specification in that person's workspace row must never be populated by borrowing a value from another product or another ambiguous legacy measurement.
+- Person/package layouts use reusable Package product slots (name, quantity and details). Each slot resolves only the current preview/print record's positive, applicable products. Product-specific values from one package item are never merged into another package item.
+- One reusable label layout must work across mixed records: empty/inapplicable fields are omitted for each record and automatic layout reflows the remaining fields upward, so a male record can resolve Shirt/Male Pant while a female record can resolve Ijar/Kurti in the same template positions.
 - Removing a selected information chip with its `×` changes the React editor state itself and removes that information from preview/print immediately. A DOM-only visual removal is never sufficient.
 - Information search is collapsed behind a compact magnifier control rather than permanently consuming a full row.
-- Preview sample selection is independent from print selection, so mixed orders can inspect the correct person/product label without changing labels queued for print.
-- Person/package contents and hover details use the same shared `quantityForRecord()` logic as the order system. Products whose resolved quantity is zero are excluded. The UI never infers gender or product eligibility from a person's name.
+- Preview sample selection is independent from print selection and identifies the person/record concisely rather than dumping the complete product list into every option.
+- Person/package contents and hover details use the same shared `quantityForRecord()` logic as the order system. Products whose resolved quantity is zero or whose required workspace evidence is absent are excluded. The UI never infers gender or product eligibility from a person's name.
 - Record hover/focus summaries contain only resolved positive package products and actual configured person fields; irrelevant internal order/group/client values are not shown as if they were label contents.
 - Automatic layout follows the selected-field order. Selected information can be moved up/down to control vertical order. Dragging or exact geometry edits switches to manual layout using the currently visible automatic positions as the starting coordinates.
 - Manual canvas movement supports free 0.25 mm positioning, Shift axis-lock, Alt bypass of snapping, and edge/centre alignment snapping against the canvas and other label elements. This allows values to share an exact baseline or left/centre/right alignment.
@@ -76,6 +82,7 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - Regression contracts assert the current owning source component or shared state path; they must not force retired enhancement hooks or duplicated controls back into the application.
 - Order Center status remains the native React control; nested module navigation must not be overwritten by bootstrap Home resets; Workspace Back/menu controls are source-owned; automatic label arrangement remains source-owned physical-millimetre logic.
 - Runtime contracts verify the native inline Order Center status control rather than requiring retired status badges or static status metadata.
+- Label contracts explicitly reject cross-product measurement fallback and product-value merging across person/package items.
 - Acceptance is revalidated only after lint, all contracts, production build, render checks, and the existing branch-preview smoke test are green on the same cleaned source head.
 
 These behaviors must remain additive to the restored Stage 1 label stack unless an explicitly approved replacement supersedes them.
