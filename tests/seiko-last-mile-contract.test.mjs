@@ -36,3 +36,9 @@ test("Label Information does not show redundant up/down arrow controls", () => {
   assert.doesNotMatch(labelDesigner, />↑<\/button>/);
   assert.doesNotMatch(labelDesigner, />↓<\/button>/);
 });
+
+test("Order Setup returns to the page it was opened from", () => {
+  assert.match(orders, /setView\(existingOrder \? setupReturnView : "workspace"\)/);
+  assert.match(orders, /returnView === "workspace" \? "Update workspace" : "Save changes"/);
+  assert.match(orders, /onCancel=\{\(\) => setView\(current\.revisions\.length \? setupReturnView : "center"\)\}/);
+});
