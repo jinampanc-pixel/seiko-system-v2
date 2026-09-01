@@ -203,10 +203,9 @@ function enhanceWorkspace(page: HTMLElement) {
   page.querySelector(".workspaceMenuOperational")?.remove();
 }
 
-function enhanceSettings(_panel: HTMLElement) {
+function enhanceSettings() {
   // Settings is React-owned. Do not inject overlapping modules into the dialog.
 }
-
 
 function enhance() {
   enhanceHome();
