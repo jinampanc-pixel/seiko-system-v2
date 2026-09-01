@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const exists = path => existsSync(new URL(`../${path}`, import.meta.url));
 const home = read("app/seiko-phase1.tsx");
 const orders = read("app/orders.tsx");
 const domain = read("app/lib/order-domain.ts");
@@ -63,7 +64,6 @@ test("person package layouts use record-resolved applicable product slots", () =
   assert.match(labels, /source === "person" && \(key === "product" \|\| exactProductField\)/);
 });
 
-
 test("workspace row and column headers expose state-backed context actions", () => {
   const structure = read("app/workspace-structure-interactions.tsx");
   assert.match(structure, /contextmenu/);
@@ -86,11 +86,18 @@ test("packing preview keeps only relevant fields and uses concise record identit
   assert.doesNotMatch(labels, /record\.name\}\{record\.product \?/);
 });
 
-
 test("label canvas is directly editable without an Arrange or Finish arranging mode", () => {
   assert.doesNotMatch(labelRefinement, /addArrangeControl/);
   assert.doesNotMatch(labelRefinement, /Finish arranging|Arrange label/);
   assert.doesNotMatch(labels, /Automatic layout|Manual layout/);
   assert.match(labels, /if \(!advanced\) \{ setItems\(arranged\); setAdvanced\(true\); \}/);
   assert.match(labels, /const down = \(e: ReactPointerEvent, item: Item\)/);
+});
+
+test("temporary in-chat patch machinery is absent from the accepted branch", () => {
+  assert.equal(exists(".github/scripts/finalize-seiko-label-acceptance.py"), false);
+  assert.equal(exists(".github/scripts/fix-seiko-sept1-runtime.py"), false);
+  assert.equal(exists(".github/workflows/finalize-seiko-label-acceptance.yml"), false);
+  assert.equal(exists(".github/workflows/fix-label-direct-edit-and-applicability.yml"), false);
+  assert.equal(exists(".github/workflows/run-seiko-sept1-runtime.yml"), false);
 });
