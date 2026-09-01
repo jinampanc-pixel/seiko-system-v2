@@ -84,6 +84,28 @@ text += '''\n\ntest("label canvas is directly editable without an Arrange or Fin
 '''
 p.write_text(text)
 
+# Replace the old Stage-2 contract that required a Manual/Automatic mode button.
+replace_once(
+    "tests/seiko-stage2-audit-contract.test.mjs",
+    '''test("label creation stays automatic by default while manual placement remains precise", () => {
+  assert.match(labelDesigner, /const \\[advanced, setAdvanced\\] = useState\\(false\\)/);
+  assert.match(labelDesigner, /Manual layout/);
+  assert.match(labelDesigner, /Automatic layout/);
+  assert.match(labelDesigner, /const step = event\\.shiftKey \\? 1 : \\.25/);
+  assert.match(labelDesigner, /ArrowLeft/);
+  assert.match(labelDesigner, /ArrowRight/);
+  assert.match(labelDesigner, /setItems\\(arrangeLabelItems\\(items, preset\\)\\)/);
+});''',
+    '''test("label creation stays automatic by default while direct placement remains precise", () => {
+  assert.match(labelDesigner, /const \\[advanced, setAdvanced\\] = useState\\(false\\)/);
+  assert.doesNotMatch(labelDesigner, /Manual layout|Automatic layout/);
+  assert.match(labelDesigner, /const step = event\\.shiftKey \\? 1 : \\.25/);
+  assert.match(labelDesigner, /ArrowLeft/);
+  assert.match(labelDesigner, /ArrowRight/);
+  assert.match(labelDesigner, /if \\(!advanced\\) \\{ setItems\\(arranged\\); setAdvanced\\(true\\); \\}/);
+});''',
+)
+
 # Acceptance text explicitly rejects a mode-switch button for normal canvas editing.
 p = Path("SEIKO_STAGE2_ACCEPTANCE.md")
 text = p.read_text()
