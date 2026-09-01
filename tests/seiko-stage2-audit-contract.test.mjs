@@ -70,8 +70,8 @@ test("workspace row and column operations are state-backed and page size is trul
   assert.match(rowMenu, /workspaceRowMenuTrigger/);
   assert.match(rowMenu, /Put on hold/);
   assert.match(rowMenu, /Delete row/);
-  assert.match(orders, /Undo last change/);
-  assert.match(orders, /Redo last change/);
+  assert.match(orders, /data-sheet-action="undo"/);
+  assert.match(orders, /data-sheet-action="redo"/);
   assert.match(orders, /seiko:workspace-reorder-rows/);
   assert.match(orders, /seiko:workspace-reorder-columns/);
   assert.match(orderDomain, /columnOrder/);
@@ -191,8 +191,9 @@ test("shared Label Workspace owns information state and purpose only controls re
 });
 
 test("label package contents use the shared order quantity resolver and exclude zero quantities", () => {
-  assert.match(labelDesigner, /quantityForRecord/);
-  assert.match(labelDesigner, /const qty = product \? quantityForRecord\(product, record, recordIndex === 0\) : 1/);
+  assert.match(labelDesigner, /labelQuantityForRecord/);
+  assert.match(labelDesigner, /quantityForRecord\(product, record, recordIndex === 0\)/);
+  assert.match(labelDesigner, /orderUsesProductEvidence/);
   assert.match(labelDesigner, /groupRuleMatches\(rule\.match, groupValue\)/);
   assert.match(labelDesigner, /\(Number\(row\.qty\) \|\| 0\) <= 0/);
   assert.match(labelDesigner, /package_products: JSON\.stringify\(packageProductNames\)/);
