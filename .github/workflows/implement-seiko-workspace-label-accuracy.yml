@@ -1,0 +1,426 @@
+name: Implement SEIKO workspace and label accuracy fixes
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/implement-seiko-workspace-label-accuracy.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Apply source-owned workspace and label fixes
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one occurrence, found {count}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          # 1) Home: Clear filters must always be an actionable reset, with visible closure feedback.
+          replace_once(
+              "app/seiko-phase1.tsx",
+              '<button type="button" className="textButton" disabled={!activeFilterCount} onClick={clearFilters}>Clear filters</button>',
+              '<button type="button" className="textButton" aria-label="Clear all order filters" onClick={()=>{clearFilters();setFiltersOpen(false);}}>Clear filters</button>',
+          )
+          replace_once(
+              "app/seiko-phase1.tsx",
+              '        if (text === "Back" && button.closest(".labelCreateApp,.labelDesigner")) button.textContent = "← Back to Labels";\n',
+              '        if (text === "Back" && button.closest(".labelCreateApp,.labelDesigner")) button.textContent = "← Back to Labels";\n        if (button.textContent?.trim().startsWith("← Back")) button.classList.add("contextBackButton");\n',
+          )
+
+          # 2) Workspace state: persist column order, visibility, widths and alignment.
+          replace_once(
+              "app/lib/order-domain.ts",
+              'workspace?: { columnOrder?: string[] }',
+              'workspace?: { columnOrder?: string[]; hiddenColumns?: string[]; columnWidths?: Record<string, number>; columnAlignments?: Record<string, "left" | "center" | "right"> }',
+          )
+
+          p = Path("app/orders.tsx")
+          text = p.read_text()
+          old = 'import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type MouseEvent } from "react";'
+          new = 'import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";'
+          if text.count(old) != 1:
+              raise SystemExit("orders import marker missing")
+          text = text.replace(old, new, 1)
+
+          # Contextual Back is source-owned in setup and workspace.
+          old = '<button className="secondary" onClick={onCancel}>Cancel</button>'
+          if text.count(old) != 2:
+              raise SystemExit(f"orders setup cancel expected twice, found {text.count(old)}")
+          text = text.replace(old, '<button className="secondary contextBackButton" onClick={onCancel}>{order.revisions.length ? "← Back to Workspace" : "← Back to Orders"}</button>')
+          text = text.replace('className="textButton workspaceBackButton"', 'className="textButton workspaceBackButton contextBackButton"', 1)
+
+          # Workspace menu is order-level only: status owns hold/resume; sheet tools own undo/redo.
+          old = '<button onClick={()=>{setOrderMenuOpen(false);onEditSetup();}}>Edit setup</button><button onClick={()=>onChange({ ...order, status: order.status === "On Hold" ? "Active" : "On Hold" })}>{order.status === "On Hold" ? "Resume order" : "Put order on hold"}</button><div className="orderMenuDivider"/><button disabled={!undoStack.length} onClick={()=>{setOrderMenuOpen(false);undo();}}>Undo last change</button><button disabled={!redoStack.length} onClick={()=>{setOrderMenuOpen(false);redo();}}>Redo last change</button><div className="orderMenuDivider"/>'
+          new = '<button onClick={()=>{setOrderMenuOpen(false);onEditSetup();}}>Edit setup</button><div className="orderMenuDivider"/>'
+          if text.count(old) != 1:
+              raise SystemExit("workspace redundant menu actions marker missing")
+          text = text.replace(old, new, 1)
+
+          old = '  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());\n  const [columnMenuOpen, setColumnMenuOpen] = useState(false);\n  const columnControlRef = useRef<HTMLDivElement>(null);'
+          new = '  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(() => new Set(order.workspace?.hiddenColumns || []));\n  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => ({ ...(order.workspace?.columnWidths || {}) }));\n  const [columnAlignments, setColumnAlignments] = useState<Record<string, "left" | "center" | "right">>(() => ({ ...(order.workspace?.columnAlignments || {}) }));\n  const [columnMenuOpen, setColumnMenuOpen] = useState(false);\n  const columnControlRef = useRef<HTMLDivElement>(null);'
+          if text.count(old) != 1:
+              raise SystemExit("workspace column state marker missing")
+          text = text.replace(old, new, 1)
+
+          old = '  const toggleColumn = (id: string) => setHiddenColumns(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });'
+          new = '''  const persistWorkspace = (patch: Partial<NonNullable<SeikoOrder["workspace"]>>) => onChange({ ...order, workspace: { ...order.workspace, ...patch } });
+  const toggleColumn = (id: string) => setHiddenColumns(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); persistWorkspace({ hiddenColumns: [...next] }); return next; });
+  const showAllColumns = () => { setHiddenColumns(new Set()); persistWorkspace({ hiddenColumns: [] }); };
+  const columnWidth = (id: string) => Math.max(72, Math.min(520, Math.round(columnWidths[id] || (id === "personId" ? 105 : 155))));
+  const startColumnResize = (event: ReactPointerEvent<HTMLElement>, id: string) => {
+    event.preventDefault(); event.stopPropagation();
+    const startX = event.clientX, startWidth = columnWidth(id); let latest = startWidth;
+    const move = (nativeEvent: PointerEvent) => { latest = Math.max(72, Math.min(520, Math.round(startWidth + nativeEvent.clientX - startX))); setColumnWidths(current => ({ ...current, [id]: latest })); };
+    const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); const next = { ...(order.workspace?.columnWidths || {}), [id]: latest }; setColumnWidths(next); persistWorkspace({ columnWidths: next }); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", stop, { once: true });
+  };
+  const setSelectedAlignment = (alignment: "left" | "center" | "right") => {
+    if (!selectedBounds) return;
+    const ids = gridColumns.slice(selectedBounds.left, selectedBounds.right + 1).map(column => column.id);
+    const next = { ...columnAlignments }; ids.forEach(id => { next[id] = alignment; }); setColumnAlignments(next); persistWorkspace({ columnAlignments: next });
+  };
+  const sortBySelectedColumn = (direction: 1 | -1) => {
+    if (!selectedBounds) return;
+    const column = gridColumns[selectedBounds.left]; if (!column) return;
+    const next = [...order.records].sort((a, b) => direction * String(a.values[column.id] ?? "").localeCompare(String(b.values[column.id] ?? ""), undefined, { numeric: true, sensitivity: "base" }));
+    commitRecords(next);
+  };
+  const insertRecordsAt = (index: number, count: number) => {
+    let number = nextNumber(); const inserted = Array.from({ length: Math.max(1, count) }, () => ({ recordId: crypto.randomUUID(), personId: `P-${String(number++).padStart(4, "0")}`, values: {} }));
+    commitRecords([...order.records.slice(0, index), ...inserted, ...order.records.slice(index)]);
+  };'''
+          if text.count(old) != 1:
+              raise SystemExit("workspace toggle column marker missing")
+          text = text.replace(old, new, 1)
+
+          # Spreadsheet toolbar replaces duplicated scattered sheet commands.
+          old = '    <div className="workspaceTools"><div className="workspaceAddTools"><label className="rowCountControl"><input aria-label="Number of rows to add" type="text" inputMode="numeric" value={rowCount} onFocus={event=>event.currentTarget.select()} onChange={event => setRowCount(event.target.value.replace(/[^0-9]/g, ""))} onBlur={()=>setRowCount(String(rowsToAdd))}/><button className="primary" onClick={() => { addRecords(rowsToAdd); setRowCount(String(rowsToAdd)); }}>+ Add {rowsToAdd===1?"row":"rows"}</button></label><div className="columnControl" ref={columnControlRef}><button className="secondary" aria-expanded={columnMenuOpen} onClick={()=>setColumnMenuOpen(value=>!value)}>Columns</button>{columnMenuOpen&&<div className="columnMenu"><label><input type="checkbox" checked={!hiddenColumns.has("personId")} onChange={()=>toggleColumn("personId")}/>Person ID</label>{columns.map(column=><label key={column.id}><input type="checkbox" checked={!hiddenColumns.has(column.id)} onChange={()=>toggleColumn(column.id)}/>{column.label}</label>)}</div>}</div></div><span>{order.records.length} rows</span><input aria-label="Search rows" placeholder="Search rows" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }}/></div>'
+          new = '''    <div className="workspaceSheetBar" role="toolbar" aria-label="Spreadsheet tools">
+      <details className="workspaceSheetMenu"><summary>Edit</summary><div><button type="button" data-sheet-action="undo" disabled={!undoStack.length} onClick={undo}>Undo <kbd>Ctrl/Cmd+Z</kbd></button><button type="button" data-sheet-action="redo" disabled={!redoStack.length} onClick={redo}>Redo <kbd>Ctrl/Cmd+Y</kbd></button><button type="button" disabled={!selectedBounds} onClick={()=>void copySelection()}>Copy selection</button><button type="button" disabled={!selectedBounds} onClick={clearSelection}>Clear selection</button><button type="button" disabled={!selectedBounds || selectedBounds.bottom<=selectedBounds.top} onClick={fillDown}>Fill down</button></div></details>
+      <details className="workspaceSheetMenu"><summary>Insert</summary><div><button type="button" onClick={()=>insertRecordsAt(selectedBounds ? selectedBounds.top : order.records.length, rowsToAdd)}>Insert {rowsToAdd} row{rowsToAdd===1?"":"s"} above</button><button type="button" onClick={()=>insertRecordsAt(selectedBounds ? selectedBounds.bottom + 1 : order.records.length, rowsToAdd)}>Insert {rowsToAdd} row{rowsToAdd===1?"":"s"} below</button></div></details>
+      <div className="columnControl workspaceSheetColumns" ref={columnControlRef}><button type="button" className="workspaceSheetMenuButton" aria-expanded={columnMenuOpen} onClick={()=>setColumnMenuOpen(value=>!value)}>Columns</button>{columnMenuOpen&&<div className="columnMenu"><button type="button" className="columnMenuShowAll" onClick={showAllColumns}>Show all columns</button><label><input type="checkbox" checked={!hiddenColumns.has("personId")} onChange={()=>toggleColumn("personId")}/>Person ID</label>{columns.map(column=><label key={column.id}><input type="checkbox" checked={!hiddenColumns.has(column.id)} onChange={()=>toggleColumn(column.id)}/>{column.groupLabel} · {column.label}</label>)}</div>}</div>
+      <details className="workspaceSheetMenu"><summary>Format</summary><div><button type="button" disabled={!selectedBounds} onClick={()=>setSelectedAlignment("left")}>Align left</button><button type="button" disabled={!selectedBounds} onClick={()=>setSelectedAlignment("center")}>Align centre</button><button type="button" disabled={!selectedBounds} onClick={()=>setSelectedAlignment("right")}>Align right</button></div></details>
+      <details className="workspaceSheetMenu"><summary>Data</summary><div><button type="button" disabled={!selectedBounds} onClick={()=>sortBySelectedColumn(1)}>Sort A → Z</button><button type="button" disabled={!selectedBounds} onClick={()=>sortBySelectedColumn(-1)}>Sort Z → A</button></div></details>
+      <span className="workspaceSheetHint">Drag column headers to move · drag the right edge to resize</span>
+    </div>
+    <div className="workspaceTools"><div className="workspaceAddTools"><label className="rowCountControl"><input aria-label="Number of rows to add" type="text" inputMode="numeric" value={rowCount} onFocus={event=>event.currentTarget.select()} onChange={event => setRowCount(event.target.value.replace(/[^0-9]/g, ""))} onBlur={()=>setRowCount(String(rowsToAdd))}/><button className="primary" onClick={() => { addRecords(rowsToAdd); setRowCount(String(rowsToAdd)); }}>+ Add {rowsToAdd===1?"row":"rows"}</button></label></div><span>{order.records.length} rows</span><input aria-label="Search rows" placeholder="Search rows" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }}/></div>'''
+          if text.count(old) != 1:
+              raise SystemExit("workspace tools marker missing")
+          text = text.replace(old, new, 1)
+
+          # Physical column sizing + narrow row-number column + visible resize affordance.
+          old = '<div className="workspaceTableHelp">Drag to select cells. Drag the small square on the selection corner to copy. Backspace or Delete clears cells; Ctrl+C, Ctrl+V, Ctrl+Z and Ctrl+Y work normally.</div><div className="workspaceTableWrap"><table className="workspaceTable groupedWorkspace"><thead>'
+          new = '<div className="workspaceTableHelp">Drag to select cells. Drag the small square on the selection corner to copy. Backspace or Delete clears cells; Ctrl+C, Ctrl+V, Ctrl+Z and Ctrl+Y work normally.</div><div className="workspaceTableWrap"><table className="workspaceTable groupedWorkspace"><colgroup><col className="workspaceRowNumberCol"/>{!hiddenColumns.has("personId")&&<col style={{width:`${columnWidth("personId")}px`}}/>}{gridColumns.map(column=><col key={column.id} style={{width:`${columnWidth(column.id)}px`}}/>)}<col className="workspaceActionsCol"/></colgroup><thead>'
+          if text.count(old) != 1:
+              raise SystemExit("workspace table opening marker missing")
+          text = text.replace(old, new, 1)
+          old = '{!hiddenColumns.has("personId")&&<th className="stickyId" rowSpan={2}>Person ID</th>}'
+          new = '{!hiddenColumns.has("personId")&&<th className="stickyId workspaceResizableHeader" rowSpan={2} style={{width:`${columnWidth("personId")}px`}}>Person ID<span className="columnResizeHandle" role="separator" aria-label="Resize Person ID column" onPointerDown={event=>startColumnResize(event,"personId")}/></th>}'
+          if text.count(old) != 1:
+              raise SystemExit("person id header marker missing")
+          text = text.replace(old, new, 1)
+          old = '{groups.flatMap(group => group.columns.map(column => <th key={column.id} data-column-id={column.id} className="workspaceMovableColumnHeader">{column.label}{column.required && <small className="requiredLabel">required</small>}</th>))}'
+          new = '{groups.flatMap(group => group.columns.map(column => <th key={column.id} data-column-id={column.id} className="workspaceMovableColumnHeader workspaceResizableHeader" style={{width:`${columnWidth(column.id)}px`}}><span className="columnHeaderText">{column.label}{column.required && <small className="requiredLabel">required</small>}</span><span className="columnResizeHandle" role="separator" aria-label={`Resize ${column.label} column`} onPointerDown={event=>startColumnResize(event,column.id)}/></th>))}'
+          if text.count(old) != 1:
+              raise SystemExit("workspace movable header marker missing")
+          text = text.replace(old, new, 1)
+          old = '<td className={selected?"gridSelected":undefined} key={column.id} onMouseDown={event=>selectCell(event,rowIndex,columnIndex)}'
+          new = '<td className={selected?"gridSelected":undefined} key={column.id} data-align={columnAlignments[column.id] || "left"} style={{width:`${columnWidth(column.id)}px`}} onMouseDown={event=>selectCell(event,rowIndex,columnIndex)}'
+          if text.count(old) != 1:
+              raise SystemExit("workspace data cell marker missing")
+          text = text.replace(old, new, 1)
+          p.write_text(text)
+
+          # Keyboard shortcuts target the spreadsheet toolbar for undo/redo now.
+          p = Path("app/workspace-shortcuts.tsx")
+          text = p.read_text()
+          old = '        clickMenuAction(page, event.shiftKey ? "Redo last change" : "Undo last change");'
+          new = '        page.querySelector<HTMLButtonElement>(`[data-sheet-action="${event.shiftKey ? "redo" : "undo"}"]`)?.click();'
+          if text.count(old) != 1:
+              raise SystemExit("workspace shortcut ctrl-z marker missing")
+          text = text.replace(old, new, 1)
+          old = '        clickMenuAction(page, "Redo last change");'
+          new = '        page.querySelector<HTMLButtonElement>(\'[data-sheet-action="redo"]\')?.click();'
+          if text.count(old) != 1:
+              raise SystemExit("workspace shortcut ctrl-y marker missing")
+          p.write_text(text.replace(old, new, 1))
+
+          # Shared contextual Back style + spreadsheet ergonomics.
+          p = Path("app/order-enhancements.css")
+          text = p.read_text()
+          text += '''
+
+/* Locked contextual Back navigation and spreadsheet workspace controls. */
+.contextBackButton,.workspaceBackButton{display:inline-flex!important;align-items:center!important;width:max-content!important;min-height:30px!important;margin:0 0 5px!important;padding:4px 2px!important;border:0!important;background:transparent!important;box-shadow:none!important;color:var(--navy)!important;font-size:10px!important;font-weight:800!important;text-decoration:none!important;cursor:pointer!important}
+.contextBackButton:hover,.workspaceBackButton:hover{text-decoration:underline!important;background:transparent!important}
+.workspaceSheetBar{display:flex;align-items:center;gap:4px;min-height:36px;margin:6px 0 8px;padding:3px 5px;border:1px solid var(--line);border-radius:9px;background:var(--paper);position:relative;z-index:18}
+.workspaceSheetMenu,.workspaceSheetColumns{position:relative}
+.workspaceSheetMenu>summary,.workspaceSheetMenuButton{list-style:none;display:flex;align-items:center;min-height:28px;padding:0 9px;border:0;border-radius:6px;background:transparent;color:var(--navy);font-size:11px;font-weight:700;cursor:pointer}
+.workspaceSheetMenu>summary::-webkit-details-marker{display:none}.workspaceSheetMenu[open]>summary,.workspaceSheetMenu>summary:hover,.workspaceSheetMenuButton:hover,.workspaceSheetMenuButton[aria-expanded="true"]{background:var(--pale)}
+.workspaceSheetMenu>div,.workspaceSheetColumns>.columnMenu{position:absolute;z-index:60;top:calc(100% + 4px);left:0;min-width:210px;max-height:320px;overflow:auto;padding:5px;border:1px solid var(--line);border-radius:9px;background:var(--paper);box-shadow:0 14px 34px rgba(12,40,64,.14)}
+.workspaceSheetMenu>div>button,.columnMenuShowAll{display:flex!important;justify-content:space-between;gap:14px;width:100%!important;min-height:31px;padding:6px 8px!important;border:0!important;border-radius:6px!important;background:transparent!important;color:var(--ink)!important;text-align:left!important;font-size:11px!important;cursor:pointer!important}
+.workspaceSheetMenu>div>button:hover,.columnMenuShowAll:hover{background:var(--pale)!important}.workspaceSheetMenu>div>button:disabled{opacity:.42;cursor:default!important}.workspaceSheetMenu kbd{font:9px monospace;color:var(--muted)}
+.workspaceSheetHint{margin-left:auto!important;padding-right:6px;font-size:9px!important;color:var(--muted)!important;white-space:nowrap}
+.workspaceSheetColumns>.columnMenu{display:grid;gap:2px;min-width:265px}.workspaceSheetColumns>.columnMenu label{display:flex;align-items:center;gap:7px;min-height:28px;padding:4px 7px;border-radius:5px;font-size:10px}.workspaceSheetColumns>.columnMenu label:hover{background:var(--pale)}
+.workspaceTable{table-layout:fixed!important}.workspaceTable th,.workspaceTable td{min-width:0!important;box-sizing:border-box!important}.workspaceRowNumberCol{width:44px!important}.workspaceActionsCol{width:72px!important}
+.workspaceTable .workspaceRowHeaderCorner,.workspaceTable .workspaceRowHeader{width:44px!important;min-width:44px!important;max-width:44px!important;padding:6px 3px!important;text-align:center!important}
+.workspaceResizableHeader{position:sticky!important}.columnHeaderText{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:7px}.workspaceMovableColumnHeader{cursor:grab}.workspaceMovableColumnHeader:active{cursor:grabbing}
+.columnResizeHandle{position:absolute;z-index:8;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;touch-action:none}.columnResizeHandle::after{content:"";position:absolute;top:20%;bottom:20%;left:3px;width:1px;background:rgba(255,255,255,.38)}.workspaceTable .stickyId .columnResizeHandle::after{background:rgba(255,255,255,.38)}
+.workspaceTable td[data-align="left"] input,.workspaceTable td[data-align="left"] select{text-align:left}.workspaceTable td[data-align="center"] input,.workspaceTable td[data-align="center"] select{text-align:center}.workspaceTable td[data-align="right"] input,.workspaceTable td[data-align="right"] select{text-align:right}
+@media(max-width:800px){.workspaceSheetBar{overflow-x:auto;align-items:flex-start}.workspaceSheetHint{display:none}.workspaceSheetMenu>div,.workspaceSheetColumns>.columnMenu{position:fixed;left:12px;right:12px;top:auto;width:auto;min-width:0}}
+'''
+          p.write_text(text)
+
+          # 7/8) Label filters become searchable text; mixed-record labels use record-resolved applicable product slots.
+          p = Path("app/label-designer.tsx")
+          text = p.read_text()
+          old = '        const matchesFilter = !recordFilterField || !recordFilterValue || (recordFilterField === "contains_product" ? packageProducts(record).includes(recordFilterValue) : recordFilterValueFor(record, recordFilterField) === recordFilterValue);'
+          new = '        const filterNeedle = recordFilterValue.trim().toLowerCase();\n        const matchesFilter = !recordFilterField || !filterNeedle || (recordFilterField === "contains_product" ? packageProducts(record).some(value => value.toLowerCase().includes(filterNeedle)) : recordFilterValueFor(record, recordFilterField).toLowerCase().includes(filterNeedle));'
+          if text.count(old) != 1:
+              raise SystemExit("label filter matcher marker missing")
+          text = text.replace(old, new, 1)
+          old = '<label><span>Value</span><select value={recordFilterValue} disabled={!recordFilterField} onChange={event => setRecordFilterValue(event.target.value)}><option value="">All values</option>{recordFilterValues.map(value => <option key={value} value={value}>{value}</option>)}</select></label>'
+          new = '<label><span>Value</span><input type="search" list="label-record-filter-values" value={recordFilterValue} disabled={!recordFilterField} placeholder={recordFilterField ? "Type to filter values" : "Choose a field first"} onChange={event => setRecordFilterValue(event.target.value)}/><datalist id="label-record-filter-values">{recordFilterValues.map(value => <option key={value} value={value}/>)}</datalist></label>'
+          if text.count(old) != 1:
+              raise SystemExit("label filter value select marker missing")
+          text = text.replace(old, new, 1)
+
+          # Make mixed-order behavior explicit in the editor.
+          old = '</div>{order && personDetailFields.length > 0 && sourceMode !== "product" && sourceMode !== "order" && <div className="classificationInformation">'
+          new = '</div>{purpose === "packing" && sourceMode === "person" && <p className="labelDynamicProductHint">Use <b>Applicable product</b> slots for mixed orders. The same layout position automatically resolves Shirt, Kurti or another product from each preview/print record; exact inapplicable product fields stay unavailable.</p>}{order && personDetailFields.length > 0 && sourceMode !== "product" && sourceMode !== "order" && <div className="classificationInformation">'
+          if text.count(old) != 1:
+              raise SystemExit("label dynamic product hint insertion marker missing")
+          text = text.replace(old, new, 1)
+
+          # Contextual label Back controls use the locked style.
+          text = text.replace('className="secondary" onClick={onBack}>← Back to order</button>', 'className="secondary contextBackButton" onClick={onBack}>← Back to Order</button>')
+          text = text.replace('className="secondary" onClick={onBack}>← Back</button>', 'className="secondary contextBackButton" onClick={onBack}>← Back to Order</button>')
+
+          # Purpose relevance: packing-person labels expose dynamic applicable-product slots, not misleading exact-product fields.
+          old = '''    const actualPersonField = key.startsWith("field:") || key.startsWith("trace_field:");
+    const genericWorkpiece = key === "name";
+    const packingOnly = key === "product_summary" || key === "people_count" || key === "package_position";
+    const productionOnly = key === "bundle_summary" || key === "unit_position";
+    if (purpose === "inventory") return !actualPersonField && !genericWorkpiece && !packingOnly && !productionOnly;
+    if (purpose === "packing") return !genericWorkpiece && !productionOnly && key !== "variation_count" && !(source === "person" && key === "product");'''
+          new = '''    const actualPersonField = key.startsWith("field:") || key.startsWith("trace_field:");
+    const genericWorkpiece = key === "name";
+    const packageSlot = key.startsWith("package_product:");
+    const exactProductField = key.startsWith("product_name:") || key.startsWith("product_quantity:") || key.startsWith("measurement:") || key.startsWith("spec:");
+    const packingOnly = key === "product_summary" || key === "people_count" || key === "package_position" || packageSlot;
+    const productionOnly = key === "bundle_summary" || key === "unit_position";
+    if (packageSlot) return purpose === "packing" && source === "person";
+    if (purpose === "inventory") return !actualPersonField && !genericWorkpiece && !packingOnly && !productionOnly;
+    if (purpose === "packing") return !genericWorkpiece && !productionOnly && key !== "variation_count" && !(source === "person" && (key === "product" || exactProductField));'''
+          if text.count(old) != 1:
+              raise SystemExit("label purpose relevance marker missing")
+          text = text.replace(old, new, 1)
+
+          # Replace the field registry with one that includes reusable applicable-product slots.
+          pattern = re.compile(r'function labelFieldOptions\(order\?: SeikoOrder \| null\) \{.*?\nfunction normalizedMeasurementValues', re.S)
+          match = pattern.search(text)
+          if not match:
+              raise SystemExit("labelFieldOptions block not found")
+          replacement = '''function labelFieldOptions(order?: SeikoOrder | null) {
+    const base = [{ key: "name", label: "Person / workpiece" }, { key: "group", label: "Group / label type" }, { key: "product", label: "Product" }, { key: "product_summary", label: "Package contents" }, { key: "bundle_summary", label: "Cutting bundle summary" }, { key: "size", label: "Resolved size" }, { key: "resolved_quantity", label: "Calculated quantity" }, { key: "people_count", label: "Number of people" }, { key: "variation_count", label: "Number of variations" }, { key: "unit_position", label: "Piece / pair number / total" }, { key: "package_position", label: "Package / set number / total" }, { key: "trace_order_position", label: "Label number / order total" }, { key: "trace_person_position", label: "Person number / total" }, { key: "trace_product_position", label: "Product number / total" }, { key: "order", label: "Order number" }, { key: "order_date", label: "Order date" }, { key: "delivery_date", label: "Delivery date" }, { key: "client", label: "Client name" }, { key: "client_type", label: "Client type" }, { key: "contact_person", label: "Contact person / Attn" }, { key: "phone", label: "Phone number" }, { key: "delivery_address", label: "Delivery address" }, { key: "billing_address", label: "Billing address" }, { key: "remarks", label: "Remarks" }, { key: "token", label: "Trace code" }];
+    const people = order?.fields.map(field => ({ key: `field:${field.id}`, label: `Person detail · ${field.name}` })) || [];
+    const traceGroups = order?.fields.filter(field => field.name.trim()).map(field => ({ key: `trace_field:${field.id}`, label: `Number within ${field.name}` })) || [];
+    const packageSlots = order?.products.filter(product => product.name.trim()).flatMap((_, index) => { const slot = index + 1; return [{ key: `package_product:${slot}:name`, label: `Applicable product ${slot} · Product` }, { key: `package_product:${slot}:quantity`, label: `Applicable product ${slot} · Quantity` }, { key: `package_product:${slot}:details`, label: `Applicable product ${slot} · Details` }]; }) || [];
+    const productBasics = order?.products.filter(product => product.name.trim()).flatMap(product => [{ key: `product_name:${product.id}`, label: `${product.name} · Product` }, { key: `product_quantity:${product.id}`, label: `${product.name} · Quantity` }]) || [];
+    const measurements = order?.measurements.flatMap(measurement => order.products.filter(product => measurement.appliesTo.includes(product.id)).map(product => ({ key: `measurement:${measurement.id}:product:${product.id}`, label: `${product.name} · ${measurement.name}` }))) || [];
+    const specifications = order?.products.flatMap(product => product.specifications.filter(spec => spec.name.trim()).map(spec => ({ key: `spec:${spec.id}`, label: `${product.name} · ${spec.name} (resolved)` }))) || [];
+    const values = [...base, ...people, ...traceGroups, ...packageSlots, ...productBasics, ...measurements, ...specifications];
+    return [...values, ...values.map(option => ({ key: `field_name:${option.key}`, label: `Field name · ${option.label.replace(/ \\(resolved\\)$/, "")}` }))];
+}
+function normalizedMeasurementValues'''
+          text = text[:match.start()] + replacement + text[match.end():]
+
+          # Label-specific applicability is quantity-driven, but when product-specific record fields are actually used in this order,
+          # those saved values are also required to claim that product belongs to the record. This stops defaults from making every
+          # garment appear on every person while retaining legitimate all-person products that have no record-specific fields.
+          marker = 'function orderLabelRows(order: SeikoOrder, source: SourceMode): RecordRow[] {'
+          helper = '''function labelQuantityForRecord(order: SeikoOrder, product: SeikoOrder["products"][number], record: SeikoOrder["records"][number], recordIndex: number) {
+    const quantity = quantityForRecord(product, record, recordIndex === 0);
+    if (quantity <= 0) return 0;
+    const explicitQuantity = [`product:${product.id}:qty`, `product:${product.id}:qty_override`].some(key => hasLabelValue(record.values[key]));
+    if (explicitQuantity) return quantity;
+    if (product.quantityMode === "by_group" && product.quantityGroupFieldId) {
+        const sourceValue = String(record.values[`field:${product.quantityGroupFieldId}`] || "");
+        if ((product.quantityGroupRules || []).some(rule => groupRuleMatches(rule.match, sourceValue))) return quantity;
+    }
+    const evidenceColumns = workspaceColumns(order).filter(column => column.groupId === `product:${product.id}` && (column.id.startsWith("measurement:") || column.id.startsWith("spec:")));
+    if (!evidenceColumns.length) return quantity;
+    const orderUsesProductEvidence = order.records.some(candidate => evidenceColumns.some(column => hasLabelValue(candidate.values[column.id])));
+    if (!orderUsesProductEvidence) return quantity;
+    return evidenceColumns.some(column => hasLabelValue(record.values[column.id])) ? quantity : 0;
+}
+function orderLabelRows(order: SeikoOrder, source: SourceMode): RecordRow[] {'''
+          if text.count(marker) != 1:
+              raise SystemExit("orderLabelRows marker missing")
+          text = text.replace(marker, helper, 1)
+          old = 'const qty = product ? quantityForRecord(product, record, recordIndex === 0) : 1;'
+          new = 'const qty = product ? labelQuantityForRecord(order, product, record, recordIndex) : 1;'
+          if text.count(old) != 1:
+              raise SystemExit("label row quantity marker missing")
+          text = text.replace(old, new, 1)
+
+          # Person packages now carry generic slot values so the same layout positions resolve different products per person.
+          old = 'source === "person" ? personPackageRows(base, personPackagePlan, includedProducts)'
+          new = 'source === "person" ? personPackageRows(base, order, personPackagePlan, includedProducts)'
+          if text.count(old) != 1:
+              raise SystemExit("personPackageRows call marker missing")
+          text = text.replace(old, new, 1)
+          old = 'function personPackageRows(rows: RecordRow[], plan: PersonPackagePlan = "together", includedProducts: string[] = [])'
+          new = 'function personPackageRows(rows: RecordRow[], order: SeikoOrder, plan: PersonPackagePlan = "together", includedProducts: string[] = [])'
+          if text.count(old) != 1:
+              raise SystemExit("personPackageRows signature marker missing")
+          text = text.replace(old, new, 1)
+
+          insert_marker = 'function personPackageRows(rows: RecordRow[], order: SeikoOrder, plan: PersonPackagePlan = "together", includedProducts: string[] = [])'
+          details_helper = '''function packageItemDetails(order: SeikoOrder, row: RecordRow) {
+    const productId = row.values.product_id;
+    const product = order.products.find(item => item.id === productId);
+    if (!product) return "";
+    const details: string[] = [];
+    for (const measurement of order.measurements.filter(item => item.appliesTo.includes(productId) && item.name.trim())) {
+        const value = row.values[`measurement:${measurement.id}:product:${productId}`];
+        if (hasLabelValue(value)) details.push(`${measurement.name}: ${value}`);
+    }
+    for (const specification of product.specifications.filter(item => item.name.trim())) {
+        const value = row.values[`spec:${specification.id}`];
+        if (hasLabelValue(value)) details.push(`${specification.name}: ${value}`);
+    }
+    return details.join(" · ");
+}
+'''
+          if text.count(insert_marker) != 1:
+              raise SystemExit("person package helper insertion marker missing")
+          text = text.replace(insert_marker, details_helper + insert_marker, 1)
+
+          old = 'packageProductNames = packageItems.map(item => item.product); return { ...first, id: `person:${recordId}:${suffix}`, group: position, product: packageProductNames.join(", "), qty, token: `${first.token.split(":").slice(0, 2).join(":")}:package:${suffix}`, values: { ...Object.assign({}, ...packageItems.map(item => item.values)), product: packageProductNames.join(", "), product_summary: contents, package_products: JSON.stringify(packageProductNames), qty, resolved_quantity: quantityBreakdown, quantity_total: qty, package_position: position } };'
+          new = 'packageProductNames = packageItems.map(item => item.product), packageProductIds = packageItems.map(item => item.values.product_id), slotValues = Object.fromEntries(packageItems.flatMap((item, index) => { const slot = index + 1; return [[`package_product:${slot}:name`, item.product], [`package_product:${slot}:quantity`, item.qty], [`package_product:${slot}:details`, packageItemDetails(order, item)]]; })); return { ...first, id: `person:${recordId}:${suffix}`, group: position, product: packageProductNames.join(", "), qty, token: `${first.token.split(":").slice(0, 2).join(":")}:package:${suffix}`, values: { ...Object.assign({}, ...packageItems.map(item => item.values)), ...slotValues, product: packageProductNames.join(", "), product_summary: contents, package_products: JSON.stringify(packageProductNames), package_product_ids: JSON.stringify(packageProductIds), qty, resolved_quantity: quantityBreakdown, quantity_total: qty, package_position: position } };'
+          if text.count(old) != 1:
+              raise SystemExit("person package make marker missing")
+          text = text.replace(old, new, 1)
+          p.write_text(text)
+
+          # Label UI styles for writable Value filter and mixed-record explanation.
+          p = Path("app/label-designer.css")
+          text = p.read_text()
+          text += '''
+
+/* Accurate record filtering and mixed-order product slots. */
+.recordFilterBar input[type="search"]{box-sizing:border-box;width:100%;height:36px;border:1px solid var(--line);border-radius:8px;padding:0 9px;background:var(--paper);color:var(--ink);font-size:10px}.recordFilterBar input[type="search"]:disabled{background:color-mix(in srgb,var(--app-background) 68%,var(--paper));color:var(--muted)}
+.labelDynamicProductHint{margin:8px 0 0;padding:8px 10px;border:1px solid color-mix(in srgb,var(--gold) 55%,var(--line));border-radius:8px;background:color-mix(in srgb,var(--pale) 32%,var(--paper));color:var(--muted);font-size:10px;line-height:1.4}.labelDynamicProductHint b{color:var(--navy)}
+'''
+          p.write_text(text)
+
+          # Acceptance lock now reflects the user's corrected separation of order menu vs spreadsheet tools and conditional labels.
+          p = Path("SEIKO_STAGE2_ACCEPTANCE.md")
+          text = p.read_text()
+          text = text.replace(
+              '- The source-owned three-dot workspace menu contains the shared Status control, Save now, Labels, Edit setup, Put on hold/Resume, Undo/Redo, Save & close, Archive order, Delete order and Close without saving. An enhancement layer must not create a competing second menu.',
+              '- The source-owned three-dot workspace menu is order-level only: shared Status, Save now, Labels, Edit setup, Save & close, Archive order, Delete order and Close without saving. Hold/resume exists only through Status, while Undo/Redo and spreadsheet operations live in the workspace spreadsheet toolbar.',
+          )
+          text = text.replace(
+              '- Column headers use the same click/Shift/Ctrl-or-Cmd selection model. Selected rows and selected columns can be dragged to a new position; the reorder is persisted in order data rather than merely moving DOM elements.',
+              '- Column headers use the same click/Shift/Ctrl-or-Cmd selection model. Selected rows and selected columns can be dragged to a new position; column widths can be resized from the header edge; order, hidden columns, widths and alignment are persisted in order data rather than merely moving DOM elements.',
+          )
+          text = text.replace(
+              '- Each configured product can expose its own Product and Quantity fields plus its configured measurements/specifications, so operators can independently select information for Shirt, Ijar, Kurti, etc.',
+              '- Product-specific fields remain available where a label genuinely identifies that product. Person/package labels instead expose reusable Applicable product slots (name, quantity and details), so one layout position resolves the actual Shirt, Kurti or other applicable product for each record and never displays an inapplicable product merely because it exists on the order.',
+          )
+          text = text.replace(
+              '- Record search covers all order data. Filter controls are derived from actual representation and order data; visible records must be derived from those filters and sort choices, not merely display controls that do nothing.',
+              '- Record search covers all order data. Filter controls are derived from actual representation and order data; the Value control is writable/searchable with order-derived suggestions, and visible records are derived from those filters and sort choices rather than merely display controls that do nothing.',
+          )
+          p.write_text(text)
+
+          # Existing contracts must no longer force redundant hold or menu-owned undo/redo back into the app.
+          p = Path("tests/seiko-stage2-audit-contract.test.mjs")
+          text = p.read_text()
+          text = text.replace('  assert.match(orders, /Put order on hold/);\n', '  assert.doesNotMatch(orders, />Put order on hold<\\/button>/);\n')
+          marker = '  assert.match(orders, /workspaceBackButton/);\n'
+          if marker not in text:
+              raise SystemExit("stage2 workspace back assertion marker missing")
+          text = text.replace(marker, marker + '  assert.match(orders, /workspaceSheetBar/);\n  assert.match(orders, /columnResizeHandle/);\n  assert.match(orders, /data-sheet-action="undo"/);\n  assert.doesNotMatch(orders, />Undo last change<\\/button>/);\n  assert.doesNotMatch(orders, />Redo last change<\\/button>/);\n', 1)
+          p.write_text(text)
+
+          # Add targeted runtime contracts for every bug reported in this review pass.
+          Path("tests/seiko-workspace-label-accuracy-contract.test.mjs").write_text('''import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const home = read("app/seiko-phase1.tsx");
+const orders = read("app/orders.tsx");
+const domain = read("app/lib/order-domain.ts");
+const shortcuts = read("app/workspace-shortcuts.tsx");
+const labels = read("app/label-designer.tsx");
+
+test("Home clear filters is always a working reset", () => {
+  assert.match(home, /aria-label="Clear all order filters"/);
+  assert.match(home, /clearFilters\(\);setFiltersOpen\(false\)/);
+  assert.doesNotMatch(home, /disabled=\{!activeFilterCount\} onClick=\{clearFilters\}/);
+});
+
+test("workspace separates order actions from spreadsheet actions", () => {
+  assert.match(orders, /workspaceSheetBar/);
+  assert.match(orders, /data-sheet-action="undo"/);
+  assert.match(orders, /data-sheet-action="redo"/);
+  assert.doesNotMatch(orders, />Put order on hold<\/button>/);
+  assert.doesNotMatch(orders, />Undo last change<\/button>/);
+  assert.match(shortcuts, /data-sheet-action/);
+});
+
+test("workspace column widths and display preferences are persisted", () => {
+  assert.match(domain, /columnWidths\?: Record<string, number>/);
+  assert.match(domain, /hiddenColumns\?: string\[\]/);
+  assert.match(domain, /columnAlignments\?: Record<string/);
+  assert.match(orders, /columnResizeHandle/);
+  assert.match(orders, /startColumnResize/);
+  assert.match(orders, /persistWorkspace\(\{ columnWidths:/);
+  assert.match(orders, /workspaceRowNumberCol/);
+});
+
+test("label Value filter is writable and fuzzy-searches resolved values", () => {
+  assert.match(labels, /type="search" list="label-record-filter-values"/);
+  assert.match(labels, /Type to filter values/);
+  assert.match(labels, /\.toLowerCase\(\)\.includes\(filterNeedle\)/);
+});
+
+test("person package layouts use record-resolved applicable product slots", () => {
+  assert.match(labels, /package_product:\$\{slot\}:name/);
+  assert.match(labels, /package_product:\$\{slot\}:quantity/);
+  assert.match(labels, /package_product:\$\{slot\}:details/);
+  assert.match(labels, /labelQuantityForRecord/);
+  assert.match(labels, /orderUsesProductEvidence/);
+  assert.match(labels, /Applicable product/);
+  assert.match(labels, /source === "person" && \(key === "product" \|\| exactProductField\)/);
+});
+''')
+          PY
+
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git rm .github/workflows/implement-seiko-workspace-label-accuracy.yml
+          git add app tests SEIKO_STAGE2_ACCEPTANCE.md
+          git commit -m "Fix SEIKO workspace controls and label data accuracy"
+          git push origin HEAD:fix/veyn-milestone-one
