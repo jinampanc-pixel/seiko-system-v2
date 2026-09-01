@@ -7,6 +7,7 @@ const orders = read("app/orders.tsx");
 const domain = read("app/lib/order-domain.ts");
 const shortcuts = read("app/workspace-shortcuts.tsx");
 const labels = read("app/label-designer.tsx");
+const labelRefinement = read("app/label-workspace-refinement.tsx");
 const orderCss = read("app/order-enhancements.css");
 
 test("Home clear filters is always a working reset", () => {
@@ -55,6 +56,8 @@ test("person package layouts use record-resolved applicable product slots", () =
   assert.match(labels, /package_product:\$\{slot\}:details/);
   assert.match(labels, /labelQuantityForRecord/);
   assert.match(labels, /orderUsesProductEvidence/);
+  assert.match(labels, /valuesWithNormalizedMeasurements/);
+  assert.match(labels, /normalizedMeasurementValues\(order, candidate\.values\)/);
   assert.doesNotMatch(labels, /Use <b>Applicable product<\/b> slots/);
   assert.match(labels, /Package product \$\{slot\}/);
   assert.match(labels, /source === "person" && \(key === "product" \|\| exactProductField\)/);
@@ -81,4 +84,13 @@ test("packing preview keeps only relevant fields and uses concise record identit
   assert.match(labels, /allowed = new Set\(fieldOptions\.map/);
   assert.match(labels, /sourceMode === "person" && record\.values\.group/);
   assert.doesNotMatch(labels, /record\.name\}\{record\.product \?/);
+});
+
+
+test("label canvas is directly editable without an Arrange or Finish arranging mode", () => {
+  assert.doesNotMatch(labelRefinement, /addArrangeControl/);
+  assert.doesNotMatch(labelRefinement, /Finish arranging|Arrange label/);
+  assert.doesNotMatch(labels, /Automatic layout|Manual layout/);
+  assert.match(labels, /if \(!advanced\) \{ setItems\(arranged\); setAdvanced\(true\); \}/);
+  assert.match(labels, /const down = \(e: ReactPointerEvent, item: Item\)/);
 });

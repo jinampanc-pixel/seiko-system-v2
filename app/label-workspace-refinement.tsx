@@ -15,26 +15,6 @@ function cleanHeaderAndSetup(page: HTMLElement) {
   });
 }
 
-function addArrangeControl(page: HTMLElement) {
-  const toolbar = page.querySelector<HTMLElement>(".canvasToolbar");
-  const native = Array.from(page.querySelectorAll<HTMLButtonElement>(".simpleDesignerHead > button.secondary"))
-    .find(button => /Advanced layout|Use simple setup|Manual layout|Automatic layout/i.test(button.textContent || ""));
-  if (!toolbar || !native) return;
-  let button = toolbar.querySelector<HTMLButtonElement>(".labelArrangeButton");
-  if (!button) {
-    button = document.createElement("button");
-    button.type = "button";
-    button.className = "secondary labelArrangeButton";
-    button.title = "Arrange, move and resize label fields on the physical preview";
-    toolbar.appendChild(button);
-    button.addEventListener("click", () => native.click());
-  }
-  const manual = /Use simple setup|Automatic layout/i.test(native.textContent || "");
-  button.textContent = manual ? "Finish arranging" : "Arrange label";
-  button.classList.toggle("active", manual);
-  page.classList.toggle("labelManualArrange", manual);
-}
-
 function fullRecordText(record: HTMLElement) {
   const title = record.querySelector("b")?.textContent?.trim() || "Label record";
   const compact = record.querySelector("small")?.textContent?.trim() || "";
@@ -101,7 +81,6 @@ function openLabelSaveChoice(page: HTMLElement) {
 
 function enhancePage(page: HTMLElement) {
   cleanHeaderAndSetup(page);
-  addArrangeControl(page);
   enhanceRecordHover(page);
   removePackingGenericChoices(page);
 }

@@ -167,14 +167,13 @@ test("PDF acceptance keeps archive, setup policy controls and group rules explic
   assert.doesNotMatch(ownerDropdown, /enhanceEditableSelect/);
 });
 
-test("label creation stays automatic by default while manual placement remains precise", () => {
+test("label creation stays automatic by default while direct placement remains precise", () => {
   assert.match(labelDesigner, /const \[advanced, setAdvanced\] = useState\(false\)/);
-  assert.match(labelDesigner, /Manual layout/);
-  assert.match(labelDesigner, /Automatic layout/);
+  assert.doesNotMatch(labelDesigner, /Manual layout|Automatic layout/);
   assert.match(labelDesigner, /const step = event\.shiftKey \? 1 : \.25/);
   assert.match(labelDesigner, /ArrowLeft/);
   assert.match(labelDesigner, /ArrowRight/);
-  assert.match(labelDesigner, /setItems\(arrangeLabelItems\(items, preset\)\)/);
+  assert.match(labelDesigner, /if \(!advanced\) \{ setItems\(arranged\); setAdvanced\(true\); \}/);
 });
 
 test("shared Label Workspace owns information state and purpose only controls relevance", () => {
