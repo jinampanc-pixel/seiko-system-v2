@@ -23,7 +23,8 @@ test("contextual Back navigation uses the locked shared style", () => {
 });
 
 test("workspace separates order actions from spreadsheet actions", () => {
-  assert.match(orders, /workspaceSheetBar/);
+  assert.doesNotMatch(orders, /className="workspaceSheetBar"/);
+  assert.match(orders, /workspaceCompactTools/);
   assert.match(orders, /data-sheet-action="undo"/);
   assert.match(orders, /data-sheet-action="redo"/);
   assert.doesNotMatch(orders, />Put order on hold<\/button>/);
@@ -54,6 +55,30 @@ test("person package layouts use record-resolved applicable product slots", () =
   assert.match(labels, /package_product:\$\{slot\}:details/);
   assert.match(labels, /labelQuantityForRecord/);
   assert.match(labels, /orderUsesProductEvidence/);
-  assert.match(labels, /Applicable product/);
+  assert.doesNotMatch(labels, /Use <b>Applicable product<\/b> slots/);
+  assert.match(labels, /Package product \$\{slot\}/);
   assert.match(labels, /source === "person" && \(key === "product" \|\| exactProductField\)/);
+});
+
+
+test("workspace row and column headers expose state-backed context actions", () => {
+  const structure = read("app/workspace-structure-interactions.tsx");
+  assert.match(structure, /contextmenu/);
+  assert.match(structure, /seiko:workspace-row-command/);
+  assert.match(structure, /seiko:workspace-column-command/);
+  assert.match(orders, /seiko:workspace-row-command/);
+  assert.match(orders, /seiko:workspace-column-command/);
+});
+
+test("label measurement normalization never borrows another product value", () => {
+  assert.doesNotMatch(labels, /candidates\[0\]/);
+  assert.match(labels, /targets\.length === 1/);
+  assert.match(labels, /packageBaseValues\(first\.values\)/);
+  assert.doesNotMatch(labels, /Object\.assign\(\{\}, \.\.\.packageItems\.map/);
+});
+
+test("packing preview keeps only relevant fields and uses concise record identity", () => {
+  assert.match(labels, /allowed = new Set\(fieldOptions\.map/);
+  assert.match(labels, /sourceMode === "person" && record\.values\.group/);
+  assert.doesNotMatch(labels, /record\.name\}\{record\.product \?/);
 });

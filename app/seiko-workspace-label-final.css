@@ -603,3 +603,33 @@
   .labelDesignerPage .recordList .record:hover::after,.labelDesignerPage .recordList .record:focus-visible::after{display:none}
   .labelDesignerPage .labelGeometryFields{grid-template-columns:1fr 1fr}
 }
+
+
+/* 2026-09-01 accuracy pass: compact spreadsheet tools + precise row/column controls */
+.workspacePage .workspaceSheetBar{display:none!important}
+.workspacePage>.workspaceTools{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important}
+.workspaceCompactTools{position:relative;flex:0 0 auto;z-index:42}
+.workspaceCompactTools>summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;height:34px;min-width:58px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--navy);font-size:10px;font-weight:850;cursor:pointer}
+.workspaceCompactTools>summary::-webkit-details-marker{display:none}
+.workspaceCompactTools[open]>summary{background:var(--pale)}
+.workspaceCompactToolsPanel{position:absolute;z-index:95;top:calc(100% + 5px);left:0;display:grid;grid-template-columns:repeat(2,minmax(170px,1fr));gap:8px;width:min(430px,calc(100vw - 30px));padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--paper);box-shadow:0 16px 38px rgba(14,42,61,.18)}
+.workspaceCompactToolsPanel section{display:grid;gap:3px;align-content:start}
+.workspaceCompactToolsPanel section>b{padding:3px 5px;color:var(--muted);font-size:9px;letter-spacing:.05em;text-transform:uppercase}
+.workspaceCompactToolsPanel button{min-height:30px;border:0;border-radius:6px;padding:5px 7px;background:transparent;color:var(--ink);font-size:10px;font-weight:700;text-align:left}
+.workspaceCompactToolsPanel button:hover:not(:disabled){background:var(--pale)}
+.workspaceCompactToolsPanel button:disabled{opacity:.4}
+.workspaceCompactToolsPanel kbd{float:right;color:var(--muted);font-size:8px}
+.workspaceCompactToolsPanel>small{grid-column:1/-1;padding:4px 5px 0;color:var(--muted);font-size:9px}
+.workspaceCompactToolsPanel .columnControl{position:relative}
+.workspaceCompactToolsPanel .columnMenu{top:calc(100% + 3px)!important;left:0!important;right:auto!important;max-height:300px!important}
+.workspaceTable col.workspaceRowNumberCol{width:40px!important;min-width:40px!important;max-width:40px!important}
+.workspaceTable .workspaceRowHeaderCorner,.workspaceTable .workspaceRowHeader{box-sizing:border-box!important;width:40px!important;min-width:40px!important;max-width:40px!important;padding:0!important;text-align:center!important}
+.workspaceResizableHeader{position:relative!important}
+.workspaceResizableHeader .columnResizeHandle{position:absolute!important;top:0!important;right:-3px!important;bottom:0!important;width:7px!important;cursor:col-resize!important;opacity:0!important;z-index:8!important}
+.workspaceResizableHeader:hover .columnResizeHandle,.workspaceResizableHeader .columnResizeHandle:focus{opacity:1!important;background:color-mix(in srgb,var(--brand) 20%,transparent)!important}
+.workspaceContextMenu{position:fixed;z-index:1000;display:grid;min-width:190px;padding:6px;border:1px solid var(--line);border-radius:9px;background:var(--paper);box-shadow:0 18px 42px rgba(14,42,61,.22)}
+.workspaceContextMenu button{min-height:32px;border:0;border-radius:6px;padding:6px 9px;background:transparent;color:var(--ink);font:700 10px/1.2 var(--ui-font);text-align:left}
+.workspaceContextMenu button:hover:not(:disabled){background:var(--pale)}
+.workspaceContextMenu button:disabled{opacity:.4}
+.labelCreateRouteHead .contextBackButton{margin:0 0 8px!important;padding-left:0!important;border:0!important;background:transparent!important}
+@media(max-width:700px){.workspaceCompactToolsPanel{grid-template-columns:1fr;max-height:70vh;overflow:auto}}
