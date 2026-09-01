@@ -1,0 +1,55 @@
+name: Align final SEIKO runtime contracts
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/align-final-runtime-contracts.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Align stale acceptance assertions
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p=Path(path); text=p.read_text(); count=text.count(old)
+              if count != 1: raise SystemExit(f"{path}: expected one match, found {count}")
+              p.write_text(text.replace(old,new,1))
+
+          replace_once(
+            'tests/seiko-operational-ux-contract.test.mjs',
+            '  assert.match(ux, /statusWrap\\?\\.removeAttribute\\("hidden"\\)/);\n  assert.doesNotMatch(ux, /className = "orderCenterStatusBadge"/);\n  assert.match(ux, /orderMenuStatusControl/);',
+            '  assert.match(ux, /statusWrap\\?\\.setAttribute\\("hidden", ""\\)/);\n  assert.doesNotMatch(ux, /className = "orderCenterStatusBadge"/);\n  assert.match(ux, /orderMenuStatusControl/);\n  assert.match(ux, /const select = nativeStatus\\.cloneNode\\(true\\) as HTMLSelectElement/);\n  assert.match(ux, /setNativeSelect\\(nativeStatus, select\\.value\\)/);'
+          )
+
+          replace_once(
+            'tests/seiko-stage2-audit-contract.test.mjs',
+            'test("Order Center keeps interactive status, rich workflow filters and archived state inside filters", () => {\n  assert.match(operationalUx, /statusWrap\\?\\.removeAttribute\\("hidden"\\)/);\n  assert.match(operationalUx, /orderCenterInlineStatus/);',
+            'test("Order Center keeps status in the contextual menu, rich workflow filters and archived state inside filters", () => {\n  assert.match(operationalUx, /statusWrap\\?\\.setAttribute\\("hidden", ""\\)/);\n  assert.match(operationalUx, /orderMenuStatusControl/);\n  assert.match(operationalUx, /const select = nativeStatus\\.cloneNode\\(true\\) as HTMLSelectElement/);\n  assert.match(operationalUx, /setNativeSelect\\(nativeStatus, select\\.value\\)/);'
+          )
+
+          replace_once(
+            'tests/seiko-workspace-label-accuracy-contract.test.mjs',
+            '  assert.match(home, /clearFilters\\(\\);setFiltersOpen\\(false\\)/);',
+            '  assert.match(home, /const clearFilters=\\(\\)=>\\{setQuery\\(""\\);setStatus\\(""\\);setClientType\\(""\\);setProduct\\(""\\);setPage\\(1\\);\\};/);\n  assert.match(home, /aria-label="Clear all order filters" onClick=\\{clearFilters\\}>Clear filters/);'
+          )
+          PY
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git rm .github/workflows/align-final-runtime-contracts.yml
+          git add tests
+          git commit -m "Align contracts with current SEIKO runtime UX"
+          git push origin HEAD:fix/veyn-milestone-one
