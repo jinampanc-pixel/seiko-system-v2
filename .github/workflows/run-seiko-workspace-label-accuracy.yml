@@ -36,7 +36,7 @@ jobs:
         run: |
           git config user.name "jinampanc-pixel"
           git config user.email "jinampanc@gmail.com"
-          git rm .github/patch-seiko-workspace-label-accuracy.py
+          git rm -f .github/patch-seiko-workspace-label-accuracy.py
           git rm .github/workflows/implement-seiko-workspace-label-accuracy.yml
           git rm .github/workflows/run-seiko-workspace-label-accuracy.yml
           git add app tests SEIKO_STAGE2_ACCEPTANCE.md
