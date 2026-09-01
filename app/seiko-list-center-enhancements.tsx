@@ -282,14 +282,22 @@ function ensureLabelCenterMenus(page: HTMLElement) {
     summary.textContent = "•••";
     const panel = document.createElement("div");
     panel.className = "seikoRowActionPanel";
+    const openSaved = (intent?: "print" | "pdf") => {
+      menu.open = false;
+      if (intent) sessionStorage.setItem(`jinam:${currentBusiness()}:labels:open-task-action`, intent);
+      open.click();
+    };
+    const edit = document.createElement("button"); edit.type = "button"; edit.textContent = "Open / edit"; edit.addEventListener("click", () => openSaved());
+    const print = document.createElement("button"); print.type = "button"; print.textContent = "Print"; print.addEventListener("click", () => openSaved("print"));
+    const pdf = document.createElement("button"); pdf.type = "button"; pdf.textContent = "Print / save PDF"; pdf.title = "Opens the calibrated print output. Choose Save as PDF in the browser print dialog."; pdf.addEventListener("click", () => openSaved("pdf"));
     const remove = document.createElement("button");
     remove.type = "button";
-    remove.className = "dangerText";
+    remove.className = "dangerText labelSavedSetDanger";
     remove.textContent = "Remove saved set";
     remove.addEventListener("click", () => {
       if (window.confirm(`Remove saved label set “${title}”? The order itself will not be changed.`)) removeSavedLabelSet(title);
     });
-    panel.append(remove);
+    panel.append(edit, print, pdf, remove);
     menu.append(summary, panel);
     menu.addEventListener("toggle", () => {
       row.classList.toggle("labelBatchMenuOpen", menu.open);

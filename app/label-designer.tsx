@@ -10,6 +10,7 @@ type SourceMode = "person_product" | "person" | "group" | "product" | "order";
 type LabelPurpose = "production" | "packing" | "inventory";
 type PersonPackagePlan = "together" | "sets" | "products";
 type GroupCriterion = "order" | "product" | "size" | "specifications" | "measurements";
+type LabelFieldOption = { key: string; label: string; category?: "Product" | "Quantity" | "Measurements" | "Colour" | "Pattern" | "Attribute" | "Artwork" };
 type RecordRow = {
     id: string;
     name: string;
@@ -289,6 +290,11 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, backL
             });
         });
     }, [advanced, preset]);
+    const visualBaselineOffset = (item: Item) => {
+        if (!["text", "field", "sequence"].includes(item.kind)) return item.h / 2;
+        const lineHeightMm = Math.max(1, item.font * .352778 * 1.12);
+        return Math.min(item.h, lineHeightMm) * .8;
+    };
     const sizeReadout = (item: Item) => ["text", "field", "sequence"].includes(item.kind)
         ? item.font.toFixed(2) + " pt"
         : item.w.toFixed(2) + " × " + item.h.toFixed(2) + " mm";
@@ -333,7 +339,17 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, backL
             const targetYs = [0, preset.labelH / 2, preset.labelH, ...others.flatMap(other => [other.y, other.y + other.h / 2, other.y + other.h])];
             let bestX = .36, adjustX = 0; xPoints.forEach(point => targetXs.forEach(target => { const delta = target - point; if (Math.abs(delta) < bestX) { bestX = Math.abs(delta); adjustX = delta; } }));
             let bestY = .36, adjustY = 0; yPoints.forEach(point => targetYs.forEach(target => { const delta = target - point; if (Math.abs(delta) < bestY) { bestY = Math.abs(delta); adjustY = delta; } }));
-            if (bestX < .36) { x += adjustX; guideX = true; } if (bestY < .36) { y += adjustY; guideY = true; }
+            let bestBaseline = .6, adjustBaseline = 0;
+            if (["text", "field", "sequence"].includes(item.kind)) {
+                const baseline = y + visualBaselineOffset(item);
+                others.filter(other => ["text", "field", "sequence"].includes(other.kind)).forEach(other => {
+                    const delta = other.y + visualBaselineOffset(other) - baseline;
+                    if (Math.abs(delta) < bestBaseline) { bestBaseline = Math.abs(delta); adjustBaseline = delta; }
+                });
+            }
+            if (bestX < .36) { x += adjustX; guideX = true; }
+            if (bestBaseline < .6) { y += adjustBaseline; guideY = true; }
+            else if (bestY < .36) { y += adjustY; guideY = true; }
         }
         x = clamp(x, 0, preset.labelW - item.w); y = clamp(y, 0, preset.labelH - item.h); setActiveGuides({ x: guideX, y: guideY }); update(item.id, { x, y }); };
     const stop = () => { dragging.current = null; setActiveGuides({ x: false, y: false }); };
@@ -354,8 +370,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, backL
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { if (!order)
         return; const taskId = sessionStorage.getItem(key(businessId, "open-task")); if (!taskId)
-        return; const task = labelTasks.find(item => item.id === taskId && item.orderId === order.orderId), timer = setTimeout(() => { if (task)
-        loadLabelTask(task); sessionStorage.removeItem(key(businessId, "open-task")); }, 0); return () => clearTimeout(timer); }, [businessId, order]);
+        return; const action = sessionStorage.getItem(key(businessId, "open-task-action")); const task = labelTasks.find(item => item.id === taskId && item.orderId === order.orderId), timer = setTimeout(() => { if (task) { loadLabelTask(task); if (action === "print" || action === "pdf") window.setTimeout(() => window.print(), 260); } sessionStorage.removeItem(key(businessId, "open-task")); sessionStorage.removeItem(key(businessId, "open-task-action")); }, 0); return () => clearTimeout(timer); }, [businessId, order]);
     const toggleField = (field: string, label: string) => { const existing = items.find(item => item.kind === "field" && item.field === field); if (existing) {
         setItems(all => all.filter(item => item.id !== existing.id));
         if (selectedId === existing.id) setSelectedId("");
@@ -379,7 +394,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, backL
  <span hidden>Choose elements · Production labels · Packing labels</span>
  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
  <div className="labelControlStack">
- <section className="simpleDesigner panel"><div className="simpleDesignerHead"><div><h3>Information on the label</h3><small>Choose what people should see. The preview uses the selected real record.</small></div></div><div className="labelInfoSelectedStrip labelInfoSelectedStripReact">{items.filter(item => item.kind === "field").map(item => { const label = fieldOptions.find(option => option.key === item.field)?.label?.replace(/ \(resolved\)$/, "") || item.fieldLabel || item.value; return <button type="button" className="labelInfoChip" key={item.id} onClick={() => toggleField(item.field || "", label)}><span>{label}</span><b aria-hidden="true">×</b><span className="srOnly">Remove {label}</span></button>; })}</div>{order && personDetailFields.length > 0 && sourceMode !== "product" && sourceMode !== "order" && <div className="classificationInformation"><b>{classificationFieldId ? `${personDetailFields.find(field => field.id === classificationFieldId)?.name || "Grouping"} / group` : "Grouping field"}</b><select aria-label="Order field used to group labels" value={classificationFieldId} onChange={event => chooseClassification(event.target.value)}><option value="">No grouping</option>{personDetailFields.map(field => <option key={field.id} value={field.id}>{field.name}</option>)}</select><small>Uses a field defined in this order setup.</small></div>}<div className="fieldChecklist">{fieldOptions.filter(option => !option.key.startsWith("field_name:")).map(option => { const item = items.find(entry => entry.kind === "field" && entry.field === option.key); return <div className={`fieldChoice ${item ? "chosen" : ""}`} key={option.key}><label><input type="checkbox" checked={!!item} onChange={() => toggleField(option.key, option.label.replace(/ \(resolved\)$/, ""))}/><span>{option.label.replace(/ \(resolved\)$/, "")}</span></label>{item && <><label className="showName"><input type="checkbox" checked={item.showLabel || false} onChange={event => update(item.id, { showLabel: event.target.checked })}/> Show name</label>{isTracePositionField(option.key) && <label className="traceTotalChoice"><input type="checkbox" checked={item.showTotal ?? true} onChange={event => update(item.id, { showTotal: event.target.checked })}/> Show of total</label>}{item.showLabel && <input aria-label={`Printed name for ${option.label}`} value={item.fieldLabel ?? option.label} onChange={event => update(item.id, { fieldLabel: event.target.value })}/>}<div className="fieldEmphasis">{item.showLabel && <label><input type="checkbox" checked={item.labelBold ?? true} onChange={event => update(item.id, { labelBold: event.target.checked })}/> Name bold</label>}<label><input type="checkbox" checked={item.valueBold || false} onChange={event => update(item.id, { valueBold: event.target.checked })}/> Value bold</label></div></>}</div>; })}</div><p className="purposeBoundary">{purpose === "inventory" ? "Inventory labels never trigger customer communication." : purpose === "packing" && sourceMode === "order" ? "This whole-order label is scannable evidence of the package contents—not a delivery challan." : purpose === "production" && sourceMode === "person_product" ? "This garment identity remains the same through production, delivery and payment." : ""}</p></section>
+ <section className="simpleDesigner panel"><div className="simpleDesignerHead"><div><h3>Information on the label</h3><small>Choose what people should see. The preview uses the selected real record.</small></div></div><div className="labelInfoSelectedStrip labelInfoSelectedStripReact">{items.filter(item => item.kind === "field").map(item => { const label = fieldOptions.find(option => option.key === item.field)?.label?.replace(/ \(resolved\)$/, "") || item.fieldLabel || item.value; return <button type="button" className="labelInfoChip" key={item.id} onClick={() => toggleField(item.field || "", label)}><span>{label}</span><b aria-hidden="true">×</b><span className="srOnly">Remove {label}</span></button>; })}</div>{order && personDetailFields.length > 0 && sourceMode !== "product" && sourceMode !== "order" && <div className="classificationInformation"><b>{classificationFieldId ? `${personDetailFields.find(field => field.id === classificationFieldId)?.name || "Grouping"} / group` : "Grouping field"}</b><select aria-label="Order field used to group labels" value={classificationFieldId} onChange={event => chooseClassification(event.target.value)}><option value="">No grouping</option>{personDetailFields.map(field => <option key={field.id} value={field.id}>{field.name}</option>)}</select><small>Uses a field defined in this order setup.</small></div>}<div className="fieldChecklist">{fieldOptions.filter(option => !option.key.startsWith("field_name:")).map(option => { const item = items.find(entry => entry.kind === "field" && entry.field === option.key); return <div className={`fieldChoice ${item ? "chosen" : ""}`} data-product-detail-group={option.category || undefined} key={option.key}><label><input type="checkbox" checked={!!item} onChange={() => toggleField(option.key, option.label.replace(/ \(resolved\)$/, ""))}/><span>{option.label.replace(/ \(resolved\)$/, "")}</span></label>{item && <><label className="showName"><input type="checkbox" checked={item.showLabel || false} onChange={event => update(item.id, { showLabel: event.target.checked })}/> Show name</label>{isTracePositionField(option.key) && <label className="traceTotalChoice"><input type="checkbox" checked={item.showTotal ?? true} onChange={event => update(item.id, { showTotal: event.target.checked })}/> Show of total</label>}{item.showLabel && <input aria-label={`Printed name for ${option.label}`} value={item.fieldLabel ?? option.label} onChange={event => update(item.id, { fieldLabel: event.target.value })}/>}<div className="fieldEmphasis">{item.showLabel && <label><input type="checkbox" checked={item.labelBold ?? true} onChange={event => update(item.id, { labelBold: event.target.checked })}/> Name bold</label>}<label><input type="checkbox" checked={item.valueBold || false} onChange={event => update(item.id, { valueBold: event.target.checked })}/> Value bold</label></div></>}</div>; })}</div><p className="purposeBoundary">{purpose === "inventory" ? "Inventory labels never trigger customer communication." : purpose === "packing" && sourceMode === "order" ? "This whole-order label is scannable evidence of the package contents—not a delivery challan." : purpose === "production" && sourceMode === "person_product" ? "This garment identity remains the same through production, delivery and payment." : ""}</p></section>
  <section className="labelSetup panel">
   <label><span>Label represents</span><select value={sourceMode} disabled={!order} onChange={e => setSourceMode(e.target.value as SourceMode)}><option value="person_product">Each physical item</option><option value="person">Each person / package</option><option value="group">Grouped package / group</option><option value="product">Each product / stock group</option><option value="order">Whole order</option></select><small className="labelSetupHelp">What one printed label identifies.</small></label>
   <label><span>Label type</span><select value={outputMode} onChange={e => setOutputMode(e.target.value as OutputMode)}><option value="combined">Code + information</option><option value="code">Code only</option><option value="information">Information only</option><option value="custom">Custom selection</option></select><small className="labelSetupHelp">Custom adds individual fields, text and codes.</small></label>
@@ -569,7 +584,7 @@ function uniqueSavedName(base: string, names: string[]) { if (!names.includes(ba
     return base; let number = 2; while (names.includes(`${base} (${number})`))
     number += 1; return `${base} (${number})`; }
 function flashSaveNotice(message: string) { document.querySelector(".labelSaveNotice")?.remove(); const notice = document.createElement("div"); notice.className = "labelSaveNotice"; notice.setAttribute("role", "status"); notice.textContent = `✓ ${message}`; document.body.appendChild(notice); setTimeout(() => notice.remove(), 2200); }
-function labelFieldOptions(order?: SeikoOrder | null) {
+function labelFieldOptions(order?: SeikoOrder | null): LabelFieldOption[] {
     const base = [
         { key: "name", label: "Person / workpiece" }, { key: "group", label: "Group / label type" },
         { key: "product", label: "Product" }, { key: "product_summary", label: "Package contents" },
@@ -587,13 +602,11 @@ function labelFieldOptions(order?: SeikoOrder | null) {
     ];
     const people = order?.fields.map(field => ({ key: `field:${field.id}`, label: `Person detail · ${field.name}` })) || [];
     const traceGroups = order?.fields.filter(field => field.name.trim()).map(field => ({ key: `trace_field:${field.id}`, label: `Number within ${field.name}` })) || [];
-    const productBasics = order?.products.filter(product => product.name.trim()).flatMap(product => [
-        { key: `product_name:${product.id}`, label: `${product.name} · Product` },
-        { key: `product_quantity:${product.id}`, label: `${product.name} · Quantity` },
-    ]) || [];
-    const measurements = order?.measurements.flatMap(measurement => order.products.filter(product => measurement.appliesTo.includes(product.id)).map(product => ({ key: `measurement:${measurement.id}:product:${product.id}`, label: `${product.name} · ${measurement.name}` }))) || [];
-    const specifications = order?.products.flatMap(product => product.specifications.filter(spec => spec.name.trim()).map(spec => ({ key: `spec:${spec.id}`, label: `${product.name} · ${spec.name} (resolved)` }))) || [];
-    const values = [...base, ...people, ...traceGroups, ...productBasics, ...measurements, ...specifications];
+    const productNames: LabelFieldOption[] = order?.products.filter(product => product.name.trim()).map(product => ({ key: `product_name:${product.id}`, label: `${product.name} · Product`, category: "Product" })) || [];
+    const productQuantities: LabelFieldOption[] = order?.products.filter(product => product.name.trim()).map(product => ({ key: `product_quantity:${product.id}`, label: `${product.name} · Quantity`, category: "Quantity" })) || [];
+    const measurements: LabelFieldOption[] = order?.measurements.flatMap(measurement => order.products.filter(product => measurement.appliesTo.includes(product.id)).map(product => ({ key: `measurement:${measurement.id}:product:${product.id}`, label: `${product.name} · ${measurement.name}`, category: "Measurements" as const }))) || [];
+    const specifications: LabelFieldOption[] = order?.products.flatMap(product => product.specifications.filter(spec => spec.name.trim()).map(spec => ({ key: `spec:${spec.id}`, label: `${product.name} · ${spec.name} (resolved)`, category: (spec.role === "colour" ? "Colour" : spec.role === "pattern" ? "Pattern" : spec.role === "asset" ? "Artwork" : "Attribute") as LabelFieldOption["category"] }))) || [];
+    const values = [...base, ...people, ...traceGroups, ...productNames, ...productQuantities, ...measurements, ...specifications];
     return [...values, ...values.map(option => ({ key: `field_name:${option.key}`, label: `Field name · ${option.label.replace(/ \(resolved\)$/, "")}` }))];
 }
 function normalizedMeasurementValues(order: SeikoOrder, values: Record<string, string | number>) {

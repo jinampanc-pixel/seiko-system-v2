@@ -109,7 +109,6 @@ export function SeikoPhase1() {
         const label = button.querySelector("small")?.textContent?.trim();
         if (["Inventory", "Sales", "Delivery"].includes(label || "")) button.style.display = "none";
       });
-      document.querySelectorAll<HTMLElement>(".moduleMenu .accessMenuEntry").forEach(button => { button.style.display = "none"; });
 
       const setupBack = document.querySelector<HTMLButtonElement>(".orderSetup .orderPageHead .secondary");
       if (setupBack && setupBack.textContent?.trim() === "Cancel") setupBack.textContent = "← Back to Order Center";
@@ -121,17 +120,6 @@ export function SeikoPhase1() {
         if (button.textContent?.trim().startsWith("← Back")) button.classList.add("contextBackButton");
       });
 
-      const settings = document.querySelector<HTMLElement>(".themePanel");
-      const settingsIntro = settings?.querySelector<HTMLElement>(".settingsIntro");
-      if (settingsIntro) settingsIntro.textContent = "Manage SEIKO appearance and access.";
-      if (settings && !settings.querySelector(".seikoAccessSettings")) {
-        const card = document.createElement("section");
-        card.className = "seikoAccessSettings";
-        card.innerHTML = '<div><b>Users & access</b><p>Manage SEIKO users, roles and permissions.</p></div><button type="button" class="secondary">Open users & access</button>';
-        card.querySelector("button")?.addEventListener("click", () => document.querySelector<HTMLButtonElement>(".accessMenuEntry")?.click());
-        const intro = settings.querySelector(".settingsIntro");
-        intro?.insertAdjacentElement("afterend", card);
-      }
     });
     return () => controller.stop();
   }, []);
@@ -162,7 +150,7 @@ function SeikoDashboard() {
   const changeStatus=(orderId:string,next:OrderStatus)=>{const updated=orders.map(order=>order.orderId===orderId?{...order,status:next,updatedAt:new Date().toISOString()}:order);setOrders(updated);localStorage.setItem(orderStoreKey("seiko"),JSON.stringify(updated));window.dispatchEvent(new CustomEvent("seiko:orders-cache-updated",{detail:{businessId:"seiko"}}));if(next==="Completed"&&workMode==="active"){setWorkMode("completed");setStatus("");setPage(1);}else if(next!=="Completed"&&workMode==="completed"){setWorkMode("active");setStatus(next==="Cancelled"?"":next);setPage(1);}};
   const metrics=[{key:"active" as MetricKey,label:"ACTIVE ORDERS",value:activeOrders.length,note:"Currently open work"},{key:"completed" as MetricKey,label:"COMPLETED ORDERS",value:completedOrders.length,note:"Completed work"},{key:"sync" as MetricKey,label:"SCAN SYNC QUEUE",value:scanQueue.length,note:scanQueue.length?"Waiting to sync":"All scans synced"}];
   const queueTitle=(item:Record<string,unknown>,index:number)=>String(item.token||item.labelToken||item.id||`Queued scan ${index+1}`),queueTime=(item:Record<string,unknown>)=>String(item.createdAt||item.at||item.timestamp||"");
-  return <section className="seikoOperationalDashboard"><div className="seikoDashboardHead"><div><small>SEIKO</small><h1>Home</h1><p>Configurable operational dashboard and quick access to working modules.</p></div><div className="seikoDashboardHeadActions"><button type="button" className="secondary" onClick={()=>setCustomizing(value=>!value)}>{customizing?"Done":"Customize dashboard"}</button></div></div>
+  return <section className="seikoOperationalDashboard"><div className="seikoDashboardHead"><div><h1>Home</h1><p>Configurable operational dashboard and quick access to working modules.</p></div><div className="seikoDashboardHeadActions"><button type="button" className="secondary" onClick={()=>setCustomizing(value=>!value)}>{customizing?"Done":"Customize dashboard"}</button></div></div>
     {customizing&&<section className="seikoHomeCustomizer panel" aria-label="Customize Home"><div><b>Dashboard</b><p>Choose the live operational views shown on Home. More business metrics can be registered here as Sales, Payments and Production data mature.</p></div><div className="seikoHomeOptionGrid">{metrics.map(metric=><label key={metric.key}><input type="checkbox" checked={config.metrics[metric.key]} onChange={event=>setConfig(current=>({...current,metrics:{...current.metrics,[metric.key]:event.target.checked}}))}/>{metric.label}</label>)}<label><input type="checkbox" checked={config.showActiveOrders} onChange={event=>setConfig(current=>({...current,showActiveOrders:event.target.checked}))}/>Operational list</label></div><div><b>Quick access</b><p>Choose implemented module shortcuts.</p></div><div className="seikoHomeOptionGrid">{(Object.keys(config.quickAccess) as QuickAccessKey[]).map(item=><label key={item}><input type="checkbox" checked={config.quickAccess[item]} onChange={event=>setConfig(current=>({...current,quickAccess:{...current.quickAccess,[item]:event.target.checked}}))}/>{item}</label>)}</div></section>}
     <div className="seikoDashboardMetrics">{metrics.filter(metric=>config.metrics[metric.key]).map(metric=><button type="button" className={`seikoMetricCard seikoMetricReadout ${workMode===metric.key?"active":""} ${metric.key==="sync"&&!metric.value?"positive":""}`} key={metric.key} onClick={()=>{setWorkMode(metric.key);setFiltersOpen(false);clearFilters();}}><small>{metric.label}</small><strong>{metric.value}</strong><span>{metric.note}</span></button>)}</div>
     {config.showActiveOrders&&<section className="seikoDashboardActivity"><div className="seikoDashboardActivityHead"><div><b>{workMode==="active"?"Active orders":workMode==="completed"?"Completed orders":"Scan sync queue"}</b><p>{workMode==="sync"?`${scanQueue.length} scan${scanQueue.length===1?"":"s"} waiting or syncing.`:`${filtered.length} of ${orderScope.length} order${orderScope.length===1?"":"s"} shown.`}</p></div>{workMode!=="sync"&&<button type="button" className={`homeWorkFilterToggle ${activeFilterCount?"active":""}`} aria-label="Filter orders" aria-expanded={filtersOpen} onClick={()=>setFiltersOpen(value=>!value)}><span className="homeFilterGlyph" aria-hidden="true"><i/><i/><i/></span>{activeFilterCount>0&&<em>{activeFilterCount}</em>}</button>}</div>

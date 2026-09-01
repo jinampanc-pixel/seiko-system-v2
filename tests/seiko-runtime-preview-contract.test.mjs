@@ -7,6 +7,12 @@ const orders = read("app/orders.tsx");
 const rowActions = read("app/workspace-row-actions.tsx");
 const shortcuts = read("app/workspace-shortcuts.tsx");
 const structure = read("app/workspace-structure-interactions.tsx");
+const workspaceGrid = read("app/workspace-grid.css");
+const orderEnhancements = read("app/order-enhancements.css");
+const navigationCss = read("app/global-navigation.css");
+const access = read("app/access-control.tsx");
+const page = read("app/page.tsx");
+const labelPolish = read("app/label-designer-polish.tsx");
 const listCenter = read("app/seiko-list-center-enhancements.tsx");
 const listCss = read("app/seiko-list-center-enhancements.css");
 const operationalUx = read("app/seiko-operational-ux.tsx");
@@ -14,12 +20,12 @@ const operationalCss = read("app/seiko-operational-ux.css");
 const labels = read("app/label-designer.tsx");
 const home = read("app/seiko-phase1.tsx");
 
-test("workspace has one authoritative header system", () => {
+test("workspace keeps its two header bands together without covering row one", () => {
   assert.match(rowActions, /source-owned workspace now renders its own spreadsheet row headers/);
   assert.match(rowActions, /workspaceRowHeaderCorner/);
-  assert.match(operationalCss, /table-layout:fixed!important/);
-  assert.match(operationalCss, /workspaceRowNumberCol\{width:44px!important/);
-  assert.match(operationalCss, /thead tr:nth-child\(2\)>th\{top:30px!important/);
+  assert.match(workspaceGrid, /groupedWorkspace thead \{[\s\S]*position: sticky/);
+  assert.match(workspaceGrid, /thead tr:nth-child\(2\) th \{[\s\S]*position: relative/);
+  assert.doesNotMatch(orderEnhancements, /workspaceResizableHeader\{position:sticky/);
 });
 
 test("workspace transient menus close when work continues elsewhere", () => {
@@ -66,4 +72,37 @@ test("label package applicability is record-specific", () => {
   assert.match(resolver, /orderUsesProductEvidence/);
   assert.match(resolver, /recordValues/);
   assert.doesNotMatch(resolver, /quantityMode === "by_group"[\s\S]{0,240}return quantity/);
+});
+
+
+test("label movement supports visual baseline alignment across font sizes", () => {
+  assert.match(labels, /visualBaselineOffset/);
+  assert.match(labels, /bestBaseline = \.6/);
+  assert.match(labels, /other\.y \+ visualBaselineOffset\(other\)/);
+});
+
+test("Product details are divided by data type and specification role", () => {
+  assert.match(labels, /category: "Product"/);
+  assert.match(labels, /category: "Quantity"/);
+  assert.match(labels, /category: "Measurements"/);
+  assert.match(labels, /spec\.role === "colour" \? "Colour"/);
+  assert.match(labels, /spec\.role === "pattern" \? "Pattern"/);
+  assert.match(labels, /spec\.role === "asset" \? "Artwork"/);
+  assert.match(labelPolish, /fieldSubGroupHeading/);
+});
+
+test("main menu and settings keep access inside a stable full-height structure", () => {
+  assert.match(navigationCss, /display:flex!important;[\s\S]*flex-direction:column!important;[\s\S]*100dvh/);
+  assert.match(access, /moduleMenu \.moduleMenuSettings/);
+  assert.match(access, /jinam:open-access/);
+  assert.match(page, /settingsModuleNav/);
+  assert.match(page, /Users & access/);
+  assert.doesNotMatch(home, /<div><small>SEIKO<\/small><h1>Home<\/h1>/);
+});
+
+test("saved label sets expose print and calibrated PDF actions", () => {
+  assert.match(listCenter, /Open \/ edit/);
+  assert.match(listCenter, /Print \/ save PDF/);
+  assert.match(listCenter, /open-task-action/);
+  assert.match(labels, /open-task-action/);
 });

@@ -58,8 +58,7 @@ function forceInteractiveCanvas(page: HTMLElement) {
 function groupForLabel(label: string) {
   if (label.startsWith("Person detail ·")) return "Person details";
   if (/^(Trace code|Label number|Person number|Product number|Number within|Piece \/ pair|Package \/ set)/i.test(label)) return "Trace & codes";
-  if (/^Applicable product \d+ ·/i.test(label)) return "Product details";
-  if (label.includes(" · ")) return `Product details · ${label.split(" · ")[0]}`;
+  if (/^Applicable product \d+ ·/i.test(label) || label.includes(" · ")) return "Product details";
   return "Core information";
 }
 
@@ -137,8 +136,8 @@ function organizeInformation(page: HTMLElement) {
     });
   }
 
-  checklist.querySelectorAll(".fieldGroupHeading").forEach(node => node.remove());
-  let lastGroup = "";
+  checklist.querySelectorAll(".fieldGroupHeading,.fieldSubGroupHeading").forEach(node => node.remove());
+  let lastGroup = "", lastSubGroup = "";
   checklist.querySelectorAll<HTMLElement>(":scope > .fieldChoice").forEach(choice => {
     const label = choice.querySelector("label span")?.textContent?.trim() || "Other";
     const group = groupForLabel(label);
@@ -150,6 +149,15 @@ function organizeInformation(page: HTMLElement) {
       heading.textContent = group;
       checklist.insertBefore(heading, choice);
       lastGroup = group;
+      lastSubGroup = "";
+    }
+    const subGroup = choice.dataset.productDetailGroup || "";
+    if (group === "Product details" && subGroup && subGroup !== lastSubGroup) {
+      const subHeading = document.createElement("div");
+      subHeading.className = "fieldSubGroupHeading";
+      subHeading.textContent = subGroup;
+      checklist.insertBefore(subHeading, choice);
+      lastSubGroup = subGroup;
     }
 
     /* Selected fields always expose their compact styling controls. The old Options

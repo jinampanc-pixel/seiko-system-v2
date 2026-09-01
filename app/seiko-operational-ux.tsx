@@ -203,50 +203,10 @@ function enhanceWorkspace(page: HTMLElement) {
   page.querySelector(".workspaceMenuOperational")?.remove();
 }
 
-function enhanceSettings(panel: HTMLElement) {
-  panel.querySelector<HTMLElement>(".seikoAccessSettings")?.setAttribute("hidden", "");
-  let nav = panel.querySelector<HTMLElement>(".settingsModuleNav");
-  if (!nav) {
-    nav = document.createElement("nav");
-    nav.className = "settingsModuleNav";
-    nav.setAttribute("aria-label", "Settings modules");
-    const modules: Array<["appearance" | "users", string, string]> = [
-      ["appearance", "1", "Appearance"],
-      ["users", "2", "Users & access"],
-    ];
-    modules.forEach(([key, no, label]) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.module = key;
-      button.innerHTML = `<small>${no}</small><span>${label}</span>`;
-      button.addEventListener("click", () => activateSettingsModule(panel, key));
-      nav!.appendChild(button);
-    });
-    panel.querySelector(".themeHead")?.insertAdjacentElement("afterend", nav);
-
-    const users = document.createElement("section");
-    users.className = "settingsUsersModule";
-    users.hidden = true;
-    users.innerHTML = "<p class=\"eyebrow\">USERS & ACCESS</p><h3>Users, roles and permissions</h3><p>Manage who can enter SEIKO and which operational modules each person can use. This is the second Settings module and remains separate from Appearance.</p>";
-    const open = document.createElement("button");
-    open.type = "button";
-    open.className = "primary";
-    open.textContent = "Open users & access";
-    open.addEventListener("click", () => {
-      panel.querySelector<HTMLButtonElement>(".themeHead > button")?.click();
-      window.setTimeout(() => document.querySelector<HTMLButtonElement>(".accessMenuEntry")?.click(), 0);
-    });
-    users.appendChild(open);
-    panel.querySelector(".themeActions")?.insertAdjacentElement("beforebegin", users);
-
-    Array.from(panel.children).forEach(child => {
-      if (!(child instanceof HTMLElement)) return;
-      if (child.matches(".themeHead,.settingsModuleNav,.settingsUsersModule,.themeActions,.seikoAccessSettings")) return;
-      child.classList.add("settingsAppearanceModule");
-    });
-  }
-  activateSettingsModule(panel, panel.dataset.settingsModule === "users" ? "users" : "appearance");
+function enhanceSettings(_panel: HTMLElement) {
+  // Settings is React-owned. Do not inject overlapping modules into the dialog.
 }
+
 
 function enhance() {
   enhanceHome();

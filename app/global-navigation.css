@@ -9,3 +9,29 @@
 .labelCreateTopbar{position:relative}.labelCreateTopbar .globalStandaloneNavEnd{margin-left:auto}.labelCreateTopbar .menuToggle{display:grid;place-content:center;gap:5px;width:42px;height:42px;border:1px solid rgba(0,0,0,.08);border-radius:10px;background:#fff;color:var(--navy)}.labelCreateTopbar .menuToggle span{display:block;width:22px;height:2px;border-radius:2px;background:currentColor}.labelCreateTopbar .menuToggle:hover,.labelCreateTopbar .menuToggle.active{background:color-mix(in srgb,var(--navy) 7%,#fff)}.labelCreateTopbar .globalHomeLogo{cursor:pointer}.labelCreateTopbar .globalHomeLogo:focus-visible{border-radius:8px;box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 22%,transparent)}
 
 @media(max-width:700px){.globalBusinessNavigator{grid-template-columns:34px minmax(0,1fr) 16px;min-height:52px;padding:8px 9px}.globalBusinessName{font-size:12px}.labelCreateTopbar .menuToggle{width:40px;height:40px}}
+
+/* precision-pass: stable menu height */
+.app .topbar .moduleMenu,
+.globalStandaloneMenu{
+  display:flex!important;
+  flex-direction:column!important;
+  height:calc(100dvh - 64px)!important;
+  max-height:calc(100dvh - 64px)!important;
+  overflow:auto!important;
+  overscroll-behavior:contain;
+  padding-bottom:max(14px,env(safe-area-inset-bottom))!important;
+}
+.app .topbar .moduleMenu .moduleMenuSettings,
+.globalStandaloneMenu .moduleMenuSettings{
+  display:grid!important;
+  gap:4px!important;
+  flex:0 0 auto!important;
+  margin-top:10px!important;
+  padding-top:10px!important;
+  border-top:1px solid color-mix(in srgb,var(--line) 78%,transparent)!important;
+}
+.app .topbar .moduleMenu .globalBusinessNavigator,
+.globalStandaloneMenu .globalBusinessNavigator{margin-top:auto!important;flex:0 0 auto!important}
+.app .topbar .moduleMenu .moduleMenuSettings .accessMenuEntry,
+.globalStandaloneMenu .moduleMenuSettings .accessMenuEntry{width:100%!important;min-height:44px!important}
+

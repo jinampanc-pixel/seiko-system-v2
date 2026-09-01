@@ -180,3 +180,13 @@
 .workspaceTable.groupedWorkspace .workspaceRowHeaderCorner,.workspaceTable.groupedWorkspace .workspaceRowHeader{width:44px!important;min-width:44px!important;max-width:44px!important;padding:0!important;text-align:center!important}
 .workspaceTable.groupedWorkspace .productGroup{text-align:center!important;vertical-align:middle!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
 .workspaceTable.groupedWorkspace .workspaceMovableColumnHeader{vertical-align:middle!important}
+
+/* precision-pass: React-owned settings */
+.themeScrim{z-index:1800!important;display:grid!important;place-items:center!important;padding:18px!important;overflow:auto!important}
+.themePanel{position:relative!important;width:min(780px,calc(100vw - 30px))!important;max-height:calc(100dvh - 36px)!important;margin:auto!important;padding:18px!important;overflow:auto!important;border-radius:14px!important}
+.themePanel .themeHead{position:sticky!important;top:-18px!important;margin:-18px -18px 12px!important;padding:18px!important}
+.themePanel .settingsModuleNav{grid-template-columns:repeat(2,minmax(0,1fr))!important;max-width:520px!important}
+.themePanel .settingsAppearanceModule{min-width:0!important}
+.themePanel .settingsUsersModule{min-height:220px!important}
+.labelCenterActionMenu .labelSavedSetDanger{margin-top:4px!important;padding-top:9px!important;border-top:1px solid var(--line)!important}
+
