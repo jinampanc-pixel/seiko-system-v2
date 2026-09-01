@@ -1,0 +1,108 @@
+name: Apply direct label editing and applicability fix
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/fix-label-direct-edit-and-applicability.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Patch source and regression contracts
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          # Remove the DOM-added Arrange / Finish arranging mode button entirely.
+          p = Path('app/label-workspace-refinement.tsx')
+          text = p.read_text()
+          text, count = re.subn(r'\nfunction addArrangeControl\(page: HTMLElement\) \{.*?\n\}\n\nfunction fullRecordText', '\nfunction fullRecordText', text, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit(f'label-workspace-refinement: arrange control block count={count}')
+          old_call = '  addArrangeControl(page);\n'
+          if text.count(old_call) != 1:
+              raise SystemExit('label-workspace-refinement: arrange control call missing')
+          text = text.replace(old_call, '', 1)
+          p.write_text(text)
+
+          # Remove the native Manual/Automatic mode toggle. Direct pointer interaction already
+          # converts the current automatic positions into editable physical coordinates.
+          p = Path('app/label-designer.tsx')
+          text = p.read_text()
+          old_toggle = '</small></div><button className="secondary" onClick={() => { if (advanced) setAdvanced(false); else { setItems(arrangeLabelItems(items, preset)); setAdvanced(true); } }}>{advanced ? "Automatic layout" : "Manual layout"}</button></div>'
+          new_toggle = '</small></div></div>'
+          if text.count(old_toggle) != 1:
+              raise SystemExit(f'label-designer: native layout toggle count={text.count(old_toggle)}')
+          text = text.replace(old_toggle, new_toggle, 1)
+
+          # Product applicability must inspect normalized legacy measurement keys. Without this,
+          # restored orders can incorrectly fall back to a product's default quantity for every person.
+          old_evidence = '''    const evidenceColumns = workspaceColumns(order).filter(column => column.groupId === `product:${product.id}` && (column.id.startsWith("measurement:") || column.id.startsWith("spec:")));
+    if (!evidenceColumns.length) return quantity;
+    const orderUsesProductEvidence = order.records.some(candidate => evidenceColumns.some(column => hasLabelValue(candidate.values[column.id])));
+    if (!orderUsesProductEvidence) return quantity;
+    return evidenceColumns.some(column => hasLabelValue(record.values[column.id])) ? quantity : 0;'''
+          new_evidence = '''    const evidenceColumns = workspaceColumns(order).filter(column => column.groupId === `product:${product.id}` && (column.id.startsWith("measurement:") || column.id.startsWith("spec:")));
+    if (!evidenceColumns.length) return quantity;
+    const valuesWithNormalizedMeasurements = (candidate: SeikoOrder["records"][number]) => ({
+        ...candidate.values,
+        ...normalizedMeasurementValues(order, candidate.values),
+    });
+    const orderUsesProductEvidence = order.records.some(candidate => {
+        const candidateValues = valuesWithNormalizedMeasurements(candidate);
+        return evidenceColumns.some(column => hasLabelValue(candidateValues[column.id]));
+    });
+    if (!orderUsesProductEvidence) return quantity;
+    const recordValues = valuesWithNormalizedMeasurements(record);
+    return evidenceColumns.some(column => hasLabelValue(recordValues[column.id])) ? quantity : 0;'''
+          if text.count(old_evidence) != 1:
+              raise SystemExit(f'label-designer: evidence block count={text.count(old_evidence)}')
+          text = text.replace(old_evidence, new_evidence, 1)
+          p.write_text(text)
+
+          # Strengthen the regression contract around the two exact defects seen in preview.
+          p = Path('tests/seiko-workspace-label-accuracy-contract.test.mjs')
+          text = p.read_text()
+          old_import = 'const labels = read("app/label-designer.tsx");\nconst orderCss = read("app/order-enhancements.css");'
+          new_import = 'const labels = read("app/label-designer.tsx");\nconst labelRefinement = read("app/label-workspace-refinement.tsx");\nconst orderCss = read("app/order-enhancements.css");'
+          if text.count(old_import) != 1:
+              raise SystemExit('accuracy contract: import marker missing')
+          text = text.replace(old_import, new_import, 1)
+
+          old_assert = '  assert.match(labels, /orderUsesProductEvidence/);\n'
+          new_assert = '  assert.match(labels, /orderUsesProductEvidence/);\n  assert.match(labels, /valuesWithNormalizedMeasurements/);\n  assert.match(labels, /normalizedMeasurementValues\(order, candidate\.values\)/);\n'
+          if text.count(old_assert) != 1:
+              raise SystemExit('accuracy contract: product evidence assertion marker missing')
+          text = text.replace(old_assert, new_assert, 1)
+
+          append = '''\n\ntest("label canvas is directly editable without an Arrange or Finish arranging mode", () => {
+  assert.doesNotMatch(labelRefinement, /addArrangeControl/);
+  assert.doesNotMatch(labelRefinement, /Finish arranging|Arrange label/);
+  assert.doesNotMatch(labels, />\{advanced \? "Automatic layout" : "Manual layout"\}<\/button>/);
+  assert.match(labels, /if \(!advanced\) \{ setItems\(arranged\); setAdvanced\(true\); \}/);
+  assert.match(labels, /const down = \(e: ReactPointerEvent, item: Item\)/);
+});
+'''
+          if 'label canvas is directly editable without an Arrange or Finish arranging mode' in text:
+              raise SystemExit('accuracy contract: direct-edit test already exists')
+          p.write_text(text + append)
+          PY
+
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git rm .github/workflows/fix-label-direct-edit-and-applicability.yml
+          git add app tests
+          git commit -m "Fix direct label editing and record applicability"
+          git push origin HEAD:fix/veyn-milestone-one
