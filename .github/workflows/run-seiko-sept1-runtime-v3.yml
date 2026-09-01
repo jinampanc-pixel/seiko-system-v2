@@ -1,0 +1,39 @@
+name: Run verified SEIKO runtime corrections
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/run-seiko-sept1-runtime-v3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Apply verified source corrections
+        run: python3 .github/scripts/fix-seiko-sept1-runtime-v3.py
+      - name: Commit source and remove temporary patch workflows
+        shell: bash
+        run: |
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git rm -f --ignore-unmatch \
+            .github/scripts/fix-seiko-sept1-runtime.py \
+            .github/workflows/run-seiko-sept1-runtime.yml \
+            .github/scripts/fix-seiko-sept1-runtime-v2.py \
+            .github/workflows/run-seiko-sept1-runtime-v2.yml \
+            .github/scripts/fix-seiko-sept1-runtime-v3.py \
+            .github/workflows/run-seiko-sept1-runtime-v3.yml \
+            .github/scripts/fix-label-direct-edit-and-applicability.py \
+            .github/workflows/fix-label-direct-edit-and-applicability.yml
+          git add app
+          git commit -m "Fix SEIKO status filters setup layout and workspace drops"
+          git push origin HEAD:fix/veyn-milestone-one
