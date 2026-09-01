@@ -1,0 +1,83 @@
+name: Diagnose SEIKO validation
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/diagnose-seiko-validation.yml
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: foundation-contract
+        continue-on-error: true
+        run: node --test tests/foundation-contract.test.mjs
+      - name: navigation-contract
+        continue-on-error: true
+        run: node --test tests/navigation-contract.test.mjs
+      - name: architecture-contract
+        continue-on-error: true
+        run: node --test tests/architecture-contract.test.mjs
+      - name: ui-consistency-contract
+        continue-on-error: true
+        run: node --test tests/ui-consistency-contract.test.mjs
+      - name: auth-contract
+        continue-on-error: true
+        run: node --test tests/auth-contract.test.mjs
+      - name: modern-auth-contract
+        continue-on-error: true
+        run: node --test tests/modern-auth-contract.test.mjs
+      - name: veyn-milestone-contract
+        continue-on-error: true
+        run: node --test tests/veyn-milestone-contract.test.mjs
+      - name: jinam-product-architecture
+        continue-on-error: true
+        run: node --test tests/jinam-product-architecture.test.mjs
+      - name: meth-seiko-commerce-contract
+        continue-on-error: true
+        run: node --test tests/meth-seiko-commerce-contract.test.mjs
+      - name: meth-commerce-settings-contract
+        continue-on-error: true
+        run: node --test tests/meth-commerce-settings-contract.test.mjs
+      - name: meth-seiko-handoff-controls-contract
+        continue-on-error: true
+        run: node --test tests/seiko-meth-handoff-controls-contract.test.mjs
+      - name: channel-connectors-contract
+        continue-on-error: true
+        run: node --test tests/channel-connectors-contract.test.mjs
+      - name: seiko-stage2-audit-contract
+        continue-on-error: true
+        run: node --test tests/seiko-stage2-audit-contract.test.mjs
+      - name: seiko-list-centers-contract
+        continue-on-error: true
+        run: node --test tests/seiko-list-centers-contract.test.mjs
+      - name: seiko-shared-label-structure-contract
+        continue-on-error: true
+        run: node --test tests/seiko-shared-label-structure-contract.test.mjs
+      - name: seiko-operational-ux-contract
+        continue-on-error: true
+        run: node --test tests/seiko-operational-ux-contract.test.mjs
+      - name: seiko-workspace-label-accuracy-contract
+        continue-on-error: true
+        run: node --test tests/seiko-workspace-label-accuracy-contract.test.mjs
+      - name: seiko-runtime-preview-contract
+        continue-on-error: true
+        run: node --test tests/seiko-runtime-preview-contract.test.mjs
+      - name: seiko-last-mile-contract
+        continue-on-error: true
+        run: node --test tests/seiko-last-mile-contract.test.mjs
+      - name: Production build
+        continue-on-error: true
+        run: npm run build
+      - name: Render checks
+        continue-on-error: true
+        run: npm run test:render
