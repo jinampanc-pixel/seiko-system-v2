@@ -101,3 +101,48 @@ test("temporary in-chat patch machinery is absent from the accepted branch", () 
   assert.equal(exists(".github/workflows/fix-label-direct-edit-and-applicability.yml"), false);
   assert.equal(exists(".github/workflows/run-seiko-sept1-runtime.yml"), false);
 });
+
+test("native workspace headers do not get a duplicate legacy row-number column", () => {
+  const rowActions = read("app/workspace-row-actions.tsx");
+  assert.match(rowActions, /workspaceRowHeaderCorner/);
+  assert.match(rowActions, /workspaceRowHeaderHead,\.workspaceRowHeaderCell/);
+  assert.match(rowActions, /page\.querySelector\("\.workspaceBulkBar"\)\?\.remove\(\)/);
+});
+
+test("workspace transient tools and context menus dismiss outside their interaction", () => {
+  const structure = read("app/workspace-structure-interactions.tsx");
+  assert.match(shortcuts, /workspaceCompactTools\[open\]/);
+  assert.match(shortcuts, /document\.addEventListener\("pointerdown", closeTools, true\)/);
+  assert.match(shortcuts, /document\.addEventListener\("scroll", closeTools, true\)/);
+  assert.match(structure, /document\.addEventListener\("pointerdown",outside,true\)/);
+  assert.match(structure, /document\.addEventListener\("scroll",closeTransient,true\)/);
+});
+
+test("returning to Order Center and Clear all cannot retain invisible filters", () => {
+  const listCenter = read("app/seiko-list-center-enhancements.tsx");
+  assert.match(orders, /setQuery\(""\); setArchivedOnly\(false\); save\(current, "Order saved", true\)/);
+  assert.match(listCenter, /resetFilterState\(\)/);
+  assert.match(listCenter, /setNativeInputValue\(nativeSearch, ""\)/);
+  assert.match(listCenter, /if \(archivedNative\?\.checked\) archivedNative\.click\(\)/);
+});
+
+test("Label Center uses clickable rows and floating secondary menus", () => {
+  const listCenter = read("app/seiko-list-center-enhancements.tsx");
+  const listCss = read("app/seiko-list-center-enhancements.css");
+  assert.match(listCenter, /labelBatchRowClickable/);
+  assert.match(listCenter, /open\.hidden = true/);
+  assert.doesNotMatch(listCenter, /openAction\.textContent = "Open label set"/);
+  assert.match(listCenter, /labelCenterFloatingPanel/);
+  assert.match(listCss, /position:fixed!important;z-index:1200!important/);
+});
+
+test("group/default quantities cannot bypass record-level product applicability", () => {
+  const start = labels.indexOf("function labelQuantityForRecord");
+  const end = labels.indexOf("function orderLabelRows", start);
+  const resolver = labels.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.match(resolver, /orderUsesProductEvidence/);
+  assert.match(resolver, /evidenceColumns\.some\(column => hasLabelValue\(recordValues\[column\.id\]\)\) \? quantity : 0/);
+  assert.doesNotMatch(resolver, /quantityMode === "by_group"[\s\S]{0,240}return quantity/);
+});
+

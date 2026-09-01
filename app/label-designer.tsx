@@ -592,10 +592,6 @@ function labelQuantityForRecord(order: SeikoOrder, product: SeikoOrder["products
     if (quantity <= 0) return 0;
     const explicitQuantity = [`product:${product.id}:qty`, `product:${product.id}:qty_override`].some(key => hasLabelValue(record.values[key]));
     if (explicitQuantity) return quantity;
-    if (product.quantityMode === "by_group" && product.quantityGroupFieldId) {
-        const sourceValue = String(record.values[`field:${product.quantityGroupFieldId}`] || "");
-        if ((product.quantityGroupRules || []).some(rule => groupRuleMatches(rule.match, sourceValue))) return quantity;
-    }
     const evidenceColumns = workspaceColumns(order).filter(column => column.groupId === `product:${product.id}` && (column.id.startsWith("measurement:") || column.id.startsWith("spec:")));
     if (!evidenceColumns.length) return quantity;
     const valuesWithNormalizedMeasurements = (candidate: SeikoOrder["records"][number]) => ({

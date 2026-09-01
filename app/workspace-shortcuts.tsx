@@ -210,12 +210,31 @@ export function WorkspaceShortcuts() {
       }
     };
 
+    const closeTools = (event?: Event) => {
+      const page = currentWorkspace();
+      const tools = page?.querySelector<HTMLDetailsElement>(".workspaceCompactTools[open]");
+      if (!tools) return;
+      const target = event?.target as Element | null;
+      if (target?.closest?.(".workspaceCompactTools")) return;
+      tools.open = false;
+    };
     const ensure = () => { const page = currentWorkspace(); if (!page) return; ensureShortcutGuide(page); organizeColumnMenu(page); };
     ensure();
     const observer = new MutationObserver(ensure);
     observer.observe(document.body, { childList: true, subtree: true });
     document.addEventListener("keydown", onKeyDown, true);
-    return () => { observer.disconnect(); document.removeEventListener("keydown", onKeyDown, true); };
+    document.addEventListener("pointerdown", closeTools, true);
+    document.addEventListener("focusin", closeTools, true);
+    document.addEventListener("scroll", closeTools, true);
+    window.addEventListener("resize", closeTools);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("pointerdown", closeTools, true);
+      document.removeEventListener("focusin", closeTools, true);
+      document.removeEventListener("scroll", closeTools, true);
+      window.removeEventListener("resize", closeTools);
+    };
   }, []);
   return null;
 }

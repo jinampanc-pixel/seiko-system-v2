@@ -12,6 +12,8 @@ type OrderFilters = {
 };
 
 const filterState: OrderFilters = { status: "", clientType: "", product: "", delivery: "all" };
+function resetFilterState() { filterState.status = ""; filterState.clientType = ""; filterState.product = ""; filterState.delivery = "all"; }
+function setNativeInputValue(input: HTMLInputElement, value: string) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); }
 
 function currentBusiness() {
   return localStorage.getItem("jinam:selected-business") || "seiko";
@@ -108,6 +110,7 @@ function applyOrderFilters(page: HTMLElement) {
 }
 
 function ensureOrderFilters(page: HTMLElement) {
+  if (page.dataset.orderFilterSession !== "ready") { resetFilterState(); page.dataset.orderFilterSession = "ready"; }
   if (page.querySelector(".orderAdvancedFilters")) {
     syncProductSelect(page);
     applyOrderFilters(page);
@@ -166,10 +169,11 @@ function ensureOrderFilters(page: HTMLElement) {
     toggle.setAttribute("aria-expanded", String(open));
   });
   clear.addEventListener("click", () => {
-    filterState.status = "";
-    filterState.clientType = "";
-    filterState.product = "";
-    filterState.delivery = "all";
+    resetFilterState();
+    const nativeSearch = tools.querySelector<HTMLInputElement>(':scope > input[placeholder*="Search order"]');
+    if (nativeSearch && nativeSearch.value) setNativeInputValue(nativeSearch, "");
+    if (archivedNative?.checked) archivedNative.click();
+    archivedProxy.checked = false;
     bar.querySelectorAll<HTMLSelectElement>("select").forEach(select => { select.selectedIndex = 0; });
     syncProductSelect(page);
     applyOrderFilters(page);
@@ -258,10 +262,18 @@ function removeSavedLabelSet(batchName: string) {
 
 function ensureLabelCenterMenus(page: HTMLElement) {
   page.querySelectorAll<HTMLElement>(".labelBatchModuleList > article").forEach(row => {
-    if (row.querySelector(".seikoRowActionMenu")) return;
     const title = row.querySelector<HTMLElement>("b")?.textContent?.trim() || "Saved label set";
     const open = row.querySelector<HTMLButtonElement>(":scope > button");
     if (!open) return;
+    open.hidden = true;
+    row.classList.add("labelBatchRowClickable");
+    if (row.dataset.rowOpenReady !== "true") {
+      row.dataset.rowOpenReady = "true"; row.tabIndex = 0; row.setAttribute("role", "button"); row.setAttribute("aria-label", `Open ${title}`);
+      const shouldOpen = (target: EventTarget | null) => !(target instanceof Element && target.closest("button,input,select,label,details,summary,a"));
+      row.addEventListener("click", event => { if (shouldOpen(event.target)) open.click(); });
+      row.addEventListener("keydown", event => { if ((event.key === "Enter" || event.key === " ") && event.target === row) { event.preventDefault(); open.click(); } });
+    }
+    if (row.querySelector(".seikoRowActionMenu")) return;
     const menu = document.createElement("details");
     menu.className = "seikoRowActionMenu labelCenterActionMenu";
     const summary = document.createElement("summary");
@@ -269,10 +281,6 @@ function ensureLabelCenterMenus(page: HTMLElement) {
     summary.textContent = "•••";
     const panel = document.createElement("div");
     panel.className = "seikoRowActionPanel";
-    const openAction = document.createElement("button");
-    openAction.type = "button";
-    openAction.textContent = "Open label set";
-    openAction.addEventListener("click", () => { menu.open = false; open.click(); });
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "dangerText";
@@ -280,9 +288,19 @@ function ensureLabelCenterMenus(page: HTMLElement) {
     remove.addEventListener("click", () => {
       if (window.confirm(`Remove saved label set “${title}”? The order itself will not be changed.`)) removeSavedLabelSet(title);
     });
-    panel.append(openAction, remove);
+    panel.append(remove);
     menu.append(summary, panel);
-    menu.addEventListener("toggle", () => { if (menu.open) closeOtherMenus(menu); });
+    menu.addEventListener("toggle", () => {
+      row.classList.toggle("labelBatchMenuOpen", menu.open);
+      if (!menu.open) return;
+      closeOtherMenus(menu);
+      requestAnimationFrame(() => {
+        const anchor = summary.getBoundingClientRect(); const box = panel.getBoundingClientRect();
+        panel.classList.add("labelCenterFloatingPanel");
+        panel.style.left = `${Math.max(8, Math.min(window.innerWidth - Math.max(180, box.width) - 8, anchor.right - Math.max(180, box.width)))}px`;
+        panel.style.top = `${Math.max(8, Math.min(window.innerHeight - box.height - 8, anchor.bottom + 5))}px`;
+      });
+    });
     row.appendChild(menu);
   });
 
@@ -324,10 +342,15 @@ export function SeikoListCenterEnhancements() {
       const target = event.target as Element | null;
       if (!target?.closest(".seikoRowActionMenu")) closeOtherMenus();
     };
+    const transient = () => closeOtherMenus();
     document.addEventListener("pointerdown", outside, true);
+    document.addEventListener("scroll", transient, true);
+    window.addEventListener("resize", transient);
     document.addEventListener("change", controller.schedule, true);
     return () => {
       document.removeEventListener("pointerdown", outside, true);
+      document.removeEventListener("scroll", transient, true);
+      window.removeEventListener("resize", transient);
       document.removeEventListener("change", controller.schedule, true);
       controller.stop();
     };

@@ -167,3 +167,16 @@
 .labelHeaderSaveSet{background:var(--navy)!important;color:#fff!important;min-width:118px!important}.labelSaveChoiceLayer{position:fixed;inset:0;z-index:15000;display:grid;place-items:center;padding:20px;background:rgba(9,30,45,.42);backdrop-filter:blur(2px)}.labelSaveChoiceDialog{width:min(390px,calc(100vw - 32px));padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--paper);box-shadow:0 22px 60px rgba(8,35,54,.24)}.labelSaveChoiceDialog h3{margin:0 0 5px;font-size:17px}.labelSaveChoiceDialog p{margin:0 0 14px;color:var(--muted);font-size:10px}.labelSaveChoiceDialog>div{display:grid;grid-template-columns:1fr 1fr;gap:7px}.labelSaveChoiceDialog .cancel{grid-column:1/-1}
 .labelCanvas .canvasElement{touch-action:none!important}.labelManualArrange .labelCanvas .canvasElement{cursor:move!important}.labelCanvas .guideX,.labelCanvas .guideY{pointer-events:none!important}
 @media(max-width:900px){.homeOrderOperationalRow{grid-template-columns:1fr!important}.homeOrderStatus{border-left:0!important;border-top:1px solid var(--line)!important}.orderCenterOperationalMeta{grid-template-columns:repeat(2,minmax(0,1fr))!important}.orderAdvancedFilterGrid{grid-template-columns:1fr 1fr!important}}
+
+/* runtime-accuracy: workspace header geometry */
+.workspaceTable.groupedWorkspace{table-layout:fixed!important;border-collapse:separate!important;border-spacing:0!important}
+.workspaceTable.groupedWorkspace col.workspaceRowNumberCol{width:44px!important;min-width:44px!important;max-width:44px!important}
+.workspaceTable.groupedWorkspace col.workspaceActionsCol{width:64px!important;min-width:64px!important;max-width:64px!important}
+.workspaceTable.groupedWorkspace th,.workspaceTable.groupedWorkspace td{box-sizing:border-box!important}
+.workspaceTable.groupedWorkspace thead tr:first-child{height:30px!important}
+.workspaceTable.groupedWorkspace thead tr:first-child>th{height:30px!important;min-height:30px!important;vertical-align:middle!important}
+.workspaceTable.groupedWorkspace thead tr:nth-child(2){height:30px!important}
+.workspaceTable.groupedWorkspace thead tr:nth-child(2)>th{top:30px!important;height:30px!important;min-height:30px!important;vertical-align:middle!important}
+.workspaceTable.groupedWorkspace .workspaceRowHeaderCorner,.workspaceTable.groupedWorkspace .workspaceRowHeader{width:44px!important;min-width:44px!important;max-width:44px!important;padding:0!important;text-align:center!important}
+.workspaceTable.groupedWorkspace .productGroup{text-align:center!important;vertical-align:middle!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+.workspaceTable.groupedWorkspace .workspaceMovableColumnHeader{vertical-align:middle!important}

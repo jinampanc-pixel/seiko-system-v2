@@ -20,7 +20,6 @@ function contextMenu(x:number,y:number,items:Array<{label:string;command:string;
   const menu=document.createElement("div");menu.className="workspaceContextMenu";menu.setAttribute("role","menu");
   items.forEach(item=>{const button=document.createElement("button");button.type="button";button.textContent=item.label;button.disabled=!!item.disabled;button.addEventListener("click",()=>{dispatch(item.command);closeContextMenu();});menu.appendChild(button);});
   document.body.appendChild(menu);const box=menu.getBoundingClientRect();menu.style.left=`${Math.max(6,Math.min(window.innerWidth-box.width-6,x))}px`;menu.style.top=`${Math.max(6,Math.min(window.innerHeight-box.height-6,y))}px`;
-  window.setTimeout(()=>document.addEventListener("pointerdown",closeContextMenu,{once:true,capture:true}),0);
 }
 function configureRows() {
   const rows = ordered<HTMLTableRowElement>(".workspaceTable tbody tr[data-record-id]");
@@ -47,4 +46,15 @@ function configureColumns() {
   });
 }
 function enhance(){configureRows();configureColumns();paint();}
-export function WorkspaceStructureInteractions(){useEffect(()=>{const controller=startDomEnhancement(enhance,{observer:{childList:true,subtree:true}});const clear=()=>clearDropHints();document.addEventListener("dragend",clear,true);return()=>{document.removeEventListener("dragend",clear,true);clearDropHints();closeContextMenu();controller.stop();};},[]);return null;}
+export function WorkspaceStructureInteractions(){useEffect(()=>{
+  const controller=startDomEnhancement(enhance,{observer:{childList:true,subtree:true}});
+  const clear=()=>clearDropHints();
+  const outside=(event:PointerEvent)=>{const target=event.target as Element|null;if(!target?.closest?.(".workspaceContextMenu"))closeContextMenu();};
+  const closeTransient=()=>closeContextMenu();
+  document.addEventListener("dragend",clear,true);
+  document.addEventListener("pointerdown",outside,true);
+  document.addEventListener("scroll",closeTransient,true);
+  window.addEventListener("resize",closeTransient);
+  window.addEventListener("blur",closeTransient);
+  return()=>{document.removeEventListener("dragend",clear,true);document.removeEventListener("pointerdown",outside,true);document.removeEventListener("scroll",closeTransient,true);window.removeEventListener("resize",closeTransient);window.removeEventListener("blur",closeTransient);clearDropHints();closeContextMenu();controller.stop();};
+},[]);return null;}

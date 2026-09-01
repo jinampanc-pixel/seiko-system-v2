@@ -156,3 +156,12 @@
   .workspaceTable .workspaceRowHeaderHead,.workspaceTable .workspaceRowHeaderCell{width:34px!important;min-width:34px!important;max-width:34px!important}
 }
 @media(max-width:480px){.orderAdvancedFilterGrid{grid-template-columns:1fr}}
+
+/* runtime-accuracy: label center rows and menus */
+.labelBatchModuleList>article.labelBatchRowClickable{cursor:pointer!important;overflow:visible!important}
+.labelBatchModuleList>article.labelBatchRowClickable:hover{background:color-mix(in srgb,var(--brand) 4%,var(--paper))!important}
+.labelBatchModuleList>article.labelBatchRowClickable:focus-visible{outline:2px solid color-mix(in srgb,var(--brand) 60%,var(--navy))!important;outline-offset:2px!important}
+.labelBatchModuleList>article.labelBatchMenuOpen{z-index:350!important}
+.labelBatchModuleList>article.labelBatchRowClickable>:scope>button[hidden]{display:none!important}
+.labelCenterActionMenu{z-index:360!important}
+.labelCenterActionMenu .labelCenterFloatingPanel{position:fixed!important;z-index:1200!important;top:auto;right:auto}

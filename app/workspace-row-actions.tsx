@@ -154,6 +154,14 @@ function ensureSelection(page: HTMLElement) {
   const firstHeadRow = table?.querySelector<HTMLTableRowElement>("thead > tr:first-child");
   if (!table || !firstHeadRow) return;
 
+  // The source-owned workspace now renders its own spreadsheet row headers.
+  // Do not inject the retired selector column on top of that structure.
+  if (table.querySelector(".workspaceRowHeaderCorner") && table.querySelector("tbody .workspaceRowHeader")) {
+    table.querySelectorAll(".workspaceRowHeaderHead,.workspaceRowHeaderCell,.workspaceSelectHead,.workspaceSelectCell").forEach(node => node.remove());
+    page.querySelector(".workspaceBulkBar")?.remove();
+    return;
+  }
+
   // Remove the old checkbox-based selector if a previously rendered workspace still has it.
   table.querySelectorAll(".workspaceSelectHead,.workspaceSelectCell").forEach(node => node.remove());
 
