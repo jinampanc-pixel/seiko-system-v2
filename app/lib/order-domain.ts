@@ -13,7 +13,7 @@ export type MeasurementPolicy = { id: string; name: string; type: "number" | "te
 export type OrderRecord = { recordId: string; personId: string; values: Record<string, string | number>; held?: boolean };
 export type OrderDetails = { orderNo: string; orderDate: string; deliveryDate: string; clientName: string; clientType: string; contactPerson: string; attnRequired: boolean; contactNumber: string; shipTo: string; billTo: string; remarks: string };
 export type OrderRevision = { revision: number; at: string; reason: string; recordCount: number };
-export type SeikoOrder = { orderId: string; status: OrderStatus; archived: boolean; details: OrderDetails; fields: OrderField[]; products: ProductPolicy[]; measurements: MeasurementPolicy[]; records: OrderRecord[]; revisions: OrderRevision[]; updatedAt: string; workspace?: { columnOrder?: string[] } };
+export type SeikoOrder = { orderId: string; status: OrderStatus; archived: boolean; details: OrderDetails; fields: OrderField[]; products: ProductPolicy[]; measurements: MeasurementPolicy[]; records: OrderRecord[]; revisions: OrderRevision[]; updatedAt: string; workspace?: { columnOrder?: string[]; hiddenColumns?: string[]; columnWidths?: Record<string, number>; columnAlignments?: Record<string, "left" | "center" | "right"> } };
 
 export const CLIENT_TYPE_PRESETS: Record<string, OrderField[]> = {
   "School / Institution": [field("Name"), field("Class / Section"), field("Roll number")],

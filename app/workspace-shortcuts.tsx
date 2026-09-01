@@ -168,12 +168,12 @@ export function WorkspaceShortcuts() {
       }
       if (modifier && key === "z") {
         event.preventDefault();
-        clickMenuAction(page, event.shiftKey ? "Redo last change" : "Undo last change");
+        page.querySelector<HTMLButtonElement>(`[data-sheet-action="${event.shiftKey ? "redo" : "undo"}"]`)?.click();
         return;
       }
       if (modifier && key === "y") {
         event.preventDefault();
-        clickMenuAction(page, "Redo last change");
+        page.querySelector<HTMLButtonElement>('[data-sheet-action="redo"]')?.click();
         return;
       }
       if (modifier && key === "x") {

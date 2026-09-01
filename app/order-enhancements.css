@@ -68,3 +68,23 @@
   .orderActionMenu{width:min(218px,calc(100vw - 38px))}
   .quantityGroupRules>div:not(.sourceFieldPicker){grid-template-columns:1fr 82px 24px!important}
 }
+
+
+/* Locked contextual Back navigation and spreadsheet workspace controls. */
+.contextBackButton,.workspaceBackButton{display:inline-flex!important;align-items:center!important;width:max-content!important;min-height:30px!important;margin:0 0 5px!important;padding:4px 2px!important;border:0!important;background:transparent!important;box-shadow:none!important;color:var(--navy)!important;font-size:10px!important;font-weight:800!important;text-decoration:none!important;cursor:pointer!important}
+.contextBackButton:hover,.workspaceBackButton:hover{text-decoration:underline!important;background:transparent!important}
+.workspaceSheetBar{display:flex;align-items:center;gap:4px;min-height:36px;margin:6px 0 8px;padding:3px 5px;border:1px solid var(--line);border-radius:9px;background:var(--paper);position:relative;z-index:18}
+.workspaceSheetMenu,.workspaceSheetColumns{position:relative}
+.workspaceSheetMenu>summary,.workspaceSheetMenuButton{list-style:none;display:flex;align-items:center;min-height:28px;padding:0 9px;border:0;border-radius:6px;background:transparent;color:var(--navy);font-size:11px;font-weight:700;cursor:pointer}
+.workspaceSheetMenu>summary::-webkit-details-marker{display:none}.workspaceSheetMenu[open]>summary,.workspaceSheetMenu>summary:hover,.workspaceSheetMenuButton:hover,.workspaceSheetMenuButton[aria-expanded="true"]{background:var(--pale)}
+.workspaceSheetMenu>div,.workspaceSheetColumns>.columnMenu{position:absolute;z-index:60;top:calc(100% + 4px);left:0;min-width:210px;max-height:320px;overflow:auto;padding:5px;border:1px solid var(--line);border-radius:9px;background:var(--paper);box-shadow:0 14px 34px rgba(12,40,64,.14)}
+.workspaceSheetMenu>div>button,.columnMenuShowAll{display:flex!important;justify-content:space-between;gap:14px;width:100%!important;min-height:31px;padding:6px 8px!important;border:0!important;border-radius:6px!important;background:transparent!important;color:var(--ink)!important;text-align:left!important;font-size:11px!important;cursor:pointer!important}
+.workspaceSheetMenu>div>button:hover,.columnMenuShowAll:hover{background:var(--pale)!important}.workspaceSheetMenu>div>button:disabled{opacity:.42;cursor:default!important}.workspaceSheetMenu kbd{font:9px monospace;color:var(--muted)}
+.workspaceSheetHint{margin-left:auto!important;padding-right:6px;font-size:9px!important;color:var(--muted)!important;white-space:nowrap}
+.workspaceSheetColumns>.columnMenu{display:grid;gap:2px;min-width:265px}.workspaceSheetColumns>.columnMenu label{display:flex;align-items:center;gap:7px;min-height:28px;padding:4px 7px;border-radius:5px;font-size:10px}.workspaceSheetColumns>.columnMenu label:hover{background:var(--pale)}
+.workspaceTable{table-layout:fixed!important}.workspaceTable th,.workspaceTable td{min-width:0!important;box-sizing:border-box!important}.workspaceRowNumberCol{width:44px!important}.workspaceActionsCol{width:72px!important}
+.workspaceTable .workspaceRowHeaderCorner,.workspaceTable .workspaceRowHeader{width:44px!important;min-width:44px!important;max-width:44px!important;padding:6px 3px!important;text-align:center!important}
+.workspaceResizableHeader{position:sticky!important}.columnHeaderText{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:7px}.workspaceMovableColumnHeader{cursor:grab}.workspaceMovableColumnHeader:active{cursor:grabbing}
+.columnResizeHandle{position:absolute;z-index:8;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;touch-action:none}.columnResizeHandle::after{content:"";position:absolute;top:20%;bottom:20%;left:3px;width:1px;background:rgba(255,255,255,.38)}
+.workspaceTable td[data-align="left"] input,.workspaceTable td[data-align="left"] select{text-align:left}.workspaceTable td[data-align="center"] input,.workspaceTable td[data-align="center"] select{text-align:center}.workspaceTable td[data-align="right"] input,.workspaceTable td[data-align="right"] select{text-align:right}
+@media(max-width:800px){.workspaceSheetBar{overflow-x:auto;align-items:flex-start}.workspaceSheetHint{display:none}.workspaceSheetMenu>div,.workspaceSheetColumns>.columnMenu{position:fixed;left:12px;right:12px;top:auto;width:auto;min-width:0}}

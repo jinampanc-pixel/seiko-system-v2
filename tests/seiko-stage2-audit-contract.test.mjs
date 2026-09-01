@@ -90,12 +90,17 @@ test("workspace row and column operations are state-backed and page size is trul
 test("workspace menu owns order status, save and secondary order actions", () => {
   assert.match(orders, /workspaceNativeMenuStatus/);
   assert.match(orders, /workspaceMenuSaveNow/);
-  assert.match(orders, /Put order on hold/);
+  assert.doesNotMatch(orders, />Put order on hold<\/button>/);
   assert.match(orders, /Archive order/);
   assert.match(orders, /Delete order/);
   assert.match(orders, /ORDER_STATUSES\.map/);
   assert.match(orders, /aria-label="More order actions"/);
   assert.match(orders, /workspaceBackButton/);
+  assert.match(orders, /workspaceSheetBar/);
+  assert.match(orders, /columnResizeHandle/);
+  assert.match(orders, /data-sheet-action="undo"/);
+  assert.doesNotMatch(orders, />Undo last change<\/button>/);
+  assert.doesNotMatch(orders, />Redo last change<\/button>/);
   assert.doesNotMatch(orders, /setLabelMenuOpen/);
   assert.match(shortcuts, /key === "s"/);
   assert.match(shortcuts, /clickMenuAction\(page, "Save & close"\)/);
