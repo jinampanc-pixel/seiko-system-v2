@@ -13,7 +13,8 @@ const orderCss = read("app/order-enhancements.css");
 
 test("Home clear filters is always a working reset", () => {
   assert.match(home, /aria-label="Clear all order filters"/);
-  assert.match(home, /clearFilters\(\);setFiltersOpen\(false\)/);
+  assert.match(home, /const clearFilters=\(\)=>\{setQuery\(""\);setStatus\(""\);setClientType\(""\);setProduct\(""\);setPage\(1\);\};/);
+  assert.match(home, /aria-label="Clear all order filters" onClick=\{clearFilters\}>Clear filters/);
   assert.doesNotMatch(home, /disabled=\{!activeFilterCount\} onClick=\{clearFilters\}/);
 });
 

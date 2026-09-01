@@ -28,9 +28,11 @@ test("Home removes duplicate Orders navigation without inventing another Order C
 test("Order Center opens rows directly and keeps status plus conditional printing in the action menu", () => {
   assert.match(ux, /orderRowClickable/);
   assert.match(ux, /open\.hidden = true/);
-  assert.match(ux, /statusWrap\?\.removeAttribute\("hidden"\)/);
+  assert.match(ux, /statusWrap\?\.setAttribute\("hidden", ""\)/);
   assert.doesNotMatch(ux, /className = "orderCenterStatusBadge"/);
   assert.match(ux, /orderMenuStatusControl/);
+  assert.match(ux, /const select = nativeStatus\.cloneNode\(true\) as HTMLSelectElement/);
+  assert.match(ux, /setNativeSelect\(nativeStatus, select\.value\)/);
   assert.match(ux, /hasPrintable = tasks\.some/);
   assert.match(ux, /Print labels/);
   assert.match(ux, /waitForWorkspaceAction\("Labels"\)/);
