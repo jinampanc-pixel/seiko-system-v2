@@ -30,9 +30,9 @@ jobs:
         run: python .github/scripts/finalize-seiko-label-acceptance.py
       - name: Validate full SEIKO application
         run: npm test
-      - name: Commit validated refinements and remove one-shot files
+      - name: Commit validated refinements and remove all one-shot files
         run: |
-          git rm -f .github/scripts/finalize-seiko-label-acceptance.py .github/workflows/finalize-seiko-label-acceptance.yml .github/workflows/fix-label-direct-edit-and-applicability.yml
+          git rm -f .github/scripts/finalize-seiko-label-acceptance.py .github/workflows/finalize-seiko-label-acceptance.yml .github/workflows/fix-label-direct-edit-and-applicability.yml .github/scripts/fix-seiko-sept1-runtime.py .github/workflows/run-seiko-sept1-runtime.yml
           git config user.name "jinampanc-pixel"
           git config user.email "jinampanc@gmail.com"
           git add app tests SEIKO_STAGE2_ACCEPTANCE.md
