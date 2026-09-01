@@ -35,12 +35,14 @@ test("order center has detailed filters and a three-dot action menu for each ord
   assert.match(centers, /Restore order/);
 });
 
-test("label center has consistent three-dot menus for saved sets and source records", () => {
+test("label center uses clickable saved-set rows and consistent three-dot menus", () => {
   assert.match(centers, /\.labelLauncher/);
   assert.match(centers, /labelBatchModuleList/);
+  assert.match(centers, /labelBatchRowClickable/);
+  assert.match(centers, /open\.hidden = true/);
+  assert.doesNotMatch(centers, /openAction\.textContent = "Open label set"/);
   assert.match(centers, /labelOrderResults/);
   assert.match(centers, /labelCenterActionMenu/);
-  assert.match(centers, /Open label set/);
   assert.match(centers, /Remove saved set/);
   assert.match(centers, /Create label set/);
 });
