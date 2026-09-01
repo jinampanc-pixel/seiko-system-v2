@@ -16,7 +16,6 @@ const labelPolish = read("app/label-designer-polish.tsx");
 const listCenter = read("app/seiko-list-center-enhancements.tsx");
 const listCss = read("app/seiko-list-center-enhancements.css");
 const operationalUx = read("app/seiko-operational-ux.tsx");
-const operationalCss = read("app/seiko-operational-ux.css");
 const labels = read("app/label-designer.tsx");
 const home = read("app/seiko-phase1.tsx");
 
