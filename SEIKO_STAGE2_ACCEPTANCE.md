@@ -80,6 +80,7 @@ This checklist records the accepted SEIKO order and label behavior carried by `f
 - Temporary one-shot patch workflows/scripts used during an in-chat edit must remove themselves after their source commit; they are never part of the accepted application architecture.
 - Spreadsheet row/column selection handlers must remain lint-clean explicit control flow; side-effect-only ternaries are not accepted in interaction code.
 - Regression contracts assert the current owning source component or shared state path; they must not force retired enhancement hooks or duplicated controls back into the application.
+- Regression maintenance must preserve the full existing audit coverage; obsolete assertions are replaced in place rather than rewriting or shortening the contract file.
 - Order Center status remains the native React control; nested module navigation must not be overwritten by bootstrap Home resets; Workspace Back/menu controls are source-owned; automatic label arrangement remains source-owned physical-millimetre logic.
 - Runtime contracts verify the native inline Order Center status control rather than requiring retired status badges or static status metadata.
 - Label contracts explicitly reject cross-product measurement fallback and product-value merging across person/package items.
