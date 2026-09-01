@@ -35,6 +35,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test and build clean source
+        run: npm test
+
       - name: Verify preview credentials exist
         env:
           SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
@@ -218,9 +221,6 @@ jobs:
           NODE
 
           rm -f /tmp/owner-memberships.json /tmp/preview-owner-seed.sql /tmp/memberships-query.json /tmp/preview-auth-schema.sql /tmp/preview-owner-email.txt /tmp/preview-user-query.json /tmp/preview-user-row.json
-
-      - name: Test and build
-        run: npm test
 
       - name: Deploy isolated preview worker
         env:
