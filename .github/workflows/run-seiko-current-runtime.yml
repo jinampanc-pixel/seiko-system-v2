@@ -1,0 +1,31 @@
+name: Run SEIKO runtime accuracy patch
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/run-seiko-current-runtime.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Apply source-owned runtime fixes
+        run: python3 .github/scripts/fix-seiko-current-runtime.py
+      - name: Commit cleaned implementation
+        shell: bash
+        run: |
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git rm -f .github/scripts/fix-seiko-current-runtime.py .github/workflows/run-seiko-current-runtime.yml
+          git add app tests
+          git commit -m "Fix SEIKO runtime accuracy regressions"
+          git push origin HEAD:fix/veyn-milestone-one
