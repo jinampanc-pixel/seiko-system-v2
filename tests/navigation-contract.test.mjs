@@ -43,6 +43,7 @@ test("module-center navigation can escape nested Orders and Labels screens witho
   assert.match(navigation, /rootUrl\(businessId = currentBusinessId\(\)\)/);
   assert.match(navigation, /window\.location\.assign\(rootUrl\(\)\)/);
   assert.match(rootPage, /className="moduleMenu"/);
+  assert.doesNotMatch(rootPage, /setBusinessId\(next\.some[\s\S]{0,180}setModule\("home"\)/);
 });
 
 test("switching businesses updates the owning React business selector instead of reopening Seiko", () => {

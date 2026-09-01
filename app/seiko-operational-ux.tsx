@@ -116,7 +116,8 @@ function enhanceOrderCenter(page: HTMLElement) {
     if (!order || !open || !nativeStatus || !panel || !menu) return;
 
     open.hidden = true;
-    statusWrap?.setAttribute("hidden", "");
+    statusWrap?.removeAttribute("hidden");
+    statusWrap?.classList.add("orderCenterInlineStatus");
     row.classList.add("orderRowClickable");
     row.tabIndex = 0;
     row.setAttribute("aria-label", `Open order ${order.details.orderNo} for ${order.details.clientName || "client"}`);
@@ -124,13 +125,7 @@ function enhanceOrderCenter(page: HTMLElement) {
     const detail = row.querySelector<HTMLElement>(":scope > div:first-child");
     const legacyMeta = detail?.querySelector<HTMLElement>(":scope > small");
     if (legacyMeta) legacyMeta.hidden = true;
-    let badge = detail?.querySelector<HTMLElement>(".orderCenterStatusBadge");
-    if (detail && !badge) {
-      badge = document.createElement("span");
-      badge.className = "orderCenterStatusBadge";
-      detail.appendChild(badge);
-    }
-    if (badge) badge.textContent = order.status;
+    detail?.querySelector<HTMLElement>(".orderCenterStatusBadge")?.remove();
 
     let meta = row.querySelector<HTMLElement>(".orderCenterOperationalMeta");
     if (!meta) {
@@ -148,7 +143,6 @@ function enhanceOrderCenter(page: HTMLElement) {
       productMeta.classList.add("orderProductMeta"); productMeta.tabIndex = 0;
       if (productMeta.dataset.productHoverReady !== "true") { productMeta.dataset.productHoverReady="true"; productMeta.addEventListener("pointerenter",()=>showProductHover(productMeta,order)); productMeta.addEventListener("pointerleave",removeProductHover); productMeta.addEventListener("focus",()=>showProductHover(productMeta,order)); productMeta.addEventListener("blur",removeProductHover); }
       appendMetaItem(meta, "Delivery", dueLabel(order));
-      appendMetaItem(meta, "Status", order.status);
     }
 
     if (row.dataset.rowOpenReady !== "true") {

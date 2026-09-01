@@ -25,6 +25,8 @@
 
 /* Workspace order menu */
 .workspaceHead{position:relative;align-items:flex-start}
+.workspaceBackButton{display:inline-flex!important;align-items:center!important;min-height:30px!important;margin:0 0 5px!important;padding:4px 0!important;color:var(--navy)!important;font-size:10px!important;font-weight:800!important;text-decoration:none!important}
+.workspaceBackButton:hover{text-decoration:underline!important}
 .workspaceHeadActions{position:relative;align-self:flex-start;display:block!important;flex:0 0 auto}
 .orderActionMenuButton{display:grid!important;place-content:center;gap:4px;width:38px;height:34px;padding:0!important;border:1px solid var(--line);border-radius:8px;background:var(--paper);cursor:pointer}
 .orderActionMenuButton span{display:block;width:18px;height:2px;border-radius:2px;background:var(--navy)}

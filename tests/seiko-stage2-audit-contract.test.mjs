@@ -95,6 +95,8 @@ test("workspace menu owns order status, save and secondary order actions", () =>
   assert.match(orders, /Delete order/);
   assert.match(orders, /ORDER_STATUSES\.map/);
   assert.match(orders, /aria-label="More order actions"/);
+  assert.match(orders, /workspaceBackButton/);
+  assert.doesNotMatch(orders, /setLabelMenuOpen/);
   assert.match(shortcuts, /key === "s"/);
   assert.match(shortcuts, /clickMenuAction\(page, "Save & close"\)/);
   assert.match(shortcuts, /clickMenuAction\(page, "Labels"\)/);

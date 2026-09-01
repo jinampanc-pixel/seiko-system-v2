@@ -87,40 +87,6 @@ function removePackingGenericChoices(page: HTMLElement) {
   });
 }
 
-function stackAutomaticPreview(page: HTMLElement) {
-  if (page.classList.contains("labelManualArrange")) return;
-
-  page.querySelectorAll<HTMLElement>(".labelCanvas").forEach(canvas => {
-    const fields = Array.from(canvas.querySelectorAll<HTMLElement>(".canvasElement.element-field"));
-    if (!fields.length) return;
-    const hasQr = Boolean(canvas.querySelector(".canvasElement.element-qr"));
-    const start = 7;
-    const usable = 82;
-    const step = Math.min(18, usable / Math.max(1, fields.length));
-    const height = Math.max(8, step - 2);
-    fields.forEach((field, index) => {
-      field.style.left = "4%";
-      field.style.top = `${start + index * step}%`;
-      field.style.width = hasQr ? "66%" : "92%";
-      field.style.height = `${height}%`;
-    });
-  });
-
-  page.querySelectorAll<HTMLElement>(".printSheet .printedLabel").forEach(label => {
-    const fields = Array.from(label.querySelectorAll<HTMLElement>(".printedElement.element-field"));
-    if (!fields.length) return;
-    const hasQr = Boolean(label.querySelector(".printedElement.element-qr"));
-    const step = Math.min(4, 19 / Math.max(1, fields.length));
-    fields.forEach((field, index) => {
-      field.style.left = "2mm";
-      field.style.top = `${2 + index * step}mm`;
-      field.style.width = hasQr ? "33mm" : "46mm";
-      field.style.height = `${Math.max(2.2, step - .3)}mm`;
-    });
-  });
-}
-
-
 function openLabelSaveChoice(page: HTMLElement) {
   document.querySelector(".labelSaveChoiceLayer")?.remove();
   const layer = document.createElement("div"); layer.className = "labelSaveChoiceLayer";
@@ -138,7 +104,6 @@ function enhancePage(page: HTMLElement) {
   addArrangeControl(page);
   enhanceRecordHover(page);
   removePackingGenericChoices(page);
-  stackAutomaticPreview(page);
 }
 
 export function LabelWorkspaceRefinement() {

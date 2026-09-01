@@ -28,6 +28,8 @@ test("Home removes duplicate Orders navigation without inventing another Order C
 test("Order Center opens rows directly and keeps status plus conditional printing in the action menu", () => {
   assert.match(ux, /orderRowClickable/);
   assert.match(ux, /open\.hidden = true/);
+  assert.match(ux, /statusWrap\?\.removeAttribute\("hidden"\)/);
+  assert.doesNotMatch(ux, /orderCenterStatusBadge/);
   assert.match(ux, /orderMenuStatusControl/);
   assert.match(ux, /hasPrintable = tasks\.some/);
   assert.match(ux, /Print labels/);
@@ -64,9 +66,9 @@ test("person-package label filtering uses resolved positive package contents", (
   assert.doesNotMatch(labels, /personPackageWorkspace/);
 });
 
-test("automatic label fields flow vertically instead of collapsing into one corner", () => {
-  assert.match(labels, /stackAutomaticPreview/);
-  assert.match(labels, /start \+ index \* step/);
-  assert.match(labels, /2 \+ index \* step/);
+test("automatic label fields use the source-owned physical arrangement", () => {
+  assert.doesNotMatch(labels, /stackAutomaticPreview/);
+  assert.match(labelDesigner, /arrangeLabelItemsForRow/);
+  assert.match(labelDesigner, /advanced \? items : arrangeLabelItemsForRow/);
   assert.match(css, /fieldChoice\.chosen/);
 });

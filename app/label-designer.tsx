@@ -90,6 +90,20 @@ type LabelTask = {
 const roll: Preset = { id: "pixra-109", name: "109 mm roll · 2 × 50 × 25", labelW: 50, labelH: 25, rollW: 109, columns: 2, outer: 3, gapX: 3, gapY: 3, locked: true };
 const emptyRecord: RecordRow = { id: "", name: "Select a record", group: "", product: "", size: "", qty: "", token: "", order: "", client: "", values: {} };
 const initial: Item[] = [{ id: "name", kind: "field", field: "name", value: "Name", x: 3, y: 3, w: 27, h: 5, font: 10, bold: true }, { id: "product", kind: "field", field: "product", value: "Product", x: 3, y: 9, w: 27, h: 4, font: 7 }, { id: "qr", kind: "qr", value: "token", x: 36, y: 3, w: 11, h: 11, font: 7 }];
+function defaultLabelItems(order: SeikoOrder | null | undefined, purpose: LabelPurpose | null, source: SourceMode): Item[] {
+    const copyInitial = () => initial.map(item => ({ ...item }));
+    if (!order) return copyInitial();
+    if (purpose === "packing" && source === "person") {
+        const personFields = order.fields.filter(field => field.name.trim()).slice(0, 3);
+        const fields: Item[] = [
+            { id: crypto.randomUUID(), kind: "field", field: "client", value: "Client name", fieldLabel: "Client name", x: 2, y: 2, w: 32, h: 3.5, font: 5.5, bold: true },
+            ...personFields.map((field, index) => ({ id: crypto.randomUUID(), kind: "field" as const, field: `field:${field.id}`, value: field.name, fieldLabel: field.name, x: 2, y: 6 + index * 4, w: 32, h: 3.5, font: index === 0 ? 7 : 5.5, bold: index === 0 })),
+            { id: crypto.randomUUID(), kind: "field", field: "product_summary", value: "Package contents", fieldLabel: "Package contents", x: 2, y: 18, w: 32, h: 4, font: 5.25 },
+        ];
+        return [...fields, { id: "qr", kind: "qr", value: "token", x: 37, y: 3, w: 10, h: 10, font: 7 }];
+    }
+    return copyInitial();
+}
 const key = (businessId: string, suffix: string) => `jinam:${businessId}:labels:${suffix}`;
 function stored<T>(storageKey: string, fallback: T): T { if (typeof window === "undefined")
     return fallback; try {
@@ -153,12 +167,13 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
     initialSourceMode?: SourceMode;
 }) {
     const [purpose, setPurpose] = useState<LabelPurpose | null>(order ? initialPurpose : "production");
-    const [sourceMode, setSourceModeState] = useState<SourceMode>(initialSourceMode || (initialPurpose === "packing" ? "person" : initialPurpose === "inventory" ? "product" : "person_product"));
+    const defaultSourceMode: SourceMode = initialSourceMode || (initialPurpose === "packing" ? "person" : initialPurpose === "inventory" ? "product" : "person_product");
+    const [sourceMode, setSourceModeState] = useState<SourceMode>(defaultSourceMode);
     const [personPackagePlan, setPersonPackagePlan] = useState<PersonPackagePlan>("together"), [includedProducts, setIncludedProducts] = useState<string[]>(() => order?.products.filter(product => product.name.trim()).map(product => product.id) || []);
     const [packageGroupBy, setPackageGroupBy] = useState(() => order?.fields[1] ? `field:${order.fields[1].id}` : "product"), [packageCounts, setPackageCounts] = useState<Record<string, number>>({});
     const records = useMemo(() => { if (!order)
         return []; const resolved = resolveLabelRows(order, sourceMode, packageGroupBy, packageCounts, personPackagePlan, includedProducts), labels = Object.fromEntries(labelFieldOptions(order).filter(option => !option.key.startsWith("field_name:")).map(option => [`field_name:${option.key}`, option.label.replace(/ \(resolved\)$/, "")])); return resolved.map(row => ({ ...row, values: { ...row.values, ...labels } })); }, [order, sourceMode, packageGroupBy, packageCounts, personPackagePlan, includedProducts]);
-    const [selectedRows, setSelectedRows] = useState(() => records[0] ? [records[0].id] : []), [items, setItems] = useState<Item[]>(initial), [selectedId, setSelectedId] = useState("name"), [snap, setSnap] = useState(true), [guides, setGuides] = useState(true);
+    const [selectedRows, setSelectedRows] = useState(() => records[0] ? [records[0].id] : []), [items, setItems] = useState<Item[]>(() => defaultLabelItems(order, initialPurpose, defaultSourceMode)), [selectedId, setSelectedId] = useState(""), [snap, setSnap] = useState(true), [guides, setGuides] = useState(true);
     const [outputMode, setOutputMode] = useState<OutputMode>("combined");
     const [advanced, setAdvanced] = useState(false), [customerUpdates, setCustomerUpdates] = useState(false);
     const classificationKey = key(businessId, `classification:${order?.orderId || "no-order"}`);
@@ -298,8 +313,8 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
         document.addEventListener("wheel", resizeSelected, { capture: true, passive: false });
         return () => document.removeEventListener("wheel", resizeSelected, true);
     }, [resizeElement]);
-    const setSourceMode = (next: SourceMode) => { setSourceModeState(next); const nextRecords = order ? resolveLabelRows(order, next, packageGroupBy, packageCounts, personPackagePlan, includedProducts) : []; setSelectedRows(nextRecords[0] ? [nextRecords[0].id] : []); setRecordFilterField(""); setRecordFilterValue(""); };
-    const choosePurpose = (next: LabelPurpose) => { setPurpose(next); setSourceMode(next === "production" ? "person_product" : next === "inventory" ? "product" : "person"); };
+    const setSourceMode = (next: SourceMode) => { setSourceModeState(next); const nextRecords = order ? resolveLabelRows(order, next, packageGroupBy, packageCounts, personPackagePlan, includedProducts) : []; setSelectedRows(nextRecords[0] ? [nextRecords[0].id] : []); setRecordFilterField(""); setRecordFilterValue(""); setItems(all => { const relevant = all.filter(item => item.kind !== "field" || fieldRelevantForPurpose(item.field || "", purpose, next)); return relevant.some(item => item.kind === "field") ? relevant : defaultLabelItems(order, purpose, next); }); };
+    const choosePurpose = (next: LabelPurpose) => { const nextSource: SourceMode = next === "production" ? "person_product" : next === "inventory" ? "product" : "person"; setPurpose(next); setSourceModeState(nextSource); const nextRecords = order ? resolveLabelRows(order, nextSource, packageGroupBy, packageCounts, personPackagePlan, includedProducts) : []; setSelectedRows(nextRecords[0] ? [nextRecords[0].id] : []); setRecordFilterField(""); setRecordFilterValue(""); setItems(all => { const relevant = all.filter(item => item.kind !== "field" || fieldRelevantForPurpose(item.field || "", next, nextSource)); return relevant.some(item => item.kind === "field") ? relevant : defaultLabelItems(order, next, nextSource); }); };
     const add = (kind: Kind) => { const id = crypto.randomUUID(); setItems(all => [...all, { id, kind, x: 5, y: 5, w: kind === "barcode" ? 28 : kind === "qr" ? 12 : 24, h: kind === "barcode" ? 8 : kind === "qr" ? 12 : 5, font: 9, value: kind === "text" ? "Text" : kind === "sequence" ? "001" : "token", field: kind === "field" ? "name" : undefined, reset: kind === "sequence" ? "order" : undefined }]); setSelectedId(id); };
     const down = (e: ReactPointerEvent, item: Item) => { e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); const arranged = advanced ? items : arrangeLabelItems(items, preset); const sourceItem = arranged.find(entry => entry.id === item.id) || item; if (!advanced) { setItems(arranged); setAdvanced(true); } setSelectedId(item.id); dragging.current = { id: item.id, startX: e.clientX, startY: e.clientY, x: sourceItem.x, y: sourceItem.y }; };
     const move = (e: ReactPointerEvent) => { const d = dragging.current, box = e.currentTarget.parentElement?.getBoundingClientRect(); if (!d || !box || !e.currentTarget.hasPointerCapture(e.pointerId)) return; const item = items.find(i => i.id === d.id); if (!item) return;
@@ -523,7 +538,7 @@ function fieldRelevantForPurpose(key: string, purpose: LabelPurpose | null, sour
     const packingOnly = key === "product_summary" || key === "people_count" || key === "package_position";
     const productionOnly = key === "bundle_summary" || key === "unit_position";
     if (purpose === "inventory") return !actualPersonField && !genericWorkpiece && !packingOnly && !productionOnly;
-    if (purpose === "packing") return !genericWorkpiece && !productionOnly && key !== "variation_count";
+    if (purpose === "packing") return !genericWorkpiece && !productionOnly && key !== "variation_count" && !(source === "person" && key === "product");
     if (purpose === "production") return (!packingOnly || source === "order") && (!genericWorkpiece || source === "person_product");
     return true;
 }

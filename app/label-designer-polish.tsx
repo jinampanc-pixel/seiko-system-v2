@@ -60,6 +60,7 @@ function forceInteractiveCanvas(page: HTMLElement) {
 
 function groupForLabel(label: string) {
   if (label.startsWith("Person detail ·")) return "Person details";
+  if (/^(Trace code|Label number|Person number|Product number|Number within|Piece \/ pair|Package \/ set)/i.test(label)) return "Trace & codes";
   if (label.includes(" · ")) return `Product details · ${label.split(" · ")[0]}`;
   return "Core information";
 }
@@ -93,7 +94,7 @@ function organizeInformation(page: HTMLElement) {
     if (heading) heading.textContent = "Label information";
     if (note) note.textContent = "Choose the details that should appear on this label.";
 
-    const chosenCount = () => checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
+    const chosenCount = () => section.querySelectorAll(".labelInfoSelectedStripReact .labelInfoChip").length || checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "secondary labelInfoToggle";
@@ -202,7 +203,7 @@ function organizeInformation(page: HTMLElement) {
 
   const toggle = section.querySelector<HTMLButtonElement>(".labelInfoToggle");
   if (toggle && section.classList.contains("labelInfoCollapsed")) {
-    const count = checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
+    const count = section.querySelectorAll(".labelInfoSelectedStripReact .labelInfoChip").length || checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
     toggle.textContent = `Choose information · ${count} selected`;
   }
 }

@@ -63,7 +63,6 @@ export default function Home() {
       const saved = localStorage.getItem("jinam:selected-business");
       setBusinesses(next);
       setBusinessId(next.some(item => item.businessId === saved) ? saved! : next[0].businessId);
-      setModule("home");
     });
   }, []);
 
