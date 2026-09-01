@@ -9,8 +9,10 @@ const shortcuts = read("app/workspace-shortcuts.tsx");
 const structure = read("app/workspace-structure-interactions.tsx");
 const listCenter = read("app/seiko-list-center-enhancements.tsx");
 const listCss = read("app/seiko-list-center-enhancements.css");
+const operationalUx = read("app/seiko-operational-ux.tsx");
 const operationalCss = read("app/seiko-operational-ux.css");
 const labels = read("app/label-designer.tsx");
+const home = read("app/seiko-phase1.tsx");
 
 test("workspace has one authoritative header system", () => {
   assert.match(rowActions, /source-owned workspace now renders its own spreadsheet row headers/);
@@ -34,6 +36,18 @@ test("Order Center cannot return with invisible stale filters", () => {
   assert.match(listCenter, /resetFilterState\(\)/);
   assert.match(listCenter, /setNativeInputValue\(nativeSearch, ""\)/);
   assert.match(listCenter, /archivedNative\?\.checked/);
+});
+
+test("Order Center status is owned by the contextual menu", () => {
+  assert.match(operationalUx, /statusWrap\?\.setAttribute\("hidden", ""\)/);
+  assert.match(operationalUx, /orderMenuStatusControl/);
+  assert.match(operationalUx, /const select = nativeStatus\.cloneNode\(true\) as HTMLSelectElement/);
+  assert.match(operationalUx, /setNativeSelect\(nativeStatus, select\.value\)/);
+});
+
+test("Home Clear filters resets all active order-filter state", () => {
+  assert.match(home, /const clearFilters=\(\)=>\{setQuery\(""\);setStatus\(""\);setClientType\(""\);setProduct\(""\);setPage\(1\);\};/);
+  assert.match(home, /aria-label="Clear all order filters" onClick=\{clearFilters\}>Clear filters/);
 });
 
 test("Label Center rows open directly and action menus float above the list", () => {
