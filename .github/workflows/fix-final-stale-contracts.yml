@@ -1,0 +1,49 @@
+name: Fix final stale SEIKO contracts
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/fix-final-stale-contracts.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/veyn-milestone-one
+          fetch-depth: 0
+      - name: Align final contracts with accepted source behavior
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          p = Path('tests/foundation-contract.test.mjs')
+          text = p.read_text()
+          old = '  assert.match(labelDesigner, /Back to order/);'
+          new = '  assert.match(labelDesigner, /Back to Order/);'
+          if text.count(old) != 1:
+              raise SystemExit('foundation Back-to-Order assertion marker missing')
+          p.write_text(text.replace(old, new, 1))
+
+          p = Path('tests/seiko-operational-ux-contract.test.mjs')
+          text = p.read_text()
+          old = '  assert.match(labelDesigner, /packageProducts\\(record\\)\\.includes\\(recordFilterValue\\)/);'
+          new = '  assert.match(labelDesigner, /const filterNeedle = recordFilterValue\\.trim\\(\\)\\.toLowerCase\\(\\)/);\n  assert.match(labelDesigner, /packageProducts\\(record\\)\\.some\\(value => value\\.toLowerCase\\(\\)\\.includes\\(filterNeedle\\)\\)/);'
+          if text.count(old) != 1:
+              raise SystemExit('package fuzzy-filter assertion marker missing')
+          p.write_text(text.replace(old, new, 1))
+          PY
+
+          git config user.name "jinampanc-pixel"
+          git config user.email "jinampanc@gmail.com"
+          git rm .github/workflows/fix-final-stale-contracts.yml
+          git add tests
+          git commit -m "Align final SEIKO contracts with accepted behavior"
+          git push origin HEAD:fix/veyn-milestone-one
