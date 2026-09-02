@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
+const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
 const router = readFileSync(new URL("../app/business-application-router.tsx", import.meta.url), "utf8");
 const enhancements = readFileSync(new URL("../app/app-enhancements.tsx", import.meta.url), "utf8");
 const scheduler = readFileSync(new URL("../app/lib/dom-enhancement.ts", import.meta.url), "utf8");
@@ -74,7 +75,7 @@ test("Phase 1 removes prototype UI from the visible SEIKO home and menu", () => 
   assert.match(seikoPhase, /nextFlow\.style\.display = "none"/);
   assert.match(seikoPhase, /ACTIVE ORDERS/);
   assert.match(seikoPhase, /Open production/);
-  assert.match(seikoPhase, /Users & access/);
+  assert.match(page, /<span>Users & access<\/span>/);
   assert.match(seikoPhase, /\["Inventory", "Sales", "Delivery"\]/);
   assert.doesNotMatch(seikoPhase, /SEIKO · JINAM/);
   assert.match(catalog, /allowedModules: \["home", "orders", "labels", "scan", "trace", "production", "billing", "admin"\]/);
