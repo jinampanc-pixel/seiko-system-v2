@@ -74,7 +74,7 @@ function openLabelSaveChoice(page: HTMLElement) {
   const close = () => layer.remove();
   layer.querySelector<HTMLButtonElement>(".cancel")?.addEventListener("click", close);
   layer.addEventListener("click", event => { if (event.target === layer) close(); });
-  layer.querySelector<HTMLButtonElement>(".saveSet")?.addEventListener("click", () => { page.querySelector<HTMLButtonElement>(".labelHeaderSaveSet")?.click(); close(); });
+  layer.querySelector<HTMLButtonElement>(".saveSet")?.addEventListener("click", () => { const details=page.querySelector<HTMLDetailsElement>(".labelHeaderMore"); if(details) details.open=true; requestAnimationFrame(()=>{Array.from(page.querySelectorAll<HTMLButtonElement>(".labelHeaderMoreMenu button")).find(button=>/^(Save|Update) label set$/.test(button.textContent?.trim()||""))?.click(); close();}); });
   layer.querySelector<HTMLButtonElement>(".saveLayout")?.addEventListener("click", () => { const details=page.querySelector<HTMLDetailsElement>(".labelHeaderMore"); if(details) details.open=true; requestAnimationFrame(()=>{Array.from(page.querySelectorAll<HTMLButtonElement>(".labelHeaderMoreMenu button")).find(button=>/^(Save|Update) layout$/.test(button.textContent?.trim()||""))?.click(); close();}); });
   document.body.appendChild(layer); layer.querySelector<HTMLButtonElement>(".saveSet")?.focus();
 }
