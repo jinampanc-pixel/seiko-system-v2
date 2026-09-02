@@ -159,7 +159,7 @@ test("label designer preserves exact sizing and editable behaviour", () => {
   assert.match(labelDesigner, /canvasSizeButton/);
   assert.match(labelDesigner, /sequence/);
   assert.match(labelDesigner, /labelHeaderCommandBar/);
-  assert.match(labelDesigner, /More label actions/);
+  assert.match(labelDesigner, /aria-label="Label actions"/);
   assert.match(labelDesigner, />Print<\/button>/);
   assert.match(labelDesigner, /presets-v1/);
   assert.match(labelDesigner, /templates-v1/);
@@ -188,7 +188,7 @@ test("label output can be code only, information only or combined", () => {
   assert.match(orders, /onOpenLabelBatches\(\);}}>Labels<\/button>/);
   assert.match(page, /onOpenLabelBatches=/);
   assert.doesNotMatch(page, /onCreateLabel=/);
-  assert.match(labelDesigner, /Back to Order/);
+  assert.match(labelDesigner, /backLabel \|\| "← Back"/);
   assert.match(labelDesigner, /labelFieldOptions/);
   assert.match(labelDesigner, /spec:\$\{spec\.id\}/);
   assert.match(labelDesigner, /Find person, product, class, group or any order field/);
