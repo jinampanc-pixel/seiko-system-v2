@@ -1,0 +1,48 @@
+name: Restore SEIKO Production Once
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+    paths:
+      - .github/workflows/restore-production-once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seiko-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Checkout approved main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Verify exact main commit
+        run: |
+          test "$(git rev-parse HEAD)" = "a8c6fdd7d4fa028b1115fa41d62215291d7c86a8" || (echo "main moved; refusing automatic production restoration" && exit 1)
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate main before restore
+        run: npm test
+
+      - name: Restore production Worker from main
+        run: npm run deploy:cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
