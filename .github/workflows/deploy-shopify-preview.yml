@@ -216,7 +216,7 @@ jobs:
           PREVIEW_OWNER_EMAIL: ${{ steps.preview_owner.outputs.owner_email }}
           JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
         run: |
-          node --input-type=commonjs <<'NODE'
+          node --input-type=module <<'NODE'
           const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
           const base = 'https://seiko-system-v2-shopify-test.jinampanc.workers.dev';
           let last = '';
@@ -240,7 +240,7 @@ jobs:
 
       - name: Smoke test isolated preview
         run: |
-          node --input-type=commonjs <<'NODE'
+          node --input-type=module <<'NODE'
           const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
           const base = 'https://seiko-system-v2-shopify-test.jinampanc.workers.dev';
           let last = '';
