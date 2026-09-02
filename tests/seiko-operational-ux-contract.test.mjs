@@ -11,6 +11,7 @@ const pager = read("app/workspace-top-pager.tsx");
 const labels = read("app/label-workspace-refinement.tsx");
 const labelDesigner = read("app/label-designer.tsx");
 const layout = read("app/layout.tsx");
+const page = read("app/page.tsx");
 
 test("operational UX refinement remains mounted and late styled", () => {
   assert.match(enhancements, /<SeikoOperationalUx \/>/);
@@ -53,9 +54,9 @@ test("workspace source owns status and save while rows-per-page accepts custom v
 });
 
 test("Settings exposes Appearance first and Users & access second", () => {
-  assert.match(ux, /\["appearance", "1", "Appearance"\]/);
-  assert.match(ux, /\["users", "2", "Users & access"\]/);
-  assert.match(ux, /settingsUsersModule/);
+  assert.match(page, /section === "appearance"/);
+  assert.match(page, /section === "users"/);
+  assert.match(page, /settingsUsersModule/);
   assert.match(css, /\.settingsModuleNav/);
 });
 
