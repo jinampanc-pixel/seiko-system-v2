@@ -16,7 +16,6 @@ concurrency:
 env:
   PREVIEW_WORKER_NAME: seiko-system-v2-shopify-test
   PREVIEW_DB_NAME: seiko-system-v2-shopify-test-db
-  PRODUCTION_DB_NAME: seiko-system-v2-db
 
 jobs:
   deploy:
@@ -92,21 +91,45 @@ jobs:
           fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
           NODE
 
-      - name: Seed preview owner with test-only password
+      - name: Seed isolated preview owner
         id: preview_owner
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PREVIEW_DB_ID: ${{ steps.d1.outputs.database_id }}
-          JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
         run: |
           set -euo pipefail
-          LIST_JSON="$(npx wrangler d1 list --json)"
-          PROD_DB_ID="$(D1_LIST="$LIST_JSON" DB_NAME="$PRODUCTION_DB_NAME" node -e 'const rows=JSON.parse(process.env.D1_LIST||"[]"); const row=rows.find(x=>x.name===process.env.DB_NAME); process.stdout.write(row?.uuid||row?.id||"")')"
-          test -n "$PROD_DB_ID" || (echo "Could not resolve production D1 database for owner-only auth bootstrap" && exit 1)
+          PREVIEW_USER_ID="preview-owner"
+          PREVIEW_OWNER_EMAIL="preview-owner@jinam.invalid"
+          PREVIEW_OWNER_NAME="Jinam Preview Owner"
+          PREVIEW_MEMBERSHIP_ID="preview-owner-meth"
+          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
           cat > /tmp/preview-auth-schema.sql <<'SQL'
-          CREATE TABLE IF NOT EXISTS erp_users (
+          DROP TABLE IF EXISTS erp_sessions;
+          DROP TABLE IF EXISTS erp_auth_events;
+          DROP TABLE IF EXISTS erp_platform_roles;
+          DROP TABLE IF EXISTS erp_users;
+          DROP TABLE IF EXISTS erp_memberships;
+
+          CREATE TABLE erp_memberships (
+            id TEXT PRIMARY KEY NOT NULL,
+            business_id TEXT NOT NULL,
+            user_id TEXT,
+            email TEXT NOT NULL,
+            display_name TEXT,
+            role TEXT NOT NULL,
+            modules_json TEXT,
+            active INTEGER DEFAULT 1 NOT NULL,
+            created_at TEXT NOT NULL,
+            created_by_email TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            updated_by_email TEXT NOT NULL
+          );
+          CREATE UNIQUE INDEX erp_memberships_business_email_uq ON erp_memberships(business_id,email);
+          CREATE INDEX erp_memberships_email_idx ON erp_memberships(email,active);
+          CREATE INDEX erp_memberships_business_role_idx ON erp_memberships(business_id,role,active);
+
+          CREATE TABLE erp_users (
             id TEXT PRIMARY KEY NOT NULL,
             email TEXT NOT NULL,
             phone_e164 TEXT,
@@ -121,48 +144,44 @@ jobs:
             updated_at TEXT NOT NULL,
             updated_by_email TEXT NOT NULL
           );
-          CREATE UNIQUE INDEX IF NOT EXISTS erp_users_email_uq ON erp_users(email);
-          CREATE UNIQUE INDEX IF NOT EXISTS erp_users_phone_uq ON erp_users(phone_e164);
-          CREATE TABLE IF NOT EXISTS erp_memberships (
+          CREATE UNIQUE INDEX erp_users_email_uq ON erp_users(email);
+          CREATE UNIQUE INDEX erp_users_phone_uq ON erp_users(phone_e164);
+
+          CREATE TABLE erp_sessions (
             id TEXT PRIMARY KEY NOT NULL,
             user_id TEXT NOT NULL,
-            business_id TEXT NOT NULL,
-            role TEXT NOT NULL,
-            active INTEGER DEFAULT 1 NOT NULL,
+            token_hash TEXT NOT NULL,
             created_at TEXT NOT NULL,
-            created_by_email TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            updated_by_email TEXT NOT NULL
+            last_seen_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            revoked_at TEXT,
+            user_agent TEXT
           );
-          CREATE UNIQUE INDEX IF NOT EXISTS erp_memberships_user_business_uq ON erp_memberships(user_id, business_id);
+          CREATE UNIQUE INDEX erp_sessions_token_uq ON erp_sessions(token_hash);
+          CREATE INDEX erp_sessions_user_active_idx ON erp_sessions(user_id,revoked_at,expires_at);
+
+          CREATE TABLE erp_auth_events (
+            id TEXT PRIMARY KEY NOT NULL,
+            user_id TEXT,
+            email TEXT,
+            identifier_hash TEXT NOT NULL,
+            ip_hash TEXT NOT NULL,
+            event TEXT NOT NULL,
+            success INTEGER DEFAULT 0 NOT NULL,
+            at TEXT NOT NULL,
+            details_json TEXT
+          );
+          CREATE INDEX erp_auth_events_identifier_idx ON erp_auth_events(identifier_hash,at);
+          CREATE INDEX erp_auth_events_ip_idx ON erp_auth_events(ip_hash,at);
+          CREATE INDEX erp_auth_events_user_idx ON erp_auth_events(user_id,at);
           SQL
           npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --file=/tmp/preview-auth-schema.sql
 
-          OWNER_JSON="$(npx wrangler d1 execute "$PRODUCTION_DB_NAME" --remote --json --command="SELECT u.email, u.display_name, m.business_id, m.role FROM erp_users u JOIN erp_memberships m ON m.user_id = u.id WHERE lower(m.role) = 'owner' AND u.active = 1 AND m.active = 1 ORDER BY u.created_at ASC LIMIT 1;")"
-          OWNER_EMAIL="$(OWNER_JSON="$OWNER_JSON" node -e 'const raw=JSON.parse(process.env.OWNER_JSON||"[]"); const rows=Array.isArray(raw)?(raw[0]?.results||raw[0]?.result||[]):[]; process.stdout.write(rows[0]?.email||"")')"
-          OWNER_NAME="$(OWNER_JSON="$OWNER_JSON" node -e 'const raw=JSON.parse(process.env.OWNER_JSON||"[]"); const rows=Array.isArray(raw)?(raw[0]?.results||raw[0]?.result||[]):[]; process.stdout.write(rows[0]?.display_name||"Owner")')"
-          OWNER_BUSINESS="$(OWNER_JSON="$OWNER_JSON" node -e 'const raw=JSON.parse(process.env.OWNER_JSON||"[]"); const rows=Array.isArray(raw)?(raw[0]?.results||raw[0]?.result||[]):[]; process.stdout.write(rows[0]?.business_id||"")')"
-          OWNER_ROLE="$(OWNER_JSON="$OWNER_JSON" node -e 'const raw=JSON.parse(process.env.OWNER_JSON||"[]"); const rows=Array.isArray(raw)?(raw[0]?.results||raw[0]?.result||[]):[]; process.stdout.write(rows[0]?.role||"owner")')"
-          test -n "$OWNER_EMAIL" || (echo "No active production owner available for preview bootstrap" && exit 1)
-          test -n "$OWNER_BUSINESS" || (echo "No active owner business available for preview bootstrap" && exit 1)
-
-          PASSWORD_HASH="$(PASSWORD="$JINAM_PREVIEW_ADMIN_PASSWORD" node - <<'NODE'
-          const crypto = require('node:crypto');
-          const password = process.env.PASSWORD;
-          const iterations = 310000;
-          const digest = 'sha256';
-          const salt = crypto.randomBytes(16).toString('base64url');
-          const hash = crypto.pbkdf2Sync(password, salt, iterations, 32, digest).toString('base64url');
-          process.stdout.write(`pbkdf2$${digest}$${iterations}$${salt}$${hash}`);
-          NODE
-          )"
-          PREVIEW_USER_ID="preview-owner"
-          PREVIEW_MEMBERSHIP_ID="preview-owner-membership"
-          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           esc() { printf "%s" "$1" | sed "s/'/''/g"; }
-          SQL="INSERT OR REPLACE INTO erp_users (id,email,display_name,password_hash,must_change_password,active,password_updated_at,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_USER_ID")','$(esc "$OWNER_EMAIL")','$(esc "$OWNER_NAME")','$(esc "$PASSWORD_HASH")',0,1,'$(esc "$NOW")','$(esc "$NOW")','preview','$(esc "$NOW")','preview'); INSERT OR REPLACE INTO erp_memberships (id,user_id,business_id,role,active,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_MEMBERSHIP_ID")','$(esc "$PREVIEW_USER_ID")','$(esc "$OWNER_BUSINESS")','$(esc "$OWNER_ROLE")',1,'$(esc "$NOW")','preview','$(esc "$NOW")','preview');"
+          METH_MODULES='{"modules":["home","orders","labels","scan","trace","production","inventory","sales","billing","delivery","admin"],"permissions":[]}'
+          SQL="INSERT INTO erp_users (id,email,display_name,password_hash,must_change_password,active,password_updated_at,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_USER_ID")','$(esc "$PREVIEW_OWNER_EMAIL")','$(esc "$PREVIEW_OWNER_NAME")',NULL,0,1,'$(esc "$NOW")','$(esc "$NOW")','preview','$(esc "$NOW")','preview'); INSERT INTO erp_memberships (id,business_id,user_id,email,display_name,role,modules_json,active,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_MEMBERSHIP_ID")','meth','$(esc "$PREVIEW_USER_ID")','$(esc "$PREVIEW_OWNER_EMAIL")','$(esc "$PREVIEW_OWNER_NAME")','owner','$(esc "$METH_MODULES")',1,'$(esc "$NOW")','preview','$(esc "$NOW")','preview');"
           npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --command="$SQL"
-          echo "owner_email=$OWNER_EMAIL" >> "$GITHUB_OUTPUT"
+          echo "owner_email=$PREVIEW_OWNER_EMAIL" >> "$GITHUB_OUTPUT"
 
       - name: Deploy isolated preview worker
         env:
@@ -193,10 +212,10 @@ jobs:
           let last = '';
           for (let i = 0; i < 12; i++) {
             try {
-              const response = await fetch(`${base}/api/auth/login`, {
+              const response = await fetch(`${base}/api/erp/auth/login`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ email: process.env.PREVIEW_OWNER_EMAIL, password: process.env.JINAM_PREVIEW_ADMIN_PASSWORD }),
+                body: JSON.stringify({ identifier: process.env.PREVIEW_OWNER_EMAIL, password: process.env.JINAM_PREVIEW_ADMIN_PASSWORD }),
               });
               last = `${response.status} ${await response.text()}`;
               if (response.ok) process.exit(0);
