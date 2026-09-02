@@ -148,14 +148,14 @@ test("label record hover uses resolved package products and actual person fields
   assert.doesNotMatch(labelDesigner, /\[record\.name, record\.group, sourceMode === "person"/);
 });
 
-test("Save label set is a direct primary action and Ctrl or Cmd S asks what to save", () => {
-  assert.match(labelDesigner, /labelHeaderSaveSet/);
+test("Save label set stays in header actions and Ctrl or Cmd S asks what to save", () => {
+  assert.match(labelDesigner, /labelHeaderMenuPrimary/);
   assert.match(labelDesigner, /Save label set/);
   assert.match(refinement, /openLabelSaveChoice/);
   assert.match(refinement, /event\.ctrlKey \|\| event\.metaKey/);
   assert.match(refinement, /Save label set/);
   assert.match(refinement, /Save layout/);
-  assert.match(refinement, /labelHeaderSaveSet/);
+  assert.doesNotMatch(refinement, /labelHeaderSaveSet/);
   assert.match(refinement, /labelHeaderMore/);
 });
 
