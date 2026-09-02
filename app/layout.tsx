@@ -38,6 +38,7 @@ import "./seiko-workspace-label-final.css";
 import "./seiko-list-center-enhancements.css";
 import "./seiko-refinement.css";
 import "./seiko-operational-ux.css";
+import "./seiko-interface-fixes.css";
 import { AccessProvider } from "./access-control";
 import { BusinessApplicationRouter } from "./business-application-router";
 

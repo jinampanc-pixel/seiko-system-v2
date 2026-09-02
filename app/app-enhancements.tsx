@@ -23,6 +23,7 @@ import { SeikoPhase2Gate } from "./seiko-phase2-gate";
 import { SeikoLibraryAutofill } from "./seiko-library-autofill";
 import { SeikoListCenterEnhancements } from "./seiko-list-center-enhancements";
 import { SeikoOperationalUx } from "./seiko-operational-ux";
+import { SeikoInterfaceFixes } from "./seiko-interface-fixes";
 import { SeikoMethSync } from "./seiko-meth-sync";
 import { MethServerSync } from "./meth-server-sync";
 
@@ -42,6 +43,7 @@ export function AppEnhancements() {
     <LabelFlowPolish />
     <LabelDesignerPolish />
     <LabelProductionReady />
+    <SeikoInterfaceFixes />
     <LabelFinalization />
     <LabelDesignerInteractions />
     <LabelWorkspaceRefinement />

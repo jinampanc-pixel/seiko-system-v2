@@ -2,11 +2,10 @@
 
 import { useEffect } from "react";
 
-const RIGHT_PRINT_SAFE_MM = 1.5;
-
 /**
- * Narrow interaction adapter for behaviours that need pointer/document scope.
- * Label data and form state remain owned by LabelDesigner.
+ * Pointer/document-scope helpers for the label designer.
+ * Label geometry remains owned by LabelDesigner; this adapter must never
+ * reserve hidden canvas space or rewrite an element's saved position.
  */
 export function LabelDesignerInteractions() {
   useEffect(() => {
@@ -14,59 +13,6 @@ export function LabelDesignerInteractions() {
     let draggedElement: HTMLElement | null = null;
     let removeArmed = false;
     let animationFrame = 0;
-
-    const labelWidthMm = (page: HTMLElement) => {
-      const text = page.querySelector<HTMLElement>(".canvasToolbar b")?.textContent || "";
-      const match = text.match(/([\d.]+)\s*[×x]\s*[\d.]+\s*mm/i);
-      const width = Number(match?.[1]);
-      return Number.isFinite(width) && width > RIGHT_PRINT_SAFE_MM ? width : 50;
-    };
-
-    const clampPreviewRightEdge = (page: HTMLElement) => {
-      const canvas = page.querySelector<HTMLElement>(".labelCanvas");
-      if (!canvas) return;
-
-      const widthMm = labelWidthMm(page);
-      const safePercent = RIGHT_PRINT_SAFE_MM / widthMm * 100;
-      const safeValue = `${safePercent}%`;
-      if (canvas.style.getPropertyValue("--label-right-safe-pct") !== safeValue) {
-        canvas.style.setProperty("--label-right-safe-pct", safeValue);
-      }
-      canvas.dataset.rightSafeMm = String(RIGHT_PRINT_SAFE_MM);
-
-      canvas.querySelectorAll<HTMLElement>(".canvasElement").forEach(element => {
-        if (element === draggedElement) return;
-        const left = Number.parseFloat(element.style.left);
-        const width = Number.parseFloat(element.style.width);
-        if (!Number.isFinite(left) || !Number.isFinite(width)) return;
-        const maxLeft = Math.max(0, 100 - safePercent - width);
-        const nextLeft = Math.min(left, maxLeft);
-        if (Math.abs(nextLeft - left) > 0.001) {
-          element.dataset.rightSafeOriginalLeft = String(left);
-          element.style.left = `${nextLeft}%`;
-        }
-      });
-    };
-
-    const clampPrintedRightEdge = (page: HTMLElement) => {
-      const widthMm = labelWidthMm(page);
-      const maxRight = widthMm - RIGHT_PRINT_SAFE_MM;
-      page.querySelectorAll<HTMLElement>(".printedLabel").forEach(label => {
-        label.querySelectorAll<HTMLElement>(".printedElement").forEach(element => {
-          const left = Number.parseFloat(element.style.left);
-          const width = Number.parseFloat(element.style.width);
-          if (!Number.isFinite(left) || !Number.isFinite(width)) return;
-          const maxLeft = Math.max(0, maxRight - width);
-          const nextLeft = Math.min(left, maxLeft);
-          if (Math.abs(nextLeft - left) > 0.001) element.style.left = `${nextLeft}mm`;
-        });
-      });
-    };
-
-    const applyPrintSafety = (page: HTMLElement) => {
-      clampPreviewRightEdge(page);
-      clampPrintedRightEdge(page);
-    };
 
     const ensureDeleteTarget = (page: HTMLElement) => {
       const panel = page.querySelector<HTMLElement>(".labelCanvasPanel");
@@ -115,7 +61,6 @@ export function LabelDesignerInteractions() {
         ensureDeleteTarget(page);
         placeSizeEditor(page);
         enhanceInformation(page);
-        applyPrintSafety(page);
       });
     };
 
@@ -187,9 +132,6 @@ export function LabelDesignerInteractions() {
         return;
       }
 
-      // React owns showSizes/createSize. Because this editor is visually relocated,
-      // remove the relocated DOM node after React has processed the click so an
-      // orphan cannot remain visible after Cancel or Save.
       window.setTimeout(() => {
         if (editor.isConnected) editor.remove();
       }, 0);
@@ -211,13 +153,6 @@ export function LabelDesignerInteractions() {
       draggedPage = page;
       draggedElement = element;
       removeArmed = false;
-
-      const originalLeft = Number.parseFloat(element.dataset.rightSafeOriginalLeft || "");
-      if (Number.isFinite(originalLeft)) {
-        element.style.left = `${originalLeft}%`;
-        delete element.dataset.rightSafeOriginalLeft;
-      }
-
       setDeleteState(target, false);
     };
 
@@ -245,39 +180,15 @@ export function LabelDesignerInteractions() {
       removeArmed = overTarget || pulledBelowLabel;
       setDeleteState(target, removeArmed);
       draggedElement.classList.toggle("deleteArmed", removeArmed);
-      scheduleEnhance();
     };
 
-    const nudgeReactDragInsideSafeArea = (event: PointerEvent, page: HTMLElement, element: HTMLElement) => {
-      const canvas = page.querySelector<HTMLElement>(".labelCanvas");
-      if (!canvas || !element.hasPointerCapture(event.pointerId)) return;
-      const canvasRect = canvas.getBoundingClientRect();
-      const elementRect = element.getBoundingClientRect();
-      const safeRight = canvasRect.right - canvasRect.width * RIGHT_PRINT_SAFE_MM / labelWidthMm(page);
-      const overflowPx = elementRect.right - safeRight;
-      if (overflowPx <= 0.5) return;
-
-      element.dispatchEvent(new PointerEvent("pointermove", {
-        bubbles: true,
-        cancelable: true,
-        pointerId: event.pointerId,
-        pointerType: event.pointerType,
-        clientX: event.clientX - overflowPx,
-        clientY: event.clientY,
-        buttons: event.buttons,
-        pressure: event.pressure,
-      }));
-    };
-
-    const finishDrag = (event: PointerEvent) => {
+    const finishDrag = () => {
       if (!draggedPage) return;
 
       const page = draggedPage;
       const element = draggedElement;
       const shouldRemove = removeArmed;
       const target = page.querySelector<HTMLElement>(".labelDragDeleteTarget");
-
-      if (!shouldRemove && element) nudgeReactDragInsideSafeArea(event, page, element);
 
       target?.classList.remove("visible", "armed");
       element?.classList.remove("deleteArmed");
@@ -286,30 +197,35 @@ export function LabelDesignerInteractions() {
       removeArmed = false;
 
       if (shouldRemove) {
-        // Use LabelDesigner's own remove action so layouts and print state stay in sync.
         window.setTimeout(() => {
           page.querySelector<HTMLButtonElement>('.labelProperties .iconButton[aria-label="Remove selected element"]')?.click();
         }, 0);
-        return;
       }
-
-      requestAnimationFrame(() => applyPrintSafety(page));
     };
 
-    const beforePrint = () => {
-      document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(applyPrintSafety);
+    const closeHeaderMenuOutside = (event: Event) => {
+      const target = event.target as Node | null;
+      document.querySelectorAll<HTMLDetailsElement>(".labelDesignerPage .labelHeaderMore[open]").forEach(details => {
+        if (!target || !details.contains(target)) details.open = false;
+      });
+    };
+
+    const closeHeaderMenuOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      document.querySelectorAll<HTMLDetailsElement>(".labelDesignerPage .labelHeaderMore[open]").forEach(details => { details.open = false; });
     };
 
     enhance();
     const observer = new MutationObserver(scheduleEnhance);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style"] });
+    observer.observe(document.body, { childList: true, subtree: true });
     document.addEventListener("click", handleControlClick, true);
     document.addEventListener("pointerdown", beginDrag, true);
     document.addEventListener("pointermove", updateDrag, true);
     document.addEventListener("pointerup", finishDrag, true);
     document.addEventListener("pointercancel", finishDrag, true);
-    window.addEventListener("beforeprint", beforePrint);
-    window.addEventListener("resize", scheduleEnhance);
+    document.addEventListener("pointerdown", closeHeaderMenuOutside, true);
+    document.addEventListener("focusin", closeHeaderMenuOutside, true);
+    document.addEventListener("keydown", closeHeaderMenuOnEscape, true);
 
     return () => {
       observer.disconnect();
@@ -318,8 +234,9 @@ export function LabelDesignerInteractions() {
       document.removeEventListener("pointermove", updateDrag, true);
       document.removeEventListener("pointerup", finishDrag, true);
       document.removeEventListener("pointercancel", finishDrag, true);
-      window.removeEventListener("beforeprint", beforePrint);
-      window.removeEventListener("resize", scheduleEnhance);
+      document.removeEventListener("pointerdown", closeHeaderMenuOutside, true);
+      document.removeEventListener("focusin", closeHeaderMenuOutside, true);
+      document.removeEventListener("keydown", closeHeaderMenuOnEscape, true);
       if (animationFrame) cancelAnimationFrame(animationFrame);
     };
   }, []);
