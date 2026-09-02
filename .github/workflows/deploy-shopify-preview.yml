@@ -71,24 +71,34 @@ jobs:
           test -n "$DB_ID" || (echo "Could not resolve isolated preview D1 database ID" && exit 1)
           echo "database_id=$DB_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Point build at isolated preview resources
+      - name: Point generated deployment at isolated preview resources
         env:
           PREVIEW_DB_ID: ${{ steps.d1.outputs.database_id }}
         run: |
-          node <<'NODE'
+          node --input-type=commonjs <<'NODE'
           const fs = require('node:fs');
-          const path = 'wrangler.jsonc';
-          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
-          config.name = process.env.PREVIEW_WORKER_NAME;
-          if (!Array.isArray(config.d1_databases) || !config.d1_databases[0]) throw new Error('D1 binding missing');
-          config.d1_databases[0].database_name = process.env.PREVIEW_DB_NAME;
-          config.d1_databases[0].database_id = process.env.PREVIEW_DB_ID;
-          config.vars = {
-            ...(config.vars || {}),
-            SHOPIFY_SCOPES: 'read_orders',
-            JINAM_ENVIRONMENT: 'shopify-test',
-          };
-          fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
+          const paths = ['wrangler.jsonc', 'dist/server/wrangler.json'];
+          for (const path of paths) {
+            if (!fs.existsSync(path)) throw new Error(`Required Wrangler config missing: ${path}`);
+            const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+            config.name = process.env.PREVIEW_WORKER_NAME;
+            if (!Array.isArray(config.d1_databases) || !config.d1_databases[0]) throw new Error(`D1 binding missing in ${path}`);
+            config.d1_databases[0].database_name = process.env.PREVIEW_DB_NAME;
+            config.d1_databases[0].database_id = process.env.PREVIEW_DB_ID;
+            config.vars = {
+              ...(config.vars || {}),
+              SHOPIFY_SCOPES: 'read_orders',
+              JINAM_ENVIRONMENT: 'shopify-test',
+            };
+            fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
+          }
+
+          const deployed = JSON.parse(fs.readFileSync('dist/server/wrangler.json', 'utf8'));
+          if (deployed.name !== process.env.PREVIEW_WORKER_NAME) throw new Error('Generated deploy config targets the wrong Worker');
+          const db = deployed.d1_databases?.[0];
+          if (db?.database_name !== process.env.PREVIEW_DB_NAME || db?.database_id !== process.env.PREVIEW_DB_ID) {
+            throw new Error('Generated deploy config targets the wrong D1 database');
+          }
           NODE
 
       - name: Seed isolated preview owner
@@ -187,7 +197,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy
+        run: npx wrangler deploy --name "$PREVIEW_WORKER_NAME"
 
       - name: Configure preview secrets
         env:
@@ -206,8 +216,8 @@ jobs:
           PREVIEW_OWNER_EMAIL: ${{ steps.preview_owner.outputs.owner_email }}
           JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
         run: |
-          node <<'NODE'
-          const { setTimeout: sleep } = require('node:timers/promises');
+          node --input-type=commonjs <<'NODE'
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
           const base = 'https://seiko-system-v2-shopify-test.jinampanc.workers.dev';
           let last = '';
           for (let i = 0; i < 12; i++) {
@@ -230,8 +240,8 @@ jobs:
 
       - name: Smoke test isolated preview
         run: |
-          node <<'NODE'
-          const { setTimeout: sleep } = require('node:timers/promises');
+          node --input-type=commonjs <<'NODE'
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
           const base = 'https://seiko-system-v2-shopify-test.jinampanc.workers.dev';
           let last = '';
           for (let i = 0; i < 12; i++) {
