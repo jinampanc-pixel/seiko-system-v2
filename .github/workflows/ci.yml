@@ -29,5 +29,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Run tests and production build
-        run: npm test
+      - name: Contract tests
+        run: npm run test:contracts
+
+      - name: Production build
+        run: npm run build
+
+      - name: Render checks
+        run: npm run test:render
