@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const interactions = readFileSync(new URL("../app/label-designer-interactions.tsx", import.meta.url), "utf8");
 const labelPolish = readFileSync(new URL("../app/label-designer-polish.tsx", import.meta.url), "utf8");
 const labelControls = readFileSync(new URL("../app/label-controls.css", import.meta.url), "utf8");
-const labelPrintSafety = readFileSync(new URL("../app/label-print-safety.css", import.meta.url), "utf8");
+const interfaceFixes = readFileSync(new URL("../app/seiko-interface-fixes.css", import.meta.url), "utf8");
 const controlConsistency = readFileSync(new URL("../app/control-consistency.css", import.meta.url), "utf8");
 const navigationCss = readFileSync(new URL("../app/global-navigation.css", import.meta.url), "utf8");
 const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
@@ -30,13 +30,13 @@ test("native checkboxes and radios use the active business accent", () => {
   assert.match(layout, /control-consistency\.css/);
 });
 
-test("label preview and print reserve a 1.5 mm right safety boundary", () => {
-  assert.match(interactions, /RIGHT_PRINT_SAFE_MM = 1\.5/);
-  assert.match(interactions, /clampPreviewRightEdge/);
-  assert.match(interactions, /clampPrintedRightEdge/);
-  assert.match(interactions, /beforeprint/);
-  assert.match(labelPrintSafety, /--label-right-safe-pct/);
-  assert.match(layout, /label-print-safety\.css/);
+test("label preview uses the complete physical canvas without a hidden right exclusion", () => {
+  assert.doesNotMatch(interactions, /RIGHT_PRINT_SAFE_MM/);
+  assert.doesNotMatch(interactions, /clampPreviewRightEdge/);
+  assert.doesNotMatch(interactions, /clampPrintedRightEdge/);
+  assert.match(interfaceFixes, /\.labelDesignerPage \.labelCanvas::after\s*\{[\s\S]*?display:none!important/);
+  assert.match(interfaceFixes, /\.labelDesignerPage \.canvasElement\.element-text[\s\S]*?padding:0!important/);
+  assert.match(layout, /seiko-interface-fixes\.css/);
 });
 
 test("business navigator is the bottom-most menu control", () => {
