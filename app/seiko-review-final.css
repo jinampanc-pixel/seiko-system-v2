@@ -1,17 +1,17 @@
 /* Final review-only stabilization. Loaded last. */
 
-/* Drawer/menu: business selector first, no blank cap, always fits viewport. */
-.moduleMenu.reviewFinalMenu{position:fixed!important;top:82px!important;right:0!important;bottom:0!important;left:auto!important;height:auto!important;max-height:calc(100dvh - 82px)!important;min-height:0!important;width:min(360px,92vw)!important;padding:10px 12px 12px!important;overflow-y:auto!important;overflow-x:hidden!important;align-content:start!important;gap:3px!important}
+/* Drawer/menu: occupy the literal viewport-right edge from top to bottom. */
+.moduleMenu.reviewFinalMenu{position:fixed!important;top:0!important;right:0!important;bottom:0!important;left:auto!important;height:100dvh!important;max-height:100dvh!important;min-height:0!important;width:min(360px,92vw)!important;padding:14px 12px 12px!important;overflow-y:auto!important;overflow-x:hidden!important;align-content:start!important;gap:3px!important;z-index:500!important}
 .moduleMenu.reviewFinalMenu>.moduleMenuHead{display:none!important}
 .moduleMenu.reviewFinalMenu>.globalBusinessNavigator{order:-100!important;margin:0 0 8px!important;min-height:46px!important;flex:0 0 auto!important}
 .moduleMenu.reviewFinalMenu>.nav{min-height:42px!important;height:42px!important;margin:0!important;padding:4px 10px!important}
 .moduleMenu.reviewFinalMenu>.moduleMenuSettings{margin-top:5px!important;padding-top:6px!important}
 .moduleMenu.reviewFinalMenu>.moduleMenuSettings .nav{height:42px!important;min-height:42px!important}
 
-/* Home: informational metrics remain compact; customize action is literally the final bottom-right action. */
+/* Home: the customize action is the final control after the complete Home content. */
 .seikoOperationalDashboard{padding-bottom:8px!important}
-.seikoOperationalDashboard>.reviewFinalDashboardFooter{display:flex!important;justify-content:flex-end!important;align-items:center!important;margin-top:22px!important;padding-top:12px!important;border-top:1px solid var(--line)!important}
-.seikoOperationalDashboard>.reviewFinalDashboardFooter button{min-height:34px!important;padding:0 12px!important}
+.overview>.reviewFinalDashboardFooter,.reviewFinalDashboardHost>.reviewFinalDashboardFooter{display:flex!important;justify-content:flex-end!important;align-items:center!important;margin-top:18px!important;padding-top:12px!important;border-top:1px solid var(--line)!important}
+.overview>.reviewFinalDashboardFooter button,.reviewFinalDashboardHost>.reviewFinalDashboardFooter button{min-height:34px!important;padding:0 12px!important}
 .seikoOperationalDashboard .seikoDashboardHeadActions:empty{display:none!important}
 
 /* Order Center: back is its own row; title and new order return to normal header geometry. */
@@ -25,11 +25,11 @@
 .ordersPage .orderRowClickable>div:first-child{display:grid!important;gap:1px!important}
 .ordersPage .orderCenterOperationalMeta{margin-top:2px!important;gap:7px!important}
 
-/* Packing canvas: use the full editor width and keep geometry visually faithful. */
-.packingWorkflowDesigner.reviewFinalPacking .packingDesignerGrid{grid-template-columns:minmax(0,1fr) 320px!important;gap:12px!important;align-items:stretch!important}
-.packingWorkflowDesigner.reviewFinalPacking .labelCanvasPanel{min-width:0!important}
-.packingWorkflowDesigner.reviewFinalPacking .labelStageV2{padding:12px!important;overflow:visible!important;display:grid!important;place-items:center!important}
-.packingWorkflowDesigner.reviewFinalPacking .packingCanvas{width:min(100%,980px)!important;max-width:980px!important;height:auto!important;aspect-ratio:2/1!important;overflow:hidden!important}
+/* Packing canvas: preserve the native 50 x 25 mm preview geometry instead of collapsing it. */
+.packingWorkflowDesigner.reviewFinalPacking .packingDesignerGrid{grid-template-columns:minmax(0,1fr) 320px!important;gap:12px!important;align-items:start!important}
+.packingWorkflowDesigner.reviewFinalPacking .labelCanvasPanel{min-width:0!important;align-self:start!important}
+.packingWorkflowDesigner.reviewFinalPacking .labelStageV2{padding:18px!important;min-height:236px!important;height:236px!important;overflow:auto!important;display:grid!important;place-items:center!important}
+.packingWorkflowDesigner.reviewFinalPacking .packingCanvas{width:400px!important;height:200px!important;min-width:400px!important;min-height:200px!important;max-width:none!important;max-height:none!important;aspect-ratio:auto!important;overflow:hidden!important;flex:none!important}
 .packingWorkflowDesigner.reviewFinalPacking .packingFitText{padding:0!important;margin:0!important;line-height:1.02!important;overflow:hidden!important;transform:none!important}
 .packingWorkflowDesigner.reviewFinalPacking .packingInspectorBar{grid-template-columns:minmax(120px,1fr) minmax(155px,190px) 115px 115px auto!important;gap:8px!important;align-items:end!important;padding:8px 10px!important}
 .packingWorkflowDesigner.reviewFinalPacking .packingInspectorHint{display:none!important}
@@ -37,9 +37,9 @@
 .packingWorkflowDesigner.reviewFinalPacking .packingFitBoxButton{min-height:34px!important;height:34px!important;white-space:nowrap!important}
 .packingWorkflowDesigner.reviewFinalPacking .canvasElement.selected{outline:2px solid #087eae!important;outline-offset:0!important}
 
-/* Keep record selector visually aligned with canvas. */
-.packingWorkflowDesigner.reviewFinalPacking .labelSidebar{height:100%!important;display:flex!important;flex-direction:column!important}
-.packingWorkflowDesigner.reviewFinalPacking .labelSidebar .recordList{flex:1 1 auto!important;max-height:none!important;min-height:300px!important}
+/* The long record list scrolls inside its own column and never stretches the canvas stage. */
+.packingWorkflowDesigner.reviewFinalPacking .labelSidebar{height:auto!important;max-height:640px!important;min-height:0!important;display:flex!important;flex-direction:column!important;align-self:start!important;overflow:hidden!important}
+.packingWorkflowDesigner.reviewFinalPacking .labelSidebar .recordList{flex:1 1 auto!important;max-height:470px!important;min-height:180px!important;overflow-y:auto!important}
 
 /* Replace the old escape-to-generic-designer trace action with inline controls. */
 .packingWorkflowDesigner .reviewOldTraceHidden{display:none!important}
@@ -58,12 +58,14 @@
 .reviewPrintExtra .reviewBarcode{width:100%!important;height:100%!important}
 
 @media(max-width:980px){
-  .moduleMenu.reviewFinalMenu{top:72px!important;max-height:calc(100dvh - 72px)!important}
   .packingWorkflowDesigner.reviewFinalPacking .packingDesignerGrid{grid-template-columns:1fr!important}
   .packingWorkflowDesigner.reviewFinalPacking .packingInspectorBar{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .packingWorkflowDesigner.reviewFinalPacking .labelSidebar{max-height:420px!important}
+  .packingWorkflowDesigner.reviewFinalPacking .labelSidebar .recordList{max-height:260px!important}
 }
 @media(max-width:700px){
   .ordersPage .orderCenterHead.reviewFinalOrderHead{align-items:flex-start!important;flex-direction:column!important}
   .ordersPage .orderCenterHead.reviewFinalOrderHead>button.primary{margin-left:0!important}
   .packingWorkflowDesigner.reviewFinalPacking .packingInspectorBar{grid-template-columns:1fr 1fr!important}
+  .packingWorkflowDesigner.reviewFinalPacking .packingCanvas{width:400px!important;height:200px!important}
 }
