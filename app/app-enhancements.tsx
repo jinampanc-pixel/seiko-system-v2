@@ -43,8 +43,8 @@ export function AppEnhancements() {
     <LabelFlowPolish />
     <LabelDesignerPolish />
     <LabelProductionReady />
-    <SeikoInterfaceFixes />
     <LabelFinalization />
+    <SeikoInterfaceFixes />
     <LabelDesignerInteractions />
     <LabelWorkspaceRefinement />
     <GlobalNavigation />
