@@ -2,6 +2,16 @@
 
 import { useEffect } from "react";
 
+function currentBusiness() {
+  return localStorage.getItem("jinam:selected-business") || "seiko";
+}
+
+function setReactInputValue(input: HTMLInputElement, value: string) {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
 /**
  * Pointer/document-scope helpers for the label designer.
  * Label geometry remains owned by LabelDesigner; this adapter must never
@@ -13,6 +23,7 @@ export function LabelDesignerInteractions() {
     let draggedElement: HTMLElement | null = null;
     let removeArmed = false;
     let animationFrame = 0;
+    let directPrintTimer = 0;
 
     const ensureDeleteTarget = (page: HTMLElement) => {
       const panel = page.querySelector<HTMLElement>(".labelCanvasPanel");
@@ -55,12 +66,54 @@ export function LabelDesignerInteractions() {
       }
     };
 
+    const geometryInput = (page: HTMLElement, label: string) => Array.from(page.querySelectorAll<HTMLLabelElement>(".labelGeometryFields label")).find(node => node.querySelector("span")?.textContent?.trim() === label)?.querySelector<HTMLInputElement>("input") || null;
+
+    const autoFitSelectedText = (page: HTMLElement) => {
+      const element = page.querySelector<HTMLElement>(".canvasElement.selected");
+      if (!element || !element.matches(".element-text,.element-field,.element-sequence")) return;
+      const widthInput = geometryInput(page, "Width mm");
+      const canvas = page.querySelector<HTMLElement>(".labelCanvas");
+      if (!widthInput || !canvas) return;
+      const currentWidth = Number(widthInput.value);
+      if (!Number.isFinite(currentWidth) || currentWidth <= 0) return;
+      const elementRect = element.getBoundingClientRect();
+      const pxPerMm = elementRect.width / currentWidth;
+      if (!Number.isFinite(pxPerMm) || pxPerMm <= 0) return;
+      const style = getComputedStyle(element);
+      const measure = document.createElement("canvas").getContext("2d");
+      if (!measure) return;
+      measure.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const text = element.textContent?.replace(/\s+/g, " ").trim() || "";
+      if (!text) return;
+      const measuredMm = Math.max(1.5, Math.min(50, measure.measureText(text).width / pxPerMm + 0.8));
+      const next = Math.ceil(measuredMm * 4) / 4;
+      if (next >= currentWidth - 0.75) return;
+      setReactInputValue(widthInput, String(next));
+    };
+
+    const runDirectPrintWhenReady = (page: HTMLElement) => {
+      const business = currentBusiness();
+      const directKey = `jinam:${business}:labels:open-task-direct-action`;
+      const taskKey = `jinam:${business}:labels:open-task`;
+      const action = sessionStorage.getItem(directKey);
+      if (!action || sessionStorage.getItem(taskKey) || directPrintTimer) return;
+      const printButton = page.querySelector<HTMLButtonElement>(".labelHeaderCommandBar > button.primary");
+      if (!printButton || printButton.disabled) return;
+      sessionStorage.removeItem(directKey);
+      directPrintTimer = window.setTimeout(() => {
+        directPrintTimer = 0;
+        printButton.click();
+      }, 80);
+    };
+
     const enhance = () => {
       animationFrame = 0;
       document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(page => {
         ensureDeleteTarget(page);
         placeSizeEditor(page);
         enhanceInformation(page);
+        autoFitSelectedText(page);
+        runDirectPrintWhenReady(page);
       });
     };
 
@@ -154,6 +207,7 @@ export function LabelDesignerInteractions() {
       draggedElement = element;
       removeArmed = false;
       setDeleteState(target, false);
+      window.setTimeout(() => autoFitSelectedText(page), 0);
     };
 
     const updateDrag = (event: PointerEvent) => {
@@ -217,7 +271,7 @@ export function LabelDesignerInteractions() {
 
     enhance();
     const observer = new MutationObserver(scheduleEnhance);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "disabled"] });
     document.addEventListener("click", handleControlClick, true);
     document.addEventListener("pointerdown", beginDrag, true);
     document.addEventListener("pointermove", updateDrag, true);
@@ -238,6 +292,7 @@ export function LabelDesignerInteractions() {
       document.removeEventListener("focusin", closeHeaderMenuOutside, true);
       document.removeEventListener("keydown", closeHeaderMenuOnEscape, true);
       if (animationFrame) cancelAnimationFrame(animationFrame);
+      if (directPrintTimer) window.clearTimeout(directPrintTimer);
     };
   }, []);
 
