@@ -8,9 +8,11 @@ const structure = read("app/workspace-structure-interactions.tsx");
 const operationalUx = read("app/seiko-operational-ux.tsx");
 const labelDesigner = read("app/label-designer.tsx");
 const labelInteractions = read("app/label-designer-interactions.tsx");
+const labelFieldCompact = read("app/label-field-compact.tsx");
 const labelFinalization = read("app/label-finalization.tsx");
 const savedLabelPrintPage = read("app/labels/print/page.tsx");
 const orderCss = read("app/order-enhancements.css");
+const finalCss = read("app/seiko-interface-fixes.css");
 
 test("workspace compact numeric controls commit on Enter", () => {
   assert.match(orders, /aria-label="Number of rows to add"[\s\S]{0,500}event\.key==="Enter"[\s\S]{0,220}addRecords\(rowsToAdd\)/);
@@ -95,6 +97,21 @@ test("selected text boxes fit inked glyph bounds instead of CSS line boxes", () 
   assert.match(labelInteractions, /safeWidthMm = glyphs\.width \/ pxPerMm \+ 0\.03/);
   assert.match(labelInteractions, /safeHeightMm = glyphs\.height \/ pxPerMm \+ 0\.03/);
   assert.doesNotMatch(labelInteractions, /selectNodeContents/);
+});
+
+test("large field labels keep colon and value compact with tight geometry in preview and print", () => {
+  assert.match(finalCss, /canvasElement\.element-field[\s\S]{0,420}gap:\.035em!important/);
+  assert.match(finalCss, /canvasElement\.element-field>\.fieldName[\s\S]{0,180}margin-right:0!important/);
+  assert.match(finalCss, /labelNativePrintRoot \.printedElement\.element-field[\s\S]{0,260}gap:\.035em!important/);
+  assert.match(finalCss, /labelNativePrintRoot \.printedElement\.element-field>\.fieldName[\s\S]{0,180}margin-right:0!important/);
+  assert.match(labelFieldCompact, /trimEnd\(\)/);
+  assert.match(labelFieldCompact, /actualBoundingBoxAscent/);
+  assert.match(labelFieldCompact, /actualBoundingBoxDescent/);
+  assert.match(labelFieldCompact, /largestFont \* \.035/);
+  assert.match(labelFieldCompact, /compact\.width \/ pxPerMm \+ \.02/);
+  assert.match(labelFieldCompact, /compact\.height \/ pxPerMm \+ \.02/);
+  assert.match(labelFieldCompact, /setReactInputValue\(widthInput/);
+  assert.match(labelFieldCompact, /setReactInputValue\(heightInput/);
 });
 
 test("Label Center Print and Save PDF route to print-only hydration instead of Open edit", () => {
