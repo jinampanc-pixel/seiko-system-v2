@@ -41,6 +41,7 @@ import "./seiko-operational-ux.css";
 import "./seiko-interface-fixes.css";
 import "./packing-workspace-audit.css";
 import "./packing-workflow-final.css";
+import "./seiko-final-ux-pass.css";
 import { AccessProvider } from "./access-control";
 import { BusinessApplicationRouter } from "./business-application-router";
 
