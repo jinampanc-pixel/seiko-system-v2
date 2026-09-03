@@ -73,6 +73,14 @@ test("legacy person-package fields migrate to one Products & measurements zone",
   assert.match(source, /productSpecific\.forEach\(input => input\.click\(\)\)/);
 });
 
+test("adaptive designer keeps product rows inside one draggable zone and hides healthy diagnostics", () => {
+  assert.match(css, /dynamicProductRows[\s\S]*pointer-events:none!important/);
+  assert.match(css, /dynamicProductRow>\*\{pointer-events:none!important\}/);
+  assert.match(css, /Products & measurements area/);
+  assert.match(css, /adaptiveLabelPanel:not\(:has\(\.adaptiveFitSummary\.hasOverflow\)\)\{display:none!important\}/);
+  assert.match(css, /adaptiveLabelPanel:has\(\.adaptiveFitSummary\.hasOverflow\)/);
+});
+
 test("every selected printed label is validated automatically and only real exceptions are surfaced", () => {
   assert.match(source, /type ValidationSummary/);
   assert.match(source, /labels checked/);
