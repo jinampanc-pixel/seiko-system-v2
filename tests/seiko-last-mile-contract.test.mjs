@@ -8,6 +8,7 @@ const structure = read("app/workspace-structure-interactions.tsx");
 const labelDesigner = read("app/label-designer.tsx");
 const labelInteractions = read("app/label-designer-interactions.tsx");
 const labelFinalization = read("app/label-finalization.tsx");
+const savedLabelPrintPage = read("app/labels/print/page.tsx");
 const orderCss = read("app/order-enhancements.css");
 
 test("workspace compact numeric controls commit on Enter", () => {
@@ -56,31 +57,37 @@ test("React is the sole pointer owner for label dragging", () => {
   assert.doesNotMatch(labelInteractions, /const updateDrag/);
 });
 
-test("selected text boxes fit visible glyph bounds with minimal allowance", () => {
-  assert.match(labelInteractions, /fitSelectedTextBounds/);
-  assert.match(labelInteractions, /selectNodeContents\(element\)/);
-  assert.match(labelInteractions, /safeWidthMm = contentRect\.width \/ pxPerMm \+ 0\.06/);
-  assert.match(labelInteractions, /safeHeightMm = contentRect\.height \/ pxPerMm \+ 0\.06/);
-  assert.match(labelInteractions, /setReactInputValue/);
+test("selected text boxes fit inked glyph bounds instead of CSS line boxes", () => {
+  assert.match(labelInteractions, /measureGlyphs/);
+  assert.match(labelInteractions, /context\.measureText\(text\)/);
+  assert.match(labelInteractions, /actualBoundingBoxAscent/);
+  assert.match(labelInteractions, /actualBoundingBoxDescent/);
+  assert.match(labelInteractions, /safeWidthMm = glyphs\.width \/ pxPerMm \+ 0\.03/);
+  assert.match(labelInteractions, /safeHeightMm = glyphs\.height \/ pxPerMm \+ 0\.03/);
+  assert.doesNotMatch(labelInteractions, /selectNodeContents/);
 });
 
-test("direct saved-set print waits for task hydration then clicks calibrated Print", () => {
-  assert.match(labelInteractions, /open-task-direct-action/);
-  assert.match(labelInteractions, /open-task/);
-  assert.match(labelInteractions, /labelHeaderCommandBar > button\.primary/);
-  assert.match(labelInteractions, /printButton\.click\(\)/);
+test("Label Center Print and Save PDF route to print-only hydration instead of Open edit", () => {
+  assert.match(labelFinalization, /labelCenterActionMenu \.seikoRowActionPanel button/);
+  assert.match(labelFinalization, /routeSavedSetPrint/);
+  assert.match(labelFinalization, /\/labels\/print\?/);
+  assert.match(savedLabelPrintPage, /sessionStorage\.setItem\(openTaskKey\(businessId\), selectedTask\.id\)/);
+  assert.match(savedLabelPrintPage, /jinam:labels:print/);
+  assert.match(savedLabelPrintPage, /LabelDesigner/);
 });
 
-test("normal Print opens the native browser print dialog directly with calibrated output", () => {
+test("normal Print opens native browser print with calibrated output and no intermediate preview", () => {
   assert.match(labelFinalization, /labelNativePrintRoot/);
   assert.match(labelFinalization, /@page\{size:\$\{preset\.rollW\}mm \$\{pitch\}mm;margin:0\}/);
   assert.match(labelFinalization, /document\.body\.appendChild\(runtime\.root\)/);
   assert.match(labelFinalization, /document\.documentElement\.classList\.add\("jinamLabelPrinting"\)/);
   assert.match(labelFinalization, /window\.print\(\)/);
+  assert.match(labelFinalization, /beforeprint/);
+  assert.match(labelFinalization, /afterprint/);
   assert.doesNotMatch(labelFinalization, /labelPrintPreviewLayer/);
-  assert.doesNotMatch(labelFinalization, /Print now/);
   assert.doesNotMatch(labelFinalization, /window\.open\(/);
   assert.doesNotMatch(labelFinalization, /iframe/);
+  assert.doesNotMatch(labelFinalization, /setTimeout\(cleanup, 0\)/);
 });
 
 test("Order Setup returns to the page it was opened from", () => {
