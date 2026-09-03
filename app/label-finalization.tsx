@@ -5,12 +5,7 @@ import { useEffect } from "react";
 type OrderSummary = {
   orderId?: string;
   archived?: boolean;
-  details?: {
-    orderNo?: string;
-    clientName?: string;
-    contactPerson?: string;
-    contactNumber?: string;
-  };
+  details?: { orderNo?: string; clientName?: string; contactPerson?: string; contactNumber?: string };
 };
 type Preset = { id: string; name: string; labelW: number; labelH: number; rollW: number; columns: number; outer: number; gapX: number; gapY: number };
 
@@ -22,24 +17,28 @@ function activeBusiness() {
   const params = new URLSearchParams(window.location.search);
   return params.get("business") || localStorage.getItem("jinam:selected-business") || "seiko";
 }
+
 function setNativeSelectValue(select: HTMLSelectElement, value: string) {
   Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, value);
   select.dispatchEvent(new Event("input", { bubbles: true }));
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
+
 function orderData(businessId: string): OrderSummary[] {
   try {
     const rows = JSON.parse(localStorage.getItem(`jinam:${businessId}:orders-v1`) || "[]") as OrderSummary[];
     return rows.filter(order => !order.archived);
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
+
 function enhanceOrderSearch() {
   const select = document.querySelector<HTMLSelectElement>(".labelCreateOrderChoice .labelCreateField:first-child select");
   if (!select || select.dataset.searchReady) return;
   select.dataset.searchReady = "true";
   select.classList.add("labelOrderNativeSelect");
-  const businessId = activeBusiness();
-  const orders = orderData(businessId);
+  const orders = orderData(activeBusiness());
   const byId = new Map(orders.map(order => [String(order.orderId || ""), order]));
   const wrapper = document.createElement("div");
   wrapper.className = "labelOrderSearch";
@@ -63,8 +62,7 @@ function enhanceOrderSearch() {
     const term = query.trim().toLowerCase();
     const matches = orders.filter(order => {
       const d = order.details || {};
-      const haystack = [d.orderNo, d.clientName, d.contactPerson, d.contactNumber].filter(Boolean).join(" ").toLowerCase();
-      return !term || haystack.includes(term);
+      return !term || [d.orderNo, d.clientName, d.contactPerson, d.contactNumber].filter(Boolean).join(" ").toLowerCase().includes(term);
     }).slice(0, 12);
     results.replaceChildren();
     for (const order of matches) {
@@ -87,7 +85,10 @@ function enhanceOrderSearch() {
       results.appendChild(button);
     }
     if (!matches.length) {
-      const empty = document.createElement("p"); empty.className = "labelOrderSearchEmpty"; empty.textContent = "No matching orders"; results.appendChild(empty);
+      const empty = document.createElement("p");
+      empty.className = "labelOrderSearchEmpty";
+      empty.textContent = "No matching orders";
+      results.appendChild(empty);
     }
     results.hidden = false;
   };
@@ -110,27 +111,28 @@ function markProductionWorkspaceFields() {
 function currentPreset(): Preset {
   const triggerText = document.querySelector<HTMLElement>(".labelDesignerPage .managedSizeTrigger span")?.textContent || "";
   try {
-    const businessId = activeBusiness();
-    const presets = [DEFAULT_PRESET, ...(JSON.parse(localStorage.getItem(`jinam:${businessId}:labels:presets-v1`) || "[]") as Preset[])];
+    const presets = [DEFAULT_PRESET, ...(JSON.parse(localStorage.getItem(`jinam:${activeBusiness()}:labels:presets-v1`) || "[]") as Preset[])];
     return presets.find(preset => preset.name === triggerText) || DEFAULT_PRESET;
-  } catch { return DEFAULT_PRESET; }
+  } catch {
+    return DEFAULT_PRESET;
+  }
 }
 
 function syncPreviewTypography(canvas: HTMLElement, labelWidthMm: number) {
   const rect = canvas.getBoundingClientRect();
   if (!rect.width || !labelWidthMm) return;
   const actualPxPerMm = rect.width / labelWidthMm;
-  canvas.style.setProperty("--label-mm-px", String(actualPxPerMm) + "px");
+  canvas.style.setProperty("--label-mm-px", `${actualPxPerMm}px`);
   canvas.querySelectorAll<HTMLElement>(".canvasElement.element-text,.canvasElement.element-field,.canvasElement.element-sequence").forEach(element => {
     const directPt = Number.parseFloat(element.dataset.fontPt || "0");
     const fallbackPx = Number.parseFloat(element.style.fontSize || "0");
     const pointSize = directPt || (fallbackPx ? fallbackPx / CSS_PX_PER_PT : 0);
     if (!pointSize) return;
-    const responsivePx = pointSize * MM_PER_PT * actualPxPerMm;
-    element.style.fontSize = String(responsivePx) + "px";
+    element.style.fontSize = `${pointSize * MM_PER_PT * actualPxPerMm}px`;
     element.style.lineHeight = "1.05";
   });
 }
+
 function ensureCanvasRatio() {
   document.querySelectorAll<HTMLElement>(".labelDesignerPage .labelCanvasPanel").forEach(panel => {
     const canvas = panel.querySelector<HTMLElement>(".labelCanvas");
@@ -150,8 +152,7 @@ function normalizedPrintedLabel(source: HTMLElement) {
   clone.querySelectorAll<HTMLElement>(".printedElement.element-text,.printedElement.element-field,.printedElement.element-sequence").forEach(element => {
     const logicalFont = Number.parseFloat(element.style.fontSize || "0");
     if (!logicalFont) return;
-    const physicalFontMm = logicalFont * MM_PER_PT;
-    element.style.fontSize = `${physicalFontMm}mm`;
+    element.style.fontSize = `${logicalFont * MM_PER_PT}mm`;
     element.style.lineHeight = "1.05";
   });
   return clone;
@@ -177,7 +178,6 @@ function labelOnlyPrint(copies = 1) {
   const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet");
   if (!sheet) { showPrintNotice("The label print sheet is not ready yet. Try Print again."); return; }
   removeNativePrintSurface();
-
   const sourceLabels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")];
   const labels = sourceLabels.flatMap(label => Array.from({ length: copies }, () => normalizedPrintedLabel(label)));
   if (!labels.length) { showPrintNotice("No selected labels are available to print."); return; }
@@ -225,7 +225,6 @@ function labelOnlyPrint(copies = 1) {
     removeNativePrintSurface();
   };
   window.addEventListener("afterprint", cleanup, { once: true });
-
   try {
     window.print();
   } catch {
@@ -237,8 +236,7 @@ function labelOnlyPrint(copies = 1) {
 function askPrintCopies(selected: number, onConfirm: (copies: number) => void) {
   const raw = window.prompt(`Copies of each selected label (${selected} selected)`, "1");
   if (raw === null) return;
-  const copies = Math.max(1, Math.min(99, Math.floor(Number(raw) || 1)));
-  onConfirm(copies);
+  onConfirm(Math.max(1, Math.min(99, Math.floor(Number(raw) || 1))));
 }
 
 export function labelPrintCopiesDialog(selected: number) {
@@ -260,14 +258,16 @@ export function LabelFinalization() {
     enhance();
     const observer = new MutationObserver(schedule);
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] });
+
     const click = (event: MouseEvent) => {
-      const button = (event.target as Element | null)?.closest<HTMLButtonElement>(".labelDesignerPage .labelTopbar .primary");
+      const button = (event.target as Element | null)?.closest<HTMLButtonElement>(".labelDesignerPage .labelHeaderCommandBar > button.primary, .labelDesignerPage .labelTopbar .primary");
       if (!button || button.disabled || !/^Print\b/i.test(button.textContent || "")) return;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
       labelOnlyPrint(1);
     };
+
     document.addEventListener("click", click, true);
     window.addEventListener("resize", schedule);
     return () => {
