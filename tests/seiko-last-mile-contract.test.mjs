@@ -46,12 +46,21 @@ test("Label Information does not show redundant up/down arrow controls", () => {
   assert.doesNotMatch(labelDesigner, />↓<\/button>/);
 });
 
-test("normal text boxes fit their visible glyph bounds and drag to the physical right edge", () => {
+test("React is the sole pointer owner for label dragging", () => {
+  assert.match(labelDesigner, /setPointerCapture\(e\.pointerId\)/);
+  assert.match(labelDesigner, /hasPointerCapture\(e\.pointerId\)/);
+  assert.match(labelDesigner, /dragging\.current/);
+  assert.match(labelDesigner, /update\(item\.id, \{ x, y \}\)/);
+  assert.doesNotMatch(labelInteractions, /document\.addEventListener\("pointermove"/);
+  assert.doesNotMatch(labelInteractions, /const beginDrag/);
+  assert.doesNotMatch(labelInteractions, /const updateDrag/);
+});
+
+test("selected text boxes fit visible glyph bounds with minimal allowance", () => {
   assert.match(labelInteractions, /fitSelectedTextBounds/);
   assert.match(labelInteractions, /selectNodeContents\(element\)/);
-  assert.match(labelInteractions, /Width mm/);
-  assert.match(labelInteractions, /Height mm/);
-  assert.match(labelInteractions, /preset\.labelW - textDrag\.width/);
+  assert.match(labelInteractions, /safeWidthMm = contentRect\.width \/ pxPerMm \+ 0\.06/);
+  assert.match(labelInteractions, /safeHeightMm = contentRect\.height \/ pxPerMm \+ 0\.06/);
   assert.match(labelInteractions, /setReactInputValue/);
 });
 
@@ -62,12 +71,15 @@ test("direct saved-set print waits for task hydration then clicks calibrated Pri
   assert.match(labelInteractions, /printButton\.click\(\)/);
 });
 
-test("normal Print reaches calibrated native preview directly without a popup", () => {
-  assert.match(labelFinalization, /iframe\.labelNativePrintFrame/);
-  assert.match(labelFinalization, /printWindow\.print\(\)/);
+test("normal Print uses a calibrated same-document surface and top-level window.print", () => {
+  assert.match(labelFinalization, /labelNativePrintRoot/);
+  assert.match(labelFinalization, /@page\{size:\$\{preset\.rollW\}mm \$\{pitch\}mm;margin:0\}/);
+  assert.match(labelFinalization, /document\.documentElement\.classList\.add\("jinamLabelPrinting"\)/);
+  assert.match(labelFinalization, /window\.print\(\)/);
   assert.match(labelFinalization, /labelOnlyPrint\(1\)/);
+  assert.doesNotMatch(labelFinalization, /iframe\.labelNativePrintFrame/);
+  assert.doesNotMatch(labelFinalization, /printWindow\.print\(\)/);
   assert.doesNotMatch(labelFinalization, /window\.open\(/);
-  assert.match(labelFinalization, /jinam:label-print-copies/);
 });
 
 test("Order Setup returns to the page it was opened from", () => {
