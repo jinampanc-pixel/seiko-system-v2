@@ -154,7 +154,7 @@ function normalizedPrintedLabel(source: HTMLElement) {
     element.style.fontSize = `${physicalFontMm}mm`;
     element.style.lineHeight = "1.05";
   });
-  return clone.outerHTML;
+  return clone;
 }
 
 function showPrintNotice(message: string) {
@@ -167,103 +167,78 @@ function showPrintNotice(message: string) {
   window.setTimeout(() => note.remove(), 5200);
 }
 
-function askPrintCopies(selected: number, onConfirm: (copies: number) => void) {
-  document.querySelector(".labelPrintCopiesDialog")?.remove();
-  const overlay = document.createElement("div");
-  overlay.className = "labelPrintCopiesDialog";
-  const dialog = document.createElement("section");
-  dialog.setAttribute("role", "dialog");
-  dialog.setAttribute("aria-modal", "true");
-  const title = document.createElement("h3");
-  title.textContent = "Print labels";
-  const meta = document.createElement("p");
-  meta.textContent = `${selected} selected`;
-  const input = document.createElement("input");
-  input.type = "number";
-  input.min = "1";
-  input.step = "1";
-  input.value = "1";
-  input.setAttribute("aria-label", "Copies of each selected label");
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.textContent = "Cancel";
-  const confirm = document.createElement("button");
-  confirm.type = "button";
-  confirm.className = "primary";
-  confirm.textContent = "Continue to print";
-  const close = () => overlay.remove();
-  cancel.addEventListener("click", close);
-  confirm.addEventListener("click", () => {
-    const copies = Math.max(1, Math.floor(Number(input.value) || 1));
-    close();
-    onConfirm(copies);
-  });
-  dialog.append(title, meta, input, cancel, confirm);
-  overlay.appendChild(dialog);
-  document.body.appendChild(overlay);
-  input.focus();
-  input.select();
+function removeNativePrintSurface() {
+  document.documentElement.classList.remove("jinamLabelPrinting");
+  document.querySelector(".labelNativePrintRoot")?.remove();
+  document.querySelector("#jinam-label-native-print-style")?.remove();
 }
 
 function labelOnlyPrint(copies = 1) {
   const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet");
   if (!sheet) { showPrintNotice("The label print sheet is not ready yet. Try Print again."); return; }
-  document.querySelector<HTMLIFrameElement>("iframe.labelNativePrintFrame")?.remove();
-  const frame = document.createElement("iframe");
-  frame.className = "labelNativePrintFrame";
-  frame.setAttribute("aria-hidden", "true");
-  frame.style.position = "fixed";
-  frame.style.width = "1px";
-  frame.style.height = "1px";
-  frame.style.right = "0";
-  frame.style.bottom = "0";
-  frame.style.border = "0";
-  frame.style.opacity = "0";
-  frame.style.pointerEvents = "none";
-  document.body.appendChild(frame);
+  removeNativePrintSurface();
 
-  const labels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")].flatMap(label => Array.from({ length: copies }, () => label));
-  if (!labels.length) { frame.remove(); showPrintNotice("No selected labels are available to print."); return; }
+  const sourceLabels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")];
+  const labels = sourceLabels.flatMap(label => Array.from({ length: copies }, () => normalizedPrintedLabel(label)));
+  if (!labels.length) { showPrintNotice("No selected labels are available to print."); return; }
+
   const preset = currentPreset();
   const pitch = preset.labelH + Math.max(0, preset.gapY || 0);
-  const rows: string[] = [];
+  const root = document.createElement("main");
+  root.className = "labelNativePrintRoot";
+  root.setAttribute("aria-hidden", "true");
   for (let index = 0; index < labels.length; index += preset.columns) {
-    const items = labels.slice(index, index + preset.columns).map(normalizedPrintedLabel).join("");
-    rows.push(`<section class="printRow">${items}</section>`);
+    const row = document.createElement("section");
+    row.className = "labelNativePrintRow";
+    labels.slice(index, index + preset.columns).forEach(label => row.appendChild(label));
+    root.appendChild(row);
   }
-  const css = `
+
+  const style = document.createElement("style");
+  style.id = "jinam-label-native-print-style";
+  style.textContent = `
     @page{size:${preset.rollW}mm ${pitch}mm;margin:0}
-    *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    html,body{margin:0!important;padding:0!important;width:${preset.rollW}mm!important;background:#fff!important;font-family:Arial,Helvetica,sans-serif}
-    body{overflow:visible!important}
-    .printRow{position:relative;width:${preset.rollW}mm;height:${pitch}mm;padding:0 ${preset.outer}mm;display:grid;grid-template-columns:repeat(${preset.columns},${preset.labelW}mm);column-gap:${preset.gapX}mm;align-items:start;break-after:page;page-break-after:always;overflow:hidden;background:#fff}
-    .printRow:last-child{break-after:auto;page-break-after:auto}
-    .printedLabel{position:relative!important;box-sizing:border-box!important;width:${preset.labelW}mm!important;height:${preset.labelH}mm!important;overflow:hidden!important;background:#fff!important}
-    .printedElement{position:absolute!important;display:flex!important;align-items:center!important;overflow:hidden!important;padding:0!important;line-height:1.05!important;white-space:normal!important}
-    .fieldName{margin-right:.25em}
-    .fakeQr,.fakeQr.realQr{display:block!important;width:100%!important;height:100%!important;background:none!important;color:transparent!important;font-size:0!important;overflow:hidden!important}
-    .fakeQr svg,.fakeQr.realQr svg{display:block!important;width:100%!important;height:100%!important;background:#fff!important}
-    .fakeBarcode{display:grid!important;width:100%!important;height:100%!important;grid-template-rows:1fr auto}
-    .fakeBarcode i{display:block;background:repeating-linear-gradient(90deg,#111 0 2px,transparent 2px 4px,#111 4px 5px,transparent 5px 8px)}
-    .fakeBarcode small{text-align:center;font:6px monospace;white-space:nowrap;color:#111}
-  `;
-  const doc = frame.contentDocument;
-  const printWindow = frame.contentWindow;
-  if (!doc || !printWindow) { frame.remove(); showPrintNotice("The browser could not prepare the print preview."); return; }
-  doc.open();
-  doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>JINAM labels</title><style>${css}</style></head><body>${rows.join("")}</body></html>`);
-  doc.close();
-  const openNativePreview = () => {
-    try {
-      printWindow.focus();
-      printWindow.print();
-    } catch {
-      showPrintNotice("The browser could not open print preview. Check browser print permissions and try again.");
+    @media screen{.labelNativePrintRoot{position:fixed;left:-200vw;top:0;width:1px;height:1px;overflow:hidden;pointer-events:none}}
+    @media print{
+      html,body{margin:0!important;padding:0!important;background:#fff!important;width:${preset.rollW}mm!important}
+      html.jinamLabelPrinting body *{visibility:hidden!important}
+      html.jinamLabelPrinting .labelNativePrintRoot,html.jinamLabelPrinting .labelNativePrintRoot *{visibility:visible!important}
+      .labelNativePrintRoot{position:absolute!important;left:0!important;top:0!important;width:${preset.rollW}mm!important;margin:0!important;padding:0!important;background:#fff!important;font-family:Arial,Helvetica,sans-serif!important}
+      .labelNativePrintRow{position:relative!important;width:${preset.rollW}mm!important;height:${pitch}mm!important;padding:0 ${preset.outer}mm!important;display:grid!important;grid-template-columns:repeat(${preset.columns},${preset.labelW}mm)!important;column-gap:${preset.gapX}mm!important;align-items:start!important;break-after:page!important;page-break-after:always!important;overflow:hidden!important;background:#fff!important}
+      .labelNativePrintRow:last-child{break-after:auto!important;page-break-after:auto!important}
+      .printedLabel{position:relative!important;box-sizing:border-box!important;width:${preset.labelW}mm!important;height:${preset.labelH}mm!important;overflow:hidden!important;background:#fff!important}
+      .printedElement{position:absolute!important;display:flex!important;align-items:center!important;overflow:hidden!important;padding:0!important;margin:0!important;line-height:1.05!important;white-space:normal!important}
+      .fieldName{margin-right:.25em!important}
+      .fakeQr,.fakeQr.realQr{display:block!important;width:100%!important;height:100%!important;background:none!important;color:transparent!important;font-size:0!important;overflow:hidden!important}
+      .fakeQr svg,.fakeQr.realQr svg{display:block!important;width:100%!important;height:100%!important;background:#fff!important}
+      .fakeBarcode{display:grid!important;width:100%!important;height:100%!important;grid-template-rows:1fr auto!important}
+      .fakeBarcode i{display:block!important;background:repeating-linear-gradient(90deg,#111 0 2px,transparent 2px 4px,#111 4px 5px,transparent 5px 8px)!important}
+      .fakeBarcode small{text-align:center!important;font:6px monospace!important;white-space:nowrap!important;color:#111!important}
     }
-    window.setTimeout(() => frame.remove(), 3000);
+  `;
+  document.head.appendChild(style);
+  document.body.appendChild(root);
+  document.documentElement.classList.add("jinamLabelPrinting");
+
+  const cleanup = () => {
+    window.removeEventListener("afterprint", cleanup);
+    removeNativePrintSurface();
   };
-  if (doc.readyState === "complete") window.setTimeout(openNativePreview, 80);
-  else frame.addEventListener("load", () => window.setTimeout(openNativePreview, 80), { once: true });
+  window.addEventListener("afterprint", cleanup, { once: true });
+
+  try {
+    window.print();
+  } catch {
+    cleanup();
+    showPrintNotice("The browser could not open print preview. Check browser print permissions and try again.");
+  }
+}
+
+function askPrintCopies(selected: number, onConfirm: (copies: number) => void) {
+  const raw = window.prompt(`Copies of each selected label (${selected} selected)`, "1");
+  if (raw === null) return;
+  const copies = Math.max(1, Math.min(99, Math.floor(Number(raw) || 1)));
+  onConfirm(copies);
 }
 
 export function LabelFinalization() {
@@ -289,18 +264,13 @@ export function LabelFinalization() {
       event.stopImmediatePropagation();
       labelOnlyPrint(1);
     };
-    const copiesRequest = () => {
-      const selected = document.querySelectorAll(".labelDesignerPage .printSheet .printedLabel").length;
-      askPrintCopies(selected, copies => labelOnlyPrint(copies));
-    };
     document.addEventListener("click", click, true);
-    window.addEventListener("jinam:label-print-copies", copiesRequest);
     window.addEventListener("resize", schedule);
     return () => {
       observer.disconnect();
       document.removeEventListener("click", click, true);
-      window.removeEventListener("jinam:label-print-copies", copiesRequest);
       window.removeEventListener("resize", schedule);
+      removeNativePrintSurface();
       if (frame) cancelAnimationFrame(frame);
     };
   }, []);
