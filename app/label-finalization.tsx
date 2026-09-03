@@ -167,60 +167,65 @@ function showPrintNotice(message: string) {
   window.setTimeout(() => note.remove(), 5200);
 }
 
-function askPrintCopies(selected: number, onConfirm: (copies: number) => void) {
-  document.querySelector(".labelPrintCopiesDialog")?.remove();
-  const storageKey = `jinam:${activeBusiness()}:labels:print-copies`;
-  const layer = document.createElement("div");
-  layer.className = "seikoConfirmLayer labelPrintCopiesDialog";
-  layer.innerHTML = '<section class="seikoConfirmDialog" role="dialog" aria-modal="true" aria-labelledby="label-copies-title"><h3 id="label-copies-title">Print labels</h3><p class="labelCopiesSummary"></p><label class="labelCopiesField"><span>Copies of each selected label</span><input type="number" min="1" max="50" step="1"></label><div><button type="button" class="secondary cancel">Cancel</button><button type="button" class="primary confirm">Continue to print</button></div></section>';
-  const input = layer.querySelector<HTMLInputElement>("input")!; input.value = localStorage.getItem(storageKey) || "1";
-  const sync = () => { const copies = Math.max(1, Math.min(50, Math.floor(Number(input.value) || 1))); input.value = String(copies); const summary = layer.querySelector<HTMLElement>(".labelCopiesSummary"); if (summary) summary.textContent = `${selected} selected · ${selected * copies} total print${selected * copies === 1 ? "" : "s"}`; };
-  sync(); input.addEventListener("input", sync);
-  const close = () => layer.remove(); layer.querySelector<HTMLButtonElement>(".cancel")!.addEventListener("click", close);
-  layer.querySelector<HTMLButtonElement>(".confirm")!.addEventListener("click", () => { const copies = Math.max(1, Math.min(50, Math.floor(Number(input.value) || 1))); localStorage.setItem(storageKey, String(copies)); close(); onConfirm(copies); });
-  layer.addEventListener("click", event => { if (event.target === layer) close(); }); document.body.appendChild(layer); input.focus(); input.select();
-}
-
 function labelOnlyPrint(copies = 1) {
   const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet");
-  if (!sheet) return;
-  const popup = window.open("", "_blank", "width=980,height=760");
-  if (!popup) { showPrintNotice("Allow pop-ups for this site so the label print window can open."); return; }
-  popup.document.open();
-  popup.document.write("<!doctype html><html><head><title>Preparing labels…</title></head><body>Preparing labels…</body></html>");
-  popup.document.close();
+  if (!sheet) { showPrintNotice("The label print sheet is not ready yet. Try Print again."); return; }
+  document.querySelector<HTMLIFrameElement>("iframe.labelNativePrintFrame")?.remove();
+  const frame = document.createElement("iframe");
+  frame.className = "labelNativePrintFrame";
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.position = "fixed";
+  frame.style.width = "1px";
+  frame.style.height = "1px";
+  frame.style.right = "0";
+  frame.style.bottom = "0";
+  frame.style.border = "0";
+  frame.style.opacity = "0";
+  frame.style.pointerEvents = "none";
+  document.body.appendChild(frame);
 
-  window.setTimeout(() => {
-    const labels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")].flatMap(label => Array.from({ length: copies }, () => label));
-    const preset = currentPreset();
-    const pitch = preset.labelH + Math.max(0, preset.gapY || 0);
-    const rows: string[] = [];
-    for (let index = 0; index < labels.length; index += preset.columns) {
-      const items = labels.slice(index, index + preset.columns).map(normalizedPrintedLabel).join("");
-      rows.push(`<section class="printRow">${items}</section>`);
+  const labels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")].flatMap(label => Array.from({ length: copies }, () => label));
+  if (!labels.length) { frame.remove(); showPrintNotice("No selected labels are available to print."); return; }
+  const preset = currentPreset();
+  const pitch = preset.labelH + Math.max(0, preset.gapY || 0);
+  const rows: string[] = [];
+  for (let index = 0; index < labels.length; index += preset.columns) {
+    const items = labels.slice(index, index + preset.columns).map(normalizedPrintedLabel).join("");
+    rows.push(`<section class="printRow">${items}</section>`);
+  }
+  const css = `
+    @page{size:${preset.rollW}mm ${pitch}mm;margin:0}
+    *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    html,body{margin:0!important;padding:0!important;width:${preset.rollW}mm!important;background:#fff!important;font-family:Arial,Helvetica,sans-serif}
+    body{overflow:visible!important}
+    .printRow{position:relative;width:${preset.rollW}mm;height:${pitch}mm;padding:0 ${preset.outer}mm;display:grid;grid-template-columns:repeat(${preset.columns},${preset.labelW}mm);column-gap:${preset.gapX}mm;align-items:start;break-after:page;page-break-after:always;overflow:hidden;background:#fff}
+    .printRow:last-child{break-after:auto;page-break-after:auto}
+    .printedLabel{position:relative!important;box-sizing:border-box!important;width:${preset.labelW}mm!important;height:${preset.labelH}mm!important;overflow:hidden!important;background:#fff!important}
+    .printedElement{position:absolute!important;display:flex!important;align-items:center!important;overflow:hidden!important;padding:0!important;line-height:1.05!important;white-space:normal!important}
+    .fieldName{margin-right:.25em}
+    .fakeQr,.fakeQr.realQr{display:block!important;width:100%!important;height:100%!important;background:none!important;color:transparent!important;font-size:0!important;overflow:hidden!important}
+    .fakeQr svg,.fakeQr.realQr svg{display:block!important;width:100%!important;height:100%!important;background:#fff!important}
+    .fakeBarcode{display:grid!important;width:100%!important;height:100%!important;grid-template-rows:1fr auto}
+    .fakeBarcode i{display:block;background:repeating-linear-gradient(90deg,#111 0 2px,transparent 2px 4px,#111 4px 5px,transparent 5px 8px)}
+    .fakeBarcode small{text-align:center;font:6px monospace;white-space:nowrap;color:#111}
+  `;
+  const doc = frame.contentDocument;
+  const printWindow = frame.contentWindow;
+  if (!doc || !printWindow) { frame.remove(); showPrintNotice("The browser could not prepare the print preview."); return; }
+  doc.open();
+  doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>JINAM labels</title><style>${css}</style></head><body>${rows.join("")}</body></html>`);
+  doc.close();
+  const openNativePreview = () => {
+    try {
+      printWindow.focus();
+      printWindow.print();
+    } catch {
+      showPrintNotice("The browser could not open print preview. Check browser print permissions and try again.");
     }
-    const css = `
-      @page{size:${preset.rollW}mm ${pitch}mm;margin:0}
-      *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      html,body{margin:0!important;padding:0!important;width:${preset.rollW}mm!important;background:#fff!important;font-family:Arial,Helvetica,sans-serif}
-      body{overflow:visible!important}
-      .printRow{position:relative;width:${preset.rollW}mm;height:${pitch}mm;padding:0 ${preset.outer}mm;display:grid;grid-template-columns:repeat(${preset.columns},${preset.labelW}mm);column-gap:${preset.gapX}mm;align-items:start;break-after:page;page-break-after:always;overflow:hidden;background:#fff}
-      .printRow:last-child{break-after:auto;page-break-after:auto}
-      .printedLabel{position:relative!important;box-sizing:border-box!important;width:${preset.labelW}mm!important;height:${preset.labelH}mm!important;overflow:hidden!important;background:#fff!important}
-      .printedElement{position:absolute!important;display:flex!important;align-items:center!important;overflow:hidden!important;padding:0!important;line-height:1.05!important;white-space:normal!important}
-      .fieldName{margin-right:.25em}
-      .fakeQr,.fakeQr.realQr{display:block!important;width:100%!important;height:100%!important;background:none!important;color:transparent!important;font-size:0!important;overflow:hidden!important}
-      .fakeQr svg,.fakeQr.realQr svg{display:block!important;width:100%!important;height:100%!important;background:#fff!important}
-      .fakeBarcode{display:grid!important;width:100%!important;height:100%!important;grid-template-rows:1fr auto}
-      .fakeBarcode i{display:block;background:repeating-linear-gradient(90deg,#111 0 2px,transparent 2px 4px,#111 4px 5px,transparent 5px 8px)}
-      .fakeBarcode small{text-align:center;font:6px monospace;white-space:nowrap;color:#111}
-    `;
-    popup.document.open();
-    popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Labels</title><style>${css}</style></head><body>${rows.join("")}</body></html>`);
-    popup.document.close();
-    popup.focus();
-    window.setTimeout(() => popup.print(), 160);
-  }, 40);
+    window.setTimeout(() => frame.remove(), 3000);
+  };
+  if (doc.readyState === "complete") window.setTimeout(openNativePreview, 80);
+  else frame.addEventListener("load", () => window.setTimeout(openNativePreview, 80), { once: true });
 }
 
 export function LabelFinalization() {
@@ -241,8 +246,10 @@ export function LabelFinalization() {
     const click = (event: MouseEvent) => {
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>(".labelDesignerPage .labelTopbar .primary");
       if (!button || button.disabled || !/^Print\b/i.test(button.textContent || "")) return;
-      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-      const selected = document.querySelectorAll(".labelDesignerPage .recordList .record.selected").length; askPrintCopies(selected, copies => labelOnlyPrint(copies));
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      labelOnlyPrint(1);
     };
     document.addEventListener("click", click, true);
     window.addEventListener("resize", schedule);
