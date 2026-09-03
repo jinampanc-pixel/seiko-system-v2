@@ -62,12 +62,12 @@ test("direct saved-set print waits for task hydration then clicks calibrated Pri
   assert.match(labelInteractions, /printButton\.click\(\)/);
 });
 
-test("calibrated printing reaches native preview without a popup or copies gate", () => {
+test("normal Print reaches calibrated native preview directly without a popup", () => {
   assert.match(labelFinalization, /iframe\.labelNativePrintFrame/);
   assert.match(labelFinalization, /printWindow\.print\(\)/);
   assert.match(labelFinalization, /labelOnlyPrint\(1\)/);
   assert.doesNotMatch(labelFinalization, /window\.open\(/);
-  assert.doesNotMatch(labelFinalization, /labelPrintCopiesDialog/);
+  assert.match(labelFinalization, /jinam:label-print-copies/);
 });
 
 test("Order Setup returns to the page it was opened from", () => {
