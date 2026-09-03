@@ -6,6 +6,7 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8"
 const orders = read("app/orders.tsx");
 const structure = read("app/workspace-structure-interactions.tsx");
 const labelDesigner = read("app/label-designer.tsx");
+const labelInteractions = read("app/label-designer-interactions.tsx");
 const orderCss = read("app/order-enhancements.css");
 
 test("workspace compact numeric controls commit on Enter", () => {
@@ -23,6 +24,13 @@ test("spreadsheet row and column header selection paints the complete band", () 
   assert.match(orderCss, /workspaceRowHeaderCorner\{background:var\(--navy\)/);
 });
 
+test("workspace row selection clears when focus leaves row-selection controls", () => {
+  assert.match(structure, /clearTransientRowSelection/);
+  assert.match(structure, /workspaceRowHeader,.workspaceRowHeaderCorner,.workspaceContextMenu/);
+  assert.match(structure, /document\.addEventListener\("pointerdown",outside,true\)/);
+  assert.match(structure, /document\.addEventListener\("focusin",outside,true\)/);
+});
+
 test("Label Information contains only configured product fields and no synthetic applicable-product slots", () => {
   assert.doesNotMatch(labelDesigner, /Applicable product/);
   assert.doesNotMatch(labelDesigner, /packageSlots/);
@@ -35,6 +43,20 @@ test("Label Information does not show redundant up/down arrow controls", () => {
   assert.doesNotMatch(labelDesigner, /fieldOrderControls/);
   assert.doesNotMatch(labelDesigner, />↑<\/button>/);
   assert.doesNotMatch(labelDesigner, />↓<\/button>/);
+});
+
+test("normal text boxes auto-fit so they can reach the physical right edge", () => {
+  assert.match(labelInteractions, /autoFitSelectedText/);
+  assert.match(labelInteractions, /measureText\(text\)/);
+  assert.match(labelInteractions, /Width mm/);
+  assert.match(labelInteractions, /setReactInputValue/);
+});
+
+test("direct saved-set print waits for task hydration then clicks calibrated Print", () => {
+  assert.match(labelInteractions, /open-task-direct-action/);
+  assert.match(labelInteractions, /open-task/);
+  assert.match(labelInteractions, /labelHeaderCommandBar > button\.primary/);
+  assert.match(labelInteractions, /printButton\.click\(\)/);
 });
 
 test("Order Setup returns to the page it was opened from", () => {
