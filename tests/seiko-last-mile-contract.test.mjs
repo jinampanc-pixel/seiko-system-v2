@@ -75,7 +75,7 @@ test("normal Print opens an explicit calibrated preview with a user-owned Print 
   assert.match(labelFinalization, /labelPrintPreviewLayer/);
   assert.match(labelFinalization, /labelNativePrintRoot/);
   assert.match(labelFinalization, /@page\{size:\$\{preset\.rollW\}mm \$\{pitch\}mm;margin:0\}/);
-  assert.match(labelFinalization, /openLabelPrintPreview\(1\)/);
+  assert.match(labelFinalization, /labelOnlyPrint\(1\)/);
   assert.match(labelFinalization, /printNow\.textContent = "Print now"/);
   assert.match(labelFinalization, /printNow\.addEventListener\("click"/);
   assert.match(labelFinalization, /window\.print\(\)/);
