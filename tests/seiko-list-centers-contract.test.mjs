@@ -39,12 +39,24 @@ test("label center uses clickable saved-set rows and consistent three-dot menus"
   assert.match(centers, /\.labelLauncher/);
   assert.match(centers, /labelBatchModuleList/);
   assert.match(centers, /labelBatchRowClickable/);
-  assert.match(centers, /open\.hidden = true/);
+  assert.match(centers, /open\.hidden=true|open\.hidden = true/);
   assert.doesNotMatch(centers, /openAction\.textContent = "Open label set"/);
   assert.match(centers, /labelOrderResults/);
   assert.match(centers, /labelCenterActionMenu/);
-  assert.match(centers, /Remove saved set/);
+  assert.match(centers, /Archive label set/);
+  assert.match(centers, /Restore label set/);
+  assert.match(centers, /Delete permanently/);
+  assert.doesNotMatch(centers, /Remove saved set/);
   assert.match(centers, /Create label set/);
+});
+
+test("saved label actions separate calibrated print from recorded PDF export", () => {
+  assert.match(centers, /open-task-direct-action/);
+  assert.match(centers, /print\.textContent="Print"/);
+  assert.match(centers, /pdf\.textContent="Save PDF"/);
+  assert.match(centers, /labels:pdf-records-v1/);
+  assert.match(centers, /PDF library/);
+  assert.match(centers, /rememberPdf/);
 });
 
 test("selected label-information chip x deselects the underlying React field", () => {
