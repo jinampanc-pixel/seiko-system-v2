@@ -92,7 +92,7 @@ function normalizedPrintedLabel(source: HTMLElement) {
   return clone;
 }
 function showPrintNotice(message: string) { document.querySelector(".labelPrintNotice")?.remove(); const note = document.createElement("div"); note.className = "labelPrintNotice"; note.setAttribute("role", "status"); note.textContent = message; document.body.appendChild(note); window.setTimeout(() => note.remove(), 5200); }
-function removeNativePrintSurface() { document.documentElement.classList.remove("jinamLabelPrinting"); document.querySelector(".labelPrintPreviewLayer")?.remove(); document.querySelector(".labelNativePrintRoot")?.remove(); document.querySelector("#jinam-label-native-print-style")?.remove(); }
+function removeNativePrintSurface() { document.documentElement.classList.remove("jinamLabelPrinting"); document.querySelector(".labelNativePrintRoot")?.remove(); document.querySelector("#jinam-label-native-print-style")?.remove(); }
 function buildPrintSurface(copies = 1) {
   const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet"); if (!sheet) { showPrintNotice("The label print sheet is not ready yet. Try Print again."); return null; }
   removeNativePrintSurface();
@@ -105,24 +105,11 @@ function buildPrintSurface(copies = 1) {
   const style = document.createElement("style"); style.id = "jinam-label-native-print-style";
   style.textContent = `
     @page{size:${preset.rollW}mm ${pitch}mm;margin:0}
-    .labelPrintPreviewLayer{position:fixed;inset:0;z-index:4000;background:#eef1f3;display:flex;flex-direction:column;color:#102d49}
-    .labelPrintPreviewBar{height:64px;flex:0 0 auto;background:#fff;border-bottom:1px solid #d7e0e6;display:flex;align-items:center;justify-content:space-between;padding:0 22px;gap:16px}
-    .labelPrintPreviewBar>div:first-child{display:flex;flex-direction:column;gap:2px}.labelPrintPreviewBar b{font-size:16px}.labelPrintPreviewBar small{color:#607487}
-    .labelPrintPreviewActions{display:flex;gap:10px}.labelPrintPreviewActions button{min-height:38px;padding:0 18px;border-radius:8px;border:1px solid #cbd8e1;background:#fff;color:#0e3d66;font-weight:700;cursor:pointer}.labelPrintPreviewActions .primary{background:#0e4775;color:#fff;border-color:#0e4775}
-    .labelPrintPreviewStage{flex:1;overflow:auto;padding:28px;display:flex;justify-content:center;align-items:flex-start}
-    .labelPrintPreviewPaper{background:#fff;box-shadow:0 12px 36px rgba(14,45,73,.18);padding:18px;min-width:${preset.rollW}mm}
-    .labelPrintPreviewPaper .labelNativePrintRoot{position:relative;width:${preset.rollW}mm;margin:0 auto;background:#fff}
-    .labelPrintPreviewPaper .labelNativePrintRow{position:relative;width:${preset.rollW}mm;height:${pitch}mm;padding:0 ${preset.outer}mm;display:grid;grid-template-columns:repeat(${preset.columns},${preset.labelW}mm);column-gap:${preset.gapX}mm;align-items:start;overflow:hidden;background:#fff;border-bottom:1px dashed #d6dde3}
-    .labelPrintPreviewPaper .printedLabel{position:relative!important;box-sizing:border-box!important;width:${preset.labelW}mm!important;height:${preset.labelH}mm!important;overflow:hidden!important;background:#fff!important}
-    .labelPrintPreviewPaper .printedElement{position:absolute!important;display:flex!important;align-items:center!important;overflow:hidden!important;padding:0!important;margin:0!important;line-height:1.05!important;white-space:normal!important}
+    .labelNativePrintRoot{display:none}
     @media print{
       html,body{margin:0!important;padding:0!important;background:#fff!important;width:${preset.rollW}mm!important}
       html.jinamLabelPrinting body>*{display:none!important}
-      html.jinamLabelPrinting .labelPrintPreviewLayer{display:block!important;position:static!important;background:#fff!important}
-      html.jinamLabelPrinting .labelPrintPreviewBar{display:none!important}
-      html.jinamLabelPrinting .labelPrintPreviewStage{display:block!important;padding:0!important;overflow:visible!important}
-      html.jinamLabelPrinting .labelPrintPreviewPaper{box-shadow:none!important;padding:0!important;min-width:0!important}
-      html.jinamLabelPrinting .labelNativePrintRoot{position:static!important;width:${preset.rollW}mm!important;margin:0!important;padding:0!important;background:#fff!important;font-family:Arial,Helvetica,sans-serif!important}
+      html.jinamLabelPrinting body>.labelNativePrintRoot{display:block!important;position:static!important;width:${preset.rollW}mm!important;margin:0!important;padding:0!important;background:#fff!important;font-family:Arial,Helvetica,sans-serif!important}
       html.jinamLabelPrinting .labelNativePrintRow{position:relative!important;width:${preset.rollW}mm!important;height:${pitch}mm!important;padding:0 ${preset.outer}mm!important;display:grid!important;grid-template-columns:repeat(${preset.columns},${preset.labelW}mm)!important;column-gap:${preset.gapX}mm!important;align-items:start!important;break-after:page!important;page-break-after:always!important;overflow:hidden!important;background:#fff!important;border:0!important}
       html.jinamLabelPrinting .labelNativePrintRow:last-child{break-after:auto!important;page-break-after:auto!important}
       html.jinamLabelPrinting .printedLabel{position:relative!important;box-sizing:border-box!important;width:${preset.labelW}mm!important;height:${preset.labelH}mm!important;overflow:hidden!important;background:#fff!important}
@@ -139,16 +126,12 @@ function buildPrintSurface(copies = 1) {
 }
 function labelOnlyPrint(copies = 1) {
   const runtime = buildPrintSurface(copies); if (!runtime) return;
-  const layer = document.createElement("section"); layer.className = "labelPrintPreviewLayer"; layer.setAttribute("role", "dialog"); layer.setAttribute("aria-modal", "true"); layer.setAttribute("aria-label", "Label print preview");
-  const bar = document.createElement("header"); bar.className = "labelPrintPreviewBar";
-  const info = document.createElement("div"), title = document.createElement("b"), meta = document.createElement("small"); title.textContent = "Print preview"; meta.textContent = `${runtime.count} label${runtime.count === 1 ? "" : "s"} · ${runtime.preset.labelW} × ${runtime.preset.labelH} mm · ${runtime.preset.columns} across on ${runtime.preset.rollW} mm roll`; info.append(title, meta);
-  const actions = document.createElement("div"); actions.className = "labelPrintPreviewActions";
-  const close = document.createElement("button"); close.type = "button"; close.textContent = "Back";
-  const printNow = document.createElement("button"); printNow.type = "button"; printNow.className = "primary"; printNow.textContent = "Print now"; actions.append(close, printNow); bar.append(info, actions);
-  const stage = document.createElement("div"); stage.className = "labelPrintPreviewStage"; const paper = document.createElement("div"); paper.className = "labelPrintPreviewPaper"; paper.appendChild(runtime.root); stage.appendChild(paper); layer.append(bar, stage); document.body.appendChild(layer);
-  const cleanup = () => removeNativePrintSurface(); close.addEventListener("click", cleanup);
-  printNow.addEventListener("click", () => { document.documentElement.classList.add("jinamLabelPrinting"); const after = () => { window.removeEventListener("afterprint", after); document.documentElement.classList.remove("jinamLabelPrinting"); }; window.addEventListener("afterprint", after, { once: true }); window.print(); });
-  layer.addEventListener("keydown", event => { if (event.key === "Escape") cleanup(); }); printNow.focus();
+  document.body.appendChild(runtime.root);
+  document.documentElement.classList.add("jinamLabelPrinting");
+  const cleanup = () => removeNativePrintSurface();
+  window.addEventListener("afterprint", cleanup, { once: true });
+  window.print();
+  window.setTimeout(cleanup, 0);
 }
 function askPrintCopies(selected: number, onConfirm: (copies: number) => void) { void selected; onConfirm(1); }
 export function labelPrintCopiesDialog(selected: number) { askPrintCopies(selected, copies => labelOnlyPrint(copies)); }
