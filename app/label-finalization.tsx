@@ -17,22 +17,15 @@ function activeBusiness() {
   const params = new URLSearchParams(window.location.search);
   return params.get("business") || localStorage.getItem("jinam:selected-business") || "seiko";
 }
-
 function setNativeSelectValue(select: HTMLSelectElement, value: string) {
   Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, value);
   select.dispatchEvent(new Event("input", { bubbles: true }));
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
-
 function orderData(businessId: string): OrderSummary[] {
-  try {
-    const rows = JSON.parse(localStorage.getItem(`jinam:${businessId}:orders-v1`) || "[]") as OrderSummary[];
-    return rows.filter(order => !order.archived);
-  } catch {
-    return [];
-  }
+  try { return (JSON.parse(localStorage.getItem(`jinam:${businessId}:orders-v1`) || "[]") as OrderSummary[]).filter(order => !order.archived); }
+  catch { return []; }
 }
-
 function enhanceOrderSearch() {
   const select = document.querySelector<HTMLSelectElement>(".labelCreateOrderChoice .labelCreateField:first-child select");
   if (!select || select.dataset.searchReady) return;
@@ -40,56 +33,24 @@ function enhanceOrderSearch() {
   select.classList.add("labelOrderNativeSelect");
   const orders = orderData(activeBusiness());
   const byId = new Map(orders.map(order => [String(order.orderId || ""), order]));
-  const wrapper = document.createElement("div");
-  wrapper.className = "labelOrderSearch";
-  const input = document.createElement("input");
-  input.type = "search";
-  input.autocomplete = "off";
-  input.placeholder = "Search order, client, Attn or phone";
-  input.setAttribute("aria-label", "Search orders by order number, client, attention name or phone number");
-  const results = document.createElement("div");
-  results.className = "labelOrderSearchResults";
-  results.hidden = true;
-  wrapper.append(input, results);
-  select.insertAdjacentElement("afterend", wrapper);
-
+  const wrapper = document.createElement("div"); wrapper.className = "labelOrderSearch";
+  const input = document.createElement("input"); input.type = "search"; input.autocomplete = "off"; input.placeholder = "Search order, client, Attn or phone"; input.setAttribute("aria-label", "Search orders by order number, client, attention name or phone number");
+  const results = document.createElement("div"); results.className = "labelOrderSearchResults"; results.hidden = true;
+  wrapper.append(input, results); select.insertAdjacentElement("afterend", wrapper);
   const labelFor = (order: OrderSummary | undefined, fallback = "") => order ? `${order.details?.orderNo || "Order"} — ${order.details?.clientName || "Unnamed client"}` : fallback;
-  const syncFromSelect = () => {
-    const option = select.options[select.selectedIndex];
-    input.value = select.value ? labelFor(byId.get(select.value), option?.textContent || "") : "";
-  };
+  const syncFromSelect = () => { const option = select.options[select.selectedIndex]; input.value = select.value ? labelFor(byId.get(select.value), option?.textContent || "") : ""; };
   const render = (query: string) => {
     const term = query.trim().toLowerCase();
-    const matches = orders.filter(order => {
-      const d = order.details || {};
-      return !term || [d.orderNo, d.clientName, d.contactPerson, d.contactNumber].filter(Boolean).join(" ").toLowerCase().includes(term);
-    }).slice(0, 12);
+    const matches = orders.filter(order => { const d = order.details || {}; return !term || [d.orderNo, d.clientName, d.contactPerson, d.contactNumber].filter(Boolean).join(" ").toLowerCase().includes(term); }).slice(0, 12);
     results.replaceChildren();
     for (const order of matches) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "labelOrderSearchResult";
-      const title = document.createElement("b");
-      title.textContent = labelFor(order);
-      const meta = document.createElement("small");
-      const details = [order.details?.contactPerson && `Attn: ${order.details.contactPerson}`, order.details?.contactNumber && `Phone: ${order.details.contactNumber}`].filter(Boolean);
-      meta.textContent = details.join(" · ") || "No contact details saved";
-      button.append(title, meta);
-      button.addEventListener("mousedown", event => event.preventDefault());
-      button.addEventListener("click", () => {
-        const id = String(order.orderId || "");
-        setNativeSelectValue(select, id);
-        input.value = labelFor(order);
-        results.hidden = true;
-      });
-      results.appendChild(button);
+      const button = document.createElement("button"); button.type = "button"; button.className = "labelOrderSearchResult";
+      const title = document.createElement("b"); title.textContent = labelFor(order);
+      const meta = document.createElement("small"); const details = [order.details?.contactPerson && `Attn: ${order.details.contactPerson}`, order.details?.contactNumber && `Phone: ${order.details.contactNumber}`].filter(Boolean); meta.textContent = details.join(" · ") || "No contact details saved";
+      button.append(title, meta); button.addEventListener("mousedown", event => event.preventDefault());
+      button.addEventListener("click", () => { const id = String(order.orderId || ""); setNativeSelectValue(select, id); input.value = labelFor(order); results.hidden = true; }); results.appendChild(button);
     }
-    if (!matches.length) {
-      const empty = document.createElement("p");
-      empty.className = "labelOrderSearchEmpty";
-      empty.textContent = "No matching orders";
-      results.appendChild(empty);
-    }
+    if (!matches.length) { const empty = document.createElement("p"); empty.className = "labelOrderSearchEmpty"; empty.textContent = "No matching orders"; results.appendChild(empty); }
     results.hidden = false;
   };
   input.addEventListener("focus", () => render(input.value.includes(" — ") ? "" : input.value));
@@ -99,104 +60,49 @@ function enhanceOrderSearch() {
   document.addEventListener("pointerdown", event => { if (!wrapper.contains(event.target as Node)) results.hidden = true; });
   syncFromSelect();
 }
-
 function markProductionWorkspaceFields() {
   document.querySelectorAll<HTMLElement>(".labelDesignerPage .fieldChoice").forEach(choice => {
     const label = choice.querySelector("label span")?.textContent?.trim() || "";
-    const reportOnly = /^(Package contents|Cutting bundle summary|Resolved size|Calculated quantity|Number of people|Number of variations)$/i.test(label);
-    choice.dataset.productionWorkspace = reportOnly ? "false" : "true";
+    choice.dataset.productionWorkspace = /^(Package contents|Cutting bundle summary|Resolved size|Calculated quantity|Number of people|Number of variations)$/i.test(label) ? "false" : "true";
   });
 }
-
 function currentPreset(): Preset {
   const triggerText = document.querySelector<HTMLElement>(".labelDesignerPage .managedSizeTrigger span")?.textContent || "";
-  try {
-    const presets = [DEFAULT_PRESET, ...(JSON.parse(localStorage.getItem(`jinam:${activeBusiness()}:labels:presets-v1`) || "[]") as Preset[])];
-    return presets.find(preset => preset.name === triggerText) || DEFAULT_PRESET;
-  } catch {
-    return DEFAULT_PRESET;
-  }
+  try { const presets = [DEFAULT_PRESET, ...(JSON.parse(localStorage.getItem(`jinam:${activeBusiness()}:labels:presets-v1`) || "[]") as Preset[])]; return presets.find(preset => preset.name === triggerText) || DEFAULT_PRESET; }
+  catch { return DEFAULT_PRESET; }
 }
-
 function syncPreviewTypography(canvas: HTMLElement, labelWidthMm: number) {
-  const rect = canvas.getBoundingClientRect();
-  if (!rect.width || !labelWidthMm) return;
-  const actualPxPerMm = rect.width / labelWidthMm;
-  canvas.style.setProperty("--label-mm-px", `${actualPxPerMm}px`);
+  const rect = canvas.getBoundingClientRect(); if (!rect.width || !labelWidthMm) return;
+  const actualPxPerMm = rect.width / labelWidthMm; canvas.style.setProperty("--label-mm-px", `${actualPxPerMm}px`);
   canvas.querySelectorAll<HTMLElement>(".canvasElement.element-text,.canvasElement.element-field,.canvasElement.element-sequence").forEach(element => {
-    const directPt = Number.parseFloat(element.dataset.fontPt || "0");
-    const fallbackPx = Number.parseFloat(element.style.fontSize || "0");
-    const pointSize = directPt || (fallbackPx ? fallbackPx / CSS_PX_PER_PT : 0);
-    if (!pointSize) return;
-    element.style.fontSize = `${pointSize * MM_PER_PT * actualPxPerMm}px`;
-    element.style.lineHeight = "1.05";
+    const directPt = Number.parseFloat(element.dataset.fontPt || "0"), fallbackPx = Number.parseFloat(element.style.fontSize || "0"), pointSize = directPt || (fallbackPx ? fallbackPx / CSS_PX_PER_PT : 0);
+    if (!pointSize) return; element.style.fontSize = `${pointSize * MM_PER_PT * actualPxPerMm}px`; element.style.lineHeight = "1.05";
   });
 }
-
 function ensureCanvasRatio() {
   document.querySelectorAll<HTMLElement>(".labelDesignerPage .labelCanvasPanel").forEach(panel => {
-    const canvas = panel.querySelector<HTMLElement>(".labelCanvas");
-    const title = panel.querySelector(".canvasToolbar b")?.textContent || "";
-    if (!canvas) return;
-    const match = title.match(/([\d.]+)\s*[×x]\s*([\d.]+)\s*mm/i);
-    const width = Number(match?.[1]) || 50;
-    const height = Number(match?.[2]) || 25;
-    canvas.style.setProperty("--final-label-ratio", `${width} / ${height}`);
-    canvas.dataset.finalRatioReady = "true";
-    syncPreviewTypography(canvas, width);
+    const canvas = panel.querySelector<HTMLElement>(".labelCanvas"), title = panel.querySelector(".canvasToolbar b")?.textContent || ""; if (!canvas) return;
+    const match = title.match(/([\d.]+)\s*[×x]\s*([\d.]+)\s*mm/i), width = Number(match?.[1]) || 50, height = Number(match?.[2]) || 25;
+    canvas.style.setProperty("--final-label-ratio", `${width} / ${height}`); canvas.dataset.finalRatioReady = "true"; syncPreviewTypography(canvas, width);
   });
 }
-
 function normalizedPrintedLabel(source: HTMLElement) {
   const clone = source.cloneNode(true) as HTMLElement;
-  clone.querySelectorAll<HTMLElement>(".printedElement.element-text,.printedElement.element-field,.printedElement.element-sequence").forEach(element => {
-    const logicalFont = Number.parseFloat(element.style.fontSize || "0");
-    if (!logicalFont) return;
-    element.style.fontSize = `${logicalFont * MM_PER_PT}mm`;
-    element.style.lineHeight = "1.05";
-  });
+  clone.querySelectorAll<HTMLElement>(".printedElement.element-text,.printedElement.element-field,.printedElement.element-sequence").forEach(element => { const logicalFont = Number.parseFloat(element.style.fontSize || "0"); if (!logicalFont) return; element.style.fontSize = `${logicalFont * MM_PER_PT}mm`; element.style.lineHeight = "1.05"; });
   return clone;
 }
-
-function showPrintNotice(message: string) {
-  document.querySelector(".labelPrintNotice")?.remove();
-  const note = document.createElement("div");
-  note.className = "labelPrintNotice";
-  note.setAttribute("role", "status");
-  note.textContent = message;
-  document.body.appendChild(note);
-  window.setTimeout(() => note.remove(), 5200);
-}
-
-function removeNativePrintSurface() {
-  document.documentElement.classList.remove("jinamLabelPrinting");
-  document.querySelector(".labelPrintPreviewLayer")?.remove();
-  document.querySelector(".labelNativePrintRoot")?.remove();
-  document.querySelector("#jinam-label-native-print-style")?.remove();
-}
-
+function showPrintNotice(message: string) { document.querySelector(".labelPrintNotice")?.remove(); const note = document.createElement("div"); note.className = "labelPrintNotice"; note.setAttribute("role", "status"); note.textContent = message; document.body.appendChild(note); window.setTimeout(() => note.remove(), 5200); }
+function removeNativePrintSurface() { document.documentElement.classList.remove("jinamLabelPrinting"); document.querySelector(".labelPrintPreviewLayer")?.remove(); document.querySelector(".labelNativePrintRoot")?.remove(); document.querySelector("#jinam-label-native-print-style")?.remove(); }
 function buildPrintSurface(copies = 1) {
-  const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet");
-  if (!sheet) { showPrintNotice("The label print sheet is not ready yet. Try Print again."); return null; }
+  const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet"); if (!sheet) { showPrintNotice("The label print sheet is not ready yet. Try Print again."); return null; }
   removeNativePrintSurface();
   const sourceLabels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")];
   const labels = sourceLabels.flatMap(label => Array.from({ length: copies }, () => normalizedPrintedLabel(label)));
   if (!labels.length) { showPrintNotice("No selected labels are available to print."); return null; }
-
-  const preset = currentPreset();
-  const pitch = preset.labelH + Math.max(0, preset.gapY || 0);
-  const root = document.createElement("main");
-  root.className = "labelNativePrintRoot";
-  root.setAttribute("aria-label", "Calibrated label print surface");
-  for (let index = 0; index < labels.length; index += preset.columns) {
-    const row = document.createElement("section");
-    row.className = "labelNativePrintRow";
-    labels.slice(index, index + preset.columns).forEach(label => row.appendChild(label));
-    root.appendChild(row);
-  }
-
-  const style = document.createElement("style");
-  style.id = "jinam-label-native-print-style";
+  const preset = currentPreset(), pitch = preset.labelH + Math.max(0, preset.gapY || 0);
+  const root = document.createElement("main"); root.className = "labelNativePrintRoot"; root.setAttribute("aria-label", "Calibrated label print surface");
+  for (let index = 0; index < labels.length; index += preset.columns) { const row = document.createElement("section"); row.className = "labelNativePrintRow"; labels.slice(index, index + preset.columns).forEach(label => row.appendChild(label)); root.appendChild(row); }
+  const style = document.createElement("style"); style.id = "jinam-label-native-print-style";
   style.textContent = `
     @page{size:${preset.rollW}mm ${pitch}mm;margin:0}
     .labelPrintPreviewLayer{position:fixed;inset:0;z-index:4000;background:#eef1f3;display:flex;flex-direction:column;color:#102d49}
@@ -229,99 +135,36 @@ function buildPrintSurface(copies = 1) {
       html.jinamLabelPrinting .fakeBarcode small{text-align:center!important;font:6px monospace!important;white-space:nowrap!important;color:#111!important}
     }
   `;
-  document.head.appendChild(style);
-  return { root, preset, count: labels.length };
+  document.head.appendChild(style); return { root, preset, count: labels.length };
 }
-
-function openLabelPrintPreview(copies = 1) {
-  const runtime = buildPrintSurface(copies);
-  if (!runtime) return;
-
-  const layer = document.createElement("section");
-  layer.className = "labelPrintPreviewLayer";
-  layer.setAttribute("role", "dialog");
-  layer.setAttribute("aria-modal", "true");
-  layer.setAttribute("aria-label", "Label print preview");
-
-  const bar = document.createElement("header");
-  bar.className = "labelPrintPreviewBar";
-  const info = document.createElement("div");
-  const title = document.createElement("b");
-  title.textContent = "Print preview";
-  const meta = document.createElement("small");
-  meta.textContent = `${runtime.count} label${runtime.count === 1 ? "" : "s"} · ${runtime.preset.labelW} × ${runtime.preset.labelH} mm · ${runtime.preset.columns} across on ${runtime.preset.rollW} mm roll`;
-  info.append(title, meta);
-
-  const actions = document.createElement("div");
-  actions.className = "labelPrintPreviewActions";
-  const close = document.createElement("button");
-  close.type = "button";
-  close.textContent = "Back";
-  const printNow = document.createElement("button");
-  printNow.type = "button";
-  printNow.className = "primary";
-  printNow.textContent = "Print now";
-  actions.append(close, printNow);
-  bar.append(info, actions);
-
-  const stage = document.createElement("div");
-  stage.className = "labelPrintPreviewStage";
-  const paper = document.createElement("div");
-  paper.className = "labelPrintPreviewPaper";
-  paper.appendChild(runtime.root);
-  stage.appendChild(paper);
-  layer.append(bar, stage);
-  document.body.appendChild(layer);
-
-  const cleanup = () => removeNativePrintSurface();
-  close.addEventListener("click", cleanup);
-  printNow.addEventListener("click", () => {
-    document.documentElement.classList.add("jinamLabelPrinting");
-    const after = () => {
-      window.removeEventListener("afterprint", after);
-      document.documentElement.classList.remove("jinamLabelPrinting");
-    };
-    window.addEventListener("afterprint", after, { once: true });
-    window.print();
-  });
-  layer.addEventListener("keydown", event => { if (event.key === "Escape") cleanup(); });
-  printNow.focus();
+function labelOnlyPrint(copies = 1) {
+  const runtime = buildPrintSurface(copies); if (!runtime) return;
+  const layer = document.createElement("section"); layer.className = "labelPrintPreviewLayer"; layer.setAttribute("role", "dialog"); layer.setAttribute("aria-modal", "true"); layer.setAttribute("aria-label", "Label print preview");
+  const bar = document.createElement("header"); bar.className = "labelPrintPreviewBar";
+  const info = document.createElement("div"), title = document.createElement("b"), meta = document.createElement("small"); title.textContent = "Print preview"; meta.textContent = `${runtime.count} label${runtime.count === 1 ? "" : "s"} · ${runtime.preset.labelW} × ${runtime.preset.labelH} mm · ${runtime.preset.columns} across on ${runtime.preset.rollW} mm roll`; info.append(title, meta);
+  const actions = document.createElement("div"); actions.className = "labelPrintPreviewActions";
+  const close = document.createElement("button"); close.type = "button"; close.textContent = "Back";
+  const printNow = document.createElement("button"); printNow.type = "button"; printNow.className = "primary"; printNow.textContent = "Print now"; actions.append(close, printNow); bar.append(info, actions);
+  const stage = document.createElement("div"); stage.className = "labelPrintPreviewStage"; const paper = document.createElement("div"); paper.className = "labelPrintPreviewPaper"; paper.appendChild(runtime.root); stage.appendChild(paper); layer.append(bar, stage); document.body.appendChild(layer);
+  const cleanup = () => removeNativePrintSurface(); close.addEventListener("click", cleanup);
+  printNow.addEventListener("click", () => { document.documentElement.classList.add("jinamLabelPrinting"); const after = () => { window.removeEventListener("afterprint", after); document.documentElement.classList.remove("jinamLabelPrinting"); }; window.addEventListener("afterprint", after, { once: true }); window.print(); });
+  layer.addEventListener("keydown", event => { if (event.key === "Escape") cleanup(); }); printNow.focus();
 }
-
+function askPrintCopies(selected: number, onConfirm: (copies: number) => void) { void selected; onConfirm(1); }
+export function labelPrintCopiesDialog(selected: number) { askPrintCopies(selected, copies => labelOnlyPrint(copies)); }
 export function LabelFinalization() {
   useEffect(() => {
     let frame = 0;
-    const enhance = () => {
-      enhanceOrderSearch();
-      markProductionWorkspaceFields();
-      ensureCanvasRatio();
-    };
-    const schedule = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => { frame = 0; enhance(); });
-    };
-    enhance();
-    const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] });
-
+    const enhance = () => { enhanceOrderSearch(); markProductionWorkspaceFields(); ensureCanvasRatio(); };
+    const schedule = () => { if (frame) return; frame = requestAnimationFrame(() => { frame = 0; enhance(); }); };
+    enhance(); const observer = new MutationObserver(schedule); observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] });
     const click = (event: MouseEvent) => {
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>(".labelDesignerPage .labelHeaderCommandBar > button.primary, .labelDesignerPage .labelTopbar .primary");
       if (!button || button.disabled || !/^Print\b/i.test(button.textContent || "")) return;
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      openLabelPrintPreview(1);
+      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); labelOnlyPrint(1);
     };
-
-    document.addEventListener("click", click, true);
-    window.addEventListener("resize", schedule);
-    return () => {
-      observer.disconnect();
-      document.removeEventListener("click", click, true);
-      window.removeEventListener("resize", schedule);
-      removeNativePrintSurface();
-      if (frame) cancelAnimationFrame(frame);
-    };
+    document.addEventListener("click", click, true); window.addEventListener("resize", schedule);
+    return () => { observer.disconnect(); document.removeEventListener("click", click, true); window.removeEventListener("resize", schedule); removeNativePrintSurface(); if (frame) cancelAnimationFrame(frame); };
   }, []);
   return null;
 }
