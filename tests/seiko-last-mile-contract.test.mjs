@@ -71,14 +71,14 @@ test("direct saved-set print waits for task hydration then clicks calibrated Pri
   assert.match(labelInteractions, /printButton\.click\(\)/);
 });
 
-test("normal Print opens an explicit calibrated preview with a user-owned Print now action", () => {
-  assert.match(labelFinalization, /labelPrintPreviewLayer/);
+test("normal Print opens the native browser print dialog directly with calibrated output", () => {
   assert.match(labelFinalization, /labelNativePrintRoot/);
   assert.match(labelFinalization, /@page\{size:\$\{preset\.rollW\}mm \$\{pitch\}mm;margin:0\}/);
-  assert.match(labelFinalization, /labelOnlyPrint\(1\)/);
-  assert.match(labelFinalization, /printNow\.textContent = "Print now"/);
-  assert.match(labelFinalization, /printNow\.addEventListener\("click"/);
+  assert.match(labelFinalization, /document\.body\.appendChild\(runtime\.root\)/);
+  assert.match(labelFinalization, /document\.documentElement\.classList\.add\("jinamLabelPrinting"\)/);
   assert.match(labelFinalization, /window\.print\(\)/);
+  assert.doesNotMatch(labelFinalization, /labelPrintPreviewLayer/);
+  assert.doesNotMatch(labelFinalization, /Print now/);
   assert.doesNotMatch(labelFinalization, /window\.open\(/);
   assert.doesNotMatch(labelFinalization, /iframe/);
 });
