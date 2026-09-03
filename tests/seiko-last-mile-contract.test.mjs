@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const orders = read("app/orders.tsx");
 const structure = read("app/workspace-structure-interactions.tsx");
+const operationalUx = read("app/seiko-operational-ux.tsx");
 const labelDesigner = read("app/label-designer.tsx");
 const labelInteractions = read("app/label-designer-interactions.tsx");
 const labelFinalization = read("app/label-finalization.tsx");
@@ -31,6 +32,25 @@ test("workspace row selection clears when focus leaves row-selection controls", 
   assert.match(structure, /workspaceRowHeader,.workspaceRowHeaderCorner,.workspaceContextMenu/);
   assert.match(structure, /document\.addEventListener\("pointerdown",outside,true\)/);
   assert.match(structure, /document\.addEventListener\("focusin",outside,true\)/);
+});
+
+test("workspace row drag/drop accepts the whole row and delete uses an in-app confirmation", () => {
+  assert.match(structure, /row\.addEventListener\("dragover",dragover\)/);
+  assert.match(structure, /row\.addEventListener\("drop",drop\)/);
+  assert.match(structure, /application\/x-seiko-rows/);
+  assert.match(structure, /confirmDelete/);
+  assert.match(structure, /seikoConfirmLayer/);
+  assert.match(structure, /void deleteRows\(ids\)/);
+  assert.doesNotMatch(structure, /window\.confirm|\bconfirm\(`/);
+});
+
+test("order product hover popout closes deterministically and cannot leak into Workspace", () => {
+  assert.match(operationalUx, /scheduleProductHoverClose/);
+  assert.match(operationalUx, /productHoverCloseTimer/);
+  assert.match(operationalUx, /enhanceWorkspace[\s\S]{0,240}removeProductHover\(\)/);
+  assert.match(operationalUx, /document\.addEventListener\("pointerdown", outside, true\)/);
+  assert.match(operationalUx, /document\.addEventListener\("scroll", close, true\)/);
+  assert.match(operationalUx, /event\.key==="Escape"/);
 });
 
 test("Label Information contains only configured product fields and no synthetic applicable-product slots", () => {
