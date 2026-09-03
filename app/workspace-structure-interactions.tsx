@@ -13,6 +13,7 @@ function paint() {
 function selectRange(ids: string[], from: string, to: string, target: Set<string>) { const a=ids.indexOf(from), b=ids.indexOf(to); if(a<0||b<0)return; target.clear(); for(let i=Math.min(a,b);i<=Math.max(a,b);i++) target.add(ids[i]); }
 function closeContextMenu(){document.querySelector(".workspaceContextMenu")?.remove();}
 function clearDropHints(){document.querySelectorAll(".workspaceDropBefore,.workspaceDropAfter").forEach(node=>node.classList.remove("workspaceDropBefore","workspaceDropAfter"));}
+function clearTransientRowSelection(){if(!selectedRows.size)return;selectedRows.clear();rowAnchor="";paint();}
 function dropPosition(event:DragEvent,element:HTMLElement,axis:"x"|"y"){const box=element.getBoundingClientRect();return axis==="y"?(event.clientY<box.top+box.height/2?"before":"after"):(event.clientX<box.left+box.width/2?"before":"after");}
 function paintDropHint(element:HTMLElement,position:"before"|"after"){clearDropHints();element.classList.add(position==="before"?"workspaceDropBefore":"workspaceDropAfter");}
 function contextMenu(x:number,y:number,items:Array<{label:string;command:string;disabled?:boolean}>,dispatch:(command:string)=>void){
@@ -49,12 +50,13 @@ function enhance(){configureRows();configureColumns();paint();}
 export function WorkspaceStructureInteractions(){useEffect(()=>{
   const controller=startDomEnhancement(enhance,{observer:{childList:true,subtree:true}});
   const clear=()=>clearDropHints();
-  const outside=(event:PointerEvent)=>{const target=event.target as Element|null;if(!target?.closest?.(".workspaceContextMenu"))closeContextMenu();};
+  const outside=(event:Event)=>{const target=event.target as Element|null;if(!target?.closest?.(".workspaceContextMenu"))closeContextMenu();if(!target?.closest?.(".workspaceRowHeader,.workspaceRowHeaderCorner,.workspaceContextMenu"))clearTransientRowSelection();};
   const closeTransient=()=>closeContextMenu();
   document.addEventListener("dragend",clear,true);
   document.addEventListener("pointerdown",outside,true);
+  document.addEventListener("focusin",outside,true);
   document.addEventListener("scroll",closeTransient,true);
   window.addEventListener("resize",closeTransient);
   window.addEventListener("blur",closeTransient);
-  return()=>{document.removeEventListener("dragend",clear,true);document.removeEventListener("pointerdown",outside,true);document.removeEventListener("scroll",closeTransient,true);window.removeEventListener("resize",closeTransient);window.removeEventListener("blur",closeTransient);clearDropHints();closeContextMenu();controller.stop();};
+  return()=>{document.removeEventListener("dragend",clear,true);document.removeEventListener("pointerdown",outside,true);document.removeEventListener("focusin",outside,true);document.removeEventListener("scroll",closeTransient,true);window.removeEventListener("resize",closeTransient);window.removeEventListener("blur",closeTransient);clearDropHints();clearTransientRowSelection();closeContextMenu();controller.stop();};
 },[]);return null;}
