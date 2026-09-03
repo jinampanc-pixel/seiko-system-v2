@@ -56,6 +56,51 @@
   outline-offset:0!important;
 }
 
+/* Field names and values are one compact visual unit. The old renderer already
+   contains a normal whitespace after the colon; adding .25em again made the
+   gap grow dramatically with large type. Keep one microscopic optical gap and
+   never distribute the two spans across the stored element width. */
+.labelDesignerPage .canvasElement.element-field,
+.labelDesignerPage .printedElement.element-field{
+  justify-content:flex-start!important;
+  align-items:center!important;
+  gap:.035em!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+}
+.labelDesignerPage .canvasElement.element-field>.fieldName,
+.labelDesignerPage .printedElement.element-field>.fieldName{
+  flex:0 0 auto!important;
+  margin-right:0!important;
+  padding:0!important;
+}
+.labelDesignerPage .canvasElement.element-field>span:not(.fieldName),
+.labelDesignerPage .printedElement.element-field>span:not(.fieldName){
+  flex:0 0 auto!important;
+  margin:0!important;
+  padding:0!important;
+}
+/* The native print surface is body-mounted outside .labelDesignerPage, so give
+   it the same compact field rules with greater specificity than its runtime
+   safety stylesheet. */
+html.jinamLabelPrinting body>.labelNativePrintRoot .printedElement.element-field{
+  justify-content:flex-start!important;
+  align-items:center!important;
+  gap:.035em!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+}
+html.jinamLabelPrinting body>.labelNativePrintRoot .printedElement.element-field>.fieldName{
+  flex:0 0 auto!important;
+  margin-right:0!important;
+  padding:0!important;
+}
+html.jinamLabelPrinting body>.labelNativePrintRoot .printedElement.element-field>span:not(.fieldName){
+  flex:0 0 auto!important;
+  margin:0!important;
+  padding:0!important;
+}
+
 /* The separate Access navigation entry is redundant in SEIKO: access and
    user management are reached from Settings > Access & management. */
 .app .accessMenuEntry{
