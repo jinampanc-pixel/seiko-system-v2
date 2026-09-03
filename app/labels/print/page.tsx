@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LabelDesigner } from "../../label-designer";
+import { PackingPersonLabelDesigner } from "../../packing-person-label-designer";
 import { orderStoreKey, type SeikoOrder } from "../../lib/order-domain";
 
 type LabelPurpose = "production" | "packing" | "inventory";
@@ -62,7 +63,8 @@ export default function SavedLabelPrintPage() {
       const taskStillLoading = sessionStorage.getItem(openTaskKey(business));
       const labels = document.querySelectorAll(".labelDesignerPage .printSheet .printedLabel");
       const expected = Math.max(1, task.selectedRows?.length || 0);
-      if (taskStillLoading || labels.length < expected) return;
+      const fitting = document.querySelectorAll(".labelDesignerPage .printSheet .packingFitText:not([data-fit-ready='true'])");
+      if (taskStillLoading || labels.length < expected || fitting.length) return;
       printStarted.current = true;
       requestAnimationFrame(() => requestAnimationFrame(() => window.dispatchEvent(new Event("jinam:labels:print"))));
       timer = window.setTimeout(() => setBlocked(true), 1300);
@@ -85,6 +87,7 @@ export default function SavedLabelPrintPage() {
   if (!ready) return <main style={{ padding: 32 }}><b>Preparing labels for print…</b></main>;
   if (!task || !order) return <main style={{ padding: 32 }}><h1>Saved label set not found</h1><button type="button" onClick={() => history.back()}>Back to Labels</button></main>;
 
+  const isPackingPerson = task.purpose === "packing" && task.sourceMode === "person";
   return <main className="savedLabelPrintRoute" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 32, background: "#f5f1eb", color: "#102d49" }}>
     <section style={{ maxWidth: 520, background: "#fff", border: "1px solid #d7e0e6", borderRadius: 14, padding: 24 }}>
       <h1 style={{ marginTop: 0, fontSize: 22 }}>Preparing system print…</h1>
@@ -93,7 +96,7 @@ export default function SavedLabelPrintPage() {
       <button type="button" onClick={() => history.back()} style={{ marginLeft: 10 }}>Cancel</button>
     </section>
     <div aria-hidden="true" style={{ position: "fixed", left: "-200vw", top: 0, width: "1200px", visibility: "hidden", pointerEvents: "none" }}>
-      <LabelDesigner businessId={business} order={order} initialPurpose={task.purpose} initialSourceMode={task.sourceMode} canManageSizes={false}/>
+      {isPackingPerson ? <PackingPersonLabelDesigner businessId={business} order={order} canManageSizes={false}/> : <LabelDesigner businessId={business} order={order} initialPurpose={task.purpose} initialSourceMode={task.sourceMode} canManageSizes={false}/>} 
     </div>
   </main>;
 }
