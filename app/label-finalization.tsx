@@ -8,6 +8,7 @@ type OrderSummary = {
   details?: { orderNo?: string; clientName?: string; contactPerson?: string; contactNumber?: string };
 };
 type Preset = { id: string; name: string; labelW: number; labelH: number; rollW: number; columns: number; outer: number; gapX: number; gapY: number };
+type SavedLabelTask = { id: string; name?: string; orderId?: string; orderNo?: string; client?: string; selectedRows?: string[] };
 
 const DEFAULT_PRESET: Preset = { id: "pixra-109", name: "109 mm roll · 2 × 50 × 25", labelW: 50, labelH: 25, rollW: 109, columns: 2, outer: 3, gapX: 3, gapY: 3 };
 const CSS_PX_PER_PT = 96 / 72;
@@ -24,6 +25,10 @@ function setNativeSelectValue(select: HTMLSelectElement, value: string) {
 }
 function orderData(businessId: string): OrderSummary[] {
   try { return (JSON.parse(localStorage.getItem(`jinam:${businessId}:orders-v1`) || "[]") as OrderSummary[]).filter(order => !order.archived); }
+  catch { return []; }
+}
+function savedTasks(businessId: string): SavedLabelTask[] {
+  try { return JSON.parse(localStorage.getItem(`jinam:${businessId}:labels:tasks-v1`) || "[]") as SavedLabelTask[]; }
   catch { return []; }
 }
 function enhanceOrderSearch() {
@@ -76,7 +81,7 @@ function syncPreviewTypography(canvas: HTMLElement, labelWidthMm: number) {
   const actualPxPerMm = rect.width / labelWidthMm; canvas.style.setProperty("--label-mm-px", `${actualPxPerMm}px`);
   canvas.querySelectorAll<HTMLElement>(".canvasElement.element-text,.canvasElement.element-field,.canvasElement.element-sequence").forEach(element => {
     const directPt = Number.parseFloat(element.dataset.fontPt || "0"), fallbackPx = Number.parseFloat(element.style.fontSize || "0"), pointSize = directPt || (fallbackPx ? fallbackPx / CSS_PX_PER_PT : 0);
-    if (!pointSize) return; element.style.fontSize = `${pointSize * MM_PER_PT * actualPxPerMm}px`; element.style.lineHeight = "1.05";
+    if (!pointSize) return; element.style.fontSize = `${pointSize * MM_PER_PT * actualPxPerMm}px`; element.style.lineHeight = "1";
   });
 }
 function ensureCanvasRatio() {
@@ -88,13 +93,13 @@ function ensureCanvasRatio() {
 }
 function normalizedPrintedLabel(source: HTMLElement) {
   const clone = source.cloneNode(true) as HTMLElement;
-  clone.querySelectorAll<HTMLElement>(".printedElement.element-text,.printedElement.element-field,.printedElement.element-sequence").forEach(element => { const logicalFont = Number.parseFloat(element.style.fontSize || "0"); if (!logicalFont) return; element.style.fontSize = `${logicalFont * MM_PER_PT}mm`; element.style.lineHeight = "1.05"; });
+  clone.querySelectorAll<HTMLElement>(".printedElement.element-text,.printedElement.element-field,.printedElement.element-sequence").forEach(element => { const logicalFont = Number.parseFloat(element.style.fontSize || "0"); if (!logicalFont) return; element.style.fontSize = `${logicalFont * MM_PER_PT}mm`; element.style.lineHeight = "1"; });
   return clone;
 }
-function showPrintNotice(message: string) { document.querySelector(".labelPrintNotice")?.remove(); const note = document.createElement("div"); note.className = "labelPrintNotice"; note.setAttribute("role", "status"); note.textContent = message; document.body.appendChild(note); window.setTimeout(() => note.remove(), 5200); }
+function showPrintNotice(message: string) { document.querySelector(".labelPrintNotice")?.remove(); const note = document.createElement("div"); note.className = "labelPrintNotice"; note.setAttribute("role", "status"); note.textContent = message; document.body.appendChild(note); window.setTimeout(() => note.remove(), 7000); }
 function removeNativePrintSurface() { document.documentElement.classList.remove("jinamLabelPrinting"); document.querySelector(".labelNativePrintRoot")?.remove(); document.querySelector("#jinam-label-native-print-style")?.remove(); }
 function buildPrintSurface(copies = 1) {
-  const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet"); if (!sheet) { showPrintNotice("The label print sheet is not ready yet. Try Print again."); return null; }
+  const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet"); if (!sheet) { showPrintNotice("The calibrated label sheet is not ready. Try Print again."); return null; }
   removeNativePrintSurface();
   const sourceLabels = [...sheet.querySelectorAll<HTMLElement>(".printedLabel")];
   const labels = sourceLabels.flatMap(label => Array.from({ length: copies }, () => normalizedPrintedLabel(label)));
@@ -113,7 +118,7 @@ function buildPrintSurface(copies = 1) {
       html.jinamLabelPrinting .labelNativePrintRow{position:relative!important;width:${preset.rollW}mm!important;height:${pitch}mm!important;padding:0 ${preset.outer}mm!important;display:grid!important;grid-template-columns:repeat(${preset.columns},${preset.labelW}mm)!important;column-gap:${preset.gapX}mm!important;align-items:start!important;break-after:page!important;page-break-after:always!important;overflow:hidden!important;background:#fff!important;border:0!important}
       html.jinamLabelPrinting .labelNativePrintRow:last-child{break-after:auto!important;page-break-after:auto!important}
       html.jinamLabelPrinting .printedLabel{position:relative!important;box-sizing:border-box!important;width:${preset.labelW}mm!important;height:${preset.labelH}mm!important;overflow:hidden!important;background:#fff!important}
-      html.jinamLabelPrinting .printedElement{position:absolute!important;display:flex!important;align-items:center!important;overflow:hidden!important;padding:0!important;margin:0!important;line-height:1.05!important;white-space:normal!important}
+      html.jinamLabelPrinting .printedElement{position:absolute!important;display:flex!important;align-items:flex-start!important;overflow:hidden!important;padding:0!important;margin:0!important;line-height:1!important;white-space:normal!important}
       html.jinamLabelPrinting .fieldName{margin-right:.25em!important}
       html.jinamLabelPrinting .fakeQr,html.jinamLabelPrinting .fakeQr.realQr{display:block!important;width:100%!important;height:100%!important;background:none!important;color:transparent!important;font-size:0!important;overflow:hidden!important}
       html.jinamLabelPrinting .fakeQr svg,html.jinamLabelPrinting .fakeQr.realQr svg{display:block!important;width:100%!important;height:100%!important;background:#fff!important}
@@ -125,12 +130,32 @@ function buildPrintSurface(copies = 1) {
   document.head.appendChild(style); return { root, preset, count: labels.length };
 }
 function labelOnlyPrint(copies = 1) {
-  const runtime = buildPrintSurface(copies); if (!runtime) return;
+  const runtime = buildPrintSurface(copies); if (!runtime) return false;
   document.body.appendChild(runtime.root);
   document.documentElement.classList.add("jinamLabelPrinting");
-  const cleanup = () => removeNativePrintSurface();
+  let beforePrintSeen = false;
+  const before = () => { beforePrintSeen = true; };
+  const cleanup = () => { window.removeEventListener("beforeprint", before); removeNativePrintSurface(); };
+  window.addEventListener("beforeprint", before, { once: true });
   window.addEventListener("afterprint", cleanup, { once: true });
   window.print();
+  window.setTimeout(() => {
+    if (!beforePrintSeen && document.querySelector(".labelNativePrintRoot")) {
+      showPrintNotice("This embedded browser did not open the system print dialog. Open this same JINAM page in Chrome or Edge and press Print.");
+    }
+  }, 800);
+  return true;
+}
+function routeSavedSetPrint(button: HTMLButtonElement, mode: "print" | "pdf") {
+  const row = button.closest<HTMLElement>(".labelBatchModuleList > article");
+  const title = row?.querySelector<HTMLElement>("b")?.textContent?.trim();
+  if (!row || !title) return false;
+  const business = activeBusiness();
+  const task = savedTasks(business).find(item => item.name === title);
+  if (!task?.id || !task.orderId) return false;
+  const query = new URLSearchParams({ business, task: task.id, mode });
+  window.location.assign(`/labels/print?${query.toString()}`);
+  return true;
 }
 function askPrintCopies(selected: number, onConfirm: (copies: number) => void) { void selected; onConfirm(1); }
 export function labelPrintCopiesDialog(selected: number) { askPrintCopies(selected, copies => labelOnlyPrint(copies)); }
@@ -141,12 +166,23 @@ export function LabelFinalization() {
     const schedule = () => { if (frame) return; frame = requestAnimationFrame(() => { frame = 0; enhance(); }); };
     enhance(); const observer = new MutationObserver(schedule); observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] });
     const click = (event: MouseEvent) => {
-      const button = (event.target as Element | null)?.closest<HTMLButtonElement>(".labelDesignerPage .labelHeaderCommandBar > button.primary, .labelDesignerPage .labelTopbar .primary");
+      const target = event.target as Element | null;
+      const centerButton = target?.closest<HTMLButtonElement>(".labelCenterActionMenu .seikoRowActionPanel button");
+      const centerText = centerButton?.textContent?.trim();
+      if (centerButton && (centerText === "Print" || centerText === "Save PDF")) {
+        event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
+        routeSavedSetPrint(centerButton, centerText === "Save PDF" ? "pdf" : "print");
+        return;
+      }
+      const button = target?.closest<HTMLButtonElement>(".labelDesignerPage .labelHeaderCommandBar > button.primary, .labelDesignerPage .labelTopbar .primary");
       if (!button || button.disabled || !/^Print\b/i.test(button.textContent || "")) return;
       event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); labelOnlyPrint(1);
     };
-    document.addEventListener("click", click, true); window.addEventListener("resize", schedule);
-    return () => { observer.disconnect(); document.removeEventListener("click", click, true); window.removeEventListener("resize", schedule); removeNativePrintSurface(); if (frame) cancelAnimationFrame(frame); };
+    const directPrint = () => { labelOnlyPrint(1); };
+    document.addEventListener("click", click, true);
+    window.addEventListener("jinam:labels:print", directPrint);
+    window.addEventListener("resize", schedule);
+    return () => { observer.disconnect(); document.removeEventListener("click", click, true); window.removeEventListener("jinam:labels:print", directPrint); window.removeEventListener("resize", schedule); removeNativePrintSurface(); if (frame) cancelAnimationFrame(frame); };
   }, []);
   return null;
 }
