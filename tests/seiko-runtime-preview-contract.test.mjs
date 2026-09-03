@@ -39,7 +39,7 @@ test("Order Center cannot return with invisible stale filters", () => {
   assert.match(orders, /setQuery\(""\); setArchivedOnly\(false\); save\(current, "Order saved", true\)/);
   assert.match(listCenter, /orderFilterSession/);
   assert.match(listCenter, /resetFilterState\(\)/);
-  assert.match(listCenter, /setNativeInputValue\(nativeSearch, ""\)/);
+  assert.match(listCenter, /setNativeInputValue\(nativeSearch\s*,\s*""\)/);
   assert.match(listCenter, /archivedNative\?\.checked/);
 });
 
@@ -58,7 +58,7 @@ test("Home Clear filters resets all active order-filter state", () => {
 test("Label Center rows open directly and action menus float above the list", () => {
   assert.match(listCenter, /labelBatchRowClickable/);
   assert.match(listCenter, /row\.addEventListener\("click"/);
-  assert.match(listCenter, /open\.hidden = true/);
+  assert.match(listCenter, /open\.hidden\s*=\s*true/);
   assert.match(listCenter, /labelCenterFloatingPanel/);
   assert.match(listCss, /z-index:1200!important/);
 });
@@ -105,9 +105,11 @@ test("settings dialog has one React owner rather than overlapping injected modul
   assert.match(page, /settingsUsersModule/);
 });
 
-test("saved label sets expose print and calibrated PDF actions", () => {
+test("saved label sets expose distinct calibrated print and recorded PDF export actions", () => {
   assert.match(listCenter, /Open \/ edit/);
-  assert.match(listCenter, /Print \/ save PDF/);
-  assert.match(listCenter, /open-task-action/);
-  assert.match(labels, /open-task-action/);
+  assert.match(listCenter, /print\.textContent="Print"/);
+  assert.match(listCenter, /pdf\.textContent="Save PDF"/);
+  assert.match(listCenter, /open-task-direct-action/);
+  assert.match(listCenter, /labels:pdf-records-v1/);
+  assert.match(labels, /open-task/);
 });
