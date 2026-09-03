@@ -31,6 +31,7 @@ import { MethServerSync } from "./meth-server-sync";
 import { SeikoFinalUxPass } from "./seiko-final-ux-pass";
 import { SeikoFinalOrderRouting } from "./seiko-final-order-routing";
 import { SeikoReviewFinal } from "./seiko-review-final";
+import { SeikoReviewSentinel } from "./seiko-review-sentinel";
 
 export function AppEnhancements() {
   return <>
@@ -65,5 +66,6 @@ export function AppEnhancements() {
     <SeikoFinalUxPass />
     <SeikoFinalOrderRouting />
     <SeikoReviewFinal />
+    <SeikoReviewSentinel />
   </>;
 }
