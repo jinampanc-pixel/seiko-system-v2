@@ -30,6 +30,7 @@ import { SeikoMethSync } from "./seiko-meth-sync";
 import { MethServerSync } from "./meth-server-sync";
 import { SeikoFinalLabelSizing } from "./seiko-final-label-sizing";
 import { SeikoFinalUxPass } from "./seiko-final-ux-pass";
+import { SeikoFinalOrderRouting } from "./seiko-final-order-routing";
 
 export function AppEnhancements() {
   return <>
@@ -63,5 +64,6 @@ export function AppEnhancements() {
     <SeikoMethSync />
     <SeikoFinalLabelSizing />
     <SeikoFinalUxPass />
+    <SeikoFinalOrderRouting />
   </>;
 }
