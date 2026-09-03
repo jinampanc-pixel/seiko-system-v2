@@ -241,6 +241,10 @@ function askPrintCopies(selected: number, onConfirm: (copies: number) => void) {
   onConfirm(copies);
 }
 
+export function labelPrintCopiesDialog(selected: number) {
+  askPrintCopies(selected, copies => labelOnlyPrint(copies));
+}
+
 export function LabelFinalization() {
   useEffect(() => {
     let frame = 0;
