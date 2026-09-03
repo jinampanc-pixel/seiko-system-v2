@@ -206,6 +206,68 @@
 .packingWorkflowDesigner .packingRuleBody .packingDetailRules { grid-column: 1 / -1 !important; }
 .packingWorkflowDesigner .packingMeasurementRow { grid-template-columns: minmax(0, 1fr) 150px !important; }
 
+/* Workflow wording: this drawer only selects/presents data that already exists
+   in the current order. The underlying order schema is never edited here. */
+.packingWorkflowDesigner .packingPresentationHead .eyebrow {
+  font-size: 0 !important;
+}
+.packingWorkflowDesigner .packingPresentationHead .eyebrow::after {
+  content: "PRODUCTS FROM THIS ORDER";
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+.packingWorkflowDesigner .packingPresentationHead h3 {
+  font-size: 0 !important;
+  margin: 3px 0 5px !important;
+}
+.packingWorkflowDesigner .packingPresentationHead h3::after {
+  content: "Choose what belongs in this label set";
+  font-size: 18px;
+  line-height: 1.2;
+}
+.packingWorkflowDesigner .packingPresentationHead p:last-child {
+  font-size: 0 !important;
+}
+.packingWorkflowDesigner .packingPresentationHead p:last-child::after {
+  content: "Choose which products from this order should appear on this label set, then decide how each should print. Products, measurements and attributes remain sourced from the order.";
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.packingWorkflowDesigner .packingPresentationRules::before {
+  content: "Products from this order";
+  display: block;
+  margin: 2px 0 1px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.packingWorkflowDesigner .packingRuleBody > .packingCheck:first-child {
+  padding: 9px 10px !important;
+  border: 1px solid #d9b778 !important;
+  border-radius: 8px !important;
+  background: #fff6e7 !important;
+  font-weight: 700 !important;
+}
+.packingWorkflowDesigner .packingRuleBody > .packingCheck:first-child input {
+  width: 17px !important;
+  height: 17px !important;
+}
+.packingWorkflowDesigner .packingPresentationRules details:has(.packingRuleBody > .packingCheck:first-child input:not(:checked)) {
+  opacity: .58 !important;
+  background: #f4f1ec !important;
+}
+.packingWorkflowDesigner .packingPresentationRules details:has(.packingRuleBody > .packingCheck:first-child input:not(:checked)) summary span {
+  font-weight: 700 !important;
+  color: var(--muted) !important;
+}
+.packingWorkflowDesigner .packingPresentationRules details:has(.packingRuleBody > .packingCheck:first-child input:not(:checked))[open] .packingRuleBody > :not(.packingCheck:first-child) {
+  opacity: .55 !important;
+}
+
 .packingWorkflowDesigner > .printSheet[aria-hidden="true"] { order: 99 !important; }
 
 @media (max-width: 1050px) {
