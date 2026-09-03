@@ -17,6 +17,7 @@ import { LabelProductionReady } from "./label-production-ready";
 import { LabelFinalization } from "./label-finalization";
 import { LabelDesignerInteractions } from "./label-designer-interactions";
 import { LabelFieldCompact } from "./label-field-compact";
+import { LabelDynamicProducts } from "./label-dynamic-products";
 import { LabelWorkspaceRefinement } from "./label-workspace-refinement";
 import { GlobalNavigation } from "./global-navigation";
 import { SeikoPhase1 } from "./seiko-phase1";
@@ -48,6 +49,7 @@ export function AppEnhancements() {
     <SeikoInterfaceFixes />
     <LabelDesignerInteractions />
     <LabelFieldCompact />
+    <LabelDynamicProducts />
     <LabelWorkspaceRefinement />
     <GlobalNavigation />
     <SeikoPhase1 />
