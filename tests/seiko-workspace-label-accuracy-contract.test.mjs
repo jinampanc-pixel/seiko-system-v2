@@ -129,15 +129,15 @@ test("returning to Order Center and Clear all cannot retain invisible filters", 
   const listCenter = read("app/seiko-list-center-enhancements.tsx");
   assert.match(orders, /setQuery\(""\); setArchivedOnly\(false\); save\(current, "Order saved", true\)/);
   assert.match(listCenter, /resetFilterState\(\)/);
-  assert.match(listCenter, /setNativeInputValue\(nativeSearch, ""\)/);
-  assert.match(listCenter, /if \(archivedNative\?\.checked\) archivedNative\.click\(\)/);
+  assert.match(listCenter, /setNativeInputValue\(nativeSearch\s*,\s*""\)/);
+  assert.match(listCenter, /if\s*\(archivedNative\?\.checked\)\s*archivedNative\.click\(\)/);
 });
 
 test("Label Center uses clickable rows and floating secondary menus", () => {
   const listCenter = read("app/seiko-list-center-enhancements.tsx");
   const listCss = read("app/seiko-list-center-enhancements.css");
   assert.match(listCenter, /labelBatchRowClickable/);
-  assert.match(listCenter, /open\.hidden = true/);
+  assert.match(listCenter, /open\.hidden\s*=\s*true/);
   assert.doesNotMatch(listCenter, /openAction\.textContent = "Open label set"/);
   assert.match(listCenter, /labelCenterFloatingPanel/);
   assert.match(listCss, /position:fixed!important;z-index:1200!important/);
