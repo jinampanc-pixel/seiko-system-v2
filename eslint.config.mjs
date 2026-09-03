@@ -80,6 +80,16 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-unused-vars": "warn",
     },
   },
+  {
+    files: ["app/packing-person-label-designer.tsx"],
+    // This workflow-first adapter keeps the shared LabelDesigner-compatible prop
+    // shape and print-map callback signature while packing labels are isolated
+    // from the generic designer. Keep those compatibility parameters visible but
+    // non-blocking during the transition.
+    rules: {
+      "@typescript-eslint/no-unused-vars": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;
