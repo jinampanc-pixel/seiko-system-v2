@@ -17,38 +17,14 @@ function clamp(value: number, min: number, max: number) {
 }
 
 /**
- * Pointer/document-scope helpers for the label designer.
- * Label geometry remains owned by LabelDesigner; this adapter must never
- * reserve hidden canvas space or rewrite an element's saved position.
+ * DOM-only helpers for the label designer.
+ * Pointer movement is deliberately NOT handled here: LabelDesigner is the
+ * single owner of pointer capture, selection and x/y state.
  */
 export function LabelDesignerInteractions() {
   useEffect(() => {
-    let draggedPage: HTMLElement | null = null;
-    let draggedElement: HTMLElement | null = null;
-    let removeArmed = false;
     let animationFrame = 0;
     let directPrintTimer = 0;
-    let textDrag: {
-      page: HTMLElement;
-      pointerId: number;
-      startClientX: number;
-      startClientY: number;
-      startX: number;
-      startY: number;
-      width: number;
-      height: number;
-    } | null = null;
-
-    const ensureDeleteTarget = (page: HTMLElement) => {
-      const panel = page.querySelector<HTMLElement>(".labelCanvasPanel");
-      if (!panel || panel.querySelector(".labelDragDeleteTarget")) return;
-
-      const target = document.createElement("div");
-      target.className = "labelDragDeleteTarget";
-      target.setAttribute("aria-hidden", "true");
-      target.innerHTML = '<span class="labelDragDeleteIcon">×</span><b>Drop to remove</b>';
-      panel.appendChild(target);
-    };
 
     const placeSizeEditor = (page: HTMLElement) => {
       const stack = page.querySelector<HTMLElement>(".labelControlStack");
@@ -84,45 +60,44 @@ export function LabelDesignerInteractions() {
 
     const fitSelectedTextBounds = (page: HTMLElement) => {
       const element = page.querySelector<HTMLElement>(".canvasElement.selected");
-      if (!element || !element.matches(".element-text,.element-field,.element-sequence")) return null;
+      if (!element || !element.matches(".element-text,.element-field,.element-sequence")) return;
       const widthInput = geometryInput(page, "Width mm");
       const heightInput = geometryInput(page, "Height mm");
       const xInput = geometryInput(page, "X mm");
       const yInput = geometryInput(page, "Y mm");
       const canvas = page.querySelector<HTMLElement>(".labelCanvas");
-      if (!widthInput || !heightInput || !xInput || !yInput || !canvas) return null;
+      if (!widthInput || !heightInput || !xInput || !yInput || !canvas) return;
 
       const currentWidth = Number(widthInput.value);
       const currentHeight = Number(heightInput.value);
       const x = Number(xInput.value);
       const y = Number(yInput.value);
-      if (![currentWidth, currentHeight, x, y].every(Number.isFinite)) return null;
+      if (![currentWidth, currentHeight, x, y].every(Number.isFinite)) return;
 
       const canvasRect = canvas.getBoundingClientRect();
-      const preset = currentPreset();
-      const pxPerMm = canvasRect.width / preset.labelW;
-      if (!Number.isFinite(pxPerMm) || pxPerMm <= 0) return null;
+      const title = page.querySelector(".canvasToolbar b")?.textContent || "";
+      const match = title.match(/([\d.]+)\s*[×x]\s*([\d.]+)\s*mm/i);
+      const labelW = Number(match?.[1]) || 50;
+      const labelH = Number(match?.[2]) || 25;
+      const pxPerMm = canvasRect.width / labelW;
+      if (!Number.isFinite(pxPerMm) || pxPerMm <= 0) return;
 
       const range = document.createRange();
       range.selectNodeContents(element);
       const contentRect = range.getBoundingClientRect();
       range.detach();
-      if (!contentRect.width || !contentRect.height) return null;
+      if (!contentRect.width || !contentRect.height) return;
 
-      const safeWidthMm = contentRect.width / pxPerMm + 0.18;
-      const safeHeightMm = contentRect.height / pxPerMm + 0.12;
-      const maxWidth = Math.max(0.5, preset.labelW - x);
-      const maxHeight = Math.max(0.5, preset.labelH - y);
-      const width = clamp(Math.ceil(Math.max(0.75, safeWidthMm) * 4) / 4, 0.75, maxWidth);
-      const height = clamp(Math.ceil(Math.max(0.75, safeHeightMm) * 4) / 4, 0.75, maxHeight);
+      // Keep only a tiny anti-clipping allowance around the visible glyphs.
+      const safeWidthMm = contentRect.width / pxPerMm + 0.06;
+      const safeHeightMm = contentRect.height / pxPerMm + 0.06;
+      const maxWidth = Math.max(0.5, labelW - x);
+      const maxHeight = Math.max(0.5, labelH - y);
+      const width = clamp(Math.ceil(Math.max(0.5, safeWidthMm) * 10) / 10, 0.5, maxWidth);
+      const height = clamp(Math.ceil(Math.max(0.5, safeHeightMm) * 10) / 10, 0.5, maxHeight);
 
-      if (Math.abs(width - currentWidth) >= 0.2) setReactInputValue(widthInput, String(width));
-      if (Math.abs(height - currentHeight) >= 0.2) setReactInputValue(heightInput, String(height));
-      return { x, y, width, height };
-    };
-
-    const autoFitSelectedText = (page: HTMLElement) => {
-      fitSelectedTextBounds(page);
+      if (Math.abs(width - currentWidth) >= 0.08) setReactInputValue(widthInput, String(width));
+      if (Math.abs(height - currentHeight) >= 0.08) setReactInputValue(heightInput, String(height));
     };
 
     const runDirectPrintWhenReady = (page: HTMLElement) => {
@@ -143,10 +118,9 @@ export function LabelDesignerInteractions() {
     const enhance = () => {
       animationFrame = 0;
       document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(page => {
-        ensureDeleteTarget(page);
         placeSizeEditor(page);
         enhanceInformation(page);
-        autoFitSelectedText(page);
+        fitSelectedTextBounds(page);
         runDirectPrintWhenReady(page);
       });
     };
@@ -183,7 +157,6 @@ export function LabelDesignerInteractions() {
       }
 
       if (!message) return true;
-
       const note = document.createElement("p");
       note.className = "labelSizeValidation";
       note.setAttribute("role", "alert");
@@ -224,118 +197,6 @@ export function LabelDesignerInteractions() {
       }, 0);
     };
 
-    const setDeleteState = (target: HTMLElement, armed: boolean) => {
-      target.classList.add("visible");
-      target.classList.toggle("armed", armed);
-    };
-
-    const beginDrag = (event: PointerEvent) => {
-      const element = (event.target as Element | null)?.closest<HTMLElement>(".labelDesignerPage .canvasElement");
-      if (!element) return;
-
-      const page = element.closest<HTMLElement>(".labelDesignerPage");
-      const target = page?.querySelector<HTMLElement>(".labelDragDeleteTarget");
-      if (!page || !target) return;
-
-      draggedPage = page;
-      draggedElement = element;
-      removeArmed = false;
-      setDeleteState(target, false);
-
-      if (element.matches(".element-text,.element-field,.element-sequence")) {
-        const pointerId = event.pointerId;
-        const startClientX = event.clientX;
-        const startClientY = event.clientY;
-        window.setTimeout(() => {
-          if (!page.isConnected) return;
-          const fitted = fitSelectedTextBounds(page);
-          if (!fitted) return;
-          textDrag = { page, pointerId, startClientX, startClientY, startX: fitted.x, startY: fitted.y, width: fitted.width, height: fitted.height };
-        }, 0);
-      } else {
-        textDrag = null;
-      }
-    };
-
-    const updateDrag = (event: PointerEvent) => {
-      if (!draggedPage || !draggedElement) return;
-
-      if (textDrag && textDrag.pointerId === event.pointerId && textDrag.page === draggedPage) {
-        const canvas = draggedPage.querySelector<HTMLElement>(".labelCanvas");
-        const xInput = geometryInput(draggedPage, "X mm");
-        const yInput = geometryInput(draggedPage, "Y mm");
-        if (canvas && xInput && yInput) {
-          const rect = canvas.getBoundingClientRect();
-          const preset = currentPreset();
-          let dx = (event.clientX - textDrag.startClientX) * preset.labelW / rect.width;
-          let dy = (event.clientY - textDrag.startClientY) * preset.labelH / rect.height;
-          if (event.shiftKey) {
-            if (Math.abs(dx) >= Math.abs(dy)) dy = 0;
-            else dx = 0;
-          }
-          let x = textDrag.startX + dx;
-          let y = textDrag.startY + dy;
-          if (!event.altKey) {
-            x = Math.round(x * 4) / 4;
-            y = Math.round(y * 4) / 4;
-          }
-          x = clamp(x, 0, Math.max(0, preset.labelW - textDrag.width));
-          y = clamp(y, 0, Math.max(0, preset.labelH - textDrag.height));
-          if (Math.abs(Number(xInput.value) - x) >= 0.01) setReactInputValue(xInput, String(x));
-          if (Math.abs(Number(yInput.value) - y) >= 0.01) setReactInputValue(yInput, String(y));
-          event.preventDefault();
-          event.stopPropagation();
-          event.stopImmediatePropagation();
-        }
-      }
-
-      const target = draggedPage.querySelector<HTMLElement>(".labelDragDeleteTarget");
-      const canvas = draggedPage.querySelector<HTMLElement>(".labelCanvas");
-      const panel = draggedPage.querySelector<HTMLElement>(".labelCanvasPanel");
-      if (!target || !canvas || !panel) return;
-
-      const targetRect = target.getBoundingClientRect();
-      const canvasRect = canvas.getBoundingClientRect();
-      const panelRect = panel.getBoundingClientRect();
-      const overTarget =
-        event.clientX >= targetRect.left - 28 &&
-        event.clientX <= targetRect.right + 28 &&
-        event.clientY >= targetRect.top - 28 &&
-        event.clientY <= targetRect.bottom + 28;
-      const pulledBelowLabel =
-        event.clientX >= panelRect.left &&
-        event.clientX <= panelRect.right &&
-        event.clientY >= canvasRect.bottom + 8;
-
-      removeArmed = overTarget || pulledBelowLabel;
-      setDeleteState(target, removeArmed);
-      draggedElement.classList.toggle("deleteArmed", removeArmed);
-    };
-
-    const finishDrag = () => {
-      if (!draggedPage) return;
-
-      const page = draggedPage;
-      const element = draggedElement;
-      const shouldRemove = removeArmed;
-      const target = page.querySelector<HTMLElement>(".labelDragDeleteTarget");
-
-      target?.classList.remove("visible", "armed");
-      element?.classList.remove("deleteArmed");
-      draggedPage = null;
-      draggedElement = null;
-      textDrag = null;
-      removeArmed = false;
-
-      if (shouldRemove) {
-        window.setTimeout(() => {
-          page.querySelector<HTMLButtonElement>('.labelProperties .iconButton[aria-label="Remove selected element"]')?.click();
-        }, 0);
-      } else {
-        window.setTimeout(() => autoFitSelectedText(page), 0);
-      }
-    };
-
     const closeHeaderMenuOutside = (event: Event) => {
       const target = event.target as Node | null;
       document.querySelectorAll<HTMLDetailsElement>(".labelDesignerPage .labelHeaderMore[open]").forEach(details => {
@@ -352,10 +213,6 @@ export function LabelDesignerInteractions() {
     const observer = new MutationObserver(scheduleEnhance);
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "disabled", "style"] });
     document.addEventListener("click", handleControlClick, true);
-    document.addEventListener("pointerdown", beginDrag, true);
-    document.addEventListener("pointermove", updateDrag, true);
-    document.addEventListener("pointerup", finishDrag, true);
-    document.addEventListener("pointercancel", finishDrag, true);
     document.addEventListener("pointerdown", closeHeaderMenuOutside, true);
     document.addEventListener("focusin", closeHeaderMenuOutside, true);
     document.addEventListener("keydown", closeHeaderMenuOnEscape, true);
@@ -363,10 +220,6 @@ export function LabelDesignerInteractions() {
     return () => {
       observer.disconnect();
       document.removeEventListener("click", handleControlClick, true);
-      document.removeEventListener("pointerdown", beginDrag, true);
-      document.removeEventListener("pointermove", updateDrag, true);
-      document.removeEventListener("pointerup", finishDrag, true);
-      document.removeEventListener("pointercancel", finishDrag, true);
       document.removeEventListener("pointerdown", closeHeaderMenuOutside, true);
       document.removeEventListener("focusin", closeHeaderMenuOutside, true);
       document.removeEventListener("keydown", closeHeaderMenuOnEscape, true);
