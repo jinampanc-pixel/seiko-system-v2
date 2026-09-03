@@ -77,6 +77,16 @@ test("React is the sole pointer owner for label dragging", () => {
   assert.doesNotMatch(labelInteractions, /const updateDrag/);
 });
 
+test("label canvas restores passive Drop to remove without taking over React movement", () => {
+  assert.match(labelInteractions, /labelCanvasDropRemove/);
+  assert.match(labelInteractions, /Drop to remove/);
+  assert.match(labelInteractions, /window\.addEventListener\("pointermove", trackRemoveDrag, true\)/);
+  assert.match(labelInteractions, /pointInside\(removeZone, event\.clientX, event\.clientY\)/);
+  assert.match(labelInteractions, /aria-label="Remove selected element"/);
+  assert.match(labelInteractions, /remove\?\.click\(\)/);
+  assert.doesNotMatch(labelInteractions, /update\([^\n]*\{ x, y \}/);
+});
+
 test("selected text boxes fit inked glyph bounds instead of CSS line boxes", () => {
   assert.match(labelInteractions, /measureGlyphs/);
   assert.match(labelInteractions, /context\.measureText\(text\)/);
