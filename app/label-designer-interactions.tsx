@@ -40,14 +40,78 @@ function measureGlyphs(element: HTMLElement) {
   return { width, height: Math.max(1, ascent + descent) };
 }
 
+function removeDropZone() {
+  document.querySelectorAll(".labelCanvasDropRemove").forEach(node => node.remove());
+  document.querySelectorAll(".canvasElement.labelDraggingForRemove").forEach(node => node.classList.remove("labelDraggingForRemove"));
+}
+
+function createDropZone(page: HTMLElement) {
+  removeDropZone();
+  const host = page.querySelector<HTMLElement>(".labelCanvasPanel");
+  if (!host) return null;
+  const zone = document.createElement("div");
+  zone.className = "labelCanvasDropRemove";
+  zone.setAttribute("role", "status");
+  zone.setAttribute("aria-live", "polite");
+  zone.innerHTML = '<span aria-hidden="true">×</span><b>Drop to remove</b>';
+  Object.assign(zone.style, {
+    position: "absolute",
+    left: "50%",
+    bottom: "12px",
+    transform: "translateX(-50%)",
+    zIndex: "30",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 16px",
+    border: "1px solid #d9a7a0",
+    borderRadius: "999px",
+    background: "#fff7f5",
+    color: "#a62f26",
+    boxShadow: "0 8px 24px rgba(16,42,73,.16)",
+    pointerEvents: "none",
+    userSelect: "none",
+    fontSize: "12px",
+    fontWeight: "700",
+    transition: "transform .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease",
+  });
+  const hostStyle = getComputedStyle(host);
+  if (hostStyle.position === "static") host.style.position = "relative";
+  host.appendChild(zone);
+  return zone;
+}
+
+function pointInside(element: HTMLElement, clientX: number, clientY: number) {
+  const box = element.getBoundingClientRect();
+  return clientX >= box.left && clientX <= box.right && clientY >= box.top && clientY <= box.bottom;
+}
+
 /**
  * DOM-only helpers for the label designer.
- * Pointer movement is deliberately NOT handled here: LabelDesigner is the
- * single owner of pointer capture, selection and x/y state.
+ * Pointer movement remains React-owned. The passive drop-to-remove tracker only
+ * observes pointer position; it never changes x/y or pointer capture.
  */
 export function LabelDesignerInteractions() {
   useEffect(() => {
     let animationFrame = 0;
+    let removePointerId: number | null = null;
+    let removePage: HTMLElement | null = null;
+    let removeZone: HTMLElement | null = null;
+    let removeCandidate: HTMLElement | null = null;
+    let removeArmed = false;
+    let moved = false;
+    let startX = 0;
+    let startY = 0;
+
+    const resetRemoveDrag = () => {
+      removePointerId = null;
+      removePage = null;
+      removeZone = null;
+      removeCandidate = null;
+      removeArmed = false;
+      moved = false;
+      removeDropZone();
+    };
 
     const placeSizeEditor = (page: HTMLElement) => {
       const stack = page.querySelector<HTMLElement>(".labelControlStack");
@@ -108,8 +172,6 @@ export function LabelDesignerInteractions() {
       const glyphs = measureGlyphs(element);
       if (!glyphs) return;
 
-      // Canvas TextMetrics tracks the inked glyphs instead of the CSS line box.
-      // Keep only a microscopic anti-clipping allowance around the ink itself.
       const safeWidthMm = glyphs.width / pxPerMm + 0.03;
       const safeHeightMm = glyphs.height / pxPerMm + 0.03;
       const maxWidth = Math.max(0.5, labelW - x);
@@ -202,6 +264,49 @@ export function LabelDesignerInteractions() {
       }, 0);
     };
 
+    const beginRemoveDrag = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      const target = (event.target as Element | null)?.closest<HTMLElement>(".labelDesignerPage .canvasElement");
+      const page = target?.closest<HTMLElement>(".labelDesignerPage");
+      if (!target || !page) return;
+      resetRemoveDrag();
+      removePointerId = event.pointerId;
+      removePage = page;
+      removeCandidate = target;
+      startX = event.clientX;
+      startY = event.clientY;
+    };
+
+    const trackRemoveDrag = (event: PointerEvent) => {
+      if (removePointerId !== event.pointerId || !removePage || !removeCandidate) return;
+      if (!moved && Math.hypot(event.clientX - startX, event.clientY - startY) >= 5) {
+        moved = true;
+        removeZone = createDropZone(removePage);
+        removeCandidate.classList.add("labelDraggingForRemove");
+      }
+      if (!moved || !removeZone) return;
+      removeArmed = pointInside(removeZone, event.clientX, event.clientY);
+      removeZone.classList.toggle("armed", removeArmed);
+      removeZone.style.background = removeArmed ? "#f8ded9" : "#fff7f5";
+      removeZone.style.borderColor = removeArmed ? "#b83a2f" : "#d9a7a0";
+      removeZone.style.boxShadow = removeArmed ? "0 10px 28px rgba(166,47,38,.28)" : "0 8px 24px rgba(16,42,73,.16)";
+      removeZone.style.transform = removeArmed ? "translateX(-50%) scale(1.06)" : "translateX(-50%)";
+    };
+
+    const finishRemoveDrag = (event: PointerEvent) => {
+      if (removePointerId !== event.pointerId) return;
+      const page = removePage;
+      const shouldRemove = moved && removeArmed && !!page;
+      resetRemoveDrag();
+      if (!shouldRemove || !page) return;
+      const remove = page.querySelector<HTMLButtonElement>('.labelProperties button[aria-label="Remove selected element"]');
+      remove?.click();
+    };
+
+    const cancelRemoveDrag = (event: PointerEvent) => {
+      if (removePointerId === event.pointerId) resetRemoveDrag();
+    };
+
     const closeHeaderMenuOutside = (event: Event) => {
       const target = event.target as Node | null;
       document.querySelectorAll<HTMLDetailsElement>(".labelDesignerPage .labelHeaderMore[open]").forEach(details => {
@@ -211,6 +316,7 @@ export function LabelDesignerInteractions() {
 
     const closeHeaderMenuOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      resetRemoveDrag();
       document.querySelectorAll<HTMLDetailsElement>(".labelDesignerPage .labelHeaderMore[open]").forEach(details => { details.open = false; });
     };
 
@@ -218,6 +324,10 @@ export function LabelDesignerInteractions() {
     const observer = new MutationObserver(scheduleEnhance);
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "disabled", "style"] });
     document.addEventListener("click", handleControlClick, true);
+    document.addEventListener("pointerdown", beginRemoveDrag, true);
+    window.addEventListener("pointermove", trackRemoveDrag, true);
+    window.addEventListener("pointerup", finishRemoveDrag, true);
+    window.addEventListener("pointercancel", cancelRemoveDrag, true);
     document.addEventListener("pointerdown", closeHeaderMenuOutside, true);
     document.addEventListener("focusin", closeHeaderMenuOutside, true);
     document.addEventListener("keydown", closeHeaderMenuOnEscape, true);
@@ -225,9 +335,14 @@ export function LabelDesignerInteractions() {
     return () => {
       observer.disconnect();
       document.removeEventListener("click", handleControlClick, true);
+      document.removeEventListener("pointerdown", beginRemoveDrag, true);
+      window.removeEventListener("pointermove", trackRemoveDrag, true);
+      window.removeEventListener("pointerup", finishRemoveDrag, true);
+      window.removeEventListener("pointercancel", cancelRemoveDrag, true);
       document.removeEventListener("pointerdown", closeHeaderMenuOutside, true);
       document.removeEventListener("focusin", closeHeaderMenuOutside, true);
       document.removeEventListener("keydown", closeHeaderMenuOnEscape, true);
+      resetRemoveDrag();
       if (animationFrame) cancelAnimationFrame(animationFrame);
     };
   }, []);
