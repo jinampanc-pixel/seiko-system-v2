@@ -40,23 +40,77 @@
   line-height: 1.35 !important;
 }
 
+/* Information should read as one compact chooser, not a wall of large open cards. */
+.packingWorkflowDesigner > .packingInformationPanel {
+  padding: 12px 14px 13px !important;
+}
+
+.packingWorkflowDesigner > .packingInformationPanel > h3 {
+  margin-bottom: 3px !important;
+}
+
+.packingWorkflowDesigner > .packingInformationPanel > p {
+  margin-bottom: 10px !important;
+}
+
+.packingWorkflowDesigner .packingInfoGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+}
+
+.packingWorkflowDesigner .packingInfoGrid .fieldChoice {
+  min-height: 40px !important;
+  padding: 8px 9px !important;
+  border-color: #d9dfe3 !important;
+  border-radius: 8px !important;
+  background: rgba(255,255,255,.48) !important;
+}
+
+.packingWorkflowDesigner .packingInfoGrid .fieldChoice.chosen {
+  border-color: #d2a452 !important;
+  background: #fff8ed !important;
+}
+
+.packingWorkflowDesigner .packingInfoGrid .fieldChoice > label:first-child {
+  gap: 6px !important;
+}
+
+.packingWorkflowDesigner .packingInfoGrid .fieldChoice .showName {
+  margin-left: auto !important;
+}
+
+/* Product visibility is part of the Package Contents action, alongside Customize. */
+.packingWorkflowDesigner > .packingPresentationSummary {
+  gap: 10px !important;
+}
+
 .packingWorkflowDesigner .packingPackageVisibility {
   display: inline-flex !important;
   align-items: center !important;
   gap: 7px !important;
   margin-left: auto !important;
-  padding: 8px 10px !important;
-  border: 1px solid #d9b778 !important;
+  min-height: 36px !important;
+  padding: 0 9px !important;
+  border: 0 !important;
   border-radius: 8px !important;
-  background: #fff6e7 !important;
+  background: transparent !important;
   font-size: 11px !important;
   font-weight: 700 !important;
   white-space: nowrap !important;
 }
 
+.packingWorkflowDesigner .packingPackageVisibility:hover {
+  background: #fff6e7 !important;
+}
+
 .packingWorkflowDesigner .packingPackageVisibility input {
   width: 16px !important;
   height: 16px !important;
+}
+
+.packingWorkflowDesigner > .packingPresentationSummary > button {
+  flex: 0 0 auto !important;
+  min-height: 36px !important;
 }
 
 .packingWorkflowDesigner .packingMenuDivider {
@@ -65,13 +119,15 @@
   background: var(--line) !important;
 }
 
+/* Readiness is a compact pre-print brief, aligned with the designer rather than a second dashboard. */
 .packingWorkflowDesigner .packingReadinessPanel {
   order: 4 !important;
-  width: auto !important;
+  width: 100% !important;
   max-width: none !important;
-  margin: 0 32px 12px !important;
-  padding: 14px 16px !important;
+  margin: 0 0 12px !important;
+  padding: 11px 14px !important;
   border-color: #d7c29d !important;
+  box-sizing: border-box !important;
 }
 
 .packingWorkflowDesigner .packingReadinessPanel.confirmed {
@@ -87,18 +143,25 @@
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 18px !important;
-  margin-bottom: 10px !important;
+  gap: 14px !important;
+  margin-bottom: 8px !important;
+}
+
+.packingWorkflowDesigner .packingReadinessHead .eyebrow {
+  margin-bottom: 1px !important;
 }
 
 .packingWorkflowDesigner .packingReadinessHead h3 {
-  margin: 2px 0 3px !important;
+  display: inline !important;
+  margin: 0 8px 0 0 !important;
+  font-size: 13px !important;
 }
 
 .packingWorkflowDesigner .packingReadinessState {
+  display: inline !important;
   margin: 0 !important;
   color: var(--muted) !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
 }
 
 .packingWorkflowDesigner .packingReadinessPanel.confirmed .packingReadinessState {
@@ -108,16 +171,22 @@
 
 .packingWorkflowDesigner .packingReadinessGrid {
   display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 8px !important;
+  grid-template-columns: 1.15fr .8fr .8fr 1.7fr 1.25fr 1.7fr !important;
+  gap: 6px !important;
 }
 
 .packingWorkflowDesigner .packingReadinessGrid > div {
   min-width: 0 !important;
-  padding: 9px 10px !important;
-  border: 1px solid var(--line) !important;
-  border-radius: 8px !important;
-  background: rgba(255,255,255,.58) !important;
+  padding: 7px 8px !important;
+  border: 0 !important;
+  border-left: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.packingWorkflowDesigner .packingReadinessGrid > div:first-child {
+  border-left: 0 !important;
+  padding-left: 0 !important;
 }
 
 .packingWorkflowDesigner .packingReadinessGrid span,
@@ -126,9 +195,9 @@
 }
 
 .packingWorkflowDesigner .packingReadinessGrid span {
-  margin-bottom: 3px !important;
+  margin-bottom: 2px !important;
   color: var(--muted) !important;
-  font-size: 9px !important;
+  font-size: 8px !important;
   font-weight: 700 !important;
   letter-spacing: .04em !important;
   text-transform: uppercase !important;
@@ -137,8 +206,14 @@
 .packingWorkflowDesigner .packingReadinessGrid b {
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  font-size: 11px !important;
-  line-height: 1.35 !important;
+  font-size: 10px !important;
+  line-height: 1.3 !important;
+}
+
+.packingWorkflowDesigner .packingConfirmSet {
+  min-height: 34px !important;
+  padding: 0 12px !important;
+  white-space: nowrap !important;
 }
 
 .packingWorkflowDesigner .labelTopbar .primary:disabled {
@@ -213,6 +288,19 @@
   color: var(--muted) !important;
 }
 
+@media (max-width: 1180px) {
+  .packingWorkflowDesigner .packingInfoGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  .packingWorkflowDesigner .packingReadinessGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  .packingWorkflowDesigner .packingReadinessGrid > div:nth-child(4) {
+    border-left: 0 !important;
+    padding-left: 0 !important;
+  }
+}
+
 @media (max-width: 980px) {
   .packingWorkflowDesigner .packingInspectorBar {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -221,11 +309,36 @@
   .packingWorkflowDesigner .packingInspectorHint {
     grid-column: 1 / -1 !important;
   }
+  .packingWorkflowDesigner .packingInfoGrid,
+  .packingWorkflowDesigner .packingReadinessGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .packingWorkflowDesigner .packingReadinessGrid > div {
+    border-left: 0 !important;
+    padding-left: 8px !important;
+  }
+  .packingWorkflowDesigner .packingReadinessGrid > div:nth-child(odd) {
+    padding-left: 0 !important;
+  }
+  .packingWorkflowDesigner .packingReadinessHead {
+    align-items: center !important;
+    flex-direction: row !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .packingWorkflowDesigner .packingInfoGrid,
   .packingWorkflowDesigner .packingReadinessGrid {
     grid-template-columns: 1fr !important;
+  }
+  .packingWorkflowDesigner .packingReadinessGrid > div {
+    padding-left: 0 !important;
   }
   .packingWorkflowDesigner .packingReadinessHead {
     align-items: stretch !important;
     flex-direction: column !important;
+  }
+  .packingWorkflowDesigner .packingPackageVisibility {
+    margin-left: 0 !important;
   }
 }
