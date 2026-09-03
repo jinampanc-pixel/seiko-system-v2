@@ -49,17 +49,16 @@ function fitScaledPreviewText(element: HTMLElement, scale: number) {
   if (!Number.isFinite(inlinePx) || inlinePx <= 0) return;
 
   const lastScaled = Number(element.dataset.packingScaledPx || "0");
-  const lastScale = Number(element.dataset.packingScale || "0");
   let basePx = Number(element.dataset.packingBasePx || "0");
 
   if (!basePx || Math.abs(inlinePx - lastScaled) > 0.2) basePx = inlinePx;
   if (!Number.isFinite(basePx) || basePx <= 0) return;
 
   let scaled = basePx * scale;
-  element.style.fontSize = `${scaled}px`;
+  if (Math.abs(inlinePx - scaled) > 0.1) element.style.fontSize = `${scaled}px`;
 
-  // The canvas is visually enlarged for editing. Fit the enlarged text back into
-  // the same user-defined rectangle so preview and print keep the same geometry.
+  // The canvas is enlarged only for editing. Fit the enlarged text into the same
+  // user rectangle; the print surface still uses the original preferred size.
   let guard = 0;
   while ((element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1) && scaled > 5 && guard < 120) {
     scaled -= 0.5;
@@ -70,26 +69,29 @@ function fitScaledPreviewText(element: HTMLElement, scale: number) {
   element.dataset.packingBasePx = String(basePx);
   element.dataset.packingScaledPx = String(scaled);
   element.dataset.packingScale = String(scale);
-
-  if (Math.abs(lastScale - scale) > 0.01) element.dataset.packingScale = String(scale);
 }
 
 function applyValueBold(element: HTMLElement) {
   const text = element.textContent || "";
-  const weight = Number.parseInt(getComputedStyle(element).fontWeight || "400", 10);
   const isSingleLine = !text.includes("\n");
   const separator = text.indexOf(": ");
+  const alreadyApplied = element.dataset.valueBoldApplied === "true" && element.dataset.valueBoldText === text;
+  const spans = element.querySelectorAll(":scope > span");
 
-  if (weight < 600 || !isSingleLine || separator <= 0) {
-    if (element.dataset.valueBoldApplied === "true") {
-      element.textContent = text;
-      delete element.dataset.valueBoldApplied;
-      delete element.dataset.valueBoldText;
-    }
+  if (alreadyApplied && spans.length === 2) {
+    if (element.style.fontWeight !== "400") element.style.fontWeight = "400";
+    (spans[0] as HTMLElement).style.fontWeight = "400";
+    (spans[1] as HTMLElement).style.fontWeight = "700";
     return;
   }
 
-  if (element.dataset.valueBoldApplied === "true" && element.dataset.valueBoldText === text) return;
+  const weight = Number.parseInt(getComputedStyle(element).fontWeight || "400", 10);
+  if (weight < 600 || !isSingleLine || separator <= 0) {
+    delete element.dataset.valueBoldApplied;
+    delete element.dataset.valueBoldText;
+    return;
+  }
+
   const label = text.slice(0, separator + 2);
   const value = text.slice(separator + 2);
   if (!value) return;
