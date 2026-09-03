@@ -28,6 +28,7 @@ import { SeikoOperationalUx } from "./seiko-operational-ux";
 import { SeikoInterfaceFixes } from "./seiko-interface-fixes";
 import { SeikoMethSync } from "./seiko-meth-sync";
 import { MethServerSync } from "./meth-server-sync";
+import { SeikoFinalLabelSizing } from "./seiko-final-label-sizing";
 import { SeikoFinalUxPass } from "./seiko-final-ux-pass";
 
 export function AppEnhancements() {
@@ -60,6 +61,7 @@ export function AppEnhancements() {
     <SeikoOperationalUx />
     <MethServerSync />
     <SeikoMethSync />
+    <SeikoFinalLabelSizing />
     <SeikoFinalUxPass />
   </>;
 }
