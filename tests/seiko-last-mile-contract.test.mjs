@@ -7,6 +7,7 @@ const orders = read("app/orders.tsx");
 const structure = read("app/workspace-structure-interactions.tsx");
 const labelDesigner = read("app/label-designer.tsx");
 const labelInteractions = read("app/label-designer-interactions.tsx");
+const labelFinalization = read("app/label-finalization.tsx");
 const orderCss = read("app/order-enhancements.css");
 
 test("workspace compact numeric controls commit on Enter", () => {
@@ -45,10 +46,12 @@ test("Label Information does not show redundant up/down arrow controls", () => {
   assert.doesNotMatch(labelDesigner, />↓<\/button>/);
 });
 
-test("normal text boxes auto-fit so they can reach the physical right edge", () => {
-  assert.match(labelInteractions, /autoFitSelectedText/);
-  assert.match(labelInteractions, /measureText\(text\)/);
+test("normal text boxes fit their visible glyph bounds and drag to the physical right edge", () => {
+  assert.match(labelInteractions, /fitSelectedTextBounds/);
+  assert.match(labelInteractions, /selectNodeContents\(element\)/);
   assert.match(labelInteractions, /Width mm/);
+  assert.match(labelInteractions, /Height mm/);
+  assert.match(labelInteractions, /preset\.labelW - textDrag\.width/);
   assert.match(labelInteractions, /setReactInputValue/);
 });
 
@@ -57,6 +60,14 @@ test("direct saved-set print waits for task hydration then clicks calibrated Pri
   assert.match(labelInteractions, /open-task/);
   assert.match(labelInteractions, /labelHeaderCommandBar > button\.primary/);
   assert.match(labelInteractions, /printButton\.click\(\)/);
+});
+
+test("calibrated printing reaches native preview without a popup or copies gate", () => {
+  assert.match(labelFinalization, /iframe\.labelNativePrintFrame/);
+  assert.match(labelFinalization, /printWindow\.print\(\)/);
+  assert.match(labelFinalization, /labelOnlyPrint\(1\)/);
+  assert.doesNotMatch(labelFinalization, /window\.open\(/);
+  assert.doesNotMatch(labelFinalization, /labelPrintCopiesDialog/);
 });
 
 test("Order Setup returns to the page it was opened from", () => {
