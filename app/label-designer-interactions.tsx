@@ -2,10 +2,6 @@
 
 import { useEffect } from "react";
 
-function currentBusiness() {
-  return localStorage.getItem("jinam:selected-business") || "seiko";
-}
-
 function setReactInputValue(input: HTMLInputElement, value: string) {
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -16,6 +12,34 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function canvasFont(style: CSSStyleDeclaration) {
+  return `${style.fontStyle || "normal"} ${style.fontVariant || "normal"} ${style.fontWeight || "400"} ${style.fontSize || "16px"} ${style.fontFamily || "sans-serif"}`;
+}
+
+function measureGlyphs(element: HTMLElement) {
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  const nodes = Array.from(element.children).filter((node): node is HTMLElement => node instanceof HTMLElement);
+  const pieces = nodes.length ? nodes : [element];
+  let width = 0;
+  let ascent = 0;
+  let descent = 0;
+  for (const piece of pieces) {
+    const text = piece.textContent || "";
+    if (!text) continue;
+    const style = getComputedStyle(piece);
+    context.font = canvasFont(style);
+    const metrics = context.measureText(text);
+    width += metrics.width;
+    const fontPx = Number.parseFloat(style.fontSize || "0") || 16;
+    ascent = Math.max(ascent, metrics.actualBoundingBoxAscent || fontPx * .78);
+    descent = Math.max(descent, metrics.actualBoundingBoxDescent || fontPx * .22);
+  }
+  if (!width) return null;
+  return { width, height: Math.max(1, ascent + descent) };
+}
+
 /**
  * DOM-only helpers for the label designer.
  * Pointer movement is deliberately NOT handled here: LabelDesigner is the
@@ -24,7 +48,6 @@ function clamp(value: number, min: number, max: number) {
 export function LabelDesignerInteractions() {
   useEffect(() => {
     let animationFrame = 0;
-    let directPrintTimer = 0;
 
     const placeSizeEditor = (page: HTMLElement) => {
       const stack = page.querySelector<HTMLElement>(".labelControlStack");
@@ -82,37 +105,20 @@ export function LabelDesignerInteractions() {
       const pxPerMm = canvasRect.width / labelW;
       if (!Number.isFinite(pxPerMm) || pxPerMm <= 0) return;
 
-      const range = document.createRange();
-      range.selectNodeContents(element);
-      const contentRect = range.getBoundingClientRect();
-      range.detach();
-      if (!contentRect.width || !contentRect.height) return;
+      const glyphs = measureGlyphs(element);
+      if (!glyphs) return;
 
-      // Keep only a tiny anti-clipping allowance around the visible glyphs.
-      const safeWidthMm = contentRect.width / pxPerMm + 0.06;
-      const safeHeightMm = contentRect.height / pxPerMm + 0.06;
+      // Canvas TextMetrics tracks the inked glyphs instead of the CSS line box.
+      // Keep only a microscopic anti-clipping allowance around the ink itself.
+      const safeWidthMm = glyphs.width / pxPerMm + 0.03;
+      const safeHeightMm = glyphs.height / pxPerMm + 0.03;
       const maxWidth = Math.max(0.5, labelW - x);
       const maxHeight = Math.max(0.5, labelH - y);
-      const width = clamp(Math.ceil(Math.max(0.5, safeWidthMm) * 10) / 10, 0.5, maxWidth);
-      const height = clamp(Math.ceil(Math.max(0.5, safeHeightMm) * 10) / 10, 0.5, maxHeight);
+      const width = clamp(Math.ceil(Math.max(0.5, safeWidthMm) * 20) / 20, 0.5, maxWidth);
+      const height = clamp(Math.ceil(Math.max(0.5, safeHeightMm) * 20) / 20, 0.5, maxHeight);
 
-      if (Math.abs(width - currentWidth) >= 0.08) setReactInputValue(widthInput, String(width));
-      if (Math.abs(height - currentHeight) >= 0.08) setReactInputValue(heightInput, String(height));
-    };
-
-    const runDirectPrintWhenReady = (page: HTMLElement) => {
-      const business = currentBusiness();
-      const directKey = `jinam:${business}:labels:open-task-direct-action`;
-      const taskKey = `jinam:${business}:labels:open-task`;
-      const action = sessionStorage.getItem(directKey);
-      if (!action || sessionStorage.getItem(taskKey) || directPrintTimer) return;
-      const printButton = page.querySelector<HTMLButtonElement>(".labelHeaderCommandBar > button.primary");
-      if (!printButton || printButton.disabled) return;
-      sessionStorage.removeItem(directKey);
-      directPrintTimer = window.setTimeout(() => {
-        directPrintTimer = 0;
-        printButton.click();
-      }, 80);
+      if (Math.abs(width - currentWidth) >= 0.04) setReactInputValue(widthInput, String(width));
+      if (Math.abs(height - currentHeight) >= 0.04) setReactInputValue(heightInput, String(height));
     };
 
     const enhance = () => {
@@ -121,7 +127,6 @@ export function LabelDesignerInteractions() {
         placeSizeEditor(page);
         enhanceInformation(page);
         fitSelectedTextBounds(page);
-        runDirectPrintWhenReady(page);
       });
     };
 
@@ -224,7 +229,6 @@ export function LabelDesignerInteractions() {
       document.removeEventListener("focusin", closeHeaderMenuOutside, true);
       document.removeEventListener("keydown", closeHeaderMenuOnEscape, true);
       if (animationFrame) cancelAnimationFrame(animationFrame);
-      if (directPrintTimer) window.clearTimeout(directPrintTimer);
     };
   }, []);
 
