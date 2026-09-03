@@ -12,6 +12,10 @@ function setReactInputValue(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
 /**
  * Pointer/document-scope helpers for the label designer.
  * Label geometry remains owned by LabelDesigner; this adapter must never
@@ -24,6 +28,16 @@ export function LabelDesignerInteractions() {
     let removeArmed = false;
     let animationFrame = 0;
     let directPrintTimer = 0;
+    let textDrag: {
+      page: HTMLElement;
+      pointerId: number;
+      startClientX: number;
+      startClientY: number;
+      startX: number;
+      startY: number;
+      width: number;
+      height: number;
+    } | null = null;
 
     const ensureDeleteTarget = (page: HTMLElement) => {
       const panel = page.querySelector<HTMLElement>(".labelCanvasPanel");
@@ -68,27 +82,47 @@ export function LabelDesignerInteractions() {
 
     const geometryInput = (page: HTMLElement, label: string) => Array.from(page.querySelectorAll<HTMLLabelElement>(".labelGeometryFields label")).find(node => node.querySelector("span")?.textContent?.trim() === label)?.querySelector<HTMLInputElement>("input") || null;
 
-    const autoFitSelectedText = (page: HTMLElement) => {
+    const fitSelectedTextBounds = (page: HTMLElement) => {
       const element = page.querySelector<HTMLElement>(".canvasElement.selected");
-      if (!element || !element.matches(".element-text,.element-field,.element-sequence")) return;
+      if (!element || !element.matches(".element-text,.element-field,.element-sequence")) return null;
       const widthInput = geometryInput(page, "Width mm");
+      const heightInput = geometryInput(page, "Height mm");
+      const xInput = geometryInput(page, "X mm");
+      const yInput = geometryInput(page, "Y mm");
       const canvas = page.querySelector<HTMLElement>(".labelCanvas");
-      if (!widthInput || !canvas) return;
+      if (!widthInput || !heightInput || !xInput || !yInput || !canvas) return null;
+
       const currentWidth = Number(widthInput.value);
-      if (!Number.isFinite(currentWidth) || currentWidth <= 0) return;
-      const elementRect = element.getBoundingClientRect();
-      const pxPerMm = elementRect.width / currentWidth;
-      if (!Number.isFinite(pxPerMm) || pxPerMm <= 0) return;
-      const style = getComputedStyle(element);
-      const measure = document.createElement("canvas").getContext("2d");
-      if (!measure) return;
-      measure.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-      const text = element.textContent?.replace(/\s+/g, " ").trim() || "";
-      if (!text) return;
-      const measuredMm = Math.max(1.5, Math.min(50, measure.measureText(text).width / pxPerMm + 0.8));
-      const next = Math.ceil(measuredMm * 4) / 4;
-      if (next >= currentWidth - 0.75) return;
-      setReactInputValue(widthInput, String(next));
+      const currentHeight = Number(heightInput.value);
+      const x = Number(xInput.value);
+      const y = Number(yInput.value);
+      if (![currentWidth, currentHeight, x, y].every(Number.isFinite)) return null;
+
+      const canvasRect = canvas.getBoundingClientRect();
+      const preset = currentPreset();
+      const pxPerMm = canvasRect.width / preset.labelW;
+      if (!Number.isFinite(pxPerMm) || pxPerMm <= 0) return null;
+
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const contentRect = range.getBoundingClientRect();
+      range.detach();
+      if (!contentRect.width || !contentRect.height) return null;
+
+      const safeWidthMm = contentRect.width / pxPerMm + 0.18;
+      const safeHeightMm = contentRect.height / pxPerMm + 0.12;
+      const maxWidth = Math.max(0.5, preset.labelW - x);
+      const maxHeight = Math.max(0.5, preset.labelH - y);
+      const width = clamp(Math.ceil(Math.max(0.75, safeWidthMm) * 4) / 4, 0.75, maxWidth);
+      const height = clamp(Math.ceil(Math.max(0.75, safeHeightMm) * 4) / 4, 0.75, maxHeight);
+
+      if (Math.abs(width - currentWidth) >= 0.2) setReactInputValue(widthInput, String(width));
+      if (Math.abs(height - currentHeight) >= 0.2) setReactInputValue(heightInput, String(height));
+      return { x, y, width, height };
+    };
+
+    const autoFitSelectedText = (page: HTMLElement) => {
+      fitSelectedTextBounds(page);
     };
 
     const runDirectPrintWhenReady = (page: HTMLElement) => {
@@ -207,11 +241,53 @@ export function LabelDesignerInteractions() {
       draggedElement = element;
       removeArmed = false;
       setDeleteState(target, false);
-      window.setTimeout(() => autoFitSelectedText(page), 0);
+
+      if (element.matches(".element-text,.element-field,.element-sequence")) {
+        const pointerId = event.pointerId;
+        const startClientX = event.clientX;
+        const startClientY = event.clientY;
+        window.setTimeout(() => {
+          if (!page.isConnected) return;
+          const fitted = fitSelectedTextBounds(page);
+          if (!fitted) return;
+          textDrag = { page, pointerId, startClientX, startClientY, startX: fitted.x, startY: fitted.y, width: fitted.width, height: fitted.height };
+        }, 0);
+      } else {
+        textDrag = null;
+      }
     };
 
     const updateDrag = (event: PointerEvent) => {
       if (!draggedPage || !draggedElement) return;
+
+      if (textDrag && textDrag.pointerId === event.pointerId && textDrag.page === draggedPage) {
+        const canvas = draggedPage.querySelector<HTMLElement>(".labelCanvas");
+        const xInput = geometryInput(draggedPage, "X mm");
+        const yInput = geometryInput(draggedPage, "Y mm");
+        if (canvas && xInput && yInput) {
+          const rect = canvas.getBoundingClientRect();
+          const preset = currentPreset();
+          let dx = (event.clientX - textDrag.startClientX) * preset.labelW / rect.width;
+          let dy = (event.clientY - textDrag.startClientY) * preset.labelH / rect.height;
+          if (event.shiftKey) {
+            if (Math.abs(dx) >= Math.abs(dy)) dy = 0;
+            else dx = 0;
+          }
+          let x = textDrag.startX + dx;
+          let y = textDrag.startY + dy;
+          if (!event.altKey) {
+            x = Math.round(x * 4) / 4;
+            y = Math.round(y * 4) / 4;
+          }
+          x = clamp(x, 0, Math.max(0, preset.labelW - textDrag.width));
+          y = clamp(y, 0, Math.max(0, preset.labelH - textDrag.height));
+          if (Math.abs(Number(xInput.value) - x) >= 0.01) setReactInputValue(xInput, String(x));
+          if (Math.abs(Number(yInput.value) - y) >= 0.01) setReactInputValue(yInput, String(y));
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+        }
+      }
 
       const target = draggedPage.querySelector<HTMLElement>(".labelDragDeleteTarget");
       const canvas = draggedPage.querySelector<HTMLElement>(".labelCanvas");
@@ -248,12 +324,15 @@ export function LabelDesignerInteractions() {
       element?.classList.remove("deleteArmed");
       draggedPage = null;
       draggedElement = null;
+      textDrag = null;
       removeArmed = false;
 
       if (shouldRemove) {
         window.setTimeout(() => {
           page.querySelector<HTMLButtonElement>('.labelProperties .iconButton[aria-label="Remove selected element"]')?.click();
         }, 0);
+      } else {
+        window.setTimeout(() => autoFitSelectedText(page), 0);
       }
     };
 
@@ -271,7 +350,7 @@ export function LabelDesignerInteractions() {
 
     enhance();
     const observer = new MutationObserver(scheduleEnhance);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "disabled"] });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "disabled", "style"] });
     document.addEventListener("click", handleControlClick, true);
     document.addEventListener("pointerdown", beginDrag, true);
     document.addEventListener("pointermove", updateDrag, true);
