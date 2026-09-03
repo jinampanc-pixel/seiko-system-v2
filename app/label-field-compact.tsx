@@ -32,6 +32,8 @@ function compactFieldPixels(element: HTMLElement) {
   let populated = 0;
 
   for (const piece of pieces) {
+    // trimEnd is intentional: the legacy field-name renderer includes a
+    // trailing space after the colon. CSS now owns the optical label/value gap.
     const text = (piece.textContent || "").trimEnd();
     if (!text) continue;
     const style = getComputedStyle(piece);
@@ -39,6 +41,8 @@ function compactFieldPixels(element: HTMLElement) {
     largestFont = Math.max(largestFont, fontPx);
     context.font = canvasFont(style);
     const metrics = context.measureText(text);
+    // Advance width keeps the next span inside the selection box. Vertical
+    // bounds use the actual ink so large type does not inherit a tall line box.
     width += metrics.width;
     const ascent = metrics.actualBoundingBoxAscent || fontPx * .78;
     const descent = metrics.actualBoundingBoxDescent || fontPx * .22;
@@ -58,12 +62,6 @@ function labelDimensions(page: HTMLElement) {
 }
 
 function fitSelectedField(page: HTMLElement) {
-  // Adaptive person/package labels use the saved rectangle as a maximum text
-  // zone. Shrinking that rectangle to the current person's glyphs would make
-  // longer names on later records unnecessarily tiny, so the adaptive engine
-  // owns fitting while this legacy compact-box helper stands down.
-  if (page.classList.contains("adaptiveLabelMode")) return;
-
   const element = page.querySelector<HTMLElement>(".canvasElement.element-field.selected");
   const canvas = page.querySelector<HTMLElement>(".labelCanvas");
   if (!element || !canvas) return;
@@ -88,6 +86,8 @@ function fitSelectedField(page: HTMLElement) {
   const compact = compactFieldPixels(element);
   if (!compact) return;
 
+  // 0.02 mm is only an anti-clipping allowance. Round to hundredths rather
+  // than the old 0.05 mm steps so the blue box hugs large glyphs closely.
   const desiredWidth = Math.ceil((compact.width / pxPerMm + .02) * 100) / 100;
   const desiredHeight = Math.ceil((compact.height / pxPerMm + .02) * 100) / 100;
   const width = Math.min(Math.max(1, desiredWidth), Math.max(1, physical.width - x));
