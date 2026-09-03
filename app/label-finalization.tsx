@@ -167,6 +167,44 @@ function showPrintNotice(message: string) {
   window.setTimeout(() => note.remove(), 5200);
 }
 
+function askPrintCopies(selected: number, onConfirm: (copies: number) => void) {
+  document.querySelector(".labelPrintCopiesDialog")?.remove();
+  const overlay = document.createElement("div");
+  overlay.className = "labelPrintCopiesDialog";
+  const dialog = document.createElement("section");
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  const title = document.createElement("h3");
+  title.textContent = "Print labels";
+  const meta = document.createElement("p");
+  meta.textContent = `${selected} selected`;
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = "1";
+  input.step = "1";
+  input.value = "1";
+  input.setAttribute("aria-label", "Copies of each selected label");
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.textContent = "Cancel";
+  const confirm = document.createElement("button");
+  confirm.type = "button";
+  confirm.className = "primary";
+  confirm.textContent = "Continue to print";
+  const close = () => overlay.remove();
+  cancel.addEventListener("click", close);
+  confirm.addEventListener("click", () => {
+    const copies = Math.max(1, Math.floor(Number(input.value) || 1));
+    close();
+    onConfirm(copies);
+  });
+  dialog.append(title, meta, input, cancel, confirm);
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+  input.focus();
+  input.select();
+}
+
 function labelOnlyPrint(copies = 1) {
   const sheet = document.querySelector<HTMLElement>(".labelDesignerPage .printSheet");
   if (!sheet) { showPrintNotice("The label print sheet is not ready yet. Try Print again."); return; }
@@ -251,9 +289,20 @@ export function LabelFinalization() {
       event.stopImmediatePropagation();
       labelOnlyPrint(1);
     };
+    const copiesRequest = () => {
+      const selected = document.querySelectorAll(".labelDesignerPage .printSheet .printedLabel").length;
+      askPrintCopies(selected, copies => labelOnlyPrint(copies));
+    };
     document.addEventListener("click", click, true);
+    window.addEventListener("jinam:label-print-copies", copiesRequest);
     window.addEventListener("resize", schedule);
-    return () => { observer.disconnect(); document.removeEventListener("click", click, true); window.removeEventListener("resize", schedule); if (frame) cancelAnimationFrame(frame); };
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("click", click, true);
+      window.removeEventListener("jinam:label-print-copies", copiesRequest);
+      window.removeEventListener("resize", schedule);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, []);
   return null;
 }
