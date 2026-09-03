@@ -131,7 +131,6 @@ function labelOnlyPrint(copies = 1) {
   const cleanup = () => removeNativePrintSurface();
   window.addEventListener("afterprint", cleanup, { once: true });
   window.print();
-  window.setTimeout(cleanup, 0);
 }
 function askPrintCopies(selected: number, onConfirm: (copies: number) => void) { void selected; onConfirm(1); }
 export function labelPrintCopiesDialog(selected: number) { askPrintCopies(selected, copies => labelOnlyPrint(copies)); }
