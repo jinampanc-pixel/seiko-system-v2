@@ -18,6 +18,7 @@ import { LabelFinalization } from "./label-finalization";
 import { LabelDesignerInteractions } from "./label-designer-interactions";
 import { LabelFieldCompact } from "./label-field-compact";
 import { LabelWorkspaceRefinement } from "./label-workspace-refinement";
+import { PackingWorkflowRuntimeFixes } from "./packing-workflow-runtime-fixes";
 import { GlobalNavigation } from "./global-navigation";
 import { SeikoPhase1 } from "./seiko-phase1";
 import { SeikoPhase2Gate } from "./seiko-phase2-gate";
@@ -49,6 +50,7 @@ export function AppEnhancements() {
     <LabelDesignerInteractions />
     <LabelFieldCompact />
     <LabelWorkspaceRefinement />
+    <PackingWorkflowRuntimeFixes />
     <GlobalNavigation />
     <SeikoPhase1 />
     <SeikoLibraryAutofill />
