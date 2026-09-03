@@ -222,7 +222,7 @@ function pageClient(page: HTMLElement) {
 }
 
 function escapeHtml(value: unknown) {
-  return String(value ?? "").replace(/[&<>\"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[char] || char));
+  return String(value ?? "").replace(/[&<>"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char] || char));
 }
 
 function findCurrentOrder(orderNo: string) {
