@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LabelDesigner } from "../../label-designer";
+import { PackingPersonLabelDesigner } from "../../packing-person-label-designer";
 import { orderStoreKey, type SeikoOrder } from "../../lib/order-domain";
 import { businessStorageKey, THEME_PRESETS, themeVariables, type BusinessTheme } from "../../lib/foundation";
 
@@ -203,9 +204,12 @@ export default function CreateLabelsPage() {
 
   if (!ready) return <div className="labelCreateApp app" style={themeVariables(theme) as CSSProperties}><main className="labelCreateRoute"><div className="panel">Loading label workspace…</div></main></div>;
 
-  if (started && selectedOrder) return <div className="labelCreateApp app" data-label-source={selectedRepresentation.sourceMode} style={themeVariables(theme) as CSSProperties}>
-    <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header><LabelDesigner businessId={businessId} order={selectedOrder} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => setStarted(false)}/></div>
-  </div>;
+  if (started && selectedOrder) {
+    const nativePackingPerson = selectedPurpose.behavior === "packing" && selectedRepresentation.sourceMode === "person";
+    return <div className="labelCreateApp app" data-label-source={selectedRepresentation.sourceMode} style={themeVariables(theme) as CSSProperties}>
+      <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>{nativePackingPerson ? <PackingPersonLabelDesigner businessId={businessId} order={selectedOrder} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => setStarted(false)}/> : <LabelDesigner businessId={businessId} order={selectedOrder} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => setStarted(false)}/>}</div>
+    </div>;
+  }
 
   return <div className="labelCreateApp app" style={themeVariables(theme) as CSSProperties}><div className="surface">
     <header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>
