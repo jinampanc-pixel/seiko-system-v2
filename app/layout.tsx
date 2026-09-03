@@ -5,6 +5,7 @@ import "./label-designer.css";
 import "./label-designer-polish.css";
 import "./label-production-ready.css";
 import "./label-finalization.css";
+import "./label-dynamic-products.css";
 import "./label-no-order.css";
 import "./label-records.css";
 import "./production.css";
