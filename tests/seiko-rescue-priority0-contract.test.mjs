@@ -56,7 +56,7 @@ test("packing labels derive order data and keep React as sole drag resize remove
   assert.doesNotMatch(packing, /updateItem\(item\.id, \{[^}]*font:[^}]*x:/s);
   assert.match(packing, /const removeId = dragging\.current\.id/);
   assert.match(packing, /currentItems\.filter\(item => item\.id !== removeId\)/);
-  assert.match(packing, /pointer-events:none/);
+  assert.match(rescueCss, /\.packingTrash\{pointer-events:none!important;\}/);
 });
 
 test("packing customization remains order-derived and uses one drawer scroll owner", () => {
