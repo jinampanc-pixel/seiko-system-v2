@@ -10,14 +10,15 @@ test("broken recursive review routing layers stay unmounted", () => {
   assert.doesNotMatch(enhancements, /<SeikoFinalUxPass\s*\/>/);
   assert.doesNotMatch(enhancements, /<SeikoFinalOrderRouting\s*\/>/);
   assert.doesNotMatch(enhancements, /<SeikoMenuClickFix\s*\/>/);
-  assert.match(enhancements, /<GlobalNavigation\s*\/>/);
+  assert.doesNotMatch(enhancements, /<GlobalNavigation\s*\/>/);
 });
 
-test("standalone module navigation uses one-shot root intent rather than capture-event recursion", () => {
+test("retired standalone navigation implementation remains quarantined while rescue shell consolidation proceeds", () => {
   assert.match(navigation, /sessionStorage\.setItem\(NAV_INTENT_KEY, intent\)/);
   assert.match(navigation, /window\.location\.assign\(rootUrl\(\)\)/);
   assert.match(navigation, /sessionStorage\.removeItem\(NAV_INTENT_KEY\)/);
   assert.doesNotMatch(navigation, /document\.addEventListener\("pointerup"/);
+  assert.doesNotMatch(enhancements, /GlobalNavigation/);
 });
 
 test("Home chooser implementation still routes setup workspace and labels explicitly", () => {
