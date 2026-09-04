@@ -2,52 +2,51 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const source = readFileSync("app/seiko-final-ux-pass.tsx", "utf8");
-const css = readFileSync("app/seiko-final-ux-pass.css", "utf8");
+const packing = readFileSync("app/packing-person-label-designer.tsx", "utf8");
+const stableCss = readFileSync("app/seiko-stable.css", "utf8");
 const layout = readFileSync("app/layout.tsx", "utf8");
 const enhancements = readFileSync("app/app-enhancements.tsx", "utf8");
+const navigation = readFileSync("app/global-navigation.tsx", "utf8");
 
-test("final SEIKO UX pass is mounted and styled last", () => {
-  assert.match(enhancements, /<SeikoFinalUxPass\s*\/>/);
-  assert.match(layout, /packing-workflow-final\.css";\s*\nimport "\.\/seiko-final-ux-pass\.css";/);
+test("stable SEIKO UX is source-owned and loaded as the final stylesheet", () => {
+  assert.match(layout, /packing-workflow-final\.css";\s*\nimport "\.\/seiko-stable\.css";/);
+  assert.doesNotMatch(layout, /seiko-final-ux-pass\.css/);
+  assert.doesNotMatch(layout, /seiko-review-final\.css/);
+  assert.doesNotMatch(layout, /seiko-review-hotfix\.css/);
+  assert.doesNotMatch(enhancements, /SeikoFinalUxPass|SeikoReviewFinal|SeikoReviewSentinel|SeikoMenuClickFix/);
 });
 
-test("packing designer keeps information and products in focused drawers", () => {
-  assert.match(source, /finalInfoDrawerOpen/);
-  assert.match(source, /Field name bold/);
-  assert.match(source, /finalProductTypography/);
-  assert.match(source, /Show field name/);
-  assert.match(css, /finalProductExcluded/);
-  assert.match(css, /finalLegacyPackageVisibility/);
+test("packing designer keeps product presentation in its React-owned drawer", () => {
+  assert.match(packing, /packingPresentationLayer/);
+  assert.match(packing, /packingPresentationDrawer/);
+  assert.match(packing, /Show field name/);
+  assert.match(packing, /Field name bold/);
+  assert.match(packing, /Value bold/);
+  assert.match(packing, /Primary measurement/);
+  assert.match(stableCss, /packingPresentationRules[\s\S]*overflow-y: auto !important/);
+  assert.match(stableCss, /packingPresentationDrawer[\s\S]*overflow: hidden !important/);
 });
 
-test("packing text size is real, wheel driven and can exceed the old cap", () => {
-  assert.match(source, /CANVAS_BASE_WIDTH = 400/);
-  assert.match(source, /font\.max = "96"/);
-  assert.match(source, /addEventListener\("wheel"/);
-  assert.match(source, /setProperty\("font-size"/);
-  assert.match(source, /packingScaledPx/);
+test("packing canvas remains directly editable and physically proportional", () => {
+  assert.match(packing, /onPointerDown=\{event => beginDrag\(event, item\)\}/);
+  assert.match(packing, /onWheel=\{event => resizeByWheel\(event, item\)\}/);
+  assert.match(stableCss, /packingCanvas[\s\S]*aspect-ratio: 2 \/ 1 !important/);
+  assert.match(stableCss, /packingCanvas[\s\S]*touch-action: none !important/);
+  assert.match(stableCss, /packingTrash[\s\S]*pointer-events: none !important/);
 });
 
-test("session navigation and Home order chooser are present", () => {
-  assert.match(source, /jinam:session-nav-v2/);
-  assert.match(source, /finalSessionBack/);
-  assert.match(source, /homeOrderOpen/);
-  assert.match(source, /Order page \/ setup/);
-  assert.match(source, /Workspace/);
-  assert.match(source, /Labels/);
+test("standalone menu is React-owned and navigation is one-shot", () => {
+  assert.match(navigation, /const \[open, setOpen\] = useState\(false\)/);
+  assert.match(navigation, /className="menuBackdrop"/);
+  assert.match(navigation, /goToRoot\(item\.intent\)/);
+  assert.match(navigation, /sessionStorage\.removeItem\(NAV_INTENT_KEY\)/);
+  assert.match(stableCss, /globalStandaloneMenu[\s\S]*height: 100dvh !important/);
 });
 
-test("menus dismiss and trace/code tools remain reachable", () => {
-  assert.match(source, /pointerleave/);
-  assert.match(source, /focusin/);
-  assert.match(source, /Open trace & code tools/);
-  assert.match(source, /ADVANCED_LABEL_KEY/);
-});
-
-test("Home, Orders and business navigation receive compact final styles", () => {
-  assert.match(css, /seikoMetricReadout\{min-height:58px/);
-  assert.match(css, /orderRowClickable\{min-height:64px/);
-  assert.match(css, /moduleMenu>\.globalBusinessNavigator\{order:-30/);
-  assert.match(css, /seikoDashboardHeadActions\{position:absolute/);
+test("legacy late review layers remain retired so they cannot fight the live canvas or menu", () => {
+  assert.doesNotMatch(enhancements, /SeikoFinalUxPass/);
+  assert.doesNotMatch(enhancements, /SeikoFinalOrderRouting/);
+  assert.doesNotMatch(enhancements, /SeikoReviewFinal/);
+  assert.doesNotMatch(enhancements, /SeikoReviewSentinel/);
+  assert.doesNotMatch(enhancements, /SeikoMenuClickFix/);
 });
