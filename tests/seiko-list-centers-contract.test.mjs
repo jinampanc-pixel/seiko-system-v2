@@ -81,7 +81,8 @@ test("label record filters and sorting drive the visible records list", () => {
   assert.match(labels, /shownRecords = visibleRecords/);
 });
 
-test("list center enhancements are mounted and styled", () => {
-  assert.match(enhancements, /<SeikoListCenterEnhancements \/>/);
-  assert.match(layout, /seiko-list-center-enhancements\.css/);
+test("legacy list-center enhancer remains available as reference but is not mounted in rescue runtime", () => {
+  assert.doesNotMatch(enhancements, /<SeikoListCenterEnhancements \/>/);
+  assert.doesNotMatch(layout, /seiko-list-center-enhancements\.css/);
+  assert.match(layout, /seiko-rescue\.css/);
 });
