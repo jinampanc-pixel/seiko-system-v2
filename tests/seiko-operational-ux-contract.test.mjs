@@ -13,9 +13,10 @@ const labelDesigner = read("app/label-designer.tsx");
 const layout = read("app/layout.tsx");
 const page = read("app/page.tsx");
 
-test("operational UX refinement remains mounted and late styled", () => {
-  assert.match(enhancements, /<SeikoOperationalUx \/>/);
-  assert.match(layout, /seiko-operational-ux\.css/);
+test("operational DOM refinement is quarantined on the rescue branch", () => {
+  assert.doesNotMatch(enhancements, /<SeikoOperationalUx \/>/);
+  assert.doesNotMatch(layout, /seiko-operational-ux\.css/);
+  assert.match(layout, /seiko-rescue\.css/);
 });
 
 test("Home removes duplicate Orders navigation without inventing another Order Center shortcut", () => {
@@ -77,4 +78,4 @@ test("automatic label fields use the source-owned physical arrangement", () => {
   assert.match(css, /fieldChoice\.chosen/);
 });
 
-// Revalidation marker: these assertions track the current source-owned operational paths.
+// Revalidation marker: source-owned operational paths remain available while runtime DOM patching is quarantined.
