@@ -127,11 +127,14 @@ test("VÉYN green is semantic and commercial summary remains neutral", () => {
   assert.doesNotMatch(veynApp, /DELIVERED \/ CLOSED/);
 });
 
-test("enhancement registry remains explicit and reviewable while retired global navigation stays unmounted", () => {
-  for (const component of ["ErpOrderSync","OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","OrderCompactUx","WorkspaceTopPager","WorkspaceShortcuts","LabelFlowPolish","LabelDesignerPolish","LabelProductionReady","LabelFinalization","LabelDesignerInteractions","SeikoPhase1","SeikoLibraryAutofill","SeikoPhase2Gate"]) {
+test("rescue enhancement registry keeps only required adapters and quarantines overlapping UI owners", () => {
+  for (const component of ["ErpOrderSync","OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","OrderCompactUx","WorkspaceTopPager","WorkspaceShortcuts","WorkspaceRowMenu","WorkspaceStructureInteractions","SeikoCloseConfirm","SeikoPhase1","SeikoLibraryAutofill","SeikoPhase2Gate"]) {
     assert.match(enhancements, new RegExp(`<${component} \\/>`));
   }
-  assert.doesNotMatch(enhancements, /<GlobalNavigation \/>/);
+  for (const retired of ["LabelFlowPolish","LabelDesignerPolish","LabelProductionReady","LabelFinalization","LabelDesignerInteractions","LabelFieldCompact","LabelWorkspaceRefinement","PackingWorkflowRuntimeFixes","SeikoListCenterEnhancements","SeikoOperationalUx","SeikoInterfaceFixes","GlobalNavigation"]) {
+    assert.doesNotMatch(enhancements, new RegExp(`<${retired} \\/>`));
+  }
+  assert.match(layout, /seiko-rescue\.css/);
 });
 
 test("shared DOM scheduler owns observer and animation-frame lifecycle", () => {
