@@ -43,6 +43,7 @@ import "./packing-workspace-audit.css";
 import "./packing-workflow-final.css";
 import "./seiko-final-ux-pass.css";
 import "./seiko-review-final.css";
+import "./seiko-review-hotfix.css";
 import { AccessProvider } from "./access-control";
 import { BusinessApplicationRouter } from "./business-application-router";
 
