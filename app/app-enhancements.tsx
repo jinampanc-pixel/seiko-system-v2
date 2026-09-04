@@ -28,11 +28,6 @@ import { SeikoOperationalUx } from "./seiko-operational-ux";
 import { SeikoInterfaceFixes } from "./seiko-interface-fixes";
 import { SeikoMethSync } from "./seiko-meth-sync";
 import { MethServerSync } from "./meth-server-sync";
-import { SeikoFinalUxPass } from "./seiko-final-ux-pass";
-import { SeikoFinalOrderRouting } from "./seiko-final-order-routing";
-import { SeikoReviewFinal } from "./seiko-review-final";
-import { SeikoReviewSentinel } from "./seiko-review-sentinel";
-import { SeikoMenuClickFix } from "./seiko-menu-click-fix";
 
 export function AppEnhancements() {
   return <>
@@ -64,10 +59,5 @@ export function AppEnhancements() {
     <SeikoOperationalUx />
     <MethServerSync />
     <SeikoMethSync />
-    <SeikoFinalUxPass />
-    <SeikoFinalOrderRouting />
-    <SeikoReviewFinal />
-    <SeikoReviewSentinel />
-    <SeikoMenuClickFix />
   </>;
 }
