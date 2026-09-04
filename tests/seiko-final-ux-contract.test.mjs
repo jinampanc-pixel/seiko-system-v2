@@ -19,17 +19,21 @@ test("stable SEIKO UX is source-owned and loaded as the final stylesheet", () =>
 test("packing designer keeps product presentation in its React-owned drawer", () => {
   assert.match(packing, /packingPresentationLayer/);
   assert.match(packing, /packingPresentationDrawer/);
-  assert.match(packing, /Show field name/);
-  assert.match(packing, /Field name bold/);
-  assert.match(packing, /Value bold/);
+  assert.match(packing, /Include this product when applicable/);
+  assert.match(packing, /Printed product name/);
   assert.match(packing, /Primary measurement/);
+  assert.match(packing, /Show quantity/);
+  assert.match(packing, /Measurements/);
+  assert.match(packing, /Attributes \/ specifications/);
   assert.match(stableCss, /packingPresentationRules[\s\S]*overflow-y: auto !important/);
   assert.match(stableCss, /packingPresentationDrawer[\s\S]*overflow: hidden !important/);
 });
 
 test("packing canvas remains directly editable and physically proportional", () => {
-  assert.match(packing, /onPointerDown=\{event => beginDrag\(event, item\)\}/);
-  assert.match(packing, /onWheel=\{event => resizeByWheel\(event, item\)\}/);
+  assert.match(packing, /onPointerDown=\{event => down\(event, item\)\}/);
+  assert.match(packing, /onPointerMove=\{move\}/);
+  assert.match(packing, /onPointerUp=\{stop\}/);
+  assert.match(packing, /onWheel=\{event => wheel\(event, item\)\}/);
   assert.match(stableCss, /packingCanvas[\s\S]*aspect-ratio: 2 \/ 1 !important/);
   assert.match(stableCss, /packingCanvas[\s\S]*touch-action: none !important/);
   assert.match(stableCss, /packingTrash[\s\S]*pointer-events: none !important/);
