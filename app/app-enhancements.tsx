@@ -32,6 +32,7 @@ import { SeikoFinalUxPass } from "./seiko-final-ux-pass";
 import { SeikoFinalOrderRouting } from "./seiko-final-order-routing";
 import { SeikoReviewFinal } from "./seiko-review-final";
 import { SeikoReviewSentinel } from "./seiko-review-sentinel";
+import { SeikoMenuClickFix } from "./seiko-menu-click-fix";
 
 export function AppEnhancements() {
   return <>
@@ -67,5 +68,6 @@ export function AppEnhancements() {
     <SeikoFinalOrderRouting />
     <SeikoReviewFinal />
     <SeikoReviewSentinel />
+    <SeikoMenuClickFix />
   </>;
 }
