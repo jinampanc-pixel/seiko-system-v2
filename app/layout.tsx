@@ -27,6 +27,7 @@ import "./phase1-visual.css";
 import "./seiko-phase1.css";
 import "./seiko-phase2.css";
 import "./seiko-rescue.css";
+import "./seiko-priority0.css";
 import { AccessProvider } from "./access-control";
 import { BusinessApplicationRouter } from "./business-application-router";
 
