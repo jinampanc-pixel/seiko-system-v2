@@ -34,7 +34,8 @@ test("packing canvas remains directly editable and physically proportional", () 
   assert.match(packing, /onPointerMove=\{move\}/);
   assert.match(packing, /onPointerUp=\{stop\}/);
   assert.match(packing, /onWheel=\{event => wheel\(event, item\)\}/);
-  assert.match(priorityCss, /packingCanvas[\s\S]*width:800px!important/);
+  assert.match(priorityCss, /packingCanvas[\s\S]*width:\s*800px\s*!important/);
+  assert.match(priorityCss, /packingCanvas[\s\S]*height:\s*400px\s*!important/);
   assert.match(rescueCss, /canvasElement[\s\S]*touch-action:none!important/);
   assert.match(rescueCss, /packingTrash[\s\S]*pointer-events:none!important/);
 });
