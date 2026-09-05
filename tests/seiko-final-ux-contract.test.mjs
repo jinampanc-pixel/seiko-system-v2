@@ -4,14 +4,16 @@ import { readFileSync } from "node:fs";
 
 const packing = readFileSync("app/packing-person-label-designer.tsx", "utf8");
 const rescueCss = readFileSync("app/seiko-rescue.css", "utf8");
+const priorityCss = readFileSync("app/seiko-priority0.css", "utf8");
 const layout = readFileSync("app/layout.tsx", "utf8");
 const enhancements = readFileSync("app/app-enhancements.tsx", "utf8");
 const navigation = readFileSync("app/global-navigation.tsx", "utf8");
 
-test("rescue SEIKO UX is source-owned and loaded as the final stylesheet", () => {
-  assert.match(layout, /import "\.\/seiko-rescue\.css";\s*\nimport \{ AccessProvider \}/);
+test("clean SEIKO UX is source-owned and priority-zero stylesheet is loaded last", () => {
+  assert.match(layout, /import "\.\/seiko-rescue\.css";\s*\nimport "\.\/seiko-priority0\.css";/);
   assert.doesNotMatch(layout, /packing-workflow-final\.css|seiko-stable\.css|seiko-final-ux-pass\.css|seiko-review-final\.css|seiko-review-hotfix\.css/);
   assert.doesNotMatch(enhancements, /SeikoFinalUxPass|SeikoReviewFinal|SeikoReviewSentinel|SeikoMenuClickFix/);
+  assert.match(priorityCss, /\.seikoP0App/);
 });
 
 test("packing designer keeps product presentation in its React-owned drawer", () => {
@@ -32,7 +34,7 @@ test("packing canvas remains directly editable and physically proportional", () 
   assert.match(packing, /onPointerMove=\{move\}/);
   assert.match(packing, /onPointerUp=\{stop\}/);
   assert.match(packing, /onWheel=\{event => wheel\(event, item\)\}/);
-  assert.match(rescueCss, /packingCanvas[\s\S]*aspect-ratio:2\/1!important/);
+  assert.match(priorityCss, /packingCanvas[\s\S]*width:800px!important/);
   assert.match(rescueCss, /canvasElement[\s\S]*touch-action:none!important/);
   assert.match(rescueCss, /packingTrash[\s\S]*pointer-events:none!important/);
 });
