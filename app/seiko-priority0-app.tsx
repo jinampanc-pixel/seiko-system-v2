@@ -27,7 +27,8 @@ function uniqueValues(order: SeikoOrder | null, fieldId: string) {
 }
 
 export function SeikoPriority0App() {
-  const { membership } = useAccess();
+  const { session, membership } = useAccess();
+  const seikoMembership = session?.businesses.find(item => item.businessId === BUSINESS_ID) || membership;
   const [module, setModule] = useState<Module>("home");
   const [menuOpen, setMenuOpen] = useState(false);
   const [orders, setOrders] = useState<SeikoOrder[]>([]);
@@ -44,7 +45,7 @@ export function SeikoPriority0App() {
 
   const go = (next: Module) => { setModule(next); setMenuOpen(false); if (next !== "labels") setPackingOrder(null); refreshOrders(); };
   const openPacking = (order: SeikoOrder) => { setPackingOrder(order); setModule("labels"); setMenuOpen(false); };
-  const theme = membership?.theme || THEME_PRESETS.seiko;
+  const theme = seikoMembership?.theme || THEME_PRESETS.seiko;
 
   return <div className="seikoP0App" style={themeVariables(theme) as CSSProperties}>
     <header className="seikoP0Topbar">
@@ -62,7 +63,7 @@ export function SeikoPriority0App() {
     </aside></>}
     <main className="seikoP0Main">
       {module === "home" && <Home orders={orders} onOpen={go} onPacking={openPacking}/>} 
-      {module === "orders" && <Orders businessId={BUSINESS_ID} canManageSuggestions={membership?.role === "owner" || membership?.role === "admin"} onOpenLabelBatches={openPacking}/>} 
+      {module === "orders" && <Orders businessId={BUSINESS_ID} canManageSuggestions={seikoMembership?.role === "owner" || seikoMembership?.role === "admin"} onOpenLabelBatches={openPacking}/>} 
       {module === "labels" && (packingOrder ? <PackingPersonLabelDesigner businessId={BUSINESS_ID} order={packingOrder} canManageSizes={true} backLabel="← Back to Packing Labels" onBack={() => setPackingOrder(null)}/> : <PackingCenter orders={orders} onOpen={openPacking}/>)}
       {module === "reports" && <ReportsCenter orders={orders}/>} 
       {module === "billing" && <BillingCenter orders={orders}/>} 
