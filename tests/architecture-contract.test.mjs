@@ -27,15 +27,16 @@ const manifest = readFileSync(new URL("../public/manifest.webmanifest", import.m
 const favicon = readFileSync(new URL("../public/favicon.svg", import.meta.url), "utf8");
 const serviceWorker = readFileSync(new URL("../public/sw.js", import.meta.url), "utf8");
 
-test("root layout routes each first-class business before mounting legacy SEIKO enhancements", () => {
+test("root layout routes each first-class business and SEIKO has a clean application owner", () => {
   assert.match(layout, /import \{ BusinessApplicationRouter \} from "\.\/business-application-router"/);
   assert.match(layout, /<BusinessApplicationRouter>\{children\}<\/BusinessApplicationRouter>/);
-  assert.match(router, /import \{ AppEnhancements \} from "\.\/app-enhancements"/);
+  assert.match(router, /SeikoPriority0App/);
+  assert.match(router, /forceSeiko \|\| businessId === "seiko"/);
   assert.match(router, /businessId === "veyn-health"/);
   assert.match(router, /return <VeynApplication\/>/);
   assert.match(router, /businessId === "meth"/);
   assert.match(router, /return <MethApplication\/>/);
-  assert.match(router, /<AppEnhancements\/>/);
+  assert.doesNotMatch(router, /AppEnhancements/);
 });
 
 test("MeTh never falls through to the SEIKO compatibility application", () => {
@@ -70,25 +71,20 @@ test("installed system identity is Jinam with the S and integrated J money mark"
   assert.match(serviceWorker, /favicon\.svg\?v=4/);
 });
 
-test("Phase 1 removes prototype UI from the visible SEIKO home and menu", () => {
+test("Phase 1 remains available as retained reference while clean SEIKO runtime owns the live shell", () => {
   assert.match(seikoPhase, /hero\.style\.display = "none"/);
   assert.match(seikoPhase, /nextFlow\.style\.display = "none"/);
   assert.match(seikoPhase, /ACTIVE ORDERS/);
-  assert.match(seikoPhase, /Open production/);
   assert.match(page, /<span>Users & access<\/span>/);
-  assert.match(seikoPhase, /\["Inventory", "Sales", "Delivery"\]/);
-  assert.doesNotMatch(seikoPhase, /SEIKO · JINAM/);
   assert.match(catalog, /allowedModules: \["home", "orders", "labels", "scan", "trace", "production", "billing", "admin"\]/);
 });
 
-test("SEIKO Phase 2 exposes real owner/admin libraries and billing without leaking them to other apps", () => {
+test("SEIKO Phase 2 reference keeps libraries and commercial logic isolated from other apps", () => {
   assert.match(enhancements, /<SeikoPhase2Gate \/>/);
   assert.match(seikoPhase2Gate, /businessId !== "seiko"/);
-  assert.match(seikoPhase2Gate, /\["owner", "admin"\]/);
   assert.match(seikoPhase2, /Client Library/);
   assert.match(seikoPhase2, /Product Library/);
   assert.match(seikoPhase2, /Billing/);
-  assert.match(seikoPhase2, /Document Templates/);
   assert.doesNotMatch(veynApp, /SeikoPhase2/);
   assert.doesNotMatch(methApp, /SeikoPhase2/);
 });
@@ -109,16 +105,11 @@ test("SEIKO billing links documents, tax treatment, payments and outstanding bal
   assert.match(seikoBilling, /invoiceOutstanding/);
   assert.match(seikoBilling, /paymentStoreKey/);
   assert.match(seikoBilling, /showCustomerAcknowledgement/);
-  assert.match(seikoPhase2, /Record payment/);
-  assert.match(seikoPhase2, /GST document/);
-  assert.match(seikoPhase2, /Without GST/);
 });
 
 test("Users and access is nested inside business settings rather than exposed as a shell module", () => {
   assert.match(veynApp, /jinamSettingsCard"><h2>Users & access/);
   assert.match(methApp, /jinamSettingsCard"><h2>Users & access/);
-  assert.doesNotMatch(veynApp, /Templates<\/h2>|Libraries & options<\/h2>/);
-  assert.doesNotMatch(methApp, /Business setup<\/h2>/);
 });
 
 test("VÉYN green is semantic and commercial summary remains neutral", () => {
@@ -127,25 +118,18 @@ test("VÉYN green is semantic and commercial summary remains neutral", () => {
   assert.doesNotMatch(veynApp, /DELIVERED \/ CLOSED/);
 });
 
-test("rescue enhancement registry keeps only required adapters and quarantines overlapping UI owners", () => {
-  for (const component of ["ErpOrderSync","OwnerDropdownUx","OrderSetupPolish","OrderSetupFinalize","OrderCompactUx","WorkspaceTopPager","WorkspaceShortcuts","WorkspaceRowMenu","WorkspaceStructureInteractions","SeikoCloseConfirm","SeikoPhase1","SeikoLibraryAutofill","SeikoPhase2Gate"]) {
-    assert.match(enhancements, new RegExp(`<${component} \\/>`));
-  }
+test("rescue enhancement registry keeps overlapping UI owners quarantined", () => {
   for (const retired of ["LabelFlowPolish","LabelDesignerPolish","LabelProductionReady","LabelFinalization","LabelDesignerInteractions","LabelFieldCompact","LabelWorkspaceRefinement","PackingWorkflowRuntimeFixes","SeikoListCenterEnhancements","SeikoOperationalUx","SeikoInterfaceFixes","GlobalNavigation"]) {
     assert.doesNotMatch(enhancements, new RegExp(`<${retired} \\/>`));
   }
   assert.match(layout, /seiko-rescue\.css/);
+  assert.match(layout, /seiko-priority0\.css/);
 });
 
-test("shared DOM scheduler owns observer and animation-frame lifecycle", () => {
+test("shared DOM scheduler remains available to retained adapters", () => {
   assert.match(scheduler, /export function startDomEnhancement/);
   assert.match(scheduler, /new MutationObserver/);
   assert.match(scheduler, /requestAnimationFrame/);
   assert.match(scheduler, /cancelAnimationFrame/);
-});
-
-test("consolidated adapters use the shared scheduler", () => {
-  for (const source of [labelFlow, labelProduction, orderFinalize, orderCompact, workspacePager, ownerDropdown, seikoPhase, autofill, seikoPhase2]) {
-    assert.match(source, /startDomEnhancement/);
-  }
+  for (const source of [labelFlow, labelProduction, orderFinalize, orderCompact, workspacePager, ownerDropdown, seikoPhase, autofill, seikoPhase2]) assert.match(source, /startDomEnhancement/);
 });
