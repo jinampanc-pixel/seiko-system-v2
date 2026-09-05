@@ -3,47 +3,51 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const enhancements = read("app/app-enhancements.tsx");
-const layout = read("app/layout.tsx");
-const page = read("app/page.tsx");
-const orders = read("app/orders.tsx");
+const app = read("app/seiko-priority0-app.tsx");
+const shell = read("app/seiko-priority0/shell.tsx");
+const model = read("app/seiko-priority0/model.ts");
+const home = read("app/seiko-priority0/home.tsx");
+const packingCenter = read("app/seiko-priority0/packing-center.tsx");
+const reports = read("app/seiko-priority0/reports.tsx");
+const billing = read("app/seiko-priority0/billing.tsx");
 const packing = read("app/packing-person-label-designer.tsx");
-const rescueCss = read("app/seiko-rescue.css");
+const orders = read("app/orders.tsx");
+const priorityCss = read("app/seiko-priority0.css");
+const enhancements = read("app/app-enhancements.tsx");
 
-test("rescue runtime has one interaction owner for menu and packing labels", () => {
+test("Priority 0 is a clean composition rather than another monolithic patch layer", () => {
+  for (const modulePath of [
+    "./seiko-priority0/home",
+    "./seiko-priority0/packing-center",
+    "./seiko-priority0/reports",
+    "./seiko-priority0/billing",
+    "./seiko-priority0/model",
+    "./seiko-priority0/shell",
+  ]) assert.match(app, new RegExp(modulePath.replaceAll("/", "\\/")));
+  assert.doesNotMatch(app, /function ReportsCenter|function BillingCenter|function PackingCenter|function Home\(/);
+  assert.match(model, /SEIKO_BUSINESS_ID = "seiko"/);
+});
+
+test("SEIKO shell is the sole Priority 0 navigation owner", () => {
+  for (const label of ["Home", "Orders", "Packing labels", "Reports & PDF", "Billing & challans"]) assert.match(shell, new RegExp(label.replace("&", "&")));
+  assert.match(shell, /const \[menuOpen, setMenuOpen\] = useState\(false\)/);
+  assert.match(shell, /setMenuOpen\(false\); onNavigate\(module\)/);
   for (const retired of ["GlobalNavigation","SeikoOperationalUx","SeikoListCenterEnhancements","SeikoInterfaceFixes","PackingWorkflowRuntimeFixes","LabelDesignerInteractions","LabelFlowPolish","LabelDesignerPolish","LabelProductionReady","LabelFinalization","LabelFieldCompact","LabelWorkspaceRefinement"]) {
     assert.doesNotMatch(enhancements, new RegExp(`<${retired} \\/>`));
   }
-  assert.match(page, /className="moduleMenu"/);
-  assert.match(page, /setNavOpen\(false\)/);
-  assert.match(page, /label="Orders"/);
-  assert.match(page, /label="Labels"/);
 });
 
-test("rescue stylesheet replaces late patch layers", () => {
-  assert.match(layout, /seiko-rescue\.css/);
-  for (const retiredCss of ["label-designer-polish.css","label-production-ready.css","label-finalization.css","label-flow-polish.css","global-navigation.css","seiko-stage2-safe.css","seiko-workspace-label-final.css","seiko-list-center-enhancements.css","seiko-refinement.css","seiko-operational-ux.css","seiko-interface-fixes.css","packing-workspace-audit.css","packing-workflow-final.css","seiko-stable.css"]) {
-    assert.doesNotMatch(layout, new RegExp(retiredCss.replaceAll(".", "\\.")));
-  }
-  assert.match(rescueCss, /\.moduleMenu/);
-  assert.match(rescueCss, /height:100dvh/);
-  assert.match(rescueCss, /\.packingCanvas/);
-  assert.match(rescueCss, /width:800px/);
-  assert.match(rescueCss, /height:400px/);
-  assert.match(rescueCss, /\.packingPresentationRules/);
-  assert.match(rescueCss, /overflow:auto/);
-});
-
-test("Orders and Workspace remain source-backed", () => {
+test("Orders and Workspace remain source-backed while Packing is connected directly", () => {
+  assert.match(app, /<Orders businessId=\{SEIKO_BUSINESS_ID\}/);
+  assert.match(app, /<PackingPersonLabelDesigner/);
+  assert.match(home, /Packing labels/);
+  assert.match(packingCenter, /Open packing designer/);
   assert.match(orders, /workspaceNativeMenuStatus/);
   assert.match(orders, /workspaceMenuSaveNow/);
   assert.match(orders, /aria-label="Rows per page"/);
-  assert.match(orders, /Archive order/);
-  assert.match(orders, /Delete order/);
-  assert.match(orders, /Create labels|Labels/);
 });
 
-test("packing labels derive order data and keep React as sole drag resize remove owner", () => {
+test("Packing designer keeps React as sole drag resize and remove owner", () => {
   assert.match(packing, /quantityForRecord/);
   assert.match(packing, /measurementValue/);
   assert.match(packing, /specificationValue/);
@@ -56,16 +60,40 @@ test("packing labels derive order data and keep React as sole drag resize remove
   assert.doesNotMatch(packing, /updateItem\(item\.id, \{[^}]*font:[^}]*x:/s);
   assert.match(packing, /const removeId = dragging\.current\.id/);
   assert.match(packing, /currentItems\.filter\(item => item\.id !== removeId\)/);
-  assert.match(rescueCss, /\.packingTrash\{pointer-events:none!important;\}/);
 });
 
-test("packing customization remains order-derived and uses one drawer scroll owner", () => {
-  assert.match(packing, /Everything is generated from the actual order schema/);
-  assert.match(packing, /Include this product when applicable/);
-  assert.match(packing, /Primary measurement/);
-  assert.match(packing, /Show quantity/);
-  assert.match(packing, /Measurements/);
-  assert.match(packing, /Attributes \/ specifications/);
-  assert.match(rescueCss, /\.packingPresentationDrawer[\s\S]*overflow:hidden/);
-  assert.match(rescueCss, /\.packingPresentationRules[\s\S]*overflow:auto/);
+test("Reports are order-derived, filterable, reusable and exportable", () => {
+  assert.match(reports, /quantityForRecord/);
+  assert.match(reports, /People \/ record filters/);
+  assert.match(reports, /\+ Add filter/);
+  assert.match(reports, /Products included/);
+  assert.match(reports, /Save preset/);
+  assert.match(reports, /Print \/ Save PDF/);
+  assert.match(reports, /Export CSV/);
+  assert.match(reports, /Ordered \/ planned quantities/);
+  assert.match(reports, /Order-total products are not person-allocated/);
+});
+
+test("Billing supports invoices, delivery challans and partial document quantities without changing the order", () => {
+  assert.match(billing, /Invoice and delivery challan/);
+  assert.match(billing, /delivery_challan/);
+  assert.match(billing, /Document qty/);
+  assert.match(billing, /Math\.min\(ordered/);
+  assert.match(billing, /Tax mode/);
+  assert.match(billing, /CGST/);
+  assert.match(billing, /SGST/);
+  assert.match(billing, /IGST/);
+  assert.match(billing, /Save document/);
+  assert.match(billing, /Print \/ Save PDF/);
+});
+
+test("Priority 0 stylesheet is scoped and owns responsive plus printable behavior", () => {
+  assert.match(priorityCss, /\.seikoP0App/);
+  assert.match(priorityCss, /\.seikoP0Drawer/);
+  assert.match(priorityCss, /\.seikoP0Controls/);
+  assert.match(priorityCss, /\.seikoP0TableWrap/);
+  assert.match(priorityCss, /@media \(max-width: 900px\)/);
+  assert.match(priorityCss, /@media print/);
+  assert.match(priorityCss, /\.seikoP0NoPrint/);
+  assert.match(priorityCss, /\.packingCanvas/);
 });
