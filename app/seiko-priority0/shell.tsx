@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { THEME_PRESETS, themeVariables, type BusinessTheme } from "../lib/foundation";
 import type { SeikoPriorityModule } from "./model";
 
@@ -24,6 +24,12 @@ export function SeikoPriorityShell({
   children: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [menuOpen]);
   const navigate = (module: SeikoPriorityModule) => { setMenuOpen(false); onNavigate(module); };
 
   return <div className="seikoP0App" style={themeVariables(theme || THEME_PRESETS.seiko) as CSSProperties}>

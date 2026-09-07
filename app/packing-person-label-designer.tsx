@@ -231,7 +231,7 @@ function buildPersonRecords(order: SeikoOrder, rules: PresentationRules, package
       packageLines: lines,
       packageProducts,
     };
-  });
+  }).filter(record => record.packageLines.length > 0);
 }
 
 function fieldLabel(order: SeikoOrder, key: InfoKey) {
@@ -259,7 +259,7 @@ function defaultItems(order: SeikoOrder): LabelItem[] {
   const items: LabelItem[] = [{ id: crypto.randomUUID(), field: "client", label: "Client / school", printedLabel: "Client / school", x: 2, y: 1.5, w: 31, h: 3.5, font: 5.5, showLabel: false, bold: false }];
   if (name) items.push({ id: crypto.randomUUID(), field: `field:${name.id}`, label: name.name, printedLabel: name.name, x: 2, y: 5.5, w: 31, h: 6, font: 10, showLabel: false, bold: false });
   if (group) items.push({ id: crypto.randomUUID(), field: `field:${group.id}`, label: group.name, printedLabel: group.name, x: 35, y: 5.5, w: 12, h: 6, font: 9, showLabel: false, bold: false });
-  items.push({ id: crypto.randomUUID(), field: PACKAGE_FIELD, label: "Package contents", printedLabel: "Package contents", x: 2, y: 12.5, w: 32, h: 10.5, font: 8, showLabel: false, bold: false });
+  items.push({ id: crypto.randomUUID(), field: PACKAGE_FIELD, label: "Package contents", printedLabel: "Package contents", x: 2, y: 12.5, w: 46, h: 10.5, font: 8, showLabel: false, bold: false });
   items.push({ id: crypto.randomUUID(), field: "trace_person_position", label: "Label number / total", printedLabel: "Label", x: 36, y: 1.5, w: 11, h: 4, font: 5.5, showLabel: false, bold: false });
   return items;
 }
@@ -314,39 +314,49 @@ function migrateItems(order: SeikoOrder, raw: unknown): LabelItem[] {
   return result.length ? result : defaultItems(order);
 }
 
-function FitText({ text, preferredPt, bold, multiline }: { text: string; preferredPt: number; bold: boolean; multiline?: boolean }) {
+function FitText({ text, preferredPt, bold, multiline, widthMm, heightMm }: { text: string; preferredPt: number; bold: boolean; multiline?: boolean; widthMm: number; heightMm: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
     const fit = () => {
-      const width = element.clientWidth - 2;
-      const height = element.clientHeight - 1;
+      const scale = element.closest(".packingCanvas") ? (element.closest(".packingCanvas")!.clientWidth / (50 * 96 / 25.4)) : 1;
+      const width = widthMm * 96 / 25.4 - 1;
+      const height = heightMm * 96 / 25.4 - 1;
       if (width <= 0 || height <= 0) return;
       const lines = (text || "").split("\n");
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
       if (!context) return;
       const family = getComputedStyle(element).fontFamily || "Arial";
-      let pt = preferredPt;
-      const minPt = 4;
-      while (pt > minPt) {
-        const px = pt * 1.333;
-        context.font = `${bold ? 700 : 400} ${px}px ${family}`;
-        const widest = Math.max(1, ...lines.map(line => context.measureText(line || " ").width));
-        const neededHeight = Math.max(1, lines.length) * px * 1.08;
-        if (widest <= width && neededHeight <= height) break;
-        pt -= .25;
+      let bestPt = 0;
+      let bestColumns = 1;
+      for (const columns of multiline && lines.length > 3 ? [1, 2] : [1]) {
+        let pt = preferredPt;
+        while (pt > 1) {
+          const px = pt * 96 / 72;
+          context.font = `${bold ? 700 : 400} ${px}px ${family}`;
+          const widest = Math.max(1, ...lines.map(line => context.measureText(line || " ").width));
+          if (widest <= (width - (columns - 1) * 3) / columns && Math.ceil(lines.length / columns) * px * 1.08 <= height) break;
+          pt -= .25;
+        }
+        if (pt > bestPt) { bestPt = pt; bestColumns = columns; }
       }
-      element.style.fontSize = `${Math.max(minPt, pt) * 1.333}px`;
+      element.style.fontSize = `${Math.max(1, bestPt) * 96 / 72 * scale}px`;
+      element.style.display = "grid";
+      element.style.gridAutoFlow = "column";
+      element.style.gridTemplateRows = `repeat(${Math.ceil(lines.length / bestColumns)}, min-content)`;
+      element.style.gridTemplateColumns = `repeat(${bestColumns}, minmax(0, 1fr))`;
+      element.style.columnGap = `${3 * scale}px`;
+      element.title = bestPt < 4 ? "Dense label: enlarge the package area or reduce displayed details for readable print." : "";
       element.dataset.fitReady = "true";
     };
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [text, preferredPt, bold]);
-  return <div ref={ref} className="packingFitText" style={{ whiteSpace: multiline ? "pre-line" : "nowrap", fontWeight: bold ? 700 : 400 }}>{text}</div>;
+  }, [text, preferredPt, bold, widthMm, heightMm, multiline]);
+  return <div ref={ref} className="packingFitText" style={{ whiteSpace: multiline ? "pre-line" : "nowrap", fontWeight: bold ? 700 : 400 }}>{text.split("\n").map((line, index) => <span key={index} style={{ whiteSpace: "nowrap" }}>{line}</span>)}</div>;
 }
 
 function packageBounds(items: LabelItem[]) {
@@ -494,12 +504,12 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
     const layout: SavedLayout = { id: crypto.randomUUID(), name: `Packing · ${order.details.clientName}`, clientType: order.details.clientType, product: "", presetId: "pixra-109", items, purpose: "packing", sourceMode: "person", outputMode: "combined", presentationRules: rules, packagePresentation, designerKind: "packing-person-v4" };
     const next = [...layouts, layout]; setLayouts(next); localStorage.setItem(layoutKey(businessId), JSON.stringify(next)); setMenuOpen(false);
   };
-  const print = () => requestAnimationFrame(() => requestAnimationFrame(() => window.dispatchEvent(new Event("jinam:labels:print"))));
+  const print = () => requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
 
   const renderItem = (item: LabelItem, record: PersonRecord, index: number) => {
     const value = fieldValue(order, record, item.field, index, records.length);
     const text = item.showLabel && value ? `${item.printedLabel}: ${value}` : value;
-    return <FitText text={text} preferredPt={item.font} bold={item.bold} multiline={item.field === PACKAGE_FIELD && packagePresentation.layoutMode === "flow"}/>;
+    return <FitText text={text} preferredPt={item.font} bold={item.bold} widthMm={item.w} heightMm={item.h} multiline={item.field === PACKAGE_FIELD && packagePresentation.layoutMode === "flow"}/>;
   };
 
   const configuredProducts = order.products.filter(product => product.name.trim() && (rules[product.id] || defaultRule(order, product)).included).length;

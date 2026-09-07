@@ -17,6 +17,8 @@ export type SeikoCommercialDocument = {
   orderId: string;
   orderNo: string;
   clientName: string;
+  customerAddress?: string;
+  customerContact?: string;
   issueDate: string;
   dueDate?: string;
   reference?: string;

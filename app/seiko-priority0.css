@@ -350,7 +350,7 @@
 .seikoP0App .packingWorkflowDesigner { max-width: 1500px; margin: 0 auto; }
 .seikoP0App .seikoOrders { padding-top: 28px; }
 .seikoP0App .packingWorkflowDesigner { padding-top: 20px; }
-.seikoP0App .packingCanvas { width: 800px !important; height: 400px !important; max-width: 100% !important; }
+.seikoP0App .packingCanvas { width: 100% !important; height: auto !important; aspect-ratio: 2 / 1; max-width: 800px !important; }
 .seikoP0App .packingPresentationDrawer { z-index: 120; }
 .seikoP0App .packingPresentationRules { max-height: calc(100dvh - 130px); overflow: auto; }
 
@@ -396,4 +396,23 @@
   .seikoP0TableWrap { overflow: visible !important; }
   .seikoP0Table { font-size: 9.5pt; }
   .seikoP0DocHead img { height: 52px; }
+}
+
+/* Keep controls inside narrow panels and preserve physical label proportions. */
+.seikoP0App .panel, .seikoP0App .seikoP0Panel, .seikoP0App fieldset { min-width: 0; }
+.seikoP0App fieldset { border: 0; padding: 0; margin: 0; }
+.seikoP0App .labelStageV2 { width: 100%; box-sizing: border-box; }
+.seikoP0App .specActions button::before { content: none; }
+.seikoP0BillingLines > div { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+.seikoP0App input, .seikoP0App select { min-width: 0; max-width: 100%; box-sizing: border-box; }
+@media(max-width:620px) {
+  .seikoP0Topbar { grid-template-columns: 1fr auto; }
+  .seikoP0BillingLines > div { grid-template-columns: minmax(0,1fr); }
+  .seikoP0App .workspaceHead { display: flex; flex-direction: column; align-items: stretch; }
+  .seikoP0App .productPolicyTop, .seikoP0App .specPolicy, .seikoP0App .measurementRow { grid-template-columns: minmax(0,1fr); }
+}
+@media print {
+  @page seikoLabels { size:104mm 25mm; margin:0; }
+  .seikoP0App .packingWorkflowDesigner .printSheet { page:seikoLabels; width:104mm; padding:0; grid-auto-rows:25mm; gap:0 4mm; page-break-inside:auto; }
+  .seikoP0App .packingWorkflowDesigner .printedLabel { width:50mm; height:25mm; position:relative; break-inside:avoid; }
 }

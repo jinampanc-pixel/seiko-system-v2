@@ -15,7 +15,6 @@ test("clean SEIKO UX is source-owned and priority-zero stylesheet is loaded last
   assert.doesNotMatch(enhancements, /SeikoFinalUxPass|SeikoReviewFinal|SeikoReviewSentinel|SeikoMenuClickFix/);
   assert.match(priorityCss, /\.seikoP0App/);
 });
-
 test("packing designer keeps product presentation in its React-owned drawer", () => {
   assert.match(packing, /packingPresentationLayer/);
   assert.match(packing, /packingPresentationDrawer/);
@@ -35,7 +34,7 @@ test("packing canvas remains directly editable and physically proportional", () 
   assert.match(packing, /onPointerUp=\{stop\}/);
   assert.match(packing, /onWheel=\{event => wheel\(event, item\)\}/);
   assert.match(priorityCss, /packingCanvas[\s\S]*width:\s*800px\s*!important/);
-  assert.match(priorityCss, /packingCanvas[\s\S]*height:\s*400px\s*!important/);
+  assert.match(priorityCss, /packingCanvas[\s\S]*height:\s*auto\s*!important;\s*aspect-ratio:\s*2\s*\/\s*1/);
   assert.match(rescueCss, /canvasElement[\s\S]*touch-action:none!important/);
   assert.match(rescueCss, /packingTrash[\s\S]*pointer-events:none!important/);
 });

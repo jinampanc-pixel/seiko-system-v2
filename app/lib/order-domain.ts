@@ -139,7 +139,13 @@ export function quantityForRecord(product: ProductPolicy, record: OrderRecord, f
   }
   const override = Number(record.values[`product:${product.id}:qty_override`] ?? record.values[`product:${product.id}:qty`]);
   if (Number.isFinite(override) && override >= 0 && String(record.values[`product:${product.id}:qty_override`] ?? record.values[`product:${product.id}:qty`] ?? "").trim() !== "") return Math.max(0, override);
+  if (product.quantityMode === "per_person") return 0;
   return Math.max(0, Number(product.defaultQuantity) || 0);
+}
+
+/** Quantity eligible for operational documents; held people never contribute. */
+export function eligibleOrderQuantity(order: SeikoOrder, product: ProductPolicy): number {
+  return order.records.filter(record => !record.held).reduce((sum, record, index) => sum + quantityForRecord(product, record, index === 0), 0);
 }
 
 export function readinessIssues(order: SeikoOrder): string[] {
@@ -147,6 +153,36 @@ export function readinessIssues(order: SeikoOrder): string[] {
   const issues = validateOrder(normalized);
   if (!normalized.records.length) issues.push("No person / record entries yet. You can still save this order.");
   if (!normalized.products.some(product => product.name.trim())) issues.push("No products defined yet. Add them now or later.");
+  const blank = (value: unknown) => value == null || String(value).trim() === "";
+  normalized.records.filter(record => !record.held).forEach((record, index) => {
+    const prefix = record.personId || `Row ${index + 1}`;
+    for (const item of normalized.fields) {
+      if (item.required && blank(record.values[`field:${item.id}`])) issues.push(`${prefix}: ${item.name} is required.`);
+    }
+    for (const product of normalized.products.filter(item => item.name.trim())) {
+      const raw = record.values[`product:${product.id}:${product.quantityMode === "default_with_exceptions" ? "qty_override" : "qty"}`];
+      if ((product.quantityMode === "per_person" || (product.quantityMode === "default_with_exceptions" && !blank(raw))) &&
+          (blank(raw) || !Number.isSafeInteger(Number(raw)) || Number(raw) < 0)) {
+        issues.push(`${prefix}: ${product.name} quantity must be a whole number of zero or more.`);
+      }
+      const applies = quantityForRecord(product, record, index === 0) > 0;
+      for (const measurement of normalized.measurements.filter(item => item.appliesTo.includes(product.id))) {
+        if ((measurement.requiredMode === "Always" || (measurement.requiredMode === "When present" && applies)) &&
+            blank(record.values[`measurement:${measurement.id}:product:${product.id}`])) {
+          issues.push(`${prefix}: ${product.name} - ${measurement.name} is required.`);
+        }
+      }
+      if (!applies) continue;
+      for (const spec of product.specifications.filter(item => item.required && item.role !== "asset")) {
+        const groupValue = String(record.values[`field:${spec.groupFieldId}`] ?? "");
+        const value = spec.mode === "per_person" ? record.values[`spec:${spec.id}`]
+          : spec.mode === "default_with_exceptions" ? (blank(record.values[`spec:${spec.id}:override`]) ? spec.defaultValue : record.values[`spec:${spec.id}:override`])
+          : spec.mode === "by_group" ? spec.groupRules.find(rule => groupRuleMatches(rule.match, groupValue))?.value ?? spec.defaultValue
+          : spec.defaultValue;
+        if (blank(value)) issues.push(`${prefix}: ${product.name} - ${spec.name} is required.`);
+      }
+    }
+  });
   for (const product of normalized.products) {
     if (product.quantityMode === "by_group") {
       const rules = product.quantityGroupRules || [];

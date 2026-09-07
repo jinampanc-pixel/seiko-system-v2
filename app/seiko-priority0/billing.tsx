@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { quantityForRecord, type ProductPolicy, type SeikoOrder } from "../lib/order-domain";
+import { eligibleOrderQuantity, type ProductPolicy, type SeikoOrder } from "../lib/order-domain";
 import { billingStoreKey, documentTotals, nextDocumentNumber, type SeikoBillingLine, type SeikoCommercialDocument, type SeikoDocumentKind, type SeikoTaxMode } from "../lib/seiko-billing";
 import { activeProducts, displayOrder, SEIKO_BUSINESS_ID } from "./model";
 
@@ -15,7 +15,7 @@ function readDocuments() {
 }
 
 function orderedQuantity(order: SeikoOrder, product: ProductPolicy) {
-  return order.records.reduce((sum, record) => sum + quantityForRecord(product, record, order.records[0]?.recordId === record.recordId), 0);
+  return eligibleOrderQuantity(order, product);
 }
 
 function defaultLineDrafts(order: SeikoOrder | null): Record<string, LineDraft> {
@@ -66,6 +66,16 @@ export function SeikoBillingCenter({ orders }: { orders: SeikoOrder[] }) {
     });
   }, [kind, lineDrafts, order, taxMode]);
 
+  const lineErrors = order ? activeProducts(order).flatMap(product => {
+    const config = lineDrafts[product.id];
+    if (!config?.included) return [];
+    const errors: string[] = [];
+    const qty = Number(config.quantity);
+    if (!config.quantity.trim() || !Number.isSafeInteger(qty) || qty < 0 || qty > orderedQuantity(order, product)) errors.push(`${product.name}: quantity must be a whole number between 0 and ${orderedQuantity(order, product)}.`);
+    if (kind === "invoice" && (!Number.isFinite(Number(config.rate)) || Number(config.rate) < 0)) errors.push(`${product.name}: rate must be zero or more.`);
+    if (kind === "invoice" && taxMode === "gst" && (!Number.isFinite(Number(config.taxRate)) || Number(config.taxRate) < 0 || Number(config.taxRate) > 100)) errors.push(`${product.name}: GST must be between 0 and 100.`);
+    return errors;
+  }) : [];
   const now = new Date().toISOString();
   const draft: SeikoCommercialDocument | null = order ? {
     id: "preview",
@@ -74,6 +84,8 @@ export function SeikoBillingCenter({ orders }: { orders: SeikoOrder[] }) {
     orderId: order.orderId,
     orderNo: order.details.orderNo,
     clientName: order.details.clientName,
+    customerAddress: kind === "invoice" ? order.details.billTo : order.details.shipTo,
+    customerContact: [order.details.contactPerson, order.details.contactNumber].filter(Boolean).join(" · "),
     issueDate: now.slice(0, 10),
     dueDate: kind === "invoice" && dueDate ? dueDate : undefined,
     reference,
@@ -85,15 +97,20 @@ export function SeikoBillingCenter({ orders }: { orders: SeikoOrder[] }) {
     createdAt: now,
     updatedAt: now,
   } : null;
-  const totals = draft ? documentTotals(draft) : null;
+  const displayDocument = saved.find(document => document.id === lastSavedId) || draft;
+  const totals = displayDocument ? documentTotals(displayDocument) : null;
+  const previewLines = displayDocument?.lines || [];
+  const previewInvalid = !lastSavedId && lineErrors.length > 0;
 
   const saveDocument = () => {
-    if (!draft || !draft.lines.length) return;
+    if (!draft || !draft.lines.length || lineErrors.length || lastSavedId) return;
     const document: SeikoCommercialDocument = { ...draft, id: crypto.randomUUID(), status: "issued", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     const next = [...saved, document];
-    setSaved(next);
-    setLastSavedId(document.id);
-    localStorage.setItem(billingStoreKey(SEIKO_BUSINESS_ID), JSON.stringify(next));
+    try {
+      localStorage.setItem(billingStoreKey(SEIKO_BUSINESS_ID), JSON.stringify(next));
+      setSaved(next);
+      setLastSavedId(document.id);
+    } catch { window.alert("The document could not be saved. Check available browser storage and try again."); }
   };
 
   return <section className="seikoP0Page">
@@ -101,6 +118,7 @@ export function SeikoBillingCenter({ orders }: { orders: SeikoOrder[] }) {
     {!order ? <div className="seikoP0Panel seikoP0Empty"><b>No order is available for billing.</b><span>Create an order first.</span></div> : <div className="seikoP0TwoCol">
       <section className="seikoP0Panel seikoP0Controls seikoP0NoPrint">
         <label><span>Order</span><select value={order.orderId} onChange={event => changeOrder(event.target.value)}>{orders.map(item => <option key={item.orderId} value={item.orderId}>{displayOrder(item)}</option>)}</select></label>
+        <fieldset className="seikoP0DraftFields" disabled={!!lastSavedId}>
         <label><span>Document</span><select value={kind} onChange={event => changeKind(event.target.value as BillingKind)}><option value="invoice">Invoice</option><option value="delivery_challan">Delivery Challan</option></select></label>
         {kind === "invoice" && <div className="seikoP0FilterRow"><label><span>Tax mode</span><select value={taxMode} onChange={event => setTaxMode(event.target.value as SeikoTaxMode)}><option value="gst">GST</option><option value="non_gst">Without GST</option></select></label>{taxMode === "gst" && <label><span>GST treatment</span><select value={taxTreatment} onChange={event => setTaxTreatment(event.target.value as typeof taxTreatment)}><option value="intra_state">Intra-state (CGST + SGST)</option><option value="inter_state">Inter-state (IGST)</option></select></label>}</div>}
         <div className="seikoP0FilterRow"><label><span>Reference</span><input value={reference} onChange={event => setReference(event.target.value)} placeholder="PO / reference"/></label>{kind === "invoice" && <label><span>Due date</span><input type="date" value={dueDate} onChange={event => setDueDate(event.target.value)}/></label>}</div>
@@ -122,19 +140,23 @@ export function SeikoBillingCenter({ orders }: { orders: SeikoOrder[] }) {
 
         <label><span>Notes</span><textarea rows={3} value={notes} onChange={event => setNotes(event.target.value)} placeholder="Document notes"/></label>
         {!lines.length && <p className="seikoP0Notice">Select at least one product with a document quantity greater than zero.</p>}
-        {lastSavedId && <p className="seikoP0Success">Document saved.</p>}
-        <div className="seikoP0Actions"><button type="button" onClick={saveDocument} disabled={!lines.length}>Save document</button><button type="button" className="secondary" onClick={() => window.print()} disabled={!lines.length}>Print / Save PDF</button></div>
-        <small>Saved documents: {saved.length}</small>
+        </fieldset>
+        {!lastSavedId && lineErrors.length > 0 && <div role="alert" className="seikoP0Notice">{lineErrors.map(error => <p key={error}>{error}</p>)}</div>}
+        {lastSavedId && <p role="status" className="seikoP0Success">Saved document {displayDocument?.number}. This snapshot is ready to reprint.</p>}
+        <div className="seikoP0Actions"><button type="button" onClick={saveDocument} disabled={!lines.length || !!lastSavedId || !!lineErrors.length}>Save document</button><button type="button" className="secondary" onClick={() => window.print()} disabled={!previewLines.length || previewInvalid}>Print / Save PDF</button></div>
+        {lastSavedId && <button type="button" className="secondary" onClick={() => changeOrder(order.orderId)}>New document</button>}
+        <label><span>Saved documents for this order</span><select value={lastSavedId} onChange={event => setLastSavedId(event.target.value)}><option value="">Current draft</option>{saved.filter(document => document.orderId === order.orderId).map(document => <option key={document.id} value={document.id}>{document.number} · {document.issueDate}</option>)}</select></label>
+        <small>Saved documents: {saved.filter(document => document.orderId === order.orderId).length}</small>
       </section>
 
-      <section className="seikoP0Panel seikoP0Printable">{draft && <>
-        <div className="seikoP0DocHead"><div><p className="eyebrow">{kind === "invoice" ? (taxMode === "gst" ? "TAX INVOICE" : "INVOICE") : "DELIVERY CHALLAN"}</p><h2>{draft.number}</h2><p>{draft.issueDate}{draft.dueDate ? ` · Due ${draft.dueDate}` : ""}</p></div><img src="/brands/seiko-logo-transparent.png" alt="SEIKO"/></div>
-        <div className="seikoP0DocParties"><div><small>{kind === "invoice" ? "Bill to" : "Deliver to"}</small><strong>{order.details.clientName || "Unnamed client"}</strong><p>{kind === "invoice" ? order.details.billTo : order.details.shipTo}</p></div><div><small>Order</small><strong>{order.details.orderNo}</strong><p>{order.details.contactPerson}{order.details.contactNumber ? ` · ${order.details.contactNumber}` : ""}</p>{reference && <p>Ref: {reference}</p>}</div></div>
-        {!lines.length ? <div className="seikoP0Empty"><b>No document lines selected.</b></div> : <div className="seikoP0TableWrap"><table className="seikoP0Table"><thead><tr><th>Item</th><th>Qty</th>{kind === "invoice" && <><th>Rate</th>{taxMode === "gst" && <th>GST</th>}<th>Amount</th></>}</tr></thead><tbody>{lines.map(line => <tr key={line.id}><td>{line.description}</td><td>{line.quantity}</td>{kind === "invoice" && <><td>₹{line.unitRate.toFixed(2)}</td>{taxMode === "gst" && <td>{line.taxRate}%</td>}<td>₹{(line.quantity * line.unitRate).toFixed(2)}</td></>}</tr>)}</tbody></table></div>}
-        {kind === "invoice" && totals && <div className="seikoP0Totals"><span>Subtotal <b>₹{totals.subtotal.toFixed(2)}</b></span>{taxMode === "gst" && taxTreatment === "intra_state" && <><span>CGST <b>₹{totals.cgst.toFixed(2)}</b></span><span>SGST <b>₹{totals.sgst.toFixed(2)}</b></span></>}{taxMode === "gst" && taxTreatment === "inter_state" && <span>IGST <b>₹{totals.igst.toFixed(2)}</b></span>}<strong>Total ₹{totals.total.toFixed(2)}</strong></div>}
-        {notes && <div className="seikoP0DocNotes"><small>Notes</small><p>{notes}</p></div>}
+      <section className="seikoP0Panel seikoP0Printable">{displayDocument && <>{previewInvalid ? <p className="seikoP0Notice">Correct the highlighted values before previewing or printing.</p> : <>
+        <div className="seikoP0DocHead"><div><p className="eyebrow">{displayDocument.kind === "invoice" ? (displayDocument.taxMode === "gst" ? "TAX INVOICE" : "INVOICE") : "DELIVERY CHALLAN"}</p><h2>{displayDocument.number}</h2><p>{displayDocument.issueDate}{displayDocument.dueDate ? ` · Due ${displayDocument.dueDate}` : ""}</p></div><img src="/brands/seiko-logo-transparent.png" alt="SEIKO"/></div>
+        <div className="seikoP0DocParties"><div><small>{displayDocument.kind === "invoice" ? "Bill to" : "Deliver to"}</small><strong>{displayDocument.clientName || "Unnamed client"}</strong><p>{displayDocument.customerAddress || ""}</p></div><div><small>Order</small><strong>{displayDocument.orderNo}</strong><p>{displayDocument.customerContact || ""}</p>{displayDocument.reference && <p>Ref: {displayDocument.reference}</p>}</div></div>
+        {!previewLines.length ? <div className="seikoP0Empty"><b>No document lines selected.</b></div> : <div className="seikoP0TableWrap"><table className="seikoP0Table"><thead><tr><th>Item</th><th>Qty</th>{displayDocument.kind === "invoice" && <><th>Rate</th>{displayDocument.taxMode === "gst" && <th>GST</th>}<th>Amount</th></>}</tr></thead><tbody>{previewLines.map(line => <tr key={line.id}><td>{line.description}</td><td>{line.quantity}</td>{displayDocument.kind === "invoice" && <><td>₹{line.unitRate.toFixed(2)}</td>{displayDocument.taxMode === "gst" && <td>{line.taxRate}%</td>}<td>₹{(line.quantity * line.unitRate).toFixed(2)}</td></>}</tr>)}</tbody></table></div>}
+        {displayDocument.kind === "invoice" && totals && <div className="seikoP0Totals"><span>Subtotal <b>₹{totals.subtotal.toFixed(2)}</b></span>{displayDocument.taxMode === "gst" && displayDocument.taxTreatment === "intra_state" && <><span>CGST <b>₹{totals.cgst.toFixed(2)}</b></span><span>SGST <b>₹{totals.sgst.toFixed(2)}</b></span></>}{displayDocument.taxMode === "gst" && displayDocument.taxTreatment === "inter_state" && <span>IGST <b>₹{totals.igst.toFixed(2)}</b></span>}<strong>Total ₹{totals.total.toFixed(2)}</strong></div>}
+        {displayDocument.notes && <div className="seikoP0DocNotes"><small>Notes</small><p>{displayDocument.notes}</p></div>}
         <div className="seikoP0Sign"><span>Customer acknowledgement</span><span>For SEIKO</span></div>
-      </>}</section>
+      </>}</>}</section>
     </div>}
   </section>;
 }
