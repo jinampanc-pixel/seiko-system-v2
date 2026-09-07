@@ -2,9 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./logo-fixes.css";
 import "./label-designer.css";
-import "./label-designer-polish.css";
-import "./label-production-ready.css";
-import "./label-finalization.css";
 import "./label-no-order.css";
 import "./label-records.css";
 import "./production.css";
@@ -13,29 +10,36 @@ import "./orders.css";
 import "./order-enhancements.css";
 import "./workspace-grid.css";
 import "./app-ui-system.css";
-import "./ui-regression-fixes.css";
 import "./order-setup-polish.css";
 import "./order-compact-ux.css";
-import "./brand-header-final.css";
-import "./label-flow-polish.css";
 import "./label-controls.css";
 import "./label-print-safety.css";
-import "./global-navigation.css";
 import "./control-consistency.css";
 import "./access-control.css";
 import "./modern-auth.css";
-import { AppEnhancements } from "./app-enhancements";
+import "./jinam-shell.css";
+import "./channel-connections.css";
+import "./meth-commerce-settings.css";
+import "./seiko-meth.css";
+import "./veyn-app.css";
+import "./veyn-functional.css";
+import "./phase1-visual.css";
+import "./seiko-phase1.css";
+import "./seiko-phase2.css";
+import "./seiko-rescue.css";
+import "./seiko-priority0.css";
 import { AccessProvider } from "./access-control";
+import { BusinessApplicationRouter } from "./business-application-router";
 
 export const metadata: Metadata = {
-  title: "Jinam Foundation",
-  description: "Business-separated operations and traceability for Jinam.",
-  icons: { icon: "/favicon.svg" },
-  manifest: "/manifest.webmanifest",
-  applicationName: "Jinam Foundation",
+  title: "Jinam",
+  description: "One secure platform for the separate SEIKO, véyn health and MeTh business applications.",
+  icons: { icon: "/favicon.svg?v=4", shortcut: "/favicon.svg?v=4", apple: "/app-icon.svg?v=4" },
+  manifest: "/manifest.webmanifest?v=4",
+  applicationName: "Jinam",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Jinam" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><AccessProvider><AppEnhancements />{children}</AccessProvider></body></html>;
+  return <html lang="en"><body><AccessProvider><BusinessApplicationRouter>{children}</BusinessApplicationRouter></AccessProvider></body></html>;
 }

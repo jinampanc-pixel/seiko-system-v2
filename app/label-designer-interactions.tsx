@@ -2,81 +2,115 @@
 
 import { useEffect } from "react";
 
-const RIGHT_PRINT_SAFE_MM = 1.5;
+function setReactInputValue(input: HTMLInputElement, value: string) {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function canvasFont(style: CSSStyleDeclaration) {
+  return `${style.fontStyle || "normal"} ${style.fontVariant || "normal"} ${style.fontWeight || "400"} ${style.fontSize || "16px"} ${style.fontFamily || "sans-serif"}`;
+}
+
+function measureGlyphs(element: HTMLElement) {
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  const nodes = Array.from(element.children).filter((node): node is HTMLElement => node instanceof HTMLElement);
+  const pieces = nodes.length ? nodes : [element];
+  let width = 0;
+  let ascent = 0;
+  let descent = 0;
+  for (const piece of pieces) {
+    const text = piece.textContent || "";
+    if (!text) continue;
+    const style = getComputedStyle(piece);
+    context.font = canvasFont(style);
+    const metrics = context.measureText(text);
+    width += metrics.width;
+    const fontPx = Number.parseFloat(style.fontSize || "0") || 16;
+    ascent = Math.max(ascent, metrics.actualBoundingBoxAscent || fontPx * .78);
+    descent = Math.max(descent, metrics.actualBoundingBoxDescent || fontPx * .22);
+  }
+  if (!width) return null;
+  return { width, height: Math.max(1, ascent + descent) };
+}
+
+function removeDropZone() {
+  document.querySelectorAll(".labelCanvasDropRemove").forEach(node => node.remove());
+  document.querySelectorAll(".canvasElement.labelDraggingForRemove").forEach(node => node.classList.remove("labelDraggingForRemove"));
+}
+
+function createDropZone(page: HTMLElement) {
+  removeDropZone();
+  const host = page.querySelector<HTMLElement>(".labelCanvasPanel");
+  if (!host) return null;
+  const zone = document.createElement("div");
+  zone.className = "labelCanvasDropRemove";
+  zone.setAttribute("role", "status");
+  zone.setAttribute("aria-live", "polite");
+  zone.innerHTML = '<span aria-hidden="true">×</span><b>Drop to remove</b>';
+  Object.assign(zone.style, {
+    position: "absolute",
+    left: "50%",
+    bottom: "12px",
+    transform: "translateX(-50%)",
+    zIndex: "30",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 16px",
+    border: "1px solid #d9a7a0",
+    borderRadius: "999px",
+    background: "#fff7f5",
+    color: "#a62f26",
+    boxShadow: "0 8px 24px rgba(16,42,73,.16)",
+    pointerEvents: "none",
+    userSelect: "none",
+    fontSize: "12px",
+    fontWeight: "700",
+    transition: "transform .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease",
+  });
+  const hostStyle = getComputedStyle(host);
+  if (hostStyle.position === "static") host.style.position = "relative";
+  host.appendChild(zone);
+  return zone;
+}
+
+function pointInside(element: HTMLElement, clientX: number, clientY: number) {
+  const box = element.getBoundingClientRect();
+  return clientX >= box.left && clientX <= box.right && clientY >= box.top && clientY <= box.bottom;
+}
 
 /**
- * Narrow interaction adapter for behaviours that need pointer/document scope.
- * Label data and form state remain owned by LabelDesigner.
+ * DOM-only helpers for the label designer.
+ * Pointer movement remains React-owned. The passive drop-to-remove tracker only
+ * observes pointer position; it never changes x/y or pointer capture.
  */
 export function LabelDesignerInteractions() {
   useEffect(() => {
-    let draggedPage: HTMLElement | null = null;
-    let draggedElement: HTMLElement | null = null;
-    let removeArmed = false;
     let animationFrame = 0;
+    let removePointerId: number | null = null;
+    let removePage: HTMLElement | null = null;
+    let removeZone: HTMLElement | null = null;
+    let removeCandidate: HTMLElement | null = null;
+    let removeArmed = false;
+    let moved = false;
+    let startX = 0;
+    let startY = 0;
 
-    const labelWidthMm = (page: HTMLElement) => {
-      const text = page.querySelector<HTMLElement>(".canvasToolbar b")?.textContent || "";
-      const match = text.match(/([\d.]+)\s*[×x]\s*[\d.]+\s*mm/i);
-      const width = Number(match?.[1]);
-      return Number.isFinite(width) && width > RIGHT_PRINT_SAFE_MM ? width : 50;
-    };
-
-    const clampPreviewRightEdge = (page: HTMLElement) => {
-      const canvas = page.querySelector<HTMLElement>(".labelCanvas");
-      if (!canvas) return;
-
-      const widthMm = labelWidthMm(page);
-      const safePercent = RIGHT_PRINT_SAFE_MM / widthMm * 100;
-      const safeValue = `${safePercent}%`;
-      if (canvas.style.getPropertyValue("--label-right-safe-pct") !== safeValue) {
-        canvas.style.setProperty("--label-right-safe-pct", safeValue);
-      }
-      canvas.dataset.rightSafeMm = String(RIGHT_PRINT_SAFE_MM);
-
-      canvas.querySelectorAll<HTMLElement>(".canvasElement").forEach(element => {
-        if (element === draggedElement) return;
-        const left = Number.parseFloat(element.style.left);
-        const width = Number.parseFloat(element.style.width);
-        if (!Number.isFinite(left) || !Number.isFinite(width)) return;
-        const maxLeft = Math.max(0, 100 - safePercent - width);
-        const nextLeft = Math.min(left, maxLeft);
-        if (Math.abs(nextLeft - left) > 0.001) {
-          element.dataset.rightSafeOriginalLeft = String(left);
-          element.style.left = `${nextLeft}%`;
-        }
-      });
-    };
-
-    const clampPrintedRightEdge = (page: HTMLElement) => {
-      const widthMm = labelWidthMm(page);
-      const maxRight = widthMm - RIGHT_PRINT_SAFE_MM;
-      page.querySelectorAll<HTMLElement>(".printedLabel").forEach(label => {
-        label.querySelectorAll<HTMLElement>(".printedElement").forEach(element => {
-          const left = Number.parseFloat(element.style.left);
-          const width = Number.parseFloat(element.style.width);
-          if (!Number.isFinite(left) || !Number.isFinite(width)) return;
-          const maxLeft = Math.max(0, maxRight - width);
-          const nextLeft = Math.min(left, maxLeft);
-          if (Math.abs(nextLeft - left) > 0.001) element.style.left = `${nextLeft}mm`;
-        });
-      });
-    };
-
-    const applyPrintSafety = (page: HTMLElement) => {
-      clampPreviewRightEdge(page);
-      clampPrintedRightEdge(page);
-    };
-
-    const ensureDeleteTarget = (page: HTMLElement) => {
-      const panel = page.querySelector<HTMLElement>(".labelCanvasPanel");
-      if (!panel || panel.querySelector(".labelDragDeleteTarget")) return;
-
-      const target = document.createElement("div");
-      target.className = "labelDragDeleteTarget";
-      target.setAttribute("aria-hidden", "true");
-      target.innerHTML = '<span class="labelDragDeleteIcon">×</span><b>Drop to remove</b>';
-      panel.appendChild(target);
+    const resetRemoveDrag = () => {
+      removePointerId = null;
+      removePage = null;
+      removeZone = null;
+      removeCandidate = null;
+      removeArmed = false;
+      moved = false;
+      removeDropZone();
     };
 
     const placeSizeEditor = (page: HTMLElement) => {
@@ -107,34 +141,54 @@ export function LabelDesignerInteractions() {
           else checklist.appendChild(classification);
         }
       }
+    };
 
-      const selectedStrip = section.querySelector<HTMLElement>(".labelInfoSelectedStrip");
-      selectedStrip?.querySelectorAll<HTMLButtonElement>(".labelInfoChip").forEach(chip => {
-        if (chip.dataset.removeReady === "true") return;
-        const label = chip.textContent?.trim();
-        if (!label) return;
-        chip.dataset.fieldLabel = label;
-        chip.dataset.removeReady = "true";
-        chip.replaceChildren();
-        const text = document.createElement("span");
-        text.className = "labelInfoChipText";
-        text.textContent = label;
-        const remove = document.createElement("span");
-        remove.className = "labelInfoChipRemove";
-        remove.setAttribute("aria-hidden", "true");
-        remove.textContent = "×";
-        chip.append(text, remove);
-        chip.setAttribute("aria-label", `${label}. Click to edit; use the × to remove.`);
-      });
+    const geometryInput = (page: HTMLElement, label: string) => Array.from(page.querySelectorAll<HTMLLabelElement>(".labelGeometryFields label")).find(node => node.querySelector("span")?.textContent?.trim() === label)?.querySelector<HTMLInputElement>("input") || null;
+
+    const fitSelectedTextBounds = (page: HTMLElement) => {
+      const element = page.querySelector<HTMLElement>(".canvasElement.selected");
+      if (!element || !element.matches(".element-text,.element-field,.element-sequence")) return;
+      const widthInput = geometryInput(page, "Width mm");
+      const heightInput = geometryInput(page, "Height mm");
+      const xInput = geometryInput(page, "X mm");
+      const yInput = geometryInput(page, "Y mm");
+      const canvas = page.querySelector<HTMLElement>(".labelCanvas");
+      if (!widthInput || !heightInput || !xInput || !yInput || !canvas) return;
+
+      const currentWidth = Number(widthInput.value);
+      const currentHeight = Number(heightInput.value);
+      const x = Number(xInput.value);
+      const y = Number(yInput.value);
+      if (![currentWidth, currentHeight, x, y].every(Number.isFinite)) return;
+
+      const canvasRect = canvas.getBoundingClientRect();
+      const title = page.querySelector(".canvasToolbar b")?.textContent || "";
+      const match = title.match(/([\d.]+)\s*[×x]\s*([\d.]+)\s*mm/i);
+      const labelW = Number(match?.[1]) || 50;
+      const labelH = Number(match?.[2]) || 25;
+      const pxPerMm = canvasRect.width / labelW;
+      if (!Number.isFinite(pxPerMm) || pxPerMm <= 0) return;
+
+      const glyphs = measureGlyphs(element);
+      if (!glyphs) return;
+
+      const safeWidthMm = glyphs.width / pxPerMm + 0.03;
+      const safeHeightMm = glyphs.height / pxPerMm + 0.03;
+      const maxWidth = Math.max(0.5, labelW - x);
+      const maxHeight = Math.max(0.5, labelH - y);
+      const width = clamp(Math.ceil(Math.max(0.5, safeWidthMm) * 20) / 20, 0.5, maxWidth);
+      const height = clamp(Math.ceil(Math.max(0.5, safeHeightMm) * 20) / 20, 0.5, maxHeight);
+
+      if (Math.abs(width - currentWidth) >= 0.04) setReactInputValue(widthInput, String(width));
+      if (Math.abs(height - currentHeight) >= 0.04) setReactInputValue(heightInput, String(height));
     };
 
     const enhance = () => {
       animationFrame = 0;
       document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(page => {
-        ensureDeleteTarget(page);
         placeSizeEditor(page);
         enhanceInformation(page);
-        applyPrintSafety(page);
+        fitSelectedTextBounds(page);
       });
     };
 
@@ -153,19 +207,6 @@ export function LabelDesignerInteractions() {
       if (!collapsed) scheduleEnhance();
     };
 
-    const removeSelectedChip = (removeControl: HTMLElement) => {
-      const chip = removeControl.closest<HTMLButtonElement>(".labelInfoChip");
-      const section = chip?.closest<HTMLElement>(".simpleDesigner");
-      const checklist = section?.querySelector<HTMLElement>(".fieldChecklist");
-      const label = chip?.dataset.fieldLabel;
-      if (!chip || !checklist || !label) return;
-      const choice = Array.from(checklist.querySelectorAll<HTMLElement>(":scope > .fieldChoice")).find(item =>
-        item.querySelector("label span")?.textContent?.trim() === label
-      );
-      choice?.querySelector<HTMLInputElement>('input[type="checkbox"]')?.click();
-      scheduleEnhance();
-    };
-
     const validateSizeEditor = (editor: HTMLElement) => {
       editor.querySelector(".labelSizeValidation")?.remove();
       const inputs = Array.from(editor.querySelectorAll<HTMLInputElement>("input"));
@@ -176,9 +217,13 @@ export function LabelDesignerInteractions() {
       if (!name?.value.trim()) message = "Give this label size a name.";
       else if (numeric.some(input => !Number.isFinite(Number(input.value)) || Number(input.value) < 0)) message = "Enter valid measurements before saving.";
       else if (numeric.slice(0, 4).some(input => Number(input.value) <= 0)) message = "Width, height, roll width and Across must be greater than zero.";
+      else if (numeric.length >= 7) {
+        const [labelW, , rollW, columns, outer, gapX] = numeric.map(input => Number(input.value));
+        const required = outer * 2 + columns * labelW + Math.max(0, columns - 1) * gapX;
+        if (required > rollW + .01) message = `This layout needs at least ${required.toFixed(1)} mm roll width. Increase the roll width or reduce label width, columns, margin or gap.`;
+      }
 
       if (!message) return true;
-
       const note = document.createElement("p");
       note.className = "labelSizeValidation";
       note.setAttribute("role", "alert");
@@ -191,15 +236,6 @@ export function LabelDesignerInteractions() {
     const handleControlClick = (event: MouseEvent) => {
       const target = event.target as Element | null;
       if (!target) return;
-
-      const chipRemove = target.closest<HTMLElement>(".labelDesignerPage .labelInfoChipRemove");
-      if (chipRemove) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        removeSelectedChip(chipRemove);
-        return;
-      }
 
       const infoToggle = target.closest<HTMLButtonElement>(".labelDesignerPage .labelInfoToggle");
       if (infoToggle) {
@@ -223,139 +259,90 @@ export function LabelDesignerInteractions() {
         return;
       }
 
-      // React owns showSizes/createSize. Because this editor is visually relocated,
-      // remove the relocated DOM node after React has processed the click so an
-      // orphan cannot remain visible after Cancel or Save.
       window.setTimeout(() => {
         if (editor.isConnected) editor.remove();
       }, 0);
     };
 
-    const setDeleteState = (target: HTMLElement, armed: boolean) => {
-      target.classList.add("visible");
-      target.classList.toggle("armed", armed);
+    const beginRemoveDrag = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      const target = (event.target as Element | null)?.closest<HTMLElement>(".labelDesignerPage .canvasElement");
+      const page = target?.closest<HTMLElement>(".labelDesignerPage");
+      if (!target || !page) return;
+      resetRemoveDrag();
+      removePointerId = event.pointerId;
+      removePage = page;
+      removeCandidate = target;
+      startX = event.clientX;
+      startY = event.clientY;
     };
 
-    const beginDrag = (event: PointerEvent) => {
-      const element = (event.target as Element | null)?.closest<HTMLElement>(".labelDesignerPage .canvasElement");
-      if (!element) return;
-
-      const page = element.closest<HTMLElement>(".labelDesignerPage");
-      const target = page?.querySelector<HTMLElement>(".labelDragDeleteTarget");
-      if (!page || !target) return;
-
-      draggedPage = page;
-      draggedElement = element;
-      removeArmed = false;
-
-      const originalLeft = Number.parseFloat(element.dataset.rightSafeOriginalLeft || "");
-      if (Number.isFinite(originalLeft)) {
-        element.style.left = `${originalLeft}%`;
-        delete element.dataset.rightSafeOriginalLeft;
+    const trackRemoveDrag = (event: PointerEvent) => {
+      if (removePointerId !== event.pointerId || !removePage || !removeCandidate) return;
+      if (!moved && Math.hypot(event.clientX - startX, event.clientY - startY) >= 5) {
+        moved = true;
+        removeZone = createDropZone(removePage);
+        removeCandidate.classList.add("labelDraggingForRemove");
       }
-
-      setDeleteState(target, false);
+      if (!moved || !removeZone) return;
+      removeArmed = pointInside(removeZone, event.clientX, event.clientY);
+      removeZone.classList.toggle("armed", removeArmed);
+      removeZone.style.background = removeArmed ? "#f8ded9" : "#fff7f5";
+      removeZone.style.borderColor = removeArmed ? "#b83a2f" : "#d9a7a0";
+      removeZone.style.boxShadow = removeArmed ? "0 10px 28px rgba(166,47,38,.28)" : "0 8px 24px rgba(16,42,73,.16)";
+      removeZone.style.transform = removeArmed ? "translateX(-50%) scale(1.06)" : "translateX(-50%)";
     };
 
-    const updateDrag = (event: PointerEvent) => {
-      if (!draggedPage || !draggedElement) return;
-
-      const target = draggedPage.querySelector<HTMLElement>(".labelDragDeleteTarget");
-      const canvas = draggedPage.querySelector<HTMLElement>(".labelCanvas");
-      const panel = draggedPage.querySelector<HTMLElement>(".labelCanvasPanel");
-      if (!target || !canvas || !panel) return;
-
-      const targetRect = target.getBoundingClientRect();
-      const canvasRect = canvas.getBoundingClientRect();
-      const panelRect = panel.getBoundingClientRect();
-      const overTarget =
-        event.clientX >= targetRect.left - 28 &&
-        event.clientX <= targetRect.right + 28 &&
-        event.clientY >= targetRect.top - 28 &&
-        event.clientY <= targetRect.bottom + 28;
-      const pulledBelowLabel =
-        event.clientX >= panelRect.left &&
-        event.clientX <= panelRect.right &&
-        event.clientY >= canvasRect.bottom + 8;
-
-      removeArmed = overTarget || pulledBelowLabel;
-      setDeleteState(target, removeArmed);
-      draggedElement.classList.toggle("deleteArmed", removeArmed);
-      scheduleEnhance();
+    const finishRemoveDrag = (event: PointerEvent) => {
+      if (removePointerId !== event.pointerId) return;
+      const page = removePage;
+      const shouldRemove = moved && removeArmed && !!page;
+      resetRemoveDrag();
+      if (!shouldRemove || !page) return;
+      const remove = page.querySelector<HTMLButtonElement>('.labelProperties button[aria-label="Remove selected element"]');
+      remove?.click();
     };
 
-    const nudgeReactDragInsideSafeArea = (event: PointerEvent, page: HTMLElement, element: HTMLElement) => {
-      const canvas = page.querySelector<HTMLElement>(".labelCanvas");
-      if (!canvas || !element.hasPointerCapture(event.pointerId)) return;
-      const canvasRect = canvas.getBoundingClientRect();
-      const elementRect = element.getBoundingClientRect();
-      const safeRight = canvasRect.right - canvasRect.width * RIGHT_PRINT_SAFE_MM / labelWidthMm(page);
-      const overflowPx = elementRect.right - safeRight;
-      if (overflowPx <= 0.5) return;
-
-      element.dispatchEvent(new PointerEvent("pointermove", {
-        bubbles: true,
-        cancelable: true,
-        pointerId: event.pointerId,
-        pointerType: event.pointerType,
-        clientX: event.clientX - overflowPx,
-        clientY: event.clientY,
-        buttons: event.buttons,
-        pressure: event.pressure,
-      }));
+    const cancelRemoveDrag = (event: PointerEvent) => {
+      if (removePointerId === event.pointerId) resetRemoveDrag();
     };
 
-    const finishDrag = (event: PointerEvent) => {
-      if (!draggedPage) return;
-
-      const page = draggedPage;
-      const element = draggedElement;
-      const shouldRemove = removeArmed;
-      const target = page.querySelector<HTMLElement>(".labelDragDeleteTarget");
-
-      if (!shouldRemove && element) nudgeReactDragInsideSafeArea(event, page, element);
-
-      target?.classList.remove("visible", "armed");
-      element?.classList.remove("deleteArmed");
-      draggedPage = null;
-      draggedElement = null;
-      removeArmed = false;
-
-      if (shouldRemove) {
-        // Use LabelDesigner's own remove action so layouts and print state stay in sync.
-        window.setTimeout(() => {
-          page.querySelector<HTMLButtonElement>('.labelProperties .iconButton[aria-label="Remove selected element"]')?.click();
-        }, 0);
-        return;
-      }
-
-      requestAnimationFrame(() => applyPrintSafety(page));
+    const closeHeaderMenuOutside = (event: Event) => {
+      const target = event.target as Node | null;
+      document.querySelectorAll<HTMLDetailsElement>(".labelDesignerPage .labelHeaderMore[open]").forEach(details => {
+        if (!target || !details.contains(target)) details.open = false;
+      });
     };
 
-    const beforePrint = () => {
-      document.querySelectorAll<HTMLElement>(".labelDesignerPage").forEach(applyPrintSafety);
+    const closeHeaderMenuOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      resetRemoveDrag();
+      document.querySelectorAll<HTMLDetailsElement>(".labelDesignerPage .labelHeaderMore[open]").forEach(details => { details.open = false; });
     };
 
     enhance();
     const observer = new MutationObserver(scheduleEnhance);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style"] });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "disabled", "style"] });
     document.addEventListener("click", handleControlClick, true);
-    document.addEventListener("pointerdown", beginDrag, true);
-    document.addEventListener("pointermove", updateDrag, true);
-    document.addEventListener("pointerup", finishDrag, true);
-    document.addEventListener("pointercancel", finishDrag, true);
-    window.addEventListener("beforeprint", beforePrint);
-    window.addEventListener("resize", scheduleEnhance);
+    document.addEventListener("pointerdown", beginRemoveDrag, true);
+    window.addEventListener("pointermove", trackRemoveDrag, true);
+    window.addEventListener("pointerup", finishRemoveDrag, true);
+    window.addEventListener("pointercancel", cancelRemoveDrag, true);
+    document.addEventListener("pointerdown", closeHeaderMenuOutside, true);
+    document.addEventListener("focusin", closeHeaderMenuOutside, true);
+    document.addEventListener("keydown", closeHeaderMenuOnEscape, true);
 
     return () => {
       observer.disconnect();
       document.removeEventListener("click", handleControlClick, true);
-      document.removeEventListener("pointerdown", beginDrag, true);
-      document.removeEventListener("pointermove", updateDrag, true);
-      document.removeEventListener("pointerup", finishDrag, true);
-      document.removeEventListener("pointercancel", finishDrag, true);
-      window.removeEventListener("beforeprint", beforePrint);
-      window.removeEventListener("resize", scheduleEnhance);
+      document.removeEventListener("pointerdown", beginRemoveDrag, true);
+      window.removeEventListener("pointermove", trackRemoveDrag, true);
+      window.removeEventListener("pointerup", finishRemoveDrag, true);
+      window.removeEventListener("pointercancel", cancelRemoveDrag, true);
+      document.removeEventListener("pointerdown", closeHeaderMenuOutside, true);
+      document.removeEventListener("focusin", closeHeaderMenuOutside, true);
+      document.removeEventListener("keydown", closeHeaderMenuOnEscape, true);
+      resetRemoveDrag();
       if (animationFrame) cancelAnimationFrame(animationFrame);
     };
   }, []);

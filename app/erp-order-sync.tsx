@@ -27,6 +27,14 @@ function conflictKey(businessId: string, orderId: string) {
   return `jinam:${businessId}:erp-conflict:${orderId}:${Date.now()}`;
 }
 
+function activeConflictKey(businessId: string, orderId: string) {
+  return `jinam:${businessId}:erp-conflict-active:${orderId}`;
+}
+
+function hasActiveConflict(businessId: string, orderId: string) {
+  return Boolean(localStorage.getItem(activeConflictKey(businessId, orderId)));
+}
+
 function readLocalOrders(businessId: string): SeikoOrder[] {
   try {
     const value = JSON.parse(localStorage.getItem(orderKey(businessId)) || "[]");
@@ -105,10 +113,15 @@ export function ErpOrderSync() {
     };
 
     const preserveConflict = (order: SeikoOrder, result: ApiFailure) => {
+      const at = new Date().toISOString();
+      const recoveryKey = conflictKey(activeBusiness, order.orderId);
       try {
-        localStorage.setItem(conflictKey(activeBusiness, order.orderId), JSON.stringify({ at: new Date().toISOString(), order, server: result.data || null }));
+        localStorage.setItem(recoveryKey, JSON.stringify({ at, order, server: result.data || null }));
+        localStorage.setItem(activeConflictKey(activeBusiness, order.orderId), JSON.stringify({ at, recoveryKey, message: result.message }));
       } catch { /* preserving the working local copy is still the priority */ }
-      window.dispatchEvent(new CustomEvent("seiko:order-sync-conflict", { detail: { businessId: activeBusiness, orderId: order.orderId, message: result.message } }));
+      window.dispatchEvent(new CustomEvent("seiko:order-sync-conflict", {
+        detail: { businessId: activeBusiness, orderId: order.orderId, message: result.message, recoveryKey },
+      }));
     };
 
     const upsert = async (order: SeikoOrder, expectedVersion?: number) => {
@@ -144,7 +157,7 @@ export function ErpOrderSync() {
       retryAfter = 0;
       let envelopes = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
       const serverById = new Map(envelopes.map(item => [item.order.orderId, item]));
-      const missing = local.filter(order => !serverById.has(order.orderId));
+      const missing = local.filter(order => !serverById.has(order.orderId) && !hasActiveConflict(activeBusiness, order.orderId));
 
       if (missing.length && canCreate) {
         await callOrders({ operation: "import-local", businessId: activeBusiness, orders: missing.map(normalizeProductMeasurements) });
@@ -156,6 +169,7 @@ export function ErpOrderSync() {
       let pushedOffline = false;
       if (canEdit) {
         for (const localOrder of local) {
+          if (hasActiveConflict(activeBusiness, localOrder.orderId)) continue;
           const server = refreshedById.get(localOrder.orderId);
           if (!server) continue;
           if (timestamp(localOrder.updatedAt) <= timestamp(server.updatedAt)) continue;
@@ -182,7 +196,7 @@ export function ErpOrderSync() {
     const pushLocalChanges = async () => {
       if (!ready || syncing) return;
       const local = readLocalOrders(activeBusiness);
-      const changed = local.filter(order => lastSynced.get(order.orderId) !== stable(order));
+      const changed = local.filter(order => !hasActiveConflict(activeBusiness, order.orderId) && lastSynced.get(order.orderId) !== stable(order));
       if (!changed.length) return;
 
       syncing = true;
@@ -217,7 +231,7 @@ export function ErpOrderSync() {
     const pullRemoteChanges = async () => {
       if (!ready || syncing) return;
       const local = readLocalOrders(activeBusiness);
-      const dirty = local.some(order => lastSynced.get(order.orderId) !== stable(order));
+      const dirty = local.some(order => !hasActiveConflict(activeBusiness, order.orderId) && lastSynced.get(order.orderId) !== stable(order));
       if (dirty && (canCreate || canEdit)) return;
 
       syncing = true;
@@ -226,7 +240,7 @@ export function ErpOrderSync() {
         const normalizedRemote = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
         const remoteFingerprint = JSON.stringify(normalizedRemote.map(item => [item.order.orderId, item.version]));
         const localFingerprint = JSON.stringify([...versions.entries()]);
-        if (remoteFingerprint !== localFingerprint) applyServer(normalizedRemote);
+        if (remoteFingerprint !== localFingerprint || local.some(order => hasActiveConflict(activeBusiness, order.orderId))) applyServer(normalizedRemote);
       } else if (["AUTH_REQUIRED", "FORBIDDEN", "ERP_DB_NOT_CONFIGURED"].includes(remote.code)) {
         backOff();
       }

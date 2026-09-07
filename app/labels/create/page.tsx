@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LabelDesigner } from "../../label-designer";
+import { PackingPersonLabelDesigner } from "../../packing-person-label-designer";
 import { orderStoreKey, type SeikoOrder } from "../../lib/order-domain";
 import { businessStorageKey, THEME_PRESETS, themeVariables, type BusinessTheme } from "../../lib/foundation";
 
@@ -145,30 +146,6 @@ function ConfigurationEditor({ kind, config, purposeId, onChange, onClose }: { k
   </div>;
 }
 
-function DesignerSourceLock({ sourceMode, displayLabel }: { sourceMode: SourceMode; displayLabel: string }) {
-  useEffect(() => {
-    let attempts = 0;
-    const apply = () => {
-      attempts += 1;
-      const select = document.querySelector<HTMLSelectElement>(".labelDesignerPage .labelSetup label:first-child select");
-      if (!select) { if (attempts < 30) window.setTimeout(apply, 40); return; }
-      if (!Array.from(select.options).some(option => option.value === sourceMode)) select.add(new Option(displayLabel, sourceMode));
-      select.disabled = false;
-      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, sourceMode);
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-      const label = select.closest("label"); if (!label) return;
-      label.classList.add("launcherSourceLocked");
-      const title = label.querySelector<HTMLElement>(":scope > span"); if (title) title.textContent = "Label represents";
-      let locked = label.querySelector<HTMLElement>(".designerSourceLockedValue");
-      if (!locked) { locked = document.createElement("div"); locked.className = "designerSourceLockedValue"; label.appendChild(locked); }
-      locked.innerHTML = `<b>${displayLabel}</b><small>Change from Back to setup</small>`;
-      select.disabled = true;
-    };
-    apply();
-  }, [displayLabel, sourceMode]);
-  return null;
-}
-
 export default function CreateLabelsPage() {
   const [ready, setReady] = useState(false);
   const [businessId, setBusinessId] = useState("seiko");
@@ -227,14 +204,17 @@ export default function CreateLabelsPage() {
 
   if (!ready) return <div className="labelCreateApp app" style={themeVariables(theme) as CSSProperties}><main className="labelCreateRoute"><div className="panel">Loading label workspace…</div></main></div>;
 
-  if (started && selectedOrder) return <div className="labelCreateApp app" data-label-source={selectedRepresentation.sourceMode} style={themeVariables(theme) as CSSProperties}>
-    <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header><DesignerSourceLock sourceMode={selectedRepresentation.sourceMode} displayLabel={selectedRepresentation.label}/><LabelDesigner businessId={businessId} order={selectedOrder} initialPurpose={selectedPurpose.behavior} canManageSizes={canManage} onBack={() => setStarted(false)}/></div>
-  </div>;
+  if (started && selectedOrder) {
+    const nativePackingPerson = selectedPurpose.behavior === "packing" && selectedRepresentation.sourceMode === "person";
+    return <div className="labelCreateApp app" data-label-source={selectedRepresentation.sourceMode} style={themeVariables(theme) as CSSProperties}>
+      <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>{nativePackingPerson ? <PackingPersonLabelDesigner businessId={businessId} order={selectedOrder} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => setStarted(false)}/> : <LabelDesigner businessId={businessId} order={selectedOrder} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => setStarted(false)}/>}</div>
+    </div>;
+  }
 
   return <div className="labelCreateApp app" style={themeVariables(theme) as CSSProperties}><div className="surface">
     <header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>
     <main className="labelCreateRoute">
-      <section className="labelCreateRouteHead"><div><p className="eyebrow">LABEL CREATION</p><h1>Create labels</h1><p>Choose the order, choose why the label is needed, then decide what one label represents.</p></div></section>
+      <section className="labelCreateRouteHead"><div><button type="button" className="secondary contextBackButton" onClick={() => { if (window.history.length > 1) window.history.back(); else window.location.href = `/?business=${businessId}`; }}>{selectedOrder ? "← Back to Order" : "← Back to Labels"}</button><p className="eyebrow">LABEL CREATION</p><h1>Create labels</h1><p>Choose the order, choose why the label is needed, then decide what one label represents.</p></div></section>
       <section className="panel labelCreateOrderChoice">
         <div className="labelCreateField"><label><span>1 · Order</span><select value={orderId} onChange={event => setOrderId(event.target.value)}><option value="">Choose an order…</option>{orders.map(order => <option key={order.orderId} value={order.orderId}>{order.details.orderNo} — {order.details.clientName || "Unnamed client"}</option>)}</select></label></div>
         <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>2 · Purpose</span></div><ManagedDropdown value={selectedPurpose.id} options={purposes} disabled={!selectedOrder} canManage={canManage} manageLabel="Manage purposes…" onChange={changePurpose} onManage={() => setManage("purpose")}/>{manage === "purpose" && canManage && <ConfigurationEditor kind="purpose" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>

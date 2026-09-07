@@ -1,6 +1,7 @@
 export type QuantityMode = "same_for_all" | "by_group" | "per_person" | "default_with_exceptions" | "order_total";
 export type ValueMode = "same_for_all" | "by_group" | "per_person" | "default_with_exceptions";
-export type OrderStatus = "Draft" | "Active" | "On Hold" | "Completed" | "Cancelled";
+export const ORDER_STATUSES = ["Draft", "Active", "Production", "QC 1", "Packing", "QC 2", "On Hold", "Completed", "Cancelled"] as const;
+export type OrderStatus = typeof ORDER_STATUSES[number];
 
 export type OrderField = { id: string; name: string; type: "text" | "number" | "date" | "dropdown"; options: string[]; required: boolean };
 export type ArtworkAttachment = { id: string; name: string; mimeType: string; size: number; storageKey: string; addedAt: string };
@@ -12,7 +13,7 @@ export type MeasurementPolicy = { id: string; name: string; type: "number" | "te
 export type OrderRecord = { recordId: string; personId: string; values: Record<string, string | number>; held?: boolean };
 export type OrderDetails = { orderNo: string; orderDate: string; deliveryDate: string; clientName: string; clientType: string; contactPerson: string; attnRequired: boolean; contactNumber: string; shipTo: string; billTo: string; remarks: string };
 export type OrderRevision = { revision: number; at: string; reason: string; recordCount: number };
-export type SeikoOrder = { orderId: string; status: OrderStatus; archived: boolean; details: OrderDetails; fields: OrderField[]; products: ProductPolicy[]; measurements: MeasurementPolicy[]; records: OrderRecord[]; revisions: OrderRevision[]; updatedAt: string };
+export type SeikoOrder = { orderId: string; status: OrderStatus; archived: boolean; details: OrderDetails; fields: OrderField[]; products: ProductPolicy[]; measurements: MeasurementPolicy[]; records: OrderRecord[]; revisions: OrderRevision[]; updatedAt: string; workspace?: { columnOrder?: string[]; hiddenColumns?: string[]; columnWidths?: Record<string, number>; columnAlignments?: Record<string, "left" | "center" | "right"> } };
 
 export const CLIENT_TYPE_PRESETS: Record<string, OrderField[]> = {
   "School / Institution": [field("Name"), field("Class / Section"), field("Roll number")],
@@ -20,7 +21,7 @@ export const CLIENT_TYPE_PRESETS: Record<string, OrderField[]> = {
   "Healthcare Facility": [field("Staff name"), field("Employee code"), field("Department"), field("Designation")],
   "Retail / Individual": [field("Customer name"), field("Reference number")],
   "Dealer / Reseller": [field("Account / person"), field("Location")],
-  Custom: [field("Name")],
+  Custom: [field("Person / record name"), field("Group / department"), field("Reference / ID")],
 };
 
 export function field(name: string, required = false): OrderField { return { id: crypto.randomUUID(), name, type: "text", options: [], required }; }
@@ -96,20 +97,55 @@ export function workspaceColumns(order: SeikoOrder): WorkspaceColumn[] {
       });
     }
   }
-  return columns;
+  const savedOrder = order.workspace?.columnOrder || [];
+  if (!savedOrder.length) return columns;
+  const rank = new Map(savedOrder.map((id, index) => [id, index]));
+  return [...columns].sort((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+}
+
+/**
+ * A group rule can target one value, several comma/semicolon/new-line values,
+ * or a compact whole-number range such as 1-7.
+ */
+export function groupRuleValues(match: string): string[] {
+  return match.split(/[;,\n]/).flatMap(raw => {
+    const value = raw.trim();
+    if (!value) return [];
+    const range = value.match(/^(-?\d+)\s*[-–]\s*(-?\d+)$/);
+    if (!range) return [value];
+    const start = Number(range[1]);
+    const end = Number(range[2]);
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || Math.abs(end - start) > 500) return [value];
+    const direction = start <= end ? 1 : -1;
+    return Array.from({ length: Math.abs(end - start) + 1 }, (_, index) => String(start + index * direction));
+  });
+}
+
+export function groupRuleMatches(match: string, sourceValue: string): boolean {
+  const needle = sourceValue.trim().toLocaleLowerCase();
+  return groupRuleValues(match).some(value => value.toLocaleLowerCase() === needle);
 }
 
 export function quantityForRecord(product: ProductPolicy, record: OrderRecord, firstRecord = false): number {
   if (product.quantityMode === "order_total") return firstRecord ? Math.max(0, Number(product.orderTotal) || 0) : 0;
   if (product.quantityMode === "by_group") {
     const sourceValue = product.quantityGroupFieldId ? String(record.values[`field:${product.quantityGroupFieldId}`] ?? "").trim() : "";
-    const rule = (product.quantityGroupRules || []).find(item => item.match.trim().toLowerCase() === sourceValue.toLowerCase());
+    const rule = (product.quantityGroupRules || []).find(item => groupRuleMatches(item.match, sourceValue));
     if (rule && Number.isFinite(Number(rule.quantity))) return Math.max(0, Number(rule.quantity));
-    return 0;
+    // Group quantities are default-driven: define the normal quantity once, then
+    // add only the groups that differ. A default of 0 is valid when only named
+    // groups receive this product.
+    return Math.max(0, Number(product.defaultQuantity) || 0);
   }
   const override = Number(record.values[`product:${product.id}:qty_override`] ?? record.values[`product:${product.id}:qty`]);
-  if (Number.isFinite(override) && override > 0) return override;
+  if (Number.isFinite(override) && override >= 0 && String(record.values[`product:${product.id}:qty_override`] ?? record.values[`product:${product.id}:qty`] ?? "").trim() !== "") return Math.max(0, override);
+  if (product.quantityMode === "per_person") return 0;
   return Math.max(0, Number(product.defaultQuantity) || 0);
+}
+
+/** Quantity eligible for operational documents; held people never contribute. */
+export function eligibleOrderQuantity(order: SeikoOrder, product: ProductPolicy): number {
+  return order.records.filter(record => !record.held).reduce((sum, record, index) => sum + quantityForRecord(product, record, index === 0), 0);
 }
 
 export function readinessIssues(order: SeikoOrder): string[] {
@@ -117,20 +153,41 @@ export function readinessIssues(order: SeikoOrder): string[] {
   const issues = validateOrder(normalized);
   if (!normalized.records.length) issues.push("No person / record entries yet. You can still save this order.");
   if (!normalized.products.some(product => product.name.trim())) issues.push("No products defined yet. Add them now or later.");
-  const activeRecords = normalized.records.filter(record => !record.held);
+  const blank = (value: unknown) => value == null || String(value).trim() === "";
+  normalized.records.filter(record => !record.held).forEach((record, index) => {
+    const prefix = record.personId || `Row ${index + 1}`;
+    for (const item of normalized.fields) {
+      if (item.required && blank(record.values[`field:${item.id}`])) issues.push(`${prefix}: ${item.name} is required.`);
+    }
+    for (const product of normalized.products.filter(item => item.name.trim())) {
+      const raw = record.values[`product:${product.id}:${product.quantityMode === "default_with_exceptions" ? "qty_override" : "qty"}`];
+      if ((product.quantityMode === "per_person" || (product.quantityMode === "default_with_exceptions" && !blank(raw))) &&
+          (blank(raw) || !Number.isSafeInteger(Number(raw)) || Number(raw) < 0)) {
+        issues.push(`${prefix}: ${product.name} quantity must be a whole number of zero or more.`);
+      }
+      const applies = quantityForRecord(product, record, index === 0) > 0;
+      for (const measurement of normalized.measurements.filter(item => item.appliesTo.includes(product.id))) {
+        if ((measurement.requiredMode === "Always" || (measurement.requiredMode === "When present" && applies)) &&
+            blank(record.values[`measurement:${measurement.id}:product:${product.id}`])) {
+          issues.push(`${prefix}: ${product.name} - ${measurement.name} is required.`);
+        }
+      }
+      if (!applies) continue;
+      for (const spec of product.specifications.filter(item => item.required && item.role !== "asset")) {
+        const groupValue = String(record.values[`field:${spec.groupFieldId}`] ?? "");
+        const value = spec.mode === "per_person" ? record.values[`spec:${spec.id}`]
+          : spec.mode === "default_with_exceptions" ? (blank(record.values[`spec:${spec.id}:override`]) ? spec.defaultValue : record.values[`spec:${spec.id}:override`])
+          : spec.mode === "by_group" ? spec.groupRules.find(rule => groupRuleMatches(rule.match, groupValue))?.value ?? spec.defaultValue
+          : spec.defaultValue;
+        if (blank(value)) issues.push(`${prefix}: ${product.name} - ${spec.name} is required.`);
+      }
+    }
+  });
   for (const product of normalized.products) {
     if (product.quantityMode === "by_group") {
       const rules = product.quantityGroupRules || [];
-      if (!product.quantityGroupFieldId) issues.push(`Choose a grouping field for ${product.name || "this product"} quantity.`);
-      if (!rules.length) issues.push(`Add group quantity rules for ${product.name || "this product"}.`);
-      if (rules.some(rule => !rule.match.trim() || !Number.isFinite(Number(rule.quantity)) || Number(rule.quantity) <= 0)) issues.push(`Complete every group quantity rule for ${product.name || "this product"}.`);
-      if (product.quantityGroupFieldId && rules.length) {
-        for (const record of activeRecords) {
-          const sourceValue = String(record.values[`field:${product.quantityGroupFieldId}`] ?? "").trim();
-          const matched = rules.some(rule => rule.match.trim().toLowerCase() === sourceValue.toLowerCase() && Number(rule.quantity) > 0);
-          if (!matched) issues.push(`${product.name || "Product"}: ${record.personId} has no group quantity mapping${sourceValue ? ` for “${sourceValue}”` : " for a blank group value"}.`);
-        }
-      }
+      if (rules.length && !product.quantityGroupFieldId) issues.push(`Choose a grouping field for ${product.name || "this product"} quantity exceptions.`);
+      if (rules.some(rule => !groupRuleValues(rule.match).length || !Number.isFinite(Number(rule.quantity)) || Number(rule.quantity) < 0)) issues.push(`Complete every group quantity exception for ${product.name || "this product"}.`);
     }
     for (const spec of product.specifications.filter(item => item.mode === "by_group")) {
       if (!spec.groupFieldId) issues.push(`Choose a grouping field for ${product.name} - ${spec.name}.`);

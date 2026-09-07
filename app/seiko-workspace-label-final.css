@@ -1,0 +1,672 @@
+/* Final SEIKO workspace + label preview pass. This file is intentionally late-loaded. */
+
+/* ---------------- Order workspace ---------------- */
+.workspacePage{
+  width:min(98vw,1840px)!important;
+  max-width:none!important;
+  margin-inline:auto!important;
+  padding-bottom:24px!important;
+}
+.workspacePage .workspaceHead{
+  align-items:flex-end!important;
+  margin-bottom:8px!important;
+}
+.workspacePage .workspaceHead h2{
+  font-size:25px!important;
+  line-height:1.15!important;
+}
+.workspacePage .workspaceHead>div:first-child>p:last-child{
+  margin-top:4px!important;
+  font-size:11px!important;
+}
+.workspaceHeadActions{
+  display:flex!important;
+  align-items:flex-end!important;
+  gap:7px!important;
+  flex-wrap:nowrap!important;
+}
+.workspaceStatusControl{
+  display:grid;
+  gap:3px;
+}
+.workspaceStatusControl>span{
+  color:var(--muted);
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.workspaceStatusControl select{
+  height:36px;
+  min-width:118px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:0 28px 0 9px;
+  background:var(--paper);
+  color:var(--ink);
+  font-size:11px;
+  font-weight:750;
+}
+.workspaceLabelsSplit{
+  position:relative;
+  display:flex;
+  align-items:stretch;
+}
+.workspaceLabelsSplit>.workspaceLabelsButton{
+  min-height:36px!important;
+  border-radius:8px 0 0 8px!important;
+  padding:7px 11px!important;
+}
+.workspaceLabelMenuButton{
+  width:34px;
+  min-height:36px!important;
+  border-left:0!important;
+  border-radius:0 8px 8px 0!important;
+  padding:0!important;
+}
+.workspaceLabelMenu{
+  position:absolute;
+  z-index:70;
+  top:calc(100% + 5px);
+  right:0;
+  display:grid;
+  min-width:210px;
+  padding:6px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--paper);
+  box-shadow:0 16px 38px rgba(14,42,61,.18);
+}
+.workspaceLabelMenu button{
+  min-height:35px;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:var(--ink);
+  text-align:left;
+  padding:0 9px;
+  font-size:11px;
+  font-weight:700;
+}
+.workspaceLabelMenu button:hover{background:var(--pale)}
+.workspaceQuickSave{
+  min-height:36px!important;
+  padding:7px 13px!important;
+}
+.workspacePage .orderActionMenuButton{
+  width:36px!important;
+  height:36px!important;
+  min-height:36px!important;
+}
+.workspacePage .orderActionMenu{
+  top:calc(100% + 6px)!important;
+  min-width:205px!important;
+  padding:6px!important;
+}
+.workspacePage .orderActionMenu>button{
+  min-height:35px!important;
+  padding:0 9px!important;
+  font-size:11px!important;
+}
+.workspacePage .orderMenuDivider{margin:4px 0!important}
+.workspacePage .workspaceReadinessCompact{
+  min-height:36px!important;
+  margin:5px 0 6px!important;
+  padding:7px 10px!important;
+  border:1px solid color-mix(in srgb,#2d7d46 18%,var(--line))!important;
+  border-radius:8px!important;
+  background:color-mix(in srgb,#e7f3ea 60%,var(--paper))!important;
+}
+.workspacePage .workspaceReadinessCompact.needsAttention{
+  border-color:color-mix(in srgb,#a87500 26%,var(--line))!important;
+  background:color-mix(in srgb,#fff4dc 72%,var(--paper))!important;
+}
+.workspacePage .workspaceReadinessCompact b{font-size:11px!important}
+.workspacePage .workspaceReadinessCompact span{font-size:10px!important}
+.workspacePage .workspaceShortcutGuide{margin:0 0 3px!important;font-size:10px!important}
+.workspacePage>.workspaceTools{
+  position:sticky;
+  top:0;
+  z-index:26;
+  margin:4px 0!important;
+  padding:5px 0!important;
+  background:color-mix(in srgb,var(--app-background) 96%,transparent);
+  backdrop-filter:blur(8px);
+}
+.workspacePage .rowCountControl{
+  height:36px!important;
+  padding-left:6px!important;
+}
+.workspacePage .rowCountControl input{
+  width:56px!important;
+  height:28px!important;
+}
+.workspacePage .rowCountControl button{
+  height:36px!important;
+  min-height:36px!important;
+}
+.workspacePage .workspaceAddTools>.columnControl>button{
+  min-height:36px!important;
+  padding:7px 10px!important;
+}
+.workspacePage>.workspaceTools>input[aria-label="Search rows"]{
+  height:36px!important;
+  width:min(100%,360px)!important;
+}
+.workspacePage .workspacePagerTop select,
+.workspacePage .workspacePagerTop button{
+  min-height:32px!important;
+}
+.workspacePage>.workspacePager:not(.workspacePagerTop){display:none!important}
+.workspaceBulkBar{
+  min-height:36px!important;
+  margin:4px 0!important;
+  padding:5px 8px!important;
+}
+.workspaceTableWrap{
+  min-height:0!important;
+  max-height:calc(100vh - 275px)!important;
+  border-radius:9px!important;
+}
+.workspaceTable th,
+.workspaceTable td{
+  min-width:128px!important;
+  padding:4px 6px!important;
+}
+.workspaceTable th{
+  font-size:10px!important;
+  letter-spacing:.01em;
+}
+.workspaceTable td{
+  height:41px!important;
+  font-size:11px!important;
+}
+.workspaceTable input,
+.workspaceTable select{
+  height:31px!important;
+  padding:0 6px!important;
+  font-size:11px!important;
+}
+.workspaceTable .productGroup{
+  height:29px!important;
+  font-size:11px!important;
+}
+.workspaceTable.groupedWorkspace thead tr:nth-child(2) th{top:29px!important}
+.workspaceSelectHead,
+.workspaceSelectCell{
+  position:sticky!important;
+  left:0!important;
+  z-index:18!important;
+  box-sizing:border-box!important;
+  width:38px!important;
+  min-width:38px!important;
+  max-width:38px!important;
+  padding:0!important;
+  text-align:center!important;
+}
+.workspaceSelectHead{
+  z-index:32!important;
+  background:var(--navy)!important;
+}
+.workspaceSelectCell{
+  background:color-mix(in srgb,var(--pale) 62%,var(--paper))!important;
+}
+.workspaceTable .stickyId{
+  position:sticky!important;
+  left:38px!important;
+  z-index:17!important;
+}
+.workspaceTable thead .stickyId{z-index:31!important}
+.workspaceTable .personId{
+  min-width:92px!important;
+  max-width:110px!important;
+}
+.workspaceTable td:last-child,
+.workspaceTable th:last-child{
+  min-width:68px!important;
+  width:68px!important;
+}
+.rowActions{gap:2px!important}
+.rowActions button{
+  min-width:26px!important;
+  width:26px!important;
+  min-height:26px!important;
+  height:26px!important;
+}
+.workspaceActionsHead .workspaceSelectAll{display:none!important}
+.workspaceTable tr.workspaceRowSelected>.workspaceSelectCell,
+.workspaceTable tr.workspaceRowSelected>.personId{
+  background:color-mix(in srgb,var(--brand) 10%,var(--paper))!important;
+}
+
+/* ---------------- Label workspace / preview ---------------- */
+.labelDesignerPage{
+  width:min(98vw,1840px)!important;
+  max-width:none!important;
+  margin-inline:auto!important;
+}
+.labelDesignerPage .labelTopbar{
+  margin-bottom:8px!important;
+  padding:12px 14px!important;
+}
+.labelDesignerPage .labelTopbar h2{
+  font:800 25px/1.1 var(--ui-font)!important;
+}
+.labelDesignerPage .labelTopbar p{font-size:11px!important}
+.labelDesignerPage .labelSaveBar{margin-bottom:8px!important}
+.labelDesignerPage .labelControlStack{display:grid;gap:8px}
+.labelDesignerPage .simpleDesigner,
+.labelDesignerPage .labelSetup{margin-bottom:0!important}
+.labelDesignerPage .labelSelectionPreviewGrid{
+  grid-template-columns:minmax(0,1.72fr) minmax(330px,.58fr)!important;
+  grid-template-rows:minmax(560px,1fr)!important;
+  gap:12px!important;
+}
+.labelDesignerPage .labelSelectionPreviewGrid .labelCanvasPanel{
+  min-height:560px!important;
+  padding:12px!important;
+}
+.labelDesignerPage .labelSelectionPreviewGrid .labelSidebar{
+  min-height:560px!important;
+  padding:12px!important;
+}
+.labelDesignerPage .canvasToolbar{
+  min-height:44px;
+  padding:0 2px 8px!important;
+}
+.labelDesignerPage .canvasToolbar b{font-size:12px!important}
+.labelDesignerPage .canvasToolbar span{
+  margin-top:2px;
+  font-size:10px!important;
+}
+.labelDesignerPage .labelStageV2{
+  position:relative;
+  min-height:470px!important;
+  padding:30px 34px!important;
+  overflow:auto!important;
+  background-color:#e7edef!important;
+  background-image:none!important;
+}
+.labelDesignerPage .labelCanvas[data-final-ratio-ready="true"]{
+  width:min(100%,960px)!important;
+  max-width:960px!important;
+  min-width:520px!important;
+  height:auto!important;
+  aspect-ratio:var(--final-label-ratio)!important;
+  border:1px solid #5c6f7a!important;
+  box-shadow:0 16px 44px rgba(13,41,58,.24)!important;
+}
+.labelDesignerPage .labelGrid{
+  background-image:
+    linear-gradient(to right,rgba(14,67,99,.11) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(14,67,99,.11) 1px,transparent 1px),
+    linear-gradient(to right,rgba(14,67,99,.18) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(14,67,99,.18) 1px,transparent 1px)!important;
+  background-size:
+    var(--label-mm-px,8px) var(--label-mm-px,8px),
+    var(--label-mm-px,8px) var(--label-mm-px,8px),
+    calc(var(--label-mm-px,8px) * 5) calc(var(--label-mm-px,8px) * 5),
+    calc(var(--label-mm-px,8px) * 5) calc(var(--label-mm-px,8px) * 5)!important;
+}
+.labelDesignerPage .canvasElement.selected{
+  border-color:#0c6f9f!important;
+  box-shadow:0 0 0 1px #fff inset,0 0 0 1px #0c6f9f!important;
+}
+.labelDesignerPage .canvasElement.selected::after{
+  content:attr(data-size-readout);
+  position:absolute;
+  left:0;
+  bottom:100%;
+  z-index:8;
+  min-width:max-content;
+  margin-bottom:4px;
+  padding:2px 5px;
+  border-radius:4px;
+  background:#0c4365;
+  color:white;
+  font:800 8px/1.3 var(--ui-font);
+  pointer-events:none;
+}
+.labelPrecisionControls{
+  display:none;
+  grid-template-columns:minmax(110px,1fr) auto minmax(110px,1fr);
+  align-items:center;
+  gap:8px;
+  margin-top:9px;
+  padding:8px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--paper);
+}
+.labelPrecisionControls button{
+  min-height:44px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--paper);
+  color:var(--navy);
+  font-weight:800;
+}
+.labelPrecisionControls output{
+  min-width:94px;
+  text-align:center;
+  font-size:11px;
+  font-weight:900;
+}
+.labelPrecisionControls small{
+  grid-column:1/-1;
+  color:var(--muted);
+  text-align:center;
+  font-size:9px;
+}
+
+@media(max-width:1100px){
+  .workspaceHeadActions{flex-wrap:wrap!important;justify-content:flex-end}
+  .labelDesignerPage .labelSelectionPreviewGrid{
+    grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr)!important;
+  }
+}
+
+@media(max-width:820px){
+  .workspacePage{width:calc(100vw - 16px)!important}
+  .workspacePage .workspaceHead{align-items:flex-start!important}
+  .workspaceHeadActions{width:100%;justify-content:flex-start!important}
+  .workspaceStatusControl{flex:1;min-width:130px}
+  .workspaceStatusControl select{width:100%}
+  .workspacePage>.workspaceTools{position:relative!important;top:auto!important}
+  .workspaceTableWrap{max-height:62vh!important}
+  .labelDesignerPage{width:calc(100vw - 14px)!important}
+  .labelDesignerPage .labelSelectionPreviewGrid{grid-template-columns:1fr!important;grid-template-rows:auto auto!important}
+  .labelDesignerPage .labelSelectionPreviewGrid .labelCanvasPanel{min-height:0!important}
+  .labelDesignerPage .labelStageV2{min-height:320px!important;padding:18px 10px!important;overflow:auto!important}
+  .labelDesignerPage .labelCanvas[data-final-ratio-ready="true"]{
+    min-width:0!important;
+    width:100%!important;
+    max-width:100%!important;
+  }
+  .labelPrecisionControls{display:grid}
+}
+
+@media(pointer:coarse){
+  .labelPrecisionControls{display:grid}
+  .labelDesignerPage .canvasToolbar span{display:none}
+}
+
+/* ---------------- PDF acceptance: Order Center / Setup ---------------- */
+.ordersPage .phase2OrderActions{display:none!important}
+.ordersPage .orderArchiveButton{
+  min-height:36px!important;
+  border:1px solid var(--line)!important;
+  border-radius:8px!important;
+  padding:7px 11px!important;
+  background:var(--paper)!important;
+  color:var(--muted)!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+}
+.ordersPage .orderArchiveButton:hover{border-color:color-mix(in srgb,var(--red) 30%,var(--line))!important;color:var(--red)!important}
+.orderSetup .clientDetails .setupGrid{grid-template-columns:repeat(6,minmax(0,1fr))!important}
+.orderSetup .clientDetails .setupGrid>*{grid-column:span 2!important}
+.orderSetup .clientDetails .seikoDeliveryAddress,
+.orderSetup .clientDetails .seikoBillingAddress{grid-column:span 3!important}
+.orderSetup .ownerManagedSelect{display:none!important}
+.orderSetup .sourceOwnerCombo{display:none!important}
+.orderSetup .sourceFieldPicker>label>.sourceNativeHidden{
+  position:static!important;
+  width:100%!important;
+  height:38px!important;
+  opacity:1!important;
+  pointer-events:auto!important;
+}
+
+/* ---------------- PDF acceptance: Label workspace ---------------- */
+.labelDesignerPage .customerUpdateChoice{display:none!important}
+.labelDesignerPage .labelSaveBar .labelSetSave{
+  min-height:34px!important;
+  border:1px solid var(--navy)!important;
+  border-radius:8px!important;
+  padding:0 12px!important;
+  background:var(--navy)!important;
+  color:#fff!important;
+  font-weight:800!important;
+}
+.labelDesignerPage .labelSelectionPreviewGrid{
+  grid-template-columns:minmax(0,1.75fr) minmax(300px,.55fr)!important;
+  grid-template-rows:minmax(560px,1fr)!important;
+}
+.labelDesignerPage .labelSelectionPreviewGrid>.labelCanvasPanel{
+  grid-column:1!important;
+  grid-row:1!important;
+  order:1!important;
+}
+.labelDesignerPage .labelSelectionPreviewGrid>.labelSidebar{
+  grid-column:2!important;
+  grid-row:1!important;
+  order:2!important;
+  max-height:560px!important;
+  overflow:auto!important;
+}
+.labelDesignerPage .labelPreviewSample{
+  display:flex!important;
+  align-items:center!important;
+  gap:6px!important;
+  margin-left:auto!important;
+  color:var(--muted)!important;
+  font-size:9px!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+}
+.labelDesignerPage .labelPreviewSample select{
+  max-width:260px!important;
+  height:34px!important;
+  border:1px solid var(--line)!important;
+  border-radius:7px!important;
+  background:var(--paper)!important;
+  padding:0 28px 0 8px!important;
+  color:var(--ink)!important;
+  font-size:10px!important;
+  font-weight:650!important;
+}
+.labelDesignerPage .labelSetup>label:has(.labelTypeHelp){grid-template-rows:auto 44px auto!important}
+.labelDesignerPage .labelTypeHelp{
+  margin-top:1px!important;
+  color:var(--muted)!important;
+  font-size:9px!important;
+  line-height:1.25!important;
+}
+
+@media(max-width:1250px) and (min-width:721px){
+  .orderSetup .clientDetails .setupGrid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+  .orderSetup .clientDetails .setupGrid>*{grid-column:span 2!important}
+  .orderSetup .clientDetails .seikoDeliveryAddress,
+  .orderSetup .clientDetails .seikoBillingAddress{grid-column:span 2!important}
+}
+@media(max-width:820px){
+  .labelDesignerPage .labelSelectionPreviewGrid{grid-template-columns:1fr!important;grid-template-rows:auto auto!important}
+  .labelDesignerPage .labelSelectionPreviewGrid>.labelCanvasPanel,
+  .labelDesignerPage .labelSelectionPreviewGrid>.labelSidebar{grid-column:1!important;grid-row:auto!important;max-height:none!important}
+  .labelDesignerPage .labelPreviewSample{width:100%!important;margin:6px 0 0!important;justify-content:space-between!important}
+  .labelDesignerPage .labelPreviewSample select{max-width:min(70vw,320px)!important}
+}
+@media(max-width:720px){
+  .orderSetup .clientDetails .setupGrid{grid-template-columns:1fr!important}
+  .orderSetup .clientDetails .setupGrid>*,
+  .orderSetup .clientDetails .seikoDeliveryAddress,
+  .orderSetup .clientDetails .seikoBillingAddress{grid-column:1!important}
+  .ordersPage .orderArchiveButton{grid-area:menu!important;justify-self:end!important}
+}
+
+/* ---------------- PDF acceptance: record filter/sort controls ---------------- */
+.labelDesignerPage .recordFilterBar{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(125px,.72fr)!important;
+  gap:6px!important;
+  margin:7px 0 9px!important;
+}
+.labelDesignerPage .recordFilterBar label{
+  display:grid!important;
+  gap:3px!important;
+  min-width:0!important;
+}
+.labelDesignerPage .recordFilterBar label>span{
+  color:var(--muted)!important;
+  font-size:8px!important;
+  font-weight:850!important;
+  letter-spacing:.02em!important;
+}
+.labelDesignerPage .recordFilterBar select{
+  box-sizing:border-box!important;
+  width:100%!important;
+  min-width:0!important;
+  height:32px!important;
+  border:1px solid var(--line)!important;
+  border-radius:7px!important;
+  background:var(--paper)!important;
+  padding:0 26px 0 7px!important;
+  color:var(--ink)!important;
+  font-size:9px!important;
+  font-weight:650!important;
+}
+.labelDesignerPage .recordFilterBar select:disabled{opacity:.48!important}
+.labelDesignerPage .traceTotalChoice{
+  display:flex!important;
+  align-items:center!important;
+  gap:5px!important;
+  grid-column:1/-1!important;
+  margin:1px 0!important;
+  color:var(--muted)!important;
+  font-size:9px!important;
+  font-weight:700!important;
+}
+@media(max-width:650px){
+  .labelDesignerPage .recordFilterBar{grid-template-columns:1fr!important}
+}
+
+/* ---------------- Current acceptance: label controls ---------------- */
+.labelDesignerPage .labelSaveBar{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:7px!important;flex-wrap:wrap!important}
+.labelDesignerPage .labelSaveBar>button{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:34px!important}
+.labelDesignerPage .labelSaveMeaning{margin:-2px 0 8px!important;padding:7px 10px!important;border:1px solid color-mix(in srgb,var(--line) 72%,transparent)!important;border-radius:8px!important;background:color-mix(in srgb,var(--pale) 55%,var(--paper))!important;color:var(--muted)!important;font-size:9.5px!important;line-height:1.35!important}
+.labelDesignerPage .labelSaveMeaning b{color:var(--ink)!important}
+.labelDesignerPage .labelSetup{align-items:stretch!important}
+.labelDesignerPage .labelSetup>label,.labelDesignerPage .labelSetup>.managedSizeControl{display:grid!important;grid-template-rows:auto 44px minmax(28px,auto)!important;gap:6px!important;align-content:start!important;min-width:0!important;margin:0!important}
+.labelDesignerPage .labelSetup>label>select{display:block!important;width:100%!important;height:44px!important;min-height:44px!important;opacity:1!important;pointer-events:auto!important}
+.labelDesignerPage .labelSetup .launcherSourceLocked .designerSourceLockedValue{display:none!important}
+.labelDesignerPage .labelSetup .launcherSourceLocked>select{display:block!important}
+.labelDesignerPage .labelSetupHelp{display:block!important;min-height:28px!important;margin:0!important;color:var(--muted)!important;font-size:9px!important;line-height:1.3!important}
+.labelDesignerPage .managedSizeControl>span:first-child{align-self:end!important;color:var(--ink)!important;font-size:10px!important;font-weight:800!important}
+.labelDesignerPage .managedSizeMenu{min-width:340px!important}
+.labelDesignerPage .managedSizeOptionRow{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;align-items:center!important;gap:4px!important}
+.labelDesignerPage .managedSizeOptionRow>.managedEdit{min-height:30px!important;border:0!important;border-radius:6px!important;background:var(--pale)!important;padding:0 8px!important;color:var(--navy)!important;font-size:9px!important;font-weight:800!important}
+.labelDesignerPage .labelCustomComponents{display:grid!important;grid-template-columns:minmax(220px,.8fr) minmax(0,1.7fr)!important;gap:14px!important;align-items:center!important;margin:0!important;padding:12px 14px!important}
+.labelDesignerPage .labelCustomComponents h3{margin:1px 0 2px!important;font-size:14px!important}
+.labelDesignerPage .labelCustomComponents small{color:var(--muted)!important;font-size:9px!important;line-height:1.3!important}
+.labelCustomComponentButtons{display:flex!important;flex-wrap:wrap!important;justify-content:flex-end!important;gap:6px!important}
+.labelCustomComponentButtons button{min-height:36px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--paper)!important;padding:0 10px!important;color:var(--navy)!important;font-size:10px!important;font-weight:800!important}
+.labelDesignerPage .labelInfoTools{display:flex!important;justify-content:flex-end!important;align-items:center!important;min-height:34px!important;margin:3px 0 7px!important}
+.labelDesignerPage .labelInfoSearchToggle{display:grid!important;place-items:center!important;width:34px!important;height:34px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--paper)!important;color:var(--navy)!important;padding:0!important;font-size:20px!important;line-height:1!important}
+.labelDesignerPage .labelInfoSearchToggle.active{background:var(--pale)!important}
+.labelDesignerPage .labelInfoTools input[type="search"]{width:min(360px,calc(100% - 42px))!important;height:34px!important;margin-left:6px!important;border:1px solid var(--line)!important;border-radius:8px!important;padding:0 9px!important;font-size:10px!important}
+.labelDesignerPage .labelInfoTools input[hidden]{display:none!important}
+.labelDesignerPage .labelInfoChipRemove{cursor:pointer!important}
+@media(max-width:800px){.labelDesignerPage .labelCustomComponents{grid-template-columns:1fr!important}.labelCustomComponentButtons{justify-content:flex-start!important}.labelDesignerPage .managedSizeMenu{min-width:min(92vw,340px)!important}}
+
+/* ---------------- General label workspace refinement ---------------- */
+.workspaceHeadActions>div:has(.orderActionMenuButton){position:relative!important}
+.workspacePage .orderActionMenu{right:0!important;z-index:120!important}
+.labelDesignerPage .labelSaveBar{display:flex!important;justify-content:flex-end!important;align-items:center!important;gap:7px!important;position:relative!important}
+.labelDesignerPage .labelWorkspaceMore{position:relative!important}
+.labelDesignerPage .labelWorkspaceMoreButton{min-width:38px!important;padding:0 9px!important}
+.labelDesignerPage .labelWorkspaceMoreMenu{position:absolute;z-index:150;top:calc(100% + 5px);right:0;display:grid;min-width:190px;padding:6px;border:1px solid var(--line);border-radius:9px;background:var(--paper);box-shadow:0 16px 38px rgba(14,42,61,.18)}
+.labelDesignerPage .labelWorkspaceMoreMenu button{min-height:34px;border:0;border-radius:6px;background:transparent;text-align:left;padding:0 9px;color:var(--ink);font-size:10px;font-weight:750}
+.labelDesignerPage .labelWorkspaceMoreMenu button:hover{background:var(--pale)}
+.labelDesignerPage .labelSetup{align-items:start!important}
+.labelDesignerPage .labelSetup>label,
+.labelDesignerPage .labelSetup>.managedSizeControl{display:grid!important;grid-template-rows:auto 44px!important;align-content:start!important;gap:5px!important}
+.labelDesignerPage .managedSizeControl>.labelSetupHelp{display:none!important}
+.labelDesignerPage .labelInfoSelectedStripReact{display:flex!important;flex-wrap:wrap!important;gap:6px!important;margin:8px 0!important}
+.labelDesignerPage .labelInfoSelectedStripReact .labelInfoChip{display:inline-flex!important;align-items:center!important;gap:7px!important;min-height:30px!important;border:0!important;border-radius:18px!important;padding:4px 9px 4px 10px!important;background:var(--navy)!important;color:#fff!important;font-size:9px!important;font-weight:800!important}
+.labelDesignerPage .labelInfoSelectedStripReact .labelInfoChip b{font-size:15px!important;line-height:1!important;font-weight:500!important}
+.labelDesignerPage .fieldOrderControls{display:flex;gap:3px;justify-content:flex-end;margin-left:auto}
+.labelDesignerPage .fieldOrderControls button{width:27px;height:27px;min-height:27px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--navy);font-weight:900}
+.labelDesignerPage .labelGeometryFields{display:grid;grid-template-columns:1fr 1fr;gap:6px;grid-column:1/-1}
+.labelDesignerPage .labelGeometryFields label{display:grid;gap:3px}
+.labelDesignerPage .labelGeometryFields span{font-size:8px;font-weight:800;color:var(--muted)}
+.labelDesignerPage .labelGeometryFields input{width:100%;height:34px}
+.labelDesignerPage .recordList .record{position:relative;overflow:visible!important}
+.labelDesignerPage .recordList .record:hover::after,
+.labelDesignerPage .recordList .record:focus-visible::after{content:attr(data-record-preview);position:absolute;z-index:220;right:calc(100% + 8px);top:0;width:min(380px,46vw);padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:var(--paper);box-shadow:0 16px 38px rgba(14,42,61,.17);color:var(--ink);font:650 10px/1.45 var(--ui-font);text-align:left;white-space:normal;pointer-events:none}
+.labelCopiesField{display:grid!important;gap:6px!important;margin-top:14px!important}
+.labelCopiesField span{font-size:10px!important;font-weight:800!important;color:var(--muted)!important}
+.labelCopiesField input{height:40px!important;border:1px solid var(--line)!important;border-radius:8px!important;padding:0 10px!important;background:var(--paper)!important;color:var(--ink)!important}
+.labelPrintCopies{display:none!important}
+@media(max-width:820px){
+  .labelDesignerPage .recordList .record:hover::after,.labelDesignerPage .recordList .record:focus-visible::after{display:none}
+  .labelDesignerPage .labelGeometryFields{grid-template-columns:1fr 1fr}
+}
+
+
+/* 2026-09-01 accuracy pass: compact spreadsheet tools + precise row/column controls */
+.workspacePage .workspaceSheetBar{display:none!important}
+.workspacePage>.workspaceTools{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important}
+.workspaceCompactTools{position:relative;flex:0 0 auto;z-index:42}
+.workspaceCompactTools>summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;height:34px;min-width:58px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--navy);font-size:10px;font-weight:850;cursor:pointer}
+.workspaceCompactTools>summary::-webkit-details-marker{display:none}
+.workspaceCompactTools[open]>summary{background:var(--pale)}
+.workspaceCompactToolsPanel{position:absolute;z-index:95;top:calc(100% + 5px);left:0;display:grid;grid-template-columns:repeat(2,minmax(170px,1fr));gap:8px;width:min(430px,calc(100vw - 30px));padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--paper);box-shadow:0 16px 38px rgba(14,42,61,.18)}
+.workspaceCompactToolsPanel section{display:grid;gap:3px;align-content:start}
+.workspaceCompactToolsPanel section>b{padding:3px 5px;color:var(--muted);font-size:9px;letter-spacing:.05em;text-transform:uppercase}
+.workspaceCompactToolsPanel button{min-height:30px;border:0;border-radius:6px;padding:5px 7px;background:transparent;color:var(--ink);font-size:10px;font-weight:700;text-align:left}
+.workspaceCompactToolsPanel button:hover:not(:disabled){background:var(--pale)}
+.workspaceCompactToolsPanel button:disabled{opacity:.4}
+.workspaceCompactToolsPanel kbd{float:right;color:var(--muted);font-size:8px}
+.workspaceCompactToolsPanel>small{grid-column:1/-1;padding:4px 5px 0;color:var(--muted);font-size:9px}
+.workspaceCompactToolsPanel .columnControl{position:relative}
+.workspaceCompactToolsPanel .columnMenu{top:calc(100% + 3px)!important;left:0!important;right:auto!important;max-height:300px!important}
+.workspaceTable col.workspaceRowNumberCol{width:40px!important;min-width:40px!important;max-width:40px!important}
+.workspaceTable .workspaceRowHeaderCorner,.workspaceTable .workspaceRowHeader{box-sizing:border-box!important;width:40px!important;min-width:40px!important;max-width:40px!important;padding:0!important;text-align:center!important}
+.workspaceResizableHeader{position:relative!important}
+.workspaceResizableHeader .columnResizeHandle{position:absolute!important;top:0!important;right:-3px!important;bottom:0!important;width:7px!important;cursor:col-resize!important;opacity:0!important;z-index:8!important}
+.workspaceResizableHeader:hover .columnResizeHandle,.workspaceResizableHeader .columnResizeHandle:focus{opacity:1!important;background:color-mix(in srgb,var(--brand) 20%,transparent)!important}
+.workspaceContextMenu{position:fixed;z-index:1000;display:grid;min-width:190px;padding:6px;border:1px solid var(--line);border-radius:9px;background:var(--paper);box-shadow:0 18px 42px rgba(14,42,61,.22)}
+.workspaceContextMenu button{min-height:32px;border:0;border-radius:6px;padding:6px 9px;background:transparent;color:var(--ink);font:700 10px/1.2 var(--ui-font);text-align:left}
+.workspaceContextMenu button:hover:not(:disabled){background:var(--pale)}
+.workspaceContextMenu button:disabled{opacity:.4}
+.labelCreateRouteHead .contextBackButton{margin:0 0 8px!important;padding-left:0!important;border:0!important;background:transparent!important}
+@media(max-width:700px){.workspaceCompactToolsPanel{grid-template-columns:1fr;max-height:70vh;overflow:auto}}
+
+
+/* 2026-09-01 final origin-aware setup + label workspace refinement */
+.workspacePage>.workspaceTools{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important;padding:5px 0!important}
+.workspacePage .workspaceCompactTools{flex:0 0 auto!important;margin:0!important}
+.workspacePage .workspaceAddTools{display:flex!important;align-items:center!important;flex:0 0 auto!important}
+.workspacePage .rowCountControl{display:grid!important;grid-template-columns:auto 48px 52px!important;align-items:center!important;gap:0!important;height:34px!important;padding:0!important;border:1px solid var(--line)!important;border-radius:8px!important;overflow:hidden!important;background:var(--paper)!important}
+.workspacePage .rowCountLabel{padding:0 8px!important;color:var(--muted)!important;font-size:9px!important;font-weight:800!important;white-space:nowrap!important}
+.workspacePage .rowCountControl input{box-sizing:border-box!important;width:48px!important;height:32px!important;border:0!important;border-left:1px solid var(--line)!important;border-right:1px solid var(--line)!important;border-radius:0!important;text-align:center!important;font-weight:800!important}
+.workspacePage .rowCountControl button{box-sizing:border-box!important;width:52px!important;height:32px!important;min-height:32px!important;border:0!important;border-radius:0!important;padding:0!important}
+.workspacePage .workspaceRowTotal{flex:0 0 auto!important;color:var(--muted)!important;font-size:9px!important;white-space:nowrap!important}
+.workspacePage>.workspaceTools>input[aria-label="Search rows"]{flex:1 1 240px!important;min-width:180px!important;max-width:360px!important;margin-left:auto!important}
+.workspacePage .workspacePagerTop{flex:0 0 auto!important;margin-left:0!important}
+.orderSetup .autoOrderInfo{display:flex!important;align-items:center!important;gap:6px!important}
+.orderSetup .autoOrderInfo>span{display:inline-flex!important;align-items:center!important;gap:5px!important;min-height:30px!important;padding:0 9px!important;border:1px solid var(--line)!important;border-radius:7px!important;background:var(--pale)!important;font-size:10px!important}
+.orderSetup .autoOrderInfo>span>b{font-size:9px!important;color:var(--navy)!important}
+.labelDesignerPage>.labelWorkspaceBackRow{display:flex!important;align-items:center!important;margin:0 0 6px!important;padding:0 2px!important}
+.labelDesignerPage>.labelWorkspaceBackRow .contextBackButton{margin:0!important}
+.labelDesignerPage .labelHeaderCommandBar{display:flex!important;align-items:center!important;gap:7px!important}
+.labelDesignerPage .labelHeaderMore{position:relative!important}
+.labelDesignerPage .labelHeaderMenuButton{display:grid!important;place-content:center!important;gap:4px!important;width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--paper)!important;cursor:pointer!important;list-style:none!important}
+.labelDesignerPage .labelHeaderMenuButton::-webkit-details-marker{display:none!important}
+.labelDesignerPage .labelHeaderMenuButton>span{display:block!important;width:18px!important;height:2px!important;border-radius:2px!important;background:var(--navy)!important}
+.labelDesignerPage .labelHeaderMenuButton:hover,.labelDesignerPage .labelHeaderMore[open]>.labelHeaderMenuButton{background:var(--pale)!important}
+.labelDesignerPage .labelHeaderMoreMenu{right:0!important;min-width:205px!important}
+.labelDesignerPage .labelHeaderMoreMenu .labelHeaderMenuPrimary{background:var(--navy)!important;color:#fff!important;font-weight:850!important}
+.labelDesignerPage .fieldChecklist{align-items:start!important;grid-auto-rows:min-content!important;gap:6px!important}
+.labelDesignerPage .fieldChoice{box-sizing:border-box!important;min-height:42px!important;height:auto!important;padding:7px 9px!important;align-content:start!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded{display:grid!important;grid-template-columns:minmax(150px,1fr) auto auto!important;grid-auto-rows:min-content!important;align-items:center!important;gap:5px 7px!important;min-height:0!important;padding:7px 9px!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>label:first-child{grid-column:1!important;grid-row:1!important;margin:0!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.fieldOrderControls{grid-column:2!important;grid-row:1!important;display:flex!important;gap:3px!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.showName{grid-column:3!important;grid-row:1!important;margin:0!important;white-space:nowrap!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.traceTotalChoice{grid-column:3!important;margin:0!important;white-space:nowrap!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>input[aria-label^="Printed name for"]{grid-column:1/-1!important;width:100%!important;height:29px!important;min-height:29px!important;margin:0!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.fieldEmphasis{grid-column:1/-1!important;display:flex!important;align-items:center!important;gap:12px!important;margin:0!important;padding:4px 0 0!important;border-top:1px solid color-mix(in srgb,var(--line) 68%,transparent)!important}
+.labelDesignerPage .fieldChoice.chosen.fieldChoiceExpanded>.fieldEmphasis label{margin:0!important;font-size:9px!important;white-space:nowrap!important}
+@media(max-width:900px){.workspacePage>.workspaceTools>input[aria-label="Search rows"]{order:4!important;flex-basis:100%!important;max-width:none!important;margin-left:0!important}.workspacePage .workspacePagerTop{margin-left:auto!important}}

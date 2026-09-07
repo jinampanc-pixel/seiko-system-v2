@@ -1,0 +1,81 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const enhancements = read("app/app-enhancements.tsx");
+const ux = read("app/seiko-operational-ux.tsx");
+const css = read("app/seiko-operational-ux.css");
+const orders = read("app/orders.tsx");
+const pager = read("app/workspace-top-pager.tsx");
+const labels = read("app/label-workspace-refinement.tsx");
+const labelDesigner = read("app/label-designer.tsx");
+const layout = read("app/layout.tsx");
+const page = read("app/page.tsx");
+
+test("operational DOM refinement is quarantined on the rescue branch", () => {
+  assert.doesNotMatch(enhancements, /<SeikoOperationalUx \/>/);
+  assert.doesNotMatch(layout, /seiko-operational-ux\.css/);
+  assert.match(layout, /seiko-rescue\.css/);
+});
+
+test("Home removes duplicate Orders navigation without inventing another Order Center shortcut", () => {
+  assert.match(ux, /function enhanceHome\(\)/);
+  assert.match(ux, /\.overview \.moduleGrid \.moduleCard/);
+  assert.match(ux, /=== "Orders"/);
+  assert.match(ux, /card\.hidden = true/);
+  assert.doesNotMatch(ux, /Order Center →/);
+});
+
+test("Order Center opens rows directly and keeps status plus conditional printing in the action menu", () => {
+  assert.match(ux, /orderRowClickable/);
+  assert.match(ux, /open\.hidden = true/);
+  assert.match(ux, /statusWrap\?\.setAttribute\("hidden", ""\)/);
+  assert.doesNotMatch(ux, /className = "orderCenterStatusBadge"/);
+  assert.match(ux, /orderMenuStatusControl/);
+  assert.match(ux, /const select = nativeStatus\.cloneNode\(true\) as HTMLSelectElement/);
+  assert.match(ux, /setNativeSelect\(nativeStatus, select\.value\)/);
+  assert.match(ux, /hasPrintable = tasks\.some/);
+  assert.match(ux, /Print labels/);
+  assert.match(ux, /waitForWorkspaceAction\("Labels"\)/);
+});
+
+test("workspace source owns status and save while rows-per-page accepts custom values", () => {
+  assert.match(ux, /workspaceHeaderSecondaryAction/);
+  assert.match(ux, /workspaceMenuOperational/);
+  assert.doesNotMatch(ux, /Save now/);
+  assert.match(orders, /workspaceNativeMenuStatus/);
+  assert.match(orders, /workspaceMenuSaveNow/);
+  assert.match(orders, />Save now<\/button>/);
+  assert.match(pager, /workspacePageSizeInput/);
+  assert.match(pager, /Math\.max\(1, Math\.min\(5000/);
+  assert.match(pager, /FocusEvent\("focusout"/);
+  assert.match(pager, /setInputValue\(native, value\)/);
+  assert.doesNotMatch(pager, /cloneNode\(true\) as HTMLSelectElement/);
+});
+
+test("Settings exposes Appearance first and Users & access second", () => {
+  assert.match(page, /section === "appearance"/);
+  assert.match(page, /section === "users"/);
+  assert.match(page, /settingsUsersModule/);
+  assert.match(css, /\.settingsModuleNav/);
+});
+
+test("person-package label filtering uses resolved positive package contents", () => {
+  assert.match(labelDesigner, /quantityForRecord/);
+  assert.match(labelDesigner, /contains_product/);
+  assert.match(labelDesigner, /const filterNeedle = recordFilterValue\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(labelDesigner, /packageProducts\(record\)\.some\(value => value\.toLowerCase\(\)\.includes\(filterNeedle\)\)/);
+  assert.match(labelDesigner, /Products with a resolved quantity of 0 are excluded/);
+  assert.match(labelDesigner, /Find person, class\/group or a product contained in the package/);
+  assert.doesNotMatch(labels, /personPackageWorkspace/);
+});
+
+test("automatic label fields use the source-owned physical arrangement", () => {
+  assert.doesNotMatch(labels, /stackAutomaticPreview/);
+  assert.match(labelDesigner, /arrangeLabelItemsForRow/);
+  assert.match(labelDesigner, /advanced \? items : arrangeLabelItemsForRow/);
+  assert.match(css, /fieldChoice\.chosen/);
+});
+
+// Revalidation marker: source-owned operational paths remain available while runtime DOM patching is quarantined.
