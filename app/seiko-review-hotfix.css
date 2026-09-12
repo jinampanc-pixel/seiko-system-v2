@@ -1,0 +1,160 @@
+/* Direct last-loaded hotfix for current SEIKO review. Avoids relying on runtime-added classes. */
+
+/* Main navigation: literal viewport-right drawer and clickable controls. */
+.app .topbar .moduleMenu,
+.globalStandaloneMenu {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+  width: min(336px, 92vw) !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+  padding: 12px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  z-index: 20000 !important;
+  pointer-events: auto !important;
+}
+.menuBackdrop { z-index: 19990 !important; }
+.app .topbar .moduleMenu .nav,
+.app .topbar .moduleMenu button,
+.app .topbar .moduleMenu select,
+.globalStandaloneMenu .nav,
+.globalStandaloneMenu button,
+.globalStandaloneMenu select {
+  pointer-events: auto !important;
+}
+
+/* Packing editor: preserve the canvas as a predictable 2:1 working surface. */
+.packingWorkflowDesigner .labelStageV2 {
+  overflow: auto !important;
+  min-height: 436px !important;
+  height: 436px !important;
+  display: grid !important;
+  place-items: center !important;
+}
+.packingWorkflowDesigner .packingCanvas {
+  width: 800px !important;
+  height: 400px !important;
+  min-width: 800px !important;
+  min-height: 400px !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  flex: none !important;
+  overflow: hidden !important;
+}
+.packingWorkflowDesigner .canvasElement { touch-action: none !important; }
+.packingWorkflowDesigner .packingTrash { pointer-events: none !important; }
+
+/* Package contents: one purposeful scrolling region and dense product editing. */
+body:has(.packingPresentationLayer) { overflow: hidden !important; }
+.packingWorkflowDesigner .packingPresentationLayer {
+  overflow: hidden !important;
+  align-items: stretch !important;
+}
+.packingWorkflowDesigner .packingPresentationDrawer {
+  width: min(680px, 96vw) !important;
+  max-width: 680px !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  padding: 0 14px 12px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.packingWorkflowDesigner .packingPresentationHead {
+  position: static !important;
+  flex: 0 0 auto !important;
+  margin: 0 -14px !important;
+  padding: 10px 14px 9px !important;
+}
+.packingWorkflowDesigner .packingPresentationHead h3 { margin: 1px 0 2px !important; }
+.packingWorkflowDesigner .packingPresentationHead p:last-child { line-height: 1.25 !important; }
+.packingWorkflowDesigner .packingLayoutModes {
+  flex: 0 0 auto !important;
+  padding: 7px 0 !important;
+  gap: 6px !important;
+}
+.packingWorkflowDesigner .packingPresentationRules {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  margin-top: 7px !important;
+  padding-right: 3px !important;
+  gap: 5px !important;
+}
+.packingWorkflowDesigner .packingPresentationRules details {
+  padding: 6px 8px !important;
+  border-radius: 8px !important;
+}
+.packingWorkflowDesigner .packingPresentationRules summary {
+  min-height: 28px !important;
+  padding: 0 !important;
+  align-items: center !important;
+}
+.packingWorkflowDesigner .packingPresentationRules summary b { font-size: 12px !important; }
+.packingWorkflowDesigner .packingPresentationRules summary span { font-size: 9px !important; }
+.packingWorkflowDesigner .packingRuleBody {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 5px 8px !important;
+  margin-top: 6px !important;
+  padding: 0 !important;
+}
+.packingWorkflowDesigner .packingRuleBody > label { gap: 2px !important; margin: 0 !important; font-size: 9.5px !important; }
+.packingWorkflowDesigner .packingRuleBody input,
+.packingWorkflowDesigner .packingRuleBody select {
+  min-height: 30px !important;
+  height: 30px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+.packingWorkflowDesigner .packingRuleBody > .packingCheck:first-child {
+  grid-column: 1 / -1 !important;
+  min-height: 32px !important;
+  padding: 4px 7px !important;
+}
+.packingWorkflowDesigner .finalProductTypography {
+  grid-column: 1 / -1 !important;
+  display: flex !important;
+  gap: 12px !important;
+  padding: 3px 0 4px !important;
+}
+.packingWorkflowDesigner .packingDetailRules {
+  grid-column: 1 / -1 !important;
+  display: grid !important;
+  gap: 3px !important;
+  padding-top: 3px !important;
+  margin: 0 !important;
+}
+.packingWorkflowDesigner .packingDetailRules > b { margin: 0 !important; font-size: 9.5px !important; }
+.packingWorkflowDesigner .packingMeasurementRow {
+  grid-template-columns: minmax(0, 1fr) 132px !important;
+  gap: 5px !important;
+  min-height: 28px !important;
+}
+.packingWorkflowDesigner .packingMeasurementRow input,
+.packingWorkflowDesigner .packingMeasurementRow select {
+  min-height: 28px !important;
+  height: 28px !important;
+}
+
+@media (max-width: 1250px) {
+  .packingWorkflowDesigner .packingCanvas { width: 680px !important; height: 340px !important; min-width: 680px !important; min-height: 340px !important; }
+  .packingWorkflowDesigner .labelStageV2 { height: 376px !important; min-height: 376px !important; }
+}
+@media (max-width: 980px) {
+  .packingWorkflowDesigner .packingCanvas { width: 560px !important; height: 280px !important; min-width: 560px !important; min-height: 280px !important; }
+  .packingWorkflowDesigner .labelStageV2 { height: 316px !important; min-height: 316px !important; }
+}
+@media (max-width: 700px) {
+  .packingWorkflowDesigner .packingCanvas { width: 400px !important; height: 200px !important; min-width: 400px !important; min-height: 200px !important; }
+  .packingWorkflowDesigner .labelStageV2 { height: 236px !important; min-height: 236px !important; }
+  .packingWorkflowDesigner .packingRuleBody { grid-template-columns: 1fr !important; }
+  .packingWorkflowDesigner .packingMeasurementRow { grid-template-columns: 1fr !important; }
+}

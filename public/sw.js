@@ -1,5 +1,5 @@
-const CACHE = "seiko-v2-shell-v1";
-const SHELL = ["/", "/manifest.webmanifest", "/app-icon.svg", "/favicon.svg"];
+const CACHE = "jinam-shell-v4";
+const SHELL = ["/", "/manifest.webmanifest?v=4", "/app-icon.svg?v=4", "/favicon.svg?v=4", "/jinam-mark.svg?v=4"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));

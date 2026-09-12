@@ -142,10 +142,10 @@ function renderRealQrs(root: ParentNode = document) {
 
 function categoryFor(choice: HTMLElement) {
   const text = choice.querySelector("label span")?.textContent?.trim() || "";
-  if (/^Person detail\s*·/i.test(text)) return "person";
-  if (/Trace code|Piece number|sequence|barcode|qr/i.test(text)) return "trace";
-  if (/\s·\s/.test(text) || /Product|Size|Package contents|Cutting bundle|Calculated quantity|variations/i.test(text)) return "product";
-  return "core";
+  if (/^(Person \/ workpiece|Group \/ label type)$/i.test(text) || /^Person detail\s*·/i.test(text)) return "person";
+  if (/Trace code|Piece \/ pair number|Package \/ set number|Label number \/ order total|Person number \/ total|Product number \/ total|Number within|sequence|barcode|qr/i.test(text)) return "trace";
+  if (/^(Order number|Order date|Delivery date|Client name|Client type|Contact person \/ Attn|Phone number|Delivery address|Billing address|Remarks)$/i.test(text)) return "core";
+  return "product";
 }
 function enhanceInformation(page: HTMLElement) {
   const section = page.querySelector<HTMLElement>(".simpleDesigner:not(.labelInfoCollapsed)");
@@ -155,13 +155,13 @@ function enhanceInformation(page: HTMLElement) {
   let bar = section.querySelector<HTMLElement>(".labelInfoCategoryBar");
   if (!bar) {
     bar = document.createElement("div"); bar.className = "labelInfoCategoryBar";
-    const categories = [["core","Core information"],["person","Person details"],["product","Product details"],["trace","Trace & codes"],["style","Style"]] as const;
+    const categories = [["core","Core information"],["person","Person details"],["product","Product details"],["trace","Trace & codes"]] as const;
     categories.forEach(([id,label], index) => {
       const button = document.createElement("button"); button.type = "button"; button.textContent = label; button.dataset.category = id; if (index === 0) button.classList.add("active");
       button.addEventListener("click", () => {
         bar!.querySelectorAll("button").forEach(item => item.classList.toggle("active", item === button));
         const classification = section.querySelector<HTMLElement>(".classificationInformation");
-        if (classification) classification.hidden = id !== "core";
+        if (classification) classification.hidden = id !== "person";
         checklist.querySelectorAll<HTMLElement>(".fieldChoice").forEach(choice => {
           if (id === "style") { choice.hidden = !choice.classList.contains("chosen"); choice.classList.toggle("fieldChoiceExpanded", choice.classList.contains("chosen")); }
           else { choice.hidden = choice.dataset.readyCategory !== id; if (!choice.hidden) choice.classList.remove("fieldChoiceExpanded"); }

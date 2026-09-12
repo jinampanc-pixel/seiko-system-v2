@@ -22,124 +22,13 @@ function sectionByTitle(title: string) {
     .find(section => section.querySelector(".sectionTitle h3")?.textContent?.trim() === title);
 }
 
-function manageSourcePicker(picker: HTMLElement) {
-  if (picker.dataset.ownerSourceReady === "true") return;
-  const select = picker.querySelector<HTMLSelectElement>(":scope > label > select");
-  if (!select) return;
-  picker.dataset.ownerSourceReady = "true";
-  select.classList.add("sourceNativeHidden");
-  select.tabIndex = -1;
-
-  const wrapper = document.createElement("div");
-  wrapper.className = "sourceOwnerCombo";
-  const input = document.createElement("input");
-  input.className = "sourceOwnerInput";
-  input.setAttribute("role", "combobox");
-  input.autocomplete = "off";
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.className = "sourceOwnerToggle";
-  toggle.textContent = "⌄";
-  const panel = document.createElement("div");
-  panel.className = "sourceOwnerPanel";
-  panel.hidden = true;
-  wrapper.append(input, toggle, panel);
-  select.insertAdjacentElement("afterend", wrapper);
-
-  const selectedLabel = () => select.options[select.selectedIndex]?.textContent?.trim() || "Choose a person / record field";
-  const close = () => { panel.hidden = true; };
-
-  const choose = (value: string) => {
-    setReactSelectValue(select, value);
-    input.value = selectedLabel();
-    close();
-  };
-
-  const removeRealField = (label: string) => {
-    const rows = Array.from(document.querySelectorAll<HTMLElement>(".orderSetup .personDetails .policyRow"));
-    const row = rows.find(item => item.querySelector<HTMLInputElement>(":scope > input")?.value.trim() === label.trim());
-    row?.querySelector<HTMLButtonElement>(".iconRemove")?.click();
-  };
-
-  const createRealField = (name: string) => {
-    const button = picker.querySelector<HTMLButtonElement>(".newSourceButton");
-    button?.click();
-    window.setTimeout(() => {
-      const createBox = picker.querySelector<HTMLInputElement>('.sourceFieldCreate input[aria-label="New source field name"]');
-      const add = picker.querySelector<HTMLButtonElement>(".sourceFieldCreate .secondary");
-      if (!createBox || !add) return;
-      setReactInputValue(createBox, name);
-      add.click();
-      window.setTimeout(() => {
-        input.value = selectedLabel();
-        close();
-      }, 40);
-    }, 20);
-  };
-
-  const render = (query = "") => {
-    const q = query.trim().toLowerCase();
-    panel.replaceChildren();
-    Array.from(select.options).forEach((option, index) => {
-      const label = option.textContent?.trim() || option.value;
-      if (!label || (q && !label.toLowerCase().includes(q))) return;
-      const row = document.createElement("div");
-      row.className = "sourceOwnerChoice";
-      const pick = document.createElement("button");
-      pick.type = "button";
-      pick.className = "sourceOwnerPick";
-      pick.textContent = label;
-      pick.addEventListener("mousedown", event => event.preventDefault());
-      pick.addEventListener("click", () => choose(option.value));
-      row.appendChild(pick);
-      if (index > 0) {
-        const remove = document.createElement("button");
-        remove.type = "button";
-        remove.className = "sourceOwnerRemove";
-        remove.textContent = "×";
-        remove.title = `Remove ${label} from Person details`;
-        remove.addEventListener("mousedown", event => event.preventDefault());
-        remove.addEventListener("click", event => {
-          event.stopPropagation();
-          removeRealField(label);
-          window.setTimeout(() => render(input.value), 30);
-        });
-        row.appendChild(remove);
-      }
-      panel.appendChild(row);
-    });
-    const footer = document.createElement("div");
-    footer.className = "sourceOwnerFooter";
-    footer.textContent = "Type a new Person detail + Enter";
-    panel.appendChild(footer);
-  };
-
-  input.value = selectedLabel();
-  input.addEventListener("focus", () => { render(); panel.hidden = false; });
-  input.addEventListener("click", () => { render(); panel.hidden = false; });
-  input.addEventListener("input", () => { render(input.value); panel.hidden = false; });
-  input.addEventListener("keydown", event => {
-    if (event.key === "Escape") { input.value = selectedLabel(); close(); return; }
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    const typed = input.value.trim();
-    if (!typed) return;
-    const exact = Array.from(select.options).find(option => option.textContent?.trim().toLowerCase() === typed.toLowerCase());
-    if (exact) choose(exact.value); else createRealField(typed);
-  });
-  toggle.addEventListener("mousedown", event => event.preventDefault());
-  toggle.addEventListener("click", () => { if (panel.hidden) { render(); panel.hidden = false; } else close(); });
-  select.addEventListener("change", () => { input.value = selectedLabel(); });
-  document.addEventListener("mousedown", event => { if (!wrapper.contains(event.target as Node)) close(); });
-}
-
 function lockIrrelevantDefaults() {
   document.querySelectorAll<HTMLElement>(".orderSetup .productPolicy").forEach(card => {
     const quantitySelect = card.querySelector<HTMLSelectElement>(".productPolicyTop label > select");
     const inputs = Array.from(card.querySelectorAll<HTMLInputElement>(".productPolicyTop input"));
     const quantityInput = inputs.at(-1);
     if (quantitySelect && quantityInput) {
-      const blocked = quantitySelect.value === "by_group" || quantitySelect.value === "per_person";
+      const blocked = quantitySelect.value === "per_person";
       quantityInput.disabled = blocked;
       quantityInput.classList.toggle("modeBlockedInput", blocked);
       if (blocked) quantityInput.value = "";
@@ -273,7 +162,7 @@ export function OrderSetupPolish() {
       try {
         if (!document.querySelector(".orderSetup")) return;
         addSetupClasses();
-        document.querySelectorAll<HTMLElement>(".orderSetup .sourceFieldPicker").forEach(manageSourcePicker);
+        // Group source fields stay as native order-field selectors. OrderSetupFinalize removes legacy wrappers.
         lockIrrelevantDefaults();
         buildProductMeasurements();
       } finally {

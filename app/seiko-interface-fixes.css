@@ -1,0 +1,224 @@
+/* Final corrective layer for the 03 Sep SEIKO acceptance pass.
+   Keep this stylesheet last so it resolves late legacy overrides without
+   changing the shared order/label data model. */
+
+/* Workspace: the two header bands are one sticky table header. A previous
+   late rule offset row two by 29px, placing it on top of the first record. */
+.workspaceTable.groupedWorkspace thead{
+  position:sticky!important;
+  top:0!important;
+  z-index:40!important;
+  background:var(--navy)!important;
+}
+.workspaceTable.groupedWorkspace thead tr:nth-child(2) th{
+  top:auto!important;
+}
+.workspaceTable.groupedWorkspace thead tr:first-child th,
+.workspaceTable.groupedWorkspace thead tr:nth-child(2) th{
+  background:var(--navy)!important;
+  color:#fff!important;
+}
+.workspaceTable.groupedWorkspace thead tr:first-child th[rowspan="2"]{
+  vertical-align:middle!important;
+}
+
+/* Spreadsheet row selection must be unmistakable across the complete row,
+   including the row number and sticky Person ID cell. */
+.workspaceTable tbody tr.workspaceStructureSelected > th.workspaceRowHeader,
+.workspaceTable tbody tr.workspaceStructureSelected > td{
+  background:color-mix(in srgb,var(--gold) 20%,var(--paper))!important;
+}
+.workspaceTable tbody tr.workspaceStructureSelected > th.workspaceRowHeader,
+.workspaceTable tbody tr.workspaceStructureSelected > td.personId{
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 72%,var(--line))!important;
+}
+.workspaceTable tbody tr.workspaceStructureSelected input,
+.workspaceTable tbody tr.workspaceStructureSelected select{
+  background:transparent!important;
+}
+
+/* Label canvas: every millimetre of the physical label is available to the
+   user. Selection outlines do not add artificial padding around text. */
+.labelDesignerPage .labelCanvas::after{
+  display:none!important;
+}
+.labelDesignerPage .canvasElement.element-text,
+.labelDesignerPage .canvasElement.element-field,
+.labelDesignerPage .canvasElement.element-sequence,
+.labelDesignerPage .printedElement.element-text,
+.labelDesignerPage .printedElement.element-field,
+.labelDesignerPage .printedElement.element-sequence{
+  margin:0!important;
+  padding:0!important;
+  line-height:1!important;
+}
+.labelDesignerPage .canvasElement.selected{
+  outline-offset:0!important;
+}
+
+/* Field names and values are one compact visual unit. The old renderer already
+   contains a normal whitespace after the colon; adding .25em again made the
+   gap grow dramatically with large type. Keep one microscopic optical gap and
+   never distribute the two spans across the stored element width. */
+.labelDesignerPage .canvasElement.element-field,
+.labelDesignerPage .printedElement.element-field{
+  justify-content:flex-start!important;
+  align-items:center!important;
+  gap:.035em!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+}
+.labelDesignerPage .canvasElement.element-field>.fieldName,
+.labelDesignerPage .printedElement.element-field>.fieldName{
+  flex:0 0 auto!important;
+  margin-right:0!important;
+  padding:0!important;
+}
+.labelDesignerPage .canvasElement.element-field>span:not(.fieldName),
+.labelDesignerPage .printedElement.element-field>span:not(.fieldName){
+  flex:0 0 auto!important;
+  margin:0!important;
+  padding:0!important;
+}
+/* The native print surface is body-mounted outside .labelDesignerPage, so give
+   it the same compact field rules with greater specificity than its runtime
+   safety stylesheet. */
+html.jinamLabelPrinting body>.labelNativePrintRoot .printedElement.element-field{
+  justify-content:flex-start!important;
+  align-items:center!important;
+  gap:.035em!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+}
+html.jinamLabelPrinting body>.labelNativePrintRoot .printedElement.element-field>.fieldName{
+  flex:0 0 auto!important;
+  margin-right:0!important;
+  padding:0!important;
+}
+html.jinamLabelPrinting body>.labelNativePrintRoot .printedElement.element-field>span:not(.fieldName){
+  flex:0 0 auto!important;
+  margin:0!important;
+  padding:0!important;
+}
+
+/* The separate Access navigation entry is redundant in SEIKO: access and
+   user management are reached from Settings > Access & management. */
+.app .accessMenuEntry{
+  display:none!important;
+}
+
+/* Settings is a scalable application shell: fixed header/module switcher,
+   one independently scrollable module body, and full-screen adaptation on
+   smaller displays. */
+.themeScrim{
+  align-items:center!important;
+  justify-items:center!important;
+  overflow:hidden!important;
+  padding:16px!important;
+}
+.themePanel{
+  display:grid!important;
+  grid-template-rows:auto auto minmax(0,1fr)!important;
+  width:min(1120px,calc(100vw - 32px))!important;
+  height:min(900px,calc(100dvh - 32px))!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:20px!important;
+  overflow:hidden!important;
+  border-radius:14px!important;
+}
+.themePanel .themeHead{
+  position:relative!important;
+  top:auto!important;
+  z-index:3!important;
+  margin:-20px -20px 0!important;
+  padding:20px!important;
+  background:var(--paper)!important;
+  backdrop-filter:none!important;
+}
+.themePanel .settingsModuleNav{
+  position:relative!important;
+  z-index:2!important;
+  grid-template-columns:repeat(auto-fit,minmax(190px,260px))!important;
+  margin:12px 0!important;
+  padding:0!important;
+  overflow-x:auto!important;
+}
+.themePanel .settingsAppearanceModule,
+.themePanel .settingsUsersModule{
+  min-width:0!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:auto!important;
+  overscroll-behavior:contain!important;
+  padding-right:5px!important;
+}
+.themePanel .settingsUsersModule{
+  height:100%!important;
+  padding:22px!important;
+}
+.themePanel .colourGrid{
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr))!important;
+}
+
+/* Access manager behaves as a Settings sub-page in SEIKO. The Settings panel
+   remains mounted behind it, so closing access returns to the same Settings
+   module rather than throwing the user back to the dashboard. */
+.app ~ .accessPanelBackdrop{
+  display:grid!important;
+  place-items:center!important;
+  padding:16px!important;
+  background:rgba(10,26,40,.5)!important;
+}
+.app ~ .accessPanelBackdrop .accessPanel{
+  display:grid!important;
+  grid-template-rows:auto auto minmax(0,1fr)!important;
+  width:min(1120px,calc(100vw - 32px))!important;
+  height:min(900px,calc(100dvh - 32px))!important;
+  max-width:none!important;
+  overflow:hidden!important;
+  border-radius:14px!important;
+  box-shadow:0 28px 80px rgba(8,28,45,.28)!important;
+}
+.app ~ .accessPanelBackdrop .accessPanelHeader,
+.app ~ .accessPanelBackdrop .accessTabs{
+  position:relative!important;
+  top:auto!important;
+}
+.app ~ .accessPanelBackdrop .accessPanelBody{
+  min-height:0!important;
+  overflow:auto!important;
+  overscroll-behavior:contain!important;
+}
+
+#seikoLabelPrintPortal{
+  display:none;
+}
+
+@media(max-width:700px){
+  .themeScrim{
+    padding:0!important;
+  }
+  .themePanel{
+    width:100vw!important;
+    height:100dvh!important;
+    border-radius:0!important;
+    padding:16px!important;
+  }
+  .themePanel .themeHead{
+    margin:-16px -16px 0!important;
+    padding:16px!important;
+  }
+  .themePanel .settingsModuleNav{
+    grid-template-columns:repeat(2,minmax(150px,1fr))!important;
+  }
+  .app ~ .accessPanelBackdrop{
+    padding:0!important;
+  }
+  .app ~ .accessPanelBackdrop .accessPanel{
+    width:100vw!important;
+    height:100dvh!important;
+    border-radius:0!important;
+  }
+}

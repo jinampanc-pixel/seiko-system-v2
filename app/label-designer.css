@@ -77,3 +77,8 @@ html:not([data-label-advanced="true"]) .labelProperties,html:not([data-label-adv
 .simpleDesignerHead>button{height:34px!important;min-height:34px!important;padding:0 11px!important;font-size:12px}
 .canvasSizeButton{height:28px!important;min-height:28px!important;padding:0 8px!important;font-size:10px;font-weight:700;color:var(--navy)}
 
+
+
+/* Accurate record filtering and mixed-order product slots. */
+.recordFilterBar input[type="search"]{box-sizing:border-box;width:100%;height:36px;border:1px solid var(--line);border-radius:8px;padding:0 9px;background:var(--paper);color:var(--ink);font-size:10px}.recordFilterBar input[type="search"]:disabled{background:color-mix(in srgb,var(--app-background) 68%,var(--paper));color:var(--muted)}
+.labelDynamicProductHint{margin:8px 0 0;padding:8px 10px;border:1px solid color-mix(in srgb,var(--gold) 55%,var(--line));border-radius:8px;background:color-mix(in srgb,var(--pale) 32%,var(--paper));color:var(--muted);font-size:10px;line-height:1.4}.labelDynamicProductHint b{color:var(--navy)}

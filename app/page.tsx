@@ -63,7 +63,6 @@ export default function Home() {
       const saved = localStorage.getItem("jinam:selected-business");
       setBusinesses(next);
       setBusinessId(next.some(item => item.businessId === saved) ? saved! : next[0].businessId);
-      setModule("home");
     });
   }, []);
 
@@ -127,8 +126,8 @@ export default function Home() {
       {themeOpen && <ThemeCustomizer key={businessId} businessName={membership?.businessName || "Business"} theme={activeTheme} onSave={saveTheme} onClose={() => setThemeOpen(false)} />}
       <main>
         {module === "home" && <Overview membership={membership} onOpen={setModule} />}
-        {module === "orders" && canAccess(membership, "orders") && <Orders key={`${businessId}:${labelOrder?.orderId || "center"}`} businessId={businessId} initialOrder={labelOrder} canManageSuggestions={membership?.role === "owner" || membership?.role === "admin"} onOpenLabelBatches={order => { setLabelOrder(null); setLabelPurpose(null); setLabelBatchOrder(order); setModule("labels"); }} onCreateLabel={(order, purpose) => { setLabelBatchOrder(null); setLabelOrder(order); setLabelPurpose(purpose); setModule("labels"); }}/>}
-        {module === "labels" && canAccess(membership, "labels") && (labelOrder ? <LabelDesigner key={`${businessId}:${labelOrder.orderId}:${labelPurpose || "choose"}`} businessId={businessId} order={labelOrder} initialPurpose={labelPurpose} onBack={() => { setLabelOrder(null); setLabelPurpose(null); }} canManageSizes={membership?.role === "owner" || membership?.role === "admin"}/> : <LabelLauncher businessId={businessId} focusedOrder={labelBatchOrder} onOpen={(order, purpose) => { setLabelBatchOrder(null); setLabelOrder(order); setLabelPurpose(purpose); }} onOpenOrders={() => { setLabelBatchOrder(null); setModule("orders"); }}/>)}
+        {module === "orders" && canAccess(membership, "orders") && <Orders key={`${businessId}:${labelOrder?.orderId || "center"}`} businessId={businessId} initialOrder={labelOrder} canManageSuggestions={membership?.role === "owner" || membership?.role === "admin"} onOpenLabelBatches={order => { setLabelOrder(null); setLabelPurpose(null); setLabelBatchOrder(order); setModule("labels"); }}/>}
+        {module === "labels" && canAccess(membership, "labels") && (labelOrder ? <LabelDesigner key={`${businessId}:${labelOrder.orderId}:${labelPurpose || "choose"}`} businessId={businessId} order={labelOrder} initialPurpose={labelPurpose} backLabel="← Back to Labels" onBack={() => { setLabelOrder(null); setLabelPurpose(null); }} canManageSizes={membership?.role === "owner" || membership?.role === "admin"}/> : <LabelLauncher businessId={businessId} focusedOrder={labelBatchOrder} onOpen={(order, purpose) => { setLabelBatchOrder(null); setLabelOrder(order); setLabelPurpose(purpose); }} onOpenOrders={() => { setLabelBatchOrder(null); setModule("orders"); }}/>)}
         {module === "scan" && canAccess(membership, "scan") && <Scanner businessId={businessId} queueKey={queueKey} onPending={setPending} />}
         {module === "trace" && canAccess(membership, "trace") && <Trace />}
         {module === "production" && canAccess(membership, "production") && <Production key={businessId} businessId={businessId} canManage={membership?.role === "owner" || membership?.role === "admin"}/>}
@@ -353,6 +352,7 @@ function pretty(v: string) { return ({ name: "Name", group: "Class / group", pro
 
 function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessName: string; theme: BusinessTheme; onSave: (theme: BusinessTheme) => void; onClose: () => void }) {
   const [draft, setDraft] = useState(theme);
+  const [section, setSection] = useState<"appearance" | "users">("appearance");
   const [message, setMessage] = useState("Choose a preset, edit colours, or analyse a logo.");
   const colourFields: Array<[keyof BusinessTheme, string]> = [["primary", "Primary"], ["primaryAlt", "Secondary"], ["accent", "Accent"], ["background", "Background"], ["surface", "Surface"], ["ink", "Text"]];
 
@@ -364,16 +364,29 @@ function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessNam
       setDraft(derived); onSave(derived); setMessage("Logo palette applied. You can fine-tune it below.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "The logo could not be analysed."); }
   };
+  const openAccess = () => {
+    onClose();
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent("jinam:open-access")), 0);
+  };
 
   return <div className="themeScrim" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className="themePanel" role="dialog" aria-modal="true" aria-labelledby="theme-title">
-    <div className="themeHead"><div><p className="eyebrow">SYSTEM SETTINGS</p><h2 id="theme-title">Settings · {businessName}</h2><p className="settingsIntro">Appearance is the first settings section. Users, permissions, workflows and business defaults will live here as they are added.</p></div><button onClick={onClose} aria-label="Close settings">×</button></div>
-    <h3 className="settingsSectionTitle">Appearance</h3>
-    <label className="themeField"><span>Preset mood</span><select value="" onChange={event => { const preset = THEME_PRESETS[event.target.value]; if (preset) setDraft(preset); }}><option value="">Custom / current</option><option value="seiko">Seiko · operational</option><option value="veyn">Veyn · clinical organic</option><option value="meth">MeTh · retail energy</option></select></label>
-    <label className="logoPicker"><span>Automatically derive from company logo</span><input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={event => analyseLogo(event.target.files?.[0])}/></label>
-    <p className="themeMessage" role="status">{message}</p>
-    <div className="colourGrid">{colourFields.map(([key, label]) => <label key={key}><span>{label}</span><input type="color" value={String(draft[key])} onChange={event => setDraft(current => ({ ...current, [key]: event.target.value }))}/><code>{String(draft[key])}</code></label>)}</div>
-    <label className="themeField"><span>Heading style</span><select value={draft.headingFont} onChange={event => setDraft(current => ({ ...current, headingFont: event.target.value as BusinessTheme["headingFont"] }))}><option value="serif">Editorial serif</option><option value="sans">Modern sans serif</option></select></label>
-    <div className="themePreview" style={themeVariables(draft) as CSSProperties}><span>Live mood preview</span><b>{businessName}</b><button>Primary action</button></div>
-    <div className="themeActions"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={() => { onSave({ ...draft, name: `${businessName} custom` }); onClose(); }}>Save theme</button></div>
+    <div className="themeHead"><div><p className="eyebrow">SYSTEM SETTINGS</p><h2 id="theme-title">Settings · {businessName}</h2><p className="settingsIntro">Manage appearance, users and access from one settings area.</p></div><button onClick={onClose} aria-label="Close settings">×</button></div>
+    <nav className="settingsModuleNav" aria-label="Settings modules">
+      <button type="button" className={section === "appearance" ? "active" : ""} onClick={() => setSection("appearance")}><small>1</small><span>Appearance</span></button>
+      <button type="button" className={section === "users" ? "active" : ""} onClick={() => setSection("users")}><small>2</small><span>Users & access</span></button>
+    </nav>
+    {section === "appearance" ? <div className="settingsAppearanceModule">
+      <h3 className="settingsSectionTitle">Appearance</h3>
+      <label className="themeField"><span>Preset mood</span><select value="" onChange={event => { const preset = THEME_PRESETS[event.target.value]; if (preset) setDraft(preset); }}><option value="">Custom / current</option><option value="seiko">Seiko · operational</option><option value="veyn">Veyn · clinical organic</option><option value="meth">MeTh · retail energy</option></select></label>
+      <label className="logoPicker"><span>Automatically derive from company logo</span><input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={event => analyseLogo(event.target.files?.[0])}/></label>
+      <p className="themeMessage" role="status">{message}</p>
+      <div className="colourGrid">{colourFields.map(([key, label]) => <label key={key}><span>{label}</span><input type="color" value={String(draft[key])} onChange={event => setDraft(current => ({ ...current, [key]: event.target.value }))}/><code>{String(draft[key])}</code></label>)}</div>
+      <label className="themeField"><span>Heading style</span><select value={draft.headingFont} onChange={event => setDraft(current => ({ ...current, headingFont: event.target.value as BusinessTheme["headingFont"] }))}><option value="serif">Editorial serif</option><option value="sans">Modern sans serif</option></select></label>
+      <div className="themePreview" style={themeVariables(draft) as CSSProperties}><span>Live mood preview</span><b>{businessName}</b><button type="button">Primary action</button></div>
+      <div className="themeActions"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={() => { onSave({ ...draft, name: `${businessName} custom` }); onClose(); }}>Save theme</button></div>
+    </div> : <section className="settingsUsersModule">
+      <p className="eyebrow">USERS & ACCESS</p><h3>Users, roles and permissions</h3><p>Open the secure access manager to add users, assign roles and control which operational modules each person can use.</p><button type="button" className="primary" onClick={openAccess}>Open users & access</button>
+    </section>}
   </section></div>;
 }
+

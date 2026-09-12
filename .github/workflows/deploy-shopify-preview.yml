@@ -1,0 +1,259 @@
+name: Deploy Shopify Preview
+
+on:
+  push:
+    branches:
+      - fix/veyn-milestone-one
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seiko-shopify-preview-deploy
+  cancel-in-progress: true
+
+env:
+  PREVIEW_WORKER_NAME: seiko-system-v2-shopify-test
+  PREVIEW_DB_NAME: seiko-system-v2-shopify-test-db
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout preview branch
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Contract tests
+        run: npm run test:contracts
+
+      - name: Production build
+        run: npm run build
+
+      - name: Render checks
+        run: npm run test:render
+
+      - name: Verify preview credentials exist
+        env:
+          SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
+          SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
+          JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
+        run: |
+          test -n "$SHOPIFY_CLIENT_ID" || (echo "SHOPIFY_CLIENT_ID is missing" && exit 1)
+          test -n "$SHOPIFY_CLIENT_SECRET" || (echo "SHOPIFY_CLIENT_SECRET is missing" && exit 1)
+          test -n "$JINAM_PREVIEW_ADMIN_PASSWORD" || (echo "JINAM_PREVIEW_ADMIN_PASSWORD is missing" && exit 1)
+          test "${#JINAM_PREVIEW_ADMIN_PASSWORD}" -ge 12 || (echo "JINAM_PREVIEW_ADMIN_PASSWORD must be at least 12 characters" && exit 1)
+
+      - name: Resolve isolated preview D1 database
+        id: d1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          LIST_JSON="$(npx wrangler d1 list --json)"
+          DB_ID="$(D1_LIST="$LIST_JSON" DB_NAME="$PREVIEW_DB_NAME" node -e 'const rows=JSON.parse(process.env.D1_LIST||"[]"); const row=rows.find(x=>x.name===process.env.DB_NAME); process.stdout.write(row?.uuid||row?.id||"")')"
+          if [ -z "$DB_ID" ]; then
+            npx wrangler d1 create "$PREVIEW_DB_NAME" --location apac
+            LIST_JSON="$(npx wrangler d1 list --json)"
+            DB_ID="$(D1_LIST="$LIST_JSON" DB_NAME="$PREVIEW_DB_NAME" node -e 'const rows=JSON.parse(process.env.D1_LIST||"[]"); const row=rows.find(x=>x.name===process.env.DB_NAME); process.stdout.write(row?.uuid||row?.id||"")')"
+          fi
+          test -n "$DB_ID" || (echo "Could not resolve isolated preview D1 database ID" && exit 1)
+          echo "database_id=$DB_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Point generated deployment at isolated preview resources
+        env:
+          PREVIEW_DB_ID: ${{ steps.d1.outputs.database_id }}
+        run: |
+          node --input-type=commonjs <<'NODE'
+          const fs = require('node:fs');
+          const paths = ['wrangler.jsonc', 'dist/server/wrangler.json'];
+          for (const path of paths) {
+            if (!fs.existsSync(path)) throw new Error(`Required Wrangler config missing: ${path}`);
+            const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+            config.name = process.env.PREVIEW_WORKER_NAME;
+            if (!Array.isArray(config.d1_databases) || !config.d1_databases[0]) throw new Error(`D1 binding missing in ${path}`);
+            config.d1_databases[0].database_name = process.env.PREVIEW_DB_NAME;
+            config.d1_databases[0].database_id = process.env.PREVIEW_DB_ID;
+            config.vars = {
+              ...(config.vars || {}),
+              SHOPIFY_SCOPES: 'read_orders',
+              JINAM_ENVIRONMENT: 'shopify-test',
+            };
+            fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
+          }
+
+          const deployed = JSON.parse(fs.readFileSync('dist/server/wrangler.json', 'utf8'));
+          if (deployed.name !== process.env.PREVIEW_WORKER_NAME) throw new Error('Generated deploy config targets the wrong Worker');
+          const db = deployed.d1_databases?.[0];
+          if (db?.database_name !== process.env.PREVIEW_DB_NAME || db?.database_id !== process.env.PREVIEW_DB_ID) {
+            throw new Error('Generated deploy config targets the wrong D1 database');
+          }
+          NODE
+
+      - name: Seed isolated preview owner
+        id: preview_owner
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          PREVIEW_USER_ID="preview-owner"
+          PREVIEW_OWNER_EMAIL="preview-owner@jinam.invalid"
+          PREVIEW_OWNER_NAME="Jinam Preview Owner"
+          PREVIEW_MEMBERSHIP_ID="preview-owner-meth"
+          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          cat > /tmp/preview-auth-schema.sql <<'SQL'
+          DROP TABLE IF EXISTS erp_sessions;
+          DROP TABLE IF EXISTS erp_auth_events;
+          DROP TABLE IF EXISTS erp_platform_roles;
+          DROP TABLE IF EXISTS erp_users;
+          DROP TABLE IF EXISTS erp_memberships;
+
+          CREATE TABLE erp_memberships (
+            id TEXT PRIMARY KEY NOT NULL,
+            business_id TEXT NOT NULL,
+            user_id TEXT,
+            email TEXT NOT NULL,
+            display_name TEXT,
+            role TEXT NOT NULL,
+            modules_json TEXT,
+            active INTEGER DEFAULT 1 NOT NULL,
+            created_at TEXT NOT NULL,
+            created_by_email TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            updated_by_email TEXT NOT NULL
+          );
+          CREATE UNIQUE INDEX erp_memberships_business_email_uq ON erp_memberships(business_id,email);
+          CREATE INDEX erp_memberships_email_idx ON erp_memberships(email,active);
+          CREATE INDEX erp_memberships_business_role_idx ON erp_memberships(business_id,role,active);
+
+          CREATE TABLE erp_users (
+            id TEXT PRIMARY KEY NOT NULL,
+            email TEXT NOT NULL,
+            phone_e164 TEXT,
+            display_name TEXT,
+            password_hash TEXT,
+            must_change_password INTEGER DEFAULT 1 NOT NULL,
+            active INTEGER DEFAULT 1 NOT NULL,
+            password_updated_at TEXT,
+            last_login_at TEXT,
+            created_at TEXT NOT NULL,
+            created_by_email TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            updated_by_email TEXT NOT NULL
+          );
+          CREATE UNIQUE INDEX erp_users_email_uq ON erp_users(email);
+          CREATE UNIQUE INDEX erp_users_phone_uq ON erp_users(phone_e164);
+
+          CREATE TABLE erp_sessions (
+            id TEXT PRIMARY KEY NOT NULL,
+            user_id TEXT NOT NULL,
+            token_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            revoked_at TEXT,
+            user_agent TEXT
+          );
+          CREATE UNIQUE INDEX erp_sessions_token_uq ON erp_sessions(token_hash);
+          CREATE INDEX erp_sessions_user_active_idx ON erp_sessions(user_id,revoked_at,expires_at);
+
+          CREATE TABLE erp_auth_events (
+            id TEXT PRIMARY KEY NOT NULL,
+            user_id TEXT,
+            email TEXT,
+            identifier_hash TEXT NOT NULL,
+            ip_hash TEXT NOT NULL,
+            event TEXT NOT NULL,
+            success INTEGER DEFAULT 0 NOT NULL,
+            at TEXT NOT NULL,
+            details_json TEXT
+          );
+          CREATE INDEX erp_auth_events_identifier_idx ON erp_auth_events(identifier_hash,at);
+          CREATE INDEX erp_auth_events_ip_idx ON erp_auth_events(ip_hash,at);
+          CREATE INDEX erp_auth_events_user_idx ON erp_auth_events(user_id,at);
+          SQL
+          npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --file=/tmp/preview-auth-schema.sql
+
+          esc() { printf "%s" "$1" | sed "s/'/''/g"; }
+          METH_MODULES='{"modules":["home","orders","labels","scan","trace","production","inventory","sales","billing","delivery","admin"],"permissions":[]}'
+          SQL="INSERT INTO erp_users (id,email,display_name,password_hash,must_change_password,active,password_updated_at,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_USER_ID")','$(esc "$PREVIEW_OWNER_EMAIL")','$(esc "$PREVIEW_OWNER_NAME")',NULL,0,1,'$(esc "$NOW")','$(esc "$NOW")','preview','$(esc "$NOW")','preview'); INSERT INTO erp_memberships (id,business_id,user_id,email,display_name,role,modules_json,active,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_MEMBERSHIP_ID")','meth','$(esc "$PREVIEW_USER_ID")','$(esc "$PREVIEW_OWNER_EMAIL")','$(esc "$PREVIEW_OWNER_NAME")','owner','$(esc "$METH_MODULES")',1,'$(esc "$NOW")','preview','$(esc "$NOW")','preview');"
+          npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --command="$SQL"
+          echo "owner_email=$PREVIEW_OWNER_EMAIL" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy isolated preview worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --name "$PREVIEW_WORKER_NAME"
+
+      - name: Configure preview secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
+          SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
+          JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
+        run: |
+          printf '%s' "$SHOPIFY_CLIENT_ID" | npx wrangler secret put SHOPIFY_CLIENT_ID --name "$PREVIEW_WORKER_NAME"
+          printf '%s' "$SHOPIFY_CLIENT_SECRET" | npx wrangler secret put SHOPIFY_CLIENT_SECRET --name "$PREVIEW_WORKER_NAME"
+          printf '%s' "$JINAM_PREVIEW_ADMIN_PASSWORD" | npx wrangler secret put JINAM_PREVIEW_ADMIN_PASSWORD --name "$PREVIEW_WORKER_NAME"
+
+      - name: Verify preview owner login
+        env:
+          PREVIEW_OWNER_EMAIL: ${{ steps.preview_owner.outputs.owner_email }}
+          JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
+        run: |
+          node --input-type=module <<'NODE'
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+          const base = 'https://seiko-system-v2-shopify-test.jinampanc.workers.dev';
+          let last = '';
+          for (let i = 0; i < 12; i++) {
+            try {
+              const response = await fetch(`${base}/api/erp/auth/login`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ identifier: process.env.PREVIEW_OWNER_EMAIL, password: process.env.JINAM_PREVIEW_ADMIN_PASSWORD }),
+              });
+              last = `${response.status} ${await response.text()}`;
+              if (response.ok) process.exit(0);
+            } catch (error) {
+              last = String(error);
+            }
+            await sleep(5000);
+          }
+          console.error(`Preview owner login failed: ${last}`);
+          process.exit(1);
+          NODE
+
+      - name: Smoke test isolated preview
+        run: |
+          node --input-type=module <<'NODE'
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+          const base = 'https://seiko-system-v2-shopify-test.jinampanc.workers.dev';
+          let last = '';
+          for (let i = 0; i < 12; i++) {
+            try {
+              const response = await fetch(base, { redirect: 'manual' });
+              last = `${response.status} ${response.headers.get('location') || ''}`;
+              if (response.status >= 200 && response.status < 500) process.exit(0);
+            } catch (error) {
+              last = String(error);
+            }
+            await sleep(5000);
+          }
+          console.error(`Preview smoke test failed: ${last}`);
+          process.exit(1);
+          NODE

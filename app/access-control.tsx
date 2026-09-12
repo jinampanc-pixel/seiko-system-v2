@@ -105,7 +105,7 @@ export function AccessProvider({ children }: { children: ReactNode }) {
     let frame = 0;
     const sync = () => {
       frame = 0;
-      const host = document.querySelector<HTMLElement>(".moduleMenu");
+      const host = document.querySelector<HTMLElement>(".moduleMenu .moduleMenuSettings") || document.querySelector<HTMLElement>(".globalStandaloneMenu .moduleMenuSettings");
       setMenuHost(current => current === host ? current : host);
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(sync); };
@@ -113,6 +113,12 @@ export function AccessProvider({ children }: { children: ReactNode }) {
     const observer = new MutationObserver(schedule);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => { observer.disconnect(); if (frame) cancelAnimationFrame(frame); };
+  }, []);
+
+  useEffect(() => {
+    const openAccess = () => setPanelOpen(true);
+    window.addEventListener("jinam:open-access", openAccess);
+    return () => window.removeEventListener("jinam:open-access", openAccess);
   }, []);
 
   const membership = session?.businesses.find(item => item.businessId === businessId) || session?.businesses[0];

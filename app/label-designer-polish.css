@@ -112,3 +112,8 @@ html[data-label-advanced="true"] .labelDesignerPage .simpleDesigner:not(.labelIn
   .labelDesignerPage .labelStageV2{min-height:260px}
   .labelDesignerPage .labelSizeConfigurator{grid-template-columns:1fr}
 }
+
+/* precision-pass: product detail subgroups */
+.labelDesignerPage .fieldSubGroupHeading{grid-column:1/-1;margin:3px 0 -1px;padding:2px 4px;color:var(--muted);font-size:9px;font-weight:850;letter-spacing:.035em;text-transform:uppercase}
+.labelDesignerPage .fieldGroupHeading+.fieldSubGroupHeading{margin-top:0}
+

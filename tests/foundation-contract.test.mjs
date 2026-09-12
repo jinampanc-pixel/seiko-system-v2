@@ -63,9 +63,11 @@ test("browser state and caches are partitioned by business", () => {
   assert.match(page, /queueKey=\{queueKey\}/);
 });
 
-test("module visibility is the intersection of role and membership grants", () => {
-  assert.match(foundation, /ROLE_MODULES/);
-  assert.match(foundation, /allowedForRole\.has\(module\) && granted\.has\(module\)/);
+test("roles are presets while explicit membership grants stay customizable", () => {
+  assert.match(foundation, /ROLE_MODULE_PRESETS/);
+  assert.match(foundation, /Array\.isArray\(value\.modules\) && value\.modules\.length/);
+  assert.match(foundation, /MODULES\.filter\(module => granted\.has\(module\)\)/);
+  assert.doesNotMatch(foundation, /allowedForRole\.has\(module\)/);
   assert.match(page, /canAccess\(membership, "labels"\)/);
   assert.match(page, /canAccess\(membership, "scan"\)/);
   assert.match(page, /canAccess\(membership, "trace"\)/);
@@ -92,7 +94,8 @@ test("Seiko orders preserve flexible client and person-entry behaviour", () => {
   assert.doesNotMatch(orderDomain, /Every product needs a name\./);
   for (const mode of ["same_for_all", "per_person", "default_with_exceptions", "order_total", "by_group"]) assert.match(orderDomain, new RegExp(mode));
   assert.match(orderDomain, /workspaceColumns/);
-  assert.match(orders, /renumberRecords/);
+  assert.doesNotMatch(orders, /renumberRecords/);
+  assert.match(orders, /Math\.max\(0, \.\.\.order\.records\.map\(record => Number\(record\.personId\.match/);
   assert.match(orders, /Save & close/);
   assert.match(orders, /Close without saving/);
   assert.match(orders, /Archive/);
@@ -155,7 +158,9 @@ test("label designer preserves exact sizing and editable behaviour", () => {
   assert.match(labelDesigner, /\[guides, setGuides\] = useState\(true\)/);
   assert.match(labelDesigner, /canvasSizeButton/);
   assert.match(labelDesigner, /sequence/);
-  assert.match(labelDesigner, /Print \/ save PDF/);
+  assert.match(labelDesigner, /labelHeaderCommandBar/);
+  assert.match(labelDesigner, /aria-label="Label actions"/);
+  assert.match(labelDesigner, />Print<\/button>/);
   assert.match(labelDesigner, /presets-v1/);
   assert.match(labelDesigner, /templates-v1/);
 });
@@ -164,10 +169,11 @@ test("label output can be code only, information only or combined", () => {
   assert.match(labelDesigner, /Code \+ information/);
   assert.match(labelDesigner, /Code only/);
   assert.match(labelDesigner, /Information only/);
-  assert.match(labelDesigner, /Choose myself/);
+  assert.match(labelDesigner, /Custom selection/);
   assert.match(labelDesigner, /Production labels/);
   assert.match(labelDesigner, /Packing labels/);
-  assert.match(labelDesigner, /One permanent label for each garment/);
+  assert.match(labelDesigner, /Label represents/);
+  assert.match(labelDesigner, /Each physical item/);
   assert.doesNotMatch(labelDesigner, /Derived from the saved order/);
   assert.match(labelDesigner, /flashSaveNotice/);
   assert.doesNotMatch(labelDesigner, /BUILD CUTTING RUNS/);
@@ -176,13 +182,17 @@ test("label output can be code only, information only or combined", () => {
   assert.match(labelDesigner, /canvasElement\.selected/);
   assert.match(labelDesigner, /item\.kind\s*===\s*"qr"/);
   assert.match(labelDesigner, /preventDefault\(\)/);
-  assert.match(orders, /Print labels/);
+  assert.doesNotMatch(orders, /workspaceLabelsButton/);
+  assert.doesNotMatch(orders, /workspaceLabelsSplit/);
+  assert.match(orders, /aria-label="More order actions"/);
+  assert.match(orders, /onOpenLabelBatches\(\);}}>Labels<\/button>/);
   assert.match(page, /onOpenLabelBatches=/);
-  assert.match(page, /onCreateLabel=/);
-  assert.match(labelDesigner, /Back to order/);
+  assert.doesNotMatch(page, /onCreateLabel=/);
+  assert.match(labelDesigner, /backLabel \|\| "← Back"/);
   assert.match(labelDesigner, /labelFieldOptions/);
   assert.match(labelDesigner, /spec:\$\{spec\.id\}/);
-  assert.match(labelDesigner, /Find person or product/);
+  assert.match(labelDesigner, /Find person, product, class, group or any order field/);
+  assert.match(labelDesigner, /recordFilterBar/);
   assert.match(labelDesigner, /Select all/);
   assert.match(labelDesigner, /recordList/);
   assert.doesNotMatch(labelDesigner, /Page \{safeRecordPage\} of/);
