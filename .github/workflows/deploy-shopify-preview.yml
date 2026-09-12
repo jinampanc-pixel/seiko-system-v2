@@ -16,6 +16,7 @@ concurrency:
 env:
   PREVIEW_WORKER_NAME: seiko-system-v2-shopify-test
   PREVIEW_DB_NAME: seiko-system-v2-shopify-test-db
+  PRODUCTION_DB_NAME: seiko-system-v2-db
 
 jobs:
   deploy:
@@ -71,75 +72,41 @@ jobs:
           test -n "$DB_ID" || (echo "Could not resolve isolated preview D1 database ID" && exit 1)
           echo "database_id=$DB_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Point generated deployment at isolated preview resources
+      - name: Point build at isolated preview resources
         env:
           PREVIEW_DB_ID: ${{ steps.d1.outputs.database_id }}
         run: |
-          node --input-type=commonjs <<'NODE'
+          node <<'NODE'
           const fs = require('node:fs');
-          const paths = ['wrangler.jsonc', 'dist/server/wrangler.json'];
-          for (const path of paths) {
-            if (!fs.existsSync(path)) throw new Error(`Required Wrangler config missing: ${path}`);
-            const config = JSON.parse(fs.readFileSync(path, 'utf8'));
-            config.name = process.env.PREVIEW_WORKER_NAME;
-            if (!Array.isArray(config.d1_databases) || !config.d1_databases[0]) throw new Error(`D1 binding missing in ${path}`);
-            config.d1_databases[0].database_name = process.env.PREVIEW_DB_NAME;
-            config.d1_databases[0].database_id = process.env.PREVIEW_DB_ID;
-            config.vars = {
-              ...(config.vars || {}),
-              SHOPIFY_SCOPES: 'read_orders',
-              JINAM_ENVIRONMENT: 'shopify-test',
-            };
-            fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
-          }
-
-          const deployed = JSON.parse(fs.readFileSync('dist/server/wrangler.json', 'utf8'));
-          if (deployed.name !== process.env.PREVIEW_WORKER_NAME) throw new Error('Generated deploy config targets the wrong Worker');
-          const db = deployed.d1_databases?.[0];
-          if (db?.database_name !== process.env.PREVIEW_DB_NAME || db?.database_id !== process.env.PREVIEW_DB_ID) {
-            throw new Error('Generated deploy config targets the wrong D1 database');
-          }
+          const path = 'wrangler.jsonc';
+          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+          config.name = process.env.PREVIEW_WORKER_NAME;
+          if (!Array.isArray(config.d1_databases) || !config.d1_databases[0]) throw new Error('D1 binding missing');
+          config.d1_databases[0].database_name = process.env.PREVIEW_DB_NAME;
+          config.d1_databases[0].database_id = process.env.PREVIEW_DB_ID;
+          config.vars = {
+            ...(config.vars || {}),
+            SHOPIFY_SCOPES: 'read_orders',
+            JINAM_ENVIRONMENT: 'shopify-test',
+          };
+          fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
           NODE
 
-      - name: Seed isolated preview owner
+      - name: Seed preview owner with test-only password
         id: preview_owner
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIEW_DB_ID: ${{ steps.d1.outputs.database_id }}
+          JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
         run: |
           set -euo pipefail
-          PREVIEW_USER_ID="preview-owner"
-          PREVIEW_OWNER_EMAIL="preview-owner@jinam.invalid"
-          PREVIEW_OWNER_NAME="Jinam Preview Owner"
-          PREVIEW_MEMBERSHIP_ID="preview-owner-meth"
-          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          LIST_JSON="$(npx wrangler d1 list --json)"
+          PROD_DB_ID="$(D1_LIST="$LIST_JSON" DB_NAME="$PRODUCTION_DB_NAME" node -e 'const rows=JSON.parse(process.env.D1_LIST||"[]"); const row=rows.find(x=>x.name===process.env.DB_NAME); process.stdout.write(row?.uuid||row?.id||"")')"
+          test -n "$PROD_DB_ID" || (echo "Could not resolve production D1 database for owner-only auth bootstrap" && exit 1)
 
           cat > /tmp/preview-auth-schema.sql <<'SQL'
-          DROP TABLE IF EXISTS erp_sessions;
-          DROP TABLE IF EXISTS erp_auth_events;
-          DROP TABLE IF EXISTS erp_platform_roles;
-          DROP TABLE IF EXISTS erp_users;
-          DROP TABLE IF EXISTS erp_memberships;
-
-          CREATE TABLE erp_memberships (
-            id TEXT PRIMARY KEY NOT NULL,
-            business_id TEXT NOT NULL,
-            user_id TEXT,
-            email TEXT NOT NULL,
-            display_name TEXT,
-            role TEXT NOT NULL,
-            modules_json TEXT,
-            active INTEGER DEFAULT 1 NOT NULL,
-            created_at TEXT NOT NULL,
-            created_by_email TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            updated_by_email TEXT NOT NULL
-          );
-          CREATE UNIQUE INDEX erp_memberships_business_email_uq ON erp_memberships(business_id,email);
-          CREATE INDEX erp_memberships_email_idx ON erp_memberships(email,active);
-          CREATE INDEX erp_memberships_business_role_idx ON erp_memberships(business_id,role,active);
-
-          CREATE TABLE erp_users (
+          CREATE TABLE IF NOT EXISTS erp_users (
             id TEXT PRIMARY KEY NOT NULL,
             email TEXT NOT NULL,
             phone_e164 TEXT,
@@ -154,50 +121,54 @@ jobs:
             updated_at TEXT NOT NULL,
             updated_by_email TEXT NOT NULL
           );
-          CREATE UNIQUE INDEX erp_users_email_uq ON erp_users(email);
-          CREATE UNIQUE INDEX erp_users_phone_uq ON erp_users(phone_e164);
-
-          CREATE TABLE erp_sessions (
+          CREATE UNIQUE INDEX IF NOT EXISTS erp_users_email_uq ON erp_users(email);
+          CREATE UNIQUE INDEX IF NOT EXISTS erp_users_phone_uq ON erp_users(phone_e164);
+          CREATE TABLE IF NOT EXISTS erp_memberships (
             id TEXT PRIMARY KEY NOT NULL,
             user_id TEXT NOT NULL,
-            token_hash TEXT NOT NULL,
+            business_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            active INTEGER DEFAULT 1 NOT NULL,
             created_at TEXT NOT NULL,
-            last_seen_at TEXT NOT NULL,
-            expires_at TEXT NOT NULL,
-            revoked_at TEXT,
-            user_agent TEXT
+            created_by_email TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            updated_by_email TEXT NOT NULL
           );
-          CREATE UNIQUE INDEX erp_sessions_token_uq ON erp_sessions(token_hash);
-          CREATE INDEX erp_sessions_user_active_idx ON erp_sessions(user_id,revoked_at,expires_at);
-
-          CREATE TABLE erp_auth_events (
-            id TEXT PRIMARY KEY NOT NULL,
-            user_id TEXT,
-            email TEXT,
-            identifier_hash TEXT NOT NULL,
-            ip_hash TEXT NOT NULL,
-            event TEXT NOT NULL,
-            success INTEGER DEFAULT 0 NOT NULL,
-            at TEXT NOT NULL,
-            details_json TEXT
-          );
-          CREATE INDEX erp_auth_events_identifier_idx ON erp_auth_events(identifier_hash,at);
-          CREATE INDEX erp_auth_events_ip_idx ON erp_auth_events(ip_hash,at);
-          CREATE INDEX erp_auth_events_user_idx ON erp_auth_events(user_id,at);
+          CREATE UNIQUE INDEX IF NOT EXISTS erp_memberships_user_business_uq ON erp_memberships(user_id, business_id);
           SQL
           npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --file=/tmp/preview-auth-schema.sql
 
+          OWNER_JSON="$(npx wrangler d1 execute "$PRODUCTION_DB_NAME" --remote --json --command="SELECT u.email, u.display_name, m.business_id, 'owner' AS role FROM erp_users u JOIN erp_memberships m ON m.user_id = u.id WHERE u.active = 1 AND m.active = 1 ORDER BY CASE WHEN lower(m.role) = 'owner' THEN 0 ELSE 1 END, u.created_at ASC LIMIT 1;")"
+          OWNER_EMAIL="$(OWNER_JSON="$OWNER_JSON" node -e 'const raw=JSON.parse(process.env.OWNER_JSON||"[]"); const rows=Array.isArray(raw)?(raw[0]?.results||raw[0]?.result||[]):[]; process.stdout.write(rows[0]?.email||"")')"
+          OWNER_NAME="$(OWNER_JSON="$OWNER_JSON" node -e 'const raw=JSON.parse(process.env.OWNER_JSON||"[]"); const rows=Array.isArray(raw)?(raw[0]?.results||raw[0]?.result||[]):[]; process.stdout.write(rows[0]?.display_name||"Owner")')"
+          OWNER_BUSINESS="$(OWNER_JSON="$OWNER_JSON" node -e 'const raw=JSON.parse(process.env.OWNER_JSON||"[]"); const rows=Array.isArray(raw)?(raw[0]?.results||raw[0]?.result||[]):[]; process.stdout.write(rows[0]?.business_id||"")')"
+          OWNER_ROLE="$(OWNER_JSON="$OWNER_JSON" node -e 'const raw=JSON.parse(process.env.OWNER_JSON||"[]"); const rows=Array.isArray(raw)?(raw[0]?.results||raw[0]?.result||[]):[]; process.stdout.write(rows[0]?.role||"owner")')"
+          test -n "$OWNER_EMAIL" || (echo "No active production owner available for preview bootstrap" && exit 1)
+          test -n "$OWNER_BUSINESS" || (echo "No active owner business available for preview bootstrap" && exit 1)
+
+          PASSWORD_HASH="$(PASSWORD="$JINAM_PREVIEW_ADMIN_PASSWORD" node - <<'NODE'
+          const crypto = require('node:crypto');
+          const password = process.env.PASSWORD;
+          const iterations = 310000;
+          const digest = 'sha256';
+          const salt = crypto.randomBytes(16).toString('base64url');
+          const hash = crypto.pbkdf2Sync(password, salt, iterations, 32, digest).toString('base64url');
+          process.stdout.write(`pbkdf2$${digest}$${iterations}$${salt}$${hash}`);
+          NODE
+          )"
+          PREVIEW_USER_ID="preview-owner"
+          PREVIEW_MEMBERSHIP_ID="preview-owner-membership"
+          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           esc() { printf "%s" "$1" | sed "s/'/''/g"; }
-          METH_MODULES='{"modules":["home","orders","labels","scan","trace","production","inventory","sales","billing","delivery","admin"],"permissions":[]}'
-          SQL="INSERT INTO erp_users (id,email,display_name,password_hash,must_change_password,active,password_updated_at,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_USER_ID")','$(esc "$PREVIEW_OWNER_EMAIL")','$(esc "$PREVIEW_OWNER_NAME")',NULL,0,1,'$(esc "$NOW")','$(esc "$NOW")','preview','$(esc "$NOW")','preview'); INSERT INTO erp_memberships (id,business_id,user_id,email,display_name,role,modules_json,active,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_MEMBERSHIP_ID")','meth','$(esc "$PREVIEW_USER_ID")','$(esc "$PREVIEW_OWNER_EMAIL")','$(esc "$PREVIEW_OWNER_NAME")','owner','$(esc "$METH_MODULES")',1,'$(esc "$NOW")','preview','$(esc "$NOW")','preview');"
+          SQL="INSERT OR REPLACE INTO erp_users (id,email,display_name,password_hash,must_change_password,active,password_updated_at,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_USER_ID")','$(esc "$OWNER_EMAIL")','$(esc "$OWNER_NAME")','$(esc "$PASSWORD_HASH")',0,1,'$(esc "$NOW")','$(esc "$NOW")','preview','$(esc "$NOW")','preview'); INSERT OR REPLACE INTO erp_memberships (id,user_id,business_id,role,active,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_MEMBERSHIP_ID")','$(esc "$PREVIEW_USER_ID")','$(esc "$OWNER_BUSINESS")','$(esc "$OWNER_ROLE")',1,'$(esc "$NOW")','preview','$(esc "$NOW")','preview');"
           npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --command="$SQL"
-          echo "owner_email=$PREVIEW_OWNER_EMAIL" >> "$GITHUB_OUTPUT"
+          echo "owner_email=$OWNER_EMAIL" >> "$GITHUB_OUTPUT"
 
       - name: Deploy isolated preview worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy --name "$PREVIEW_WORKER_NAME"
+        run: npx wrangler deploy
 
       - name: Configure preview secrets
         env:
@@ -216,16 +187,16 @@ jobs:
           PREVIEW_OWNER_EMAIL: ${{ steps.preview_owner.outputs.owner_email }}
           JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
         run: |
-          node --input-type=module <<'NODE'
-          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+          node <<'NODE'
+          const { setTimeout: sleep } = require('node:timers/promises');
           const base = 'https://seiko-system-v2-shopify-test.jinampanc.workers.dev';
           let last = '';
           for (let i = 0; i < 12; i++) {
             try {
-              const response = await fetch(`${base}/api/erp/auth/login`, {
+              const response = await fetch(`${base}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ identifier: process.env.PREVIEW_OWNER_EMAIL, password: process.env.JINAM_PREVIEW_ADMIN_PASSWORD }),
+                body: JSON.stringify({ email: process.env.PREVIEW_OWNER_EMAIL, password: process.env.JINAM_PREVIEW_ADMIN_PASSWORD }),
               });
               last = `${response.status} ${await response.text()}`;
               if (response.ok) process.exit(0);
@@ -240,8 +211,8 @@ jobs:
 
       - name: Smoke test isolated preview
         run: |
-          node --input-type=module <<'NODE'
-          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+          node <<'NODE'
+          const { setTimeout: sleep } = require('node:timers/promises');
           const base = 'https://seiko-system-v2-shopify-test.jinampanc.workers.dev';
           let last = '';
           for (let i = 0; i < 12; i++) {
