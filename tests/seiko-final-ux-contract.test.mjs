@@ -17,9 +17,9 @@ test("stable SEIKO UX is source-owned and loaded as the final stylesheet", () =>
 });
 
 test("packing designer keeps product presentation in its React-owned drawer", () => {
-  assert.match(packing, /packingPresentationLayer/);
-  assert.match(packing, /packingPresentationDrawer/);
-  assert.match(packing, /Include this product when applicable/);
+  assert.match(packing, /physicalDrawerBackdrop/);
+  assert.match(packing, /physicalDrawer/);
+  assert.match(packing, /every checked product/);
   assert.match(packing, /Printed product name/);
   assert.match(packing, /Primary measurement/);
   assert.match(packing, /Show quantity/);
@@ -30,13 +30,15 @@ test("packing designer keeps product presentation in its React-owned drawer", ()
 });
 
 test("packing canvas remains directly editable and physically proportional", () => {
-  assert.match(packing, /onPointerDown=\{event => down\(event, item\)\}/);
-  assert.match(packing, /onPointerMove=\{move\}/);
-  assert.match(packing, /onPointerUp=\{stop\}/);
-  assert.match(packing, /onWheel=\{event => wheel\(event, item\)\}/);
-  assert.match(stableCss, /packingCanvas[\s\S]*aspect-ratio: 2 \/ 1 !important/);
-  assert.match(stableCss, /packingCanvas[\s\S]*touch-action: none !important/);
-  assert.match(stableCss, /packingTrash[\s\S]*pointer-events: none !important/);
+  const canvas = readFileSync("app/physical-label-canvas.tsx", "utf8");
+  const css = readFileSync("app/physical-label-editor.css", "utf8");
+  assert.match(packing, /PhysicalLabelCanvas/);
+  assert.match(canvas, /onPointerDown/);
+  assert.match(canvas, /onPointerMove/);
+  assert.match(canvas, /resizeBox/);
+  assert.match(canvas, /onKeyDown/);
+  assert.match(css, /touch-action:none/);
+  assert.match(css, /width:50mm;height:25mm/);
 });
 
 test("standalone menu is React-owned and navigation is one-shot", () => {

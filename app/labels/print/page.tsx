@@ -29,13 +29,13 @@ export default function SavedLabelPrintPage() {
   const [order, setOrder] = useState<SeikoOrder | null>(null);
   const [ready, setReady] = useState(false);
   const [blocked, setBlocked] = useState(false);
+  const [labelCount, setLabelCount] = useState<number | null>(null);
   const printStarted = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const businessId = params.get("business") || localStorage.getItem("jinam:selected-business") || "seiko";
     const taskId = params.get("task") || "";
-    const mode = params.get("mode") === "pdf" ? "pdf" : "print";
     setBusiness(businessId);
     try {
       const tasks = JSON.parse(localStorage.getItem(taskKey(businessId)) || "[]") as SavedLabelTask[];
@@ -46,11 +46,6 @@ export default function SavedLabelPrintPage() {
       sessionStorage.removeItem(`jinam:${businessId}:labels:open-task-action`);
       sessionStorage.removeItem(`jinam:${businessId}:labels:open-task-direct-action`);
       sessionStorage.setItem(openTaskKey(businessId), selectedTask.id);
-      if (mode === "pdf") {
-        const records = JSON.parse(localStorage.getItem(pdfKey(businessId)) || "[]") as PdfRecord[];
-        const record: PdfRecord = { id: crypto.randomUUID(), batchId: selectedTask.id, batchName: selectedTask.name || "Saved label set", orderNo: selectedTask.orderNo || "", client: selectedTask.client || "", labelCount: selectedTask.selectedRows?.length || 0, createdAt: new Date().toISOString() };
-        localStorage.setItem(pdfKey(businessId), JSON.stringify([record, ...records].slice(0, 250)));
-      }
       setTask(selectedTask); setOrder(selectedOrder); setReady(true);
     } catch { setReady(true); }
   }, []);
@@ -61,12 +56,21 @@ export default function SavedLabelPrintPage() {
     const tryPrint = () => {
       if (printStarted.current) return;
       const taskStillLoading = sessionStorage.getItem(openTaskKey(business));
+      const packing = document.querySelector<HTMLElement>(".physicalPackingEditor");
       const labels = document.querySelectorAll(".labelDesignerPage .printSheet .printedLabel");
       const expected = Math.max(1, task.selectedRows?.length || 0);
       const fitting = document.querySelectorAll(".labelDesignerPage .printSheet .packingFitText:not([data-fit-ready='true'])");
-      if (taskStillLoading || labels.length < expected || fitting.length) return;
+      if (taskStillLoading || (!packing && (labels.length < expected || fitting.length))) return;
+      const actualCount = packing ? Number(packing.dataset.selectedCount || 0) : labels.length;
+      setLabelCount(actualCount);
       printStarted.current = true;
-      requestAnimationFrame(() => requestAnimationFrame(() => window.dispatchEvent(new Event("jinam:labels:print"))));
+      if (!actualCount) return;
+      if (new URLSearchParams(window.location.search).get("mode") === "pdf") {
+        const records = JSON.parse(localStorage.getItem(pdfKey(business)) || "[]") as PdfRecord[];
+        const record: PdfRecord = { id: crypto.randomUUID(), batchId: task.id, batchName: task.name || "Saved label set", orderNo: task.orderNo || "", client: task.client || "", labelCount: actualCount, createdAt: new Date().toISOString() };
+        localStorage.setItem(pdfKey(business), JSON.stringify([record, ...records].slice(0, 250)));
+      }
+      requestAnimationFrame(() => requestAnimationFrame(() => window.dispatchEvent(new Event(packing ? "jinam:packing:print" : "jinam:labels:print"))));
       timer = window.setTimeout(() => setBlocked(true), 1300);
     };
     const observer = new MutationObserver(tryPrint);
@@ -80,7 +84,7 @@ export default function SavedLabelPrintPage() {
 
   const retry = () => {
     setBlocked(false);
-    window.dispatchEvent(new Event("jinam:labels:print"));
+    window.dispatchEvent(new Event(task?.purpose === "packing" && task.sourceMode === "person" ? "jinam:packing:print" : "jinam:labels:print"));
     window.setTimeout(() => setBlocked(true), 1300);
   };
 
@@ -89,13 +93,13 @@ export default function SavedLabelPrintPage() {
 
   const isPackingPerson = task.purpose === "packing" && task.sourceMode === "person";
   return <main className="savedLabelPrintRoute" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 32, background: "#f5f1eb", color: "#102d49" }}>
-    <section style={{ maxWidth: 520, background: "#fff", border: "1px solid #d7e0e6", borderRadius: 14, padding: 24 }}>
+    <section className="savedPrintStatus" style={{ maxWidth: 520, background: "#fff", border: "1px solid #d7e0e6", borderRadius: 14, padding: 24 }}>
       <h1 style={{ marginTop: 0, fontSize: 22 }}>Preparing system print…</h1>
-      <p>{task.name || "Saved label set"} · {task.selectedRows?.length || 0} labels</p>
-      {!blocked ? <p>The browser print preview should open automatically.</p> : <><p><b>The embedded browser did not open the system print dialog.</b> Click below once more. If it remains blocked, open this JINAM preview in Chrome or Edge and print there.</p><button type="button" onClick={retry}>Print now</button></>}
+      <p>{task.name || "Saved label set"} · {labelCount ?? "Preparing"} labels</p>
+      {labelCount === 0 ? <p>No selected people meet this set&apos;s product requirements. Return to Labels to change the selection.</p> : !blocked ? <p>The browser print preview should open automatically.</p> : <><p><b>The embedded browser did not open the system print dialog.</b> Click below once more. If it remains blocked, open this JINAM preview in Chrome or Edge and print there.</p><button type="button" onClick={retry}>Print now</button></>}
       <button type="button" onClick={() => history.back()} style={{ marginLeft: 10 }}>Cancel</button>
     </section>
-    <div aria-hidden="true" style={{ position: "fixed", left: "-200vw", top: 0, width: "1200px", visibility: "hidden", pointerEvents: "none" }}>
+    <div className="savedPrintDesigner" aria-hidden="true" style={{ position: "fixed", left: "-200vw", top: 0, width: "1200px", visibility: "hidden", pointerEvents: "none" }}>
       {isPackingPerson ? <PackingPersonLabelDesigner businessId={business} order={order} canManageSizes={false}/> : <LabelDesigner businessId={business} order={order} initialPurpose={task.purpose} initialSourceMode={task.sourceMode} canManageSizes={false}/>} 
     </div>
   </main>;

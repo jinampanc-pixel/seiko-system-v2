@@ -101,97 +101,7 @@ jobs:
           }
           NODE
 
-      - name: Seed isolated preview owner
-        id: preview_owner
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          set -euo pipefail
-          PREVIEW_USER_ID="preview-owner"
-          PREVIEW_OWNER_EMAIL="preview-owner@jinam.invalid"
-          PREVIEW_OWNER_NAME="Jinam Preview Owner"
-          PREVIEW_MEMBERSHIP_ID="preview-owner-meth"
-          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-          cat > /tmp/preview-auth-schema.sql <<'SQL'
-          DROP TABLE IF EXISTS erp_sessions;
-          DROP TABLE IF EXISTS erp_auth_events;
-          DROP TABLE IF EXISTS erp_platform_roles;
-          DROP TABLE IF EXISTS erp_users;
-          DROP TABLE IF EXISTS erp_memberships;
-
-          CREATE TABLE erp_memberships (
-            id TEXT PRIMARY KEY NOT NULL,
-            business_id TEXT NOT NULL,
-            user_id TEXT,
-            email TEXT NOT NULL,
-            display_name TEXT,
-            role TEXT NOT NULL,
-            modules_json TEXT,
-            active INTEGER DEFAULT 1 NOT NULL,
-            created_at TEXT NOT NULL,
-            created_by_email TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            updated_by_email TEXT NOT NULL
-          );
-          CREATE UNIQUE INDEX erp_memberships_business_email_uq ON erp_memberships(business_id,email);
-          CREATE INDEX erp_memberships_email_idx ON erp_memberships(email,active);
-          CREATE INDEX erp_memberships_business_role_idx ON erp_memberships(business_id,role,active);
-
-          CREATE TABLE erp_users (
-            id TEXT PRIMARY KEY NOT NULL,
-            email TEXT NOT NULL,
-            phone_e164 TEXT,
-            display_name TEXT,
-            password_hash TEXT,
-            must_change_password INTEGER DEFAULT 1 NOT NULL,
-            active INTEGER DEFAULT 1 NOT NULL,
-            password_updated_at TEXT,
-            last_login_at TEXT,
-            created_at TEXT NOT NULL,
-            created_by_email TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            updated_by_email TEXT NOT NULL
-          );
-          CREATE UNIQUE INDEX erp_users_email_uq ON erp_users(email);
-          CREATE UNIQUE INDEX erp_users_phone_uq ON erp_users(phone_e164);
-
-          CREATE TABLE erp_sessions (
-            id TEXT PRIMARY KEY NOT NULL,
-            user_id TEXT NOT NULL,
-            token_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            last_seen_at TEXT NOT NULL,
-            expires_at TEXT NOT NULL,
-            revoked_at TEXT,
-            user_agent TEXT
-          );
-          CREATE UNIQUE INDEX erp_sessions_token_uq ON erp_sessions(token_hash);
-          CREATE INDEX erp_sessions_user_active_idx ON erp_sessions(user_id,revoked_at,expires_at);
-
-          CREATE TABLE erp_auth_events (
-            id TEXT PRIMARY KEY NOT NULL,
-            user_id TEXT,
-            email TEXT,
-            identifier_hash TEXT NOT NULL,
-            ip_hash TEXT NOT NULL,
-            event TEXT NOT NULL,
-            success INTEGER DEFAULT 0 NOT NULL,
-            at TEXT NOT NULL,
-            details_json TEXT
-          );
-          CREATE INDEX erp_auth_events_identifier_idx ON erp_auth_events(identifier_hash,at);
-          CREATE INDEX erp_auth_events_ip_idx ON erp_auth_events(ip_hash,at);
-          CREATE INDEX erp_auth_events_user_idx ON erp_auth_events(user_id,at);
-          SQL
-          npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --file=/tmp/preview-auth-schema.sql
-
-          esc() { printf "%s" "$1" | sed "s/'/''/g"; }
-          METH_MODULES='{"modules":["home","orders","labels","scan","trace","production","inventory","sales","billing","delivery","admin"],"permissions":[]}'
-          SQL="INSERT INTO erp_users (id,email,display_name,password_hash,must_change_password,active,password_updated_at,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_USER_ID")','$(esc "$PREVIEW_OWNER_EMAIL")','$(esc "$PREVIEW_OWNER_NAME")',NULL,0,1,'$(esc "$NOW")','$(esc "$NOW")','preview','$(esc "$NOW")','preview'); INSERT INTO erp_memberships (id,business_id,user_id,email,display_name,role,modules_json,active,created_at,created_by_email,updated_at,updated_by_email) VALUES ('$(esc "$PREVIEW_MEMBERSHIP_ID")','meth','$(esc "$PREVIEW_USER_ID")','$(esc "$PREVIEW_OWNER_EMAIL")','$(esc "$PREVIEW_OWNER_NAME")','owner','$(esc "$METH_MODULES")',1,'$(esc "$NOW")','preview','$(esc "$NOW")','preview');"
-          npx wrangler d1 execute "$PREVIEW_DB_NAME" --remote --command="$SQL"
-          echo "owner_email=$PREVIEW_OWNER_EMAIL" >> "$GITHUB_OUTPUT"
+      # Existing accounts, sessions, memberships, and business data are preserved.
 
       - name: Deploy isolated preview worker
         env:
@@ -213,7 +123,7 @@ jobs:
 
       - name: Verify preview owner login
         env:
-          PREVIEW_OWNER_EMAIL: ${{ steps.preview_owner.outputs.owner_email }}
+          PREVIEW_OWNER_EMAIL: preview-owner@jinam.invalid
           JINAM_PREVIEW_ADMIN_PASSWORD: ${{ secrets.JINAM_PREVIEW_ADMIN_PASSWORD }}
         run: |
           node --input-type=module <<'NODE'
