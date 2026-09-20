@@ -17,6 +17,20 @@ export function resizeBox<T extends LabelBox>(box: T, dx: number, dy: number, sn
 }
 export const outsideSafeArea = (box: LabelBox) => box.x < 1 || box.y < 1 || box.x + box.w > 49 || box.y + box.h > 24;
 
+// Opposite edges stay anchored. Text and its box share this geometry.
+export function stretchTextBox<T extends LabelBox & { font: number }>(box: T, edge: string, dx: number, dy: number): T {
+  let left = box.x, right = box.x + box.w, top = box.y, bottom = box.y + box.h;
+  if (edge.includes("w")) left = bound(left + dx, 0, right - 1);
+  if (edge.includes("e")) right = bound(right + dx, left + 1, LABEL_WIDTH);
+  if (edge.includes("n")) top = bound(top + dy, 0, bottom - 1);
+  if (edge.includes("s")) bottom = bound(bottom + dy, top + 1, LABEL_HEIGHT);
+  return { ...box, x: left, y: top, w: right - left, h: bottom - top, font: box.font * (bottom - top) / box.h };
+}
+export function scaleTextBox<T extends LabelBox & { font: number }>(box: T, factor: number): T {
+  const scale = bound(factor, Math.max(1 / box.w, 1 / box.h), Math.min((LABEL_WIDTH - box.x) / box.w, (LABEL_HEIGHT - box.y) / box.h));
+  return { ...box, w: box.w * scale, h: box.h * scale, font: box.font * scale };
+}
+
 // Resolve once per order, independently of presentation choices. Avoid rescanning
 // the complete order for each product of each person on every pointer movement.
 export function packingQuantities(order: SeikoOrder) {

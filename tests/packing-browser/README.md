@@ -14,6 +14,7 @@ separate terminals from the repository root:
 ```sh
 npx vite --config tests/packing-browser/vite.config.mjs
 node tests/packing-label-browser.cjs
+node tests/packing-canvas-interactions.cjs
 ```
 
 The test launches its own headless Edge instance. Set `PLAYWRIGHT_CHANNEL` to
@@ -32,3 +33,5 @@ Print labels at 100% / actual size. The existing stock uses two 50 × 25 mm
 labels separated by 4 mm, so the PDF page is 104 × 25 mm. The editor shows a
 1 mm safety margin. Browser PDF geometry is tested; physical printer calibration
 is separate from the editor's millimetre layout.
+
+Canvas interaction coverage includes automatic tight text boxes; stretching and squeezing glyphs from all four edges; wheel sizing without page scroll; native two-finger touch pinch; drag-to-bin and Undo; information drawer Apply/Cancel; hover details; and persistence of stretched geometry.

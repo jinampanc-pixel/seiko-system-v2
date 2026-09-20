@@ -50,8 +50,8 @@ const order = {
   orderId:"quantity-regression",status:"Active",archived:false,
   details:{orderNo:"2026-09-001",clientName:"Packing label validation",clientType:"School / Institution"},
   products:fixture.products.map(name=>({id:name,name,quantityMode:"per_person",defaultQuantity:0,orderTotal:0,quantityGroupRules:[],specifications:[]})),
-  fields:[{id:"name",name:"Name",type:"text",options:[],required:false}],measurements:[],
-  records:fixture.quantities.map((row,index)=>({recordId:`person-${index}`,personId:`P-${index}`,values:Object.fromEntries([["field:name",`Person ${index+1}`],...fixture.products.map((id,i)=>[`product:${id}:qty`,row[i]])])})),revisions:[],updatedAt:""
+  fields:[{id:"name",name:"Name",type:"text",options:[],required:false},{id:"class",name:"Class",type:"text",options:[],required:false},{id:"gender",name:"Gender",type:"text",options:[],required:false}],measurements:[],
+  records:fixture.quantities.map((row,index)=>({recordId:`person-${index}`,personId:`P-${index}`,values:Object.fromEntries([["field:name",`Person ${index+1}`],["field:class",index % 3 === 0 ? "12 Art" : "6"],["field:gender","Sample"],...fixture.products.map((id,i)=>[`product:${id}:qty`,row[i]])])})),revisions:[],updatedAt:""
 };
 window.print=()=>{(window as any).printCalls=((window as any).printCalls||0)+1;};
 localStorage.setItem("jinam:seiko:orders-v1", JSON.stringify([order]));

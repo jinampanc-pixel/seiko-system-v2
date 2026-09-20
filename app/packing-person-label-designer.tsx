@@ -38,6 +38,7 @@ type LabelItem = {
   printedLabel: string;
   bold: boolean;
   align?: "left" | "center" | "right";
+  textSized?: boolean;
 };
 type PersonRecord = {
   id: string;
@@ -299,28 +300,31 @@ function migrateItems(order: SeikoOrder, raw: unknown): LabelItem[] {
     result.push({
       id: String(source.id || crypto.randomUUID()), field: mapped, label: fieldLabel(order, mapped), printedLabel: String(source.fieldLabel || source.printedLabel || fieldLabel(order, mapped)),
       x: Number.isFinite(x) ? clamp(x, 0, 49) : 2, y: Number.isFinite(y) ? clamp(y, 0, 24) : 2,
-      w: Number.isFinite(w) ? clamp(w, 2, 50) : (isPackageField(mapped) ? 30 : 22), h: Number.isFinite(h) ? clamp(h, 2, 25) : (mapped.startsWith("package_row:") ? 4.5 : isPackageField(mapped) ? 9 : 4.5),
-      align: source.align === "center" || source.align === "right" ? source.align : "left", font: Number.isFinite(font) ? clamp(font, 4, 40) : 8, showLabel: Boolean(source.showLabel), bold: Boolean(source.bold || source.valueBold),
+      w: Number.isFinite(w) ? clamp(w, 1, 50) : (isPackageField(mapped) ? 30 : 22), h: Number.isFinite(h) ? clamp(h, 1, 25) : (mapped.startsWith("package_row:") ? 4.5 : isPackageField(mapped) ? 9 : 4.5),
+      textSized: source.textSized === true, align: source.align === "center" || source.align === "right" ? source.align : "left", font: Number.isFinite(font) ? clamp(font, .1, 200) : 8, showLabel: Boolean(source.showLabel), bold: Boolean(source.bold || source.valueBold),
     });
   }
   return (result.length ? result : defaultItems(order)).map(constrainBox);
 }
 
+function textMetrics(text: string, font: number, bold: boolean) {
+  const context = document.createElement("canvas").getContext("2d")!;
+  context.font = `${bold ? 700 : 400} ${font * 96 / 72}px Arial`;
+  const lines = text.split("\n"), metrics = lines.map(line => context.measureText(line || " "));
+  const ascent = Math.max(1, ...metrics.map(m => m.actualBoundingBoxAscent || 0));
+  const descent = Math.max(0, ...metrics.map(m => m.actualBoundingBoxDescent || 0));
+  const advance = font * 96 / 72 * 1.12;
+  return { lines, width: Math.max(1, ...metrics.map(m => Math.max(m.width, m.actualBoundingBoxLeft + m.actualBoundingBoxRight))) + .2, height: ascent + descent + (lines.length - 1) * advance + .2, ascent, advance };
+}
 function FitText({ text, preferredPt, bold, widthMm, heightMm, align = "left" }: { text: string; preferredPt: number; bold: boolean; widthMm: number; heightMm: number; align?: "left" | "center" | "right" }) {
-  const [layout, setLayout] = useState(() => ({ lines: text.split("\n"), font: preferredPt, overflow: false, small: false }));
-  useLayoutEffect(() => {
-    let active = true;
-    const measure = () => {
-      const context = document.createElement("canvas").getContext("2d");
-      if (!context || !active) return;
-      setLayout(measureLabelText(text, preferredPt, widthMm, heightMm, (line, pt) => {
-        context.font = `${bold ? 700 : 400} ${pt * 96 / 72}px Arial`; return context.measureText(line).width;
-      }));
-    };
-    measure(); void document.fonts.ready.then(measure);
-    return () => { active = false; };
-  }, [text, preferredPt, bold, widthMm, heightMm]);
-  return <div className="physicalText" data-overflow={layout.overflow || layout.small || undefined} title={layout.overflow ? "Text overflows this field" : layout.small ? "Text is smaller than 4 pt; enlarge the field or reduce details" : undefined} style={{ fontFamily: "Arial", fontSize: `${layout.font}pt`, fontWeight: bold ? 700 : 400, textAlign: align }}>{layout.lines.map((line, index) => <div key={index}>{line || "\u00a0"}</div>)}</div>;
+  const [metrics, setMetrics] = useState<ReturnType<typeof textMetrics> | null>(null);
+  useLayoutEffect(() => { let active = true; const measure = () => { if (active) setMetrics(textMetrics(text, preferredPt, bold)); }; measure(); void document.fonts.ready.then(measure); return () => { active = false; }; }, [text, preferredPt, bold]);
+  const small = heightMm / Math.max(1, text.split("\n").length) < 1;
+  return <div className="physicalText" data-overflow={small || undefined} style={{ fontFamily: "Arial", fontSize: `${preferredPt}pt`, textAlign: align }}>
+    {metrics && <svg width="100%" height="100%" viewBox={`0 0 ${metrics.width} ${metrics.height}`} preserveAspectRatio="none" aria-label={text} style={{ display: "block", overflow: "visible" }}>
+      {metrics.lines.map((line, index) => <text key={index} x={align === "right" ? metrics.width - .1 : align === "center" ? metrics.width / 2 : .1} y={metrics.ascent + index * metrics.advance + .1} textAnchor={align === "right" ? "end" : align === "center" ? "middle" : "start"} fontFamily="Arial" fontWeight={bold ? 700 : 400} fontSize={preferredPt * 96 / 72} fill="black">{line}</text>)}
+    </svg>}
+  </div>;
 }
 
 function packageBounds(items: LabelItem[]) {
@@ -381,6 +385,34 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
     setExcluded([]); setPreviewId(""); setScrollTop(0);
     if (listRef.current) listRef.current.scrollTop = 0;
   }, [eligibilityKey]);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [draftItems, setDraftItems] = useState<LabelItem[]>([]);
+  const infoButton = useRef<HTMLButtonElement>(null);
+  const infoDrawer = useRef<HTMLElement>(null);
+  const [recordDetail, setRecordDetail] = useState<{ record: PersonRecord; top: number; left: number } | null>(null);
+  const closeInfo = () => { setInfoOpen(false); infoButton.current?.focus(); };
+  useEffect(() => { if (infoOpen) infoDrawer.current?.querySelector<HTMLButtonElement>("button")?.focus(); }, [infoOpen]);
+  useEffect(() => {
+    if (!previewId || !listRef.current) return;
+    const index = visibleRecords.findIndex(record => record.id === previewId); if (index < 0) return;
+    const list = listRef.current, top = index * 56;
+    if (top < list.scrollTop || top + 56 > list.scrollTop + list.clientHeight) { list.scrollTop = Math.max(0, top - list.clientHeight / 2 + 28); setScrollTop(list.scrollTop); }
+  }, [previewId]);
+  // One-time conversion removes legacy container padding while preserving the
+  // existing text size. Subsequent gestures scale the glyphs with the box.
+  useLayoutEffect(() => {
+    if (!current || !items.some(item => !item.textSized)) return;
+    const next = items.map(item => {
+      if (item.textSized) return item;
+      const value = fieldValue(order, current, item.field, records.indexOf(current), records.length);
+      const text = item.showLabel && value ? `${item.printedLabel}: ${value}` : value;
+      const ctx = document.createElement("canvas").getContext("2d")!;
+      const fitted = measureLabelText(text, item.font, item.w, item.h, (line, pt) => { ctx.font = `${item.bold ? 700 : 400} ${pt * 96 / 72}px Arial`; return ctx.measureText(line).width; });
+      const metric = textMetrics(text, fitted.font, item.bold);
+      return constrainBox({ ...item, textSized: true, font: fitted.font, w: metric.width * 25.4 / 96, h: metric.height * 25.4 / 96 });
+    });
+    itemsRef.current = next; rawSetItems(next);
+  }, [items, current, order, records]);
   const [presentationOpen, setPresentationOpen] = useState(false);
   const [draftRules, setDraftRules] = useState(rules);
   const [draftPresentation, setDraftPresentation] = useState(packagePresentation);
@@ -392,6 +424,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   const customizeRef = useRef<HTMLButtonElement>(null);
   const draftProducts = order.products.filter(product => product.name.trim() && draftRules[product.id]?.included);
   const predicted = eligiblePackingIds(quantities, draftProducts.map(product => product.id)).length;
+  const draftExample = useMemo(() => presentationOpen ? buildPersonRecords(order, draftRules, draftPresentation, quantities)[0] : undefined, [presentationOpen, order, draftRules, draftPresentation, quantities]);
   const updateRule = (id: string, change: Partial<ProductRule>) => setDraftRules(old => ({ ...old, [id]: { ...old[id], ...change } }));
   const closeDrawer = () => { setPresentationOpen(false); customizeRef.current?.focus(); };
   useEffect(() => { if (presentationOpen) drawerRef.current?.querySelector<HTMLButtonElement>("button")?.focus(); }, [presentationOpen]);
@@ -406,9 +439,9 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   }, []);
   const infoOptions = [{ key: "client", label: "Client / school" }, ...order.fields.filter(field => field.name.trim()).map(field => ({ key: `field:${field.id}`, label: field.name })), { key: PACKAGE_FIELD, label: "Package contents" }, { key: "trace_person_position", label: "Label number / total" }, { key: "order", label: "Order number" }];
   const toggleInfo = (field: InfoKey) => {
-    if (items.some(item => field === PACKAGE_FIELD ? isPackageField(item.field) : item.field === field)) { setItems(items.filter(item => field === PACKAGE_FIELD ? !isPackageField(item.field) : item.field !== field)); return; }
+    if (draftItems.some(item => field === PACKAGE_FIELD ? isPackageField(item.field) : item.field === field)) { setDraftItems(draftItems.filter(item => field === PACKAGE_FIELD ? !isPackageField(item.field) : item.field !== field)); return; }
     const label = fieldLabel(order, field);
-    setItems([...items, { id: crypto.randomUUID(), field, label, printedLabel: label, ...freePlacement(items, field), font: 7, showLabel: false, bold: false }]);
+    setDraftItems([...draftItems, { id: crypto.randomUUID(), field, label, printedLabel: label, ...freePlacement(draftItems, field), font: 7, showLabel: false, bold: false }]);
   };
   const apply = () => {
     setRules(draftRules); setPackagePresentation(draftPresentation);
@@ -447,35 +480,45 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   };
   return <div className="physicalPackingEditor" data-selected-count={selectedRows.length} data-eligible-count={records.length} onKeyDown={event => {
     const target = event.target as HTMLElement;
+    if (event.key === "Escape" && infoOpen) { event.preventDefault(); closeInfo(); }
+    if (event.key === "Escape") setRecordDetail(null);
     if (event.key === "Escape" && presentationOpen) { event.preventDefault(); closeDrawer(); }
-    if ((event.ctrlKey || event.metaKey) && !target.closest("input,textarea,select") && !presentationOpen) {
+    if ((event.ctrlKey || event.metaKey) && !target.closest("input,textarea,select") && !presentationOpen && !infoOpen) {
       if (event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); }
       if (event.key.toLowerCase() === "y") { event.preventDefault(); redo(); }
     }
   }}>
     <header className="physicalHeader"><div>{onBack && <button onClick={onBack}>{backLabel || "← Back"}</button>}<small>ORDER {order.details.orderNo} · PACKING</small><h2>Packing labels for {order.details.clientName}</h2><p>Choose a product combination, then arrange one label for every eligible person.</p></div><div className="physicalActions"><button onClick={saveSet}>Save label set</button><button onClick={saveLayout}>Save layout</button><button className="primary" disabled={!selectedRows.length || !items.length || printBusy} onClick={print}>{printBusy ? "Preparing…" : `Print / PDF (${selectedRows.length})`}</button></div></header>
     {notice && <p role="status">{notice}</p>}
-    <section className="physicalInfo"><h3>Information on the label</h3><div className="physicalFieldChoices">{infoOptions.map(option => {
-      const item = items.find(item => option.key === PACKAGE_FIELD ? isPackageField(item.field) : item.field === option.key);
-      return <div key={option.key}><label><input type="checkbox" checked={!!item} onChange={() => toggleInfo(option.key as InfoKey)}/>{option.label}</label>{item && <label><input type="checkbox" checked={item.showLabel} onChange={e => setItems(items.map(other => other.id === item.id ? { ...other, showLabel: e.target.checked } : other))}/>Print field name</label>}</div>;
-    })}</div></section>
+    <section className="physicalInfo physicalPackageSummary"><div><h3>Information on the label</h3><p>{items.map(item => item.label).join(" · ") || "No fields selected"}</p><small>{items.length} fields · choose what appears and how it is named</small></div><button ref={infoButton} aria-label="Customize label information" onClick={() => { setDraftItems(items.map(item => ({ ...item }))); setInfoOpen(true); }}>Customize</button></section>
     <section className="physicalPackageSummary"><div><h3>Package contents</h3><p>{order.products.filter(product => rules[product.id]?.included).map(product => product.name).join(" + ") || "No products selected"} · <b>{records.length} eligible labels</b></p><small>AND rule: a person must have quantity greater than zero for every selected product.</small></div><button ref={customizeRef} onClick={() => { setDraftRules(mergeRules(order, rules)); setDraftPresentation({ ...packagePresentation }); setPresentationOpen(true); }}>Customize</button></section>
     <div className="physicalWorkspace"><main className="physicalMain">
       <div className="physicalPreviewNav"><button disabled={!current || records.indexOf(current) === 0} onClick={() => setPreviewId(records[records.indexOf(current) - 1].id)}>Previous</button><b>{current ? `${records.indexOf(current) + 1} of ${records.length} · ${current.name}` : "No eligible people"}</b><button disabled={!current || records.indexOf(current) >= records.length - 1} onClick={() => setPreviewId(records[records.indexOf(current) + 1].id)}>Next</button></div>
       <PhysicalLabelCanvas items={items} onChange={setItems} onGesture={active => { if (active) gesture.current = itemsRef.current; else { if (gesture.current && JSON.stringify(gesture.current) !== JSON.stringify(itemsRef.current)) { const before = gesture.current; setPast(old => [...old.slice(-99), before]); } gesture.current = null; } }} renderItem={item => current ? renderItem(item, current) : null}>
         <button disabled={!past.length} onClick={undo}>Undo</button><button disabled={!future.length} onClick={redo}>Redo</button>
       </PhysicalLabelCanvas>
-      <p className="physicalTextWarning">Highlighted text needs more space or fewer details to print legibly (minimum recommended: 4 pt).</p>
+      <p className="physicalTextWarning">Highlighted text is very small. Your chosen size is preserved in the PDF.</p>
     </main><aside className="physicalRecords"><h3>{selectedRows.length} labels selected</h3><p>{records.length} eligible people · {order.records.length} source records</p><button disabled={!records.length} onClick={() => setExcluded(selectedRows.length === records.length ? records.map(record => record.id) : [])}>{selectedRows.length === records.length ? "Clear all" : "Select all"}</button><input aria-label="Find label records" placeholder="Find eligible person, class or product" value={query} onChange={event => { setQuery(event.target.value); setScrollTop(0); if (listRef.current) listRef.current.scrollTop = 0; }}/><small>{visibleRecords.length} matching eligible people</small>
-      <div className="physicalRecordList" ref={listRef} onScroll={event => setScrollTop(event.currentTarget.scrollTop)}><div style={{ height: visibleRecords.length * 56, position: "relative" }}>{windowRecords.map((record, index) => <div className="physicalRecord" key={record.id} style={{ position: "absolute", top: (start + index) * 56, height: 56 }}><input aria-label={`Select ${record.name}`} type="checkbox" checked={!excluded.includes(record.id)} onChange={event => setExcluded(old => event.target.checked ? old.filter(id => id !== record.id) : [...old, record.id])}/><button aria-label={`Preview ${record.name}`} onClick={() => setPreviewId(record.id)} aria-pressed={current?.id === record.id}><b>{record.name}</b><small>{record.group} · {record.packageProducts.join(", ")}</small></button></div>)}</div></div>
+      <div className="physicalRecordList" ref={listRef} onScroll={event => { setScrollTop(event.currentTarget.scrollTop); setRecordDetail(null); }}><div style={{ height: visibleRecords.length * 56, position: "relative" }}>{windowRecords.map((record, index) => <div className="physicalRecord" key={record.id} style={{ position: "absolute", top: (start + index) * 56, height: 56 }}><input aria-label={`Select ${record.name}`} type="checkbox" checked={!excluded.includes(record.id)} onChange={event => setExcluded(old => event.target.checked ? old.filter(id => id !== record.id) : [...old, record.id])}/><button onPointerEnter={event => { if (event.pointerType === "touch") return; const box = event.currentTarget.getBoundingClientRect(); setRecordDetail({ record, top: Math.max(8, Math.min(window.innerHeight - 240, box.top)), left: Math.max(8, box.left - 292) }); }} onPointerLeave={() => setRecordDetail(null)} onFocus={event => { const box = event.currentTarget.getBoundingClientRect(); setRecordDetail({ record, top: Math.max(8, Math.min(window.innerHeight - 240, box.top)), left: Math.max(8, box.left - 292) }); }} onBlur={() => setRecordDetail(null)} aria-describedby={recordDetail?.record.id === record.id ? "packing-record-details" : undefined} aria-label={`Preview ${record.name}`} onClick={() => setPreviewId(record.id)} aria-pressed={current?.id === record.id}><b>{record.name}</b><small>{record.group} · {record.packageProducts.join(", ")}</small></button></div>)}</div></div>
       {!records.length && <p>Select a product combination with eligible people.</p>}
     </aside></div>
+    {recordDetail && <div id="packing-record-details" role="tooltip" className="physicalRecordPopover" style={{ top: recordDetail.top, left: recordDetail.left }}><b>{recordDetail.record.name}</b><dl>{order.fields.filter(field => field.name.trim()).map(field => <div key={field.id}><dt>{field.name}</dt><dd>{String(recordDetail.record.values[`field:${field.id}`] ?? "—")}</dd></div>)}</dl><strong>Package contents</strong>{recordDetail.record.packageLines.map((line, index) => <p key={index}>{line}</p>)}</div>}
+    {infoOpen && <div className="physicalDrawerBackdrop" onPointerDown={event => { if (event.target === event.currentTarget) closeInfo(); }}><section className="physicalDrawer" role="dialog" aria-modal="true" aria-label="Customize label information" ref={infoDrawer} onKeyDown={event => {
+      if (event.key !== "Tab") return; const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button,input,select")).filter(node => node.getClientRects().length && !(node as HTMLButtonElement).disabled); const first = controls[0], last = controls[controls.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }}><header><h3>Information on the label</h3><button onClick={closeInfo}>Cancel</button></header><div className="physicalDrawerBody"><p>Choose fields for your label. Drag and stretch them directly on the canvas after applying.</p><div className="physicalFieldChoices">{infoOptions.map(option => {
+      const matching = (item: LabelItem) => option.key === PACKAGE_FIELD ? isPackageField(item.field) : item.field === option.key;
+      const item = draftItems.find(matching);
+      const change = (patch: Partial<LabelItem>) => setDraftItems(draftItems.map(other => matching(other) ? { ...other, ...patch } : other));
+      const sample = current ? fieldValue(order, current, option.key as InfoKey, records.indexOf(current), records.length) : "";
+      return <div key={option.key} className={item ? "enabled" : ""}><label className="physicalFieldToggle"><input type="checkbox" checked={!!item} onChange={() => toggleInfo(option.key as InfoKey)}/><b>{option.label}</b></label><p className="physicalFieldExample">{sample || "No value in this record"}</p>{item && <div className="physicalFieldSettings"><label><input type="checkbox" checked={item.showLabel} onChange={e => change({ showLabel: e.target.checked })}/>Print field name</label>{item.showLabel && <label>Printed field name<input aria-label={`${option.label} printed caption`} value={item.printedLabel} onChange={e => change({ printedLabel: e.target.value })}/></label>}<label><input type="checkbox" checked={item.bold} onChange={e => change({ bold: e.target.checked })}/>Bold text</label></div>}</div>;
+    })}</div></div><footer><div><b>{draftItems.length} fields selected</b><small>Changes apply to every label in this set.</small></div><button onClick={closeInfo}>Cancel</button><button className="primary" onClick={() => { setItems(draftItems); closeInfo(); }}>Apply</button></footer></section></div>}
     {presentationOpen && <div className="physicalDrawerBackdrop" onPointerDown={event => { if (event.target === event.currentTarget) closeDrawer(); }}><section className="physicalDrawer" role="dialog" aria-modal="true" aria-label="Customize package contents" ref={drawerRef} onKeyDown={event => {
       if (event.key !== "Tab") return; const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button,input,select,summary,[tabindex='0']")).filter(node => node.getClientRects().length && !(node as HTMLButtonElement).disabled); const first = controls[0], last = controls[controls.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-    }}><header><h3>Package contents</h3><button onClick={closeDrawer}>Cancel</button></header><div className="physicalDrawerBody"><p>A label is eligible only when <b>every checked product</b> has quantity &gt; 0. Pieces are garment quantities; people are label counts.</p><div className="physicalProductChoices">{order.products.filter(product => product.name.trim()).map(product => {
+    }}><header><h3>Package contents</h3><button onClick={closeDrawer}>Cancel</button></header><div className="physicalDrawerBody"><p>A label is eligible only when <b>every checked product</b> has quantity &gt; 0. Pieces and people below are totals for the whole order. The footer shows how many people match your selected combination.</p><div className="physicalProductChoices">{order.products.filter(product => product.name.trim()).map(product => {
       const values = [...quantities.values()].map(row => row[product.id] || 0); const people = values.filter(qty => qty > 0).length; const pieces = values.reduce((a, b) => a + b, 0);
       return <label key={product.id}><input type="checkbox" checked={draftRules[product.id]?.included ?? true} onChange={event => updateRule(product.id, { included: event.target.checked })}/><b>{product.name}</b><span>{pieces} pieces · {people} people</span></label>;
     })}</div><div className="physicalLayoutOptions"><label>Product layout<select value={draftPresentation.layoutMode} onChange={e => setDraftPresentation(old => ({ ...old, layoutMode: e.target.value as PackageLayoutMode }))}><option value="flow">Flow rows</option><option value="inline">Inline</option><option value="separate">Separate movable rows</option></select></label>{draftPresentation.layoutMode === "inline" && <label>Separator<input value={draftPresentation.delimiter} onChange={e => setDraftPresentation(old => ({ ...old, delimiter: e.target.value }))}/></label>}</div>
+      <div className="physicalPackageExample"><b>Formatting preview{draftExample ? ` · ${draftExample.name}` : ""}</b><p>{draftExample?.packageText || "No person has every selected product. Choose a different combination to preview it."}</p><small>{draftPresentation.layoutMode === "separate" ? "Each product becomes its own movable text box on the canvas." : "Products share one text box on the canvas."}</small></div>
       <div className="packingPresentationRules">{order.products.filter(product => product.name.trim()).map(product => { const rule = draftRules[product.id] || defaultRule(order, product); const measurements = order.measurements.filter(item => item.appliesTo.includes(product.id) && item.name.trim()); const specs = product.specifications.filter(item => item.name.trim() && item.role !== "asset"); return <details key={product.id}><summary><b>{product.name} formatting</b><span>{rule.alias || product.name}</span></summary><div className="packingRuleBody"><label><span>Printed product name</span><input value={rule.alias} onChange={event => updateRule(product.id, { alias: event.target.value })}/></label><label><span>Format</span><select value={rule.displayMode} onChange={event => updateRule(product.id, { displayMode: event.target.value as DisplayMode })}><option value="name_details">Name: details</option><option value="name_space_details">Name details</option><option value="details_only">Details only</option><option value="name_only">Name only</option></select></label><label><span>Primary measurement</span><select value={rule.primaryMeasurementId} onChange={event => updateRule(product.id, { primaryMeasurementId: event.target.value })}><option value="">None</option>{measurements.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="packingCheck"><input type="checkbox" checked={rule.showQuantity} onChange={event => updateRule(product.id, { showQuantity: event.target.checked })}/><span>Show quantity</span></label>{measurements.length > 0 && <div className="packingDetailRules"><b>Measurements</b>{measurements.map(measurement => <div className="packingMeasurementRow" key={measurement.id}><input aria-label={`${measurement.name} printed name`} value={rule.measurementAliases[measurement.id] || measurement.name} onChange={event => updateRule(product.id, { measurementAliases: { ...rule.measurementAliases, [measurement.id]: event.target.value } })}/><select aria-label={`${measurement.name} display rule`} value={rule.measurementModes[measurement.id] || "never"} onChange={event => updateRule(product.id, { measurementModes: { ...rule.measurementModes, [measurement.id]: event.target.value as ConditionalMode } })}><option value="never">Never</option><option value="when_present">When present</option><option value="always">Always</option></select></div>)}</div>}{specs.length > 0 && <div className="packingDetailRules"><b>Attributes / specifications</b>{specs.map(spec => <div className="packingMeasurementRow" key={spec.id}><input aria-label={`${spec.name} printed name`} value={rule.specificationAliases[spec.id] || spec.name} onChange={event => updateRule(product.id, { specificationAliases: { ...rule.specificationAliases, [spec.id]: event.target.value } })}/><select aria-label={`${spec.name} display rule`} value={rule.specificationModes[spec.id] || "never"} onChange={event => updateRule(product.id, { specificationModes: { ...rule.specificationModes, [spec.id]: event.target.value as ConditionalMode } })}><option value="never">Never</option><option value="when_present">When present</option><option value="always">Always</option></select></div>)}</div>}</div></details>; })}</div>
       </div><footer><div aria-live="polite"><b>{predicted} eligible labels</b><small>{draftProducts.map(product => product.name).join(" + ") || "Choose at least one product"}</small></div><button onClick={closeDrawer}>Cancel</button><button className="primary" onClick={apply}>Apply</button></footer></section></div>}
     <style media="print">{"@page { size:104mm 25mm; margin:0; }"}</style>

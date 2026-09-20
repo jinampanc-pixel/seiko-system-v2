@@ -35,7 +35,7 @@ test("packing canvas remains directly editable and physically proportional", () 
   assert.match(packing, /PhysicalLabelCanvas/);
   assert.match(canvas, /onPointerDown/);
   assert.match(canvas, /onPointerMove/);
-  assert.match(canvas, /resizeBox/);
+  assert.match(canvas, /stretchTextBox/);
   assert.match(canvas, /onKeyDown/);
   assert.match(css, /touch-action:none/);
   assert.match(css, /width:50mm;height:25mm/);
