@@ -107,7 +107,7 @@ function defaultRule(order: SeikoOrder, product: ProductPolicy): ProductRule {
   return {
     alias: product.name,
     included: true,
-    showQuantity: false,
+    showQuantity: true,
     displayMode: "name_details",
     primaryMeasurementId: primary?.id || "",
     measurementModes: Object.fromEntries(measurements.map(item => [item.id, "when_present"])),

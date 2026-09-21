@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { callSeiko } from "./lib/seiko-api";
 import { Orders } from "./orders";
-import { LabelDesigner } from "./label-designer";
+import { SavedLabelWorkspace } from "./saved-label-workspace";
 import { Production } from "./production";
 import { orderStoreKey, type SeikoOrder } from "./lib/order-domain";
 import { businessStorageKey, canAccess, deriveThemeFromLogo, normalizeMembership, THEME_PRESETS, themeVariables, type BusinessMembership, type BusinessTheme, type FoundationBootstrap, type Module } from "./lib/foundation";
@@ -127,7 +127,7 @@ export default function Home() {
       <main>
         {module === "home" && <Overview membership={membership} onOpen={setModule} />}
         {module === "orders" && canAccess(membership, "orders") && <Orders key={`${businessId}:${labelOrder?.orderId || "center"}`} businessId={businessId} initialOrder={labelOrder} canManageSuggestions={membership?.role === "owner" || membership?.role === "admin"} onOpenLabelBatches={order => { setLabelOrder(null); setLabelPurpose(null); setLabelBatchOrder(order); setModule("labels"); }}/>}
-        {module === "labels" && canAccess(membership, "labels") && (labelOrder ? <LabelDesigner key={`${businessId}:${labelOrder.orderId}:${labelPurpose || "choose"}`} businessId={businessId} order={labelOrder} initialPurpose={labelPurpose} backLabel="← Back to Labels" onBack={() => { setLabelOrder(null); setLabelPurpose(null); }} canManageSizes={membership?.role === "owner" || membership?.role === "admin"}/> : <LabelLauncher businessId={businessId} focusedOrder={labelBatchOrder} onOpen={(order, purpose) => { setLabelBatchOrder(null); setLabelOrder(order); setLabelPurpose(purpose); }} onOpenOrders={() => { setLabelBatchOrder(null); setModule("orders"); }}/>)}
+        {module === "labels" && canAccess(membership, "labels") && (labelOrder ? <SavedLabelWorkspace key={`${businessId}:${labelOrder.orderId}:${labelPurpose || "choose"}`} businessId={businessId} order={labelOrder} initialPurpose={labelPurpose} backLabel="← Back to Labels" onBack={() => { setLabelOrder(null); setLabelPurpose(null); }} canManageSizes={membership?.role === "owner" || membership?.role === "admin"}/> : <LabelLauncher businessId={businessId} focusedOrder={labelBatchOrder} onOpen={(order, purpose) => { setLabelBatchOrder(null); setLabelOrder(order); setLabelPurpose(purpose); }} onOpenOrders={() => { setLabelBatchOrder(null); setModule("orders"); }}/>)}
         {module === "scan" && canAccess(membership, "scan") && <Scanner businessId={businessId} queueKey={queueKey} onPending={setPending} />}
         {module === "trace" && canAccess(membership, "trace") && <Trace />}
         {module === "production" && canAccess(membership, "production") && <Production key={businessId} businessId={businessId} canManage={membership?.role === "owner" || membership?.role === "admin"}/>}
@@ -162,7 +162,7 @@ function packingBatchType(batch: SavedLabelBatch) {
   return "Packing labels";
 }
 
-function LabelLauncher({businessId,focusedOrder,onOpen,onOpenOrders}:{businessId:string;focusedOrder?:SeikoOrder|null;onOpen:(order:SeikoOrder,purpose:"production"|"packing"|"inventory")=>void;onOpenOrders:()=>void}){
+export function LabelLauncher({businessId,focusedOrder,onOpen,onOpenOrders}:{businessId:string;focusedOrder?:SeikoOrder|null;onOpen:(order:SeikoOrder,purpose:"production"|"packing"|"inventory")=>void;onOpenOrders:()=>void}){
   const [query,setQuery]=useState("");
   const [batchQuery,setBatchQuery]=useState("");
   const [batchFilter,setBatchFilter]=useState<"all"|SavedLabelBatch["purpose"]>("all");

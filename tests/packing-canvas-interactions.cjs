@@ -38,13 +38,13 @@ const assert = require('node:assert/strict');
  const right=await value('x')+await value('w');await resize('w',15,0);assert.ok((await glyph()).width<oldGlyph.width,'left edge squeezes glyphs');assert.ok(Math.abs(await value('x')+await value('w')-right)<.03);
  await page.getByRole('button',{name:'Undo',exact:true}).click();
  await resize('n',0,5);assert.ok((await glyph()).height<oldGlyph.height,'top edge squeezes glyphs');await page.getByRole('button',{name:'Undo',exact:true}).click();
- await field.hover();const font=await value('font'),scroll=await page.evaluate(()=>scrollY);await page.mouse.wheel(0,-100);await page.waitForTimeout(280);
+ await field.hover();const font=await value('font'),scroll=await page.evaluate(()=>scrollY);await page.mouse.wheel(0,-100);await page.waitForFunction(before=>Number(document.querySelector('.physicalInspector input[aria-label=font]').value)>before,font,{timeout:200});await page.waitForTimeout(280);
  assert.ok(await value('font')>font,'wheel enlarges font');assert.ok((await glyph()).width>oldGlyph.width,'wheel scales actual glyphs');assert.equal(await page.evaluate(()=>scrollY),scroll,'wheel does not scroll page');
  await page.getByRole('button',{name:'Undo',exact:true}).click();assert.ok(Math.abs(await value('font')-font)<.02,'wheel is one undo');
  const size=page.getByRole('spinbutton',{name:'font',exact:true});await size.fill(String(font+2));await size.press('Tab');assert.ok((await glyph()).height>oldGlyph.height,'font input grows visible text');
  await page.getByRole('button',{name:'Undo',exact:true}).click();
  const count=await page.locator('.physicalItem').count();let box=await field.boundingBox();await page.mouse.move(box.x+box.width/3,box.y+box.height/2);await page.mouse.down();
- const bin=await page.locator('.physicalTrash.visible').boundingBox();await page.mouse.move(bin.x+bin.width/2,bin.y+bin.height/2,{steps:8});await page.mouse.up();assert.equal(await page.locator('.physicalItem').count(),count-1,'drop deletes');
+ const bin=await page.locator('.physicalTrash.visible').boundingBox();const label=await page.locator('.physicalCanvas').boundingBox();assert.ok(bin.x>=label.x && bin.x+bin.width<=label.x+label.width && bin.y>=label.y && bin.y+bin.height<=label.y+label.height,'remove target stays inside label');assert.ok(Math.abs(bin.x+bin.width/2-label.x-label.width/2)<2,'remove target centered on label');await page.mouse.move(bin.x+bin.width/2,bin.y+bin.height/2,{steps:8});await page.mouse.up();assert.equal(await page.locator('.physicalItem').count(),count-1,'drop deletes');
  await page.getByRole('button',{name:'Undo',exact:true}).click();assert.equal(await page.locator('.physicalItem').count(),count,'undo restores deleted field');
  // Native multi-touch events in a mobile-size browser, not synthetic React calls.
  await page.setViewportSize({width:430,height:900});await page.getByRole('button',{name:'Fit',exact:true}).click();await field.scrollIntoViewIfNeeded();await field.click();box=await field.boundingBox();

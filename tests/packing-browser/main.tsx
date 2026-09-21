@@ -41,7 +41,9 @@ import "../../app/seiko-interface-fixes.css";
 import "../../app/packing-workspace-audit.css";
 import "../../app/packing-workflow-final.css";
 import "../../app/seiko-stable.css";
-import React from "react";
+import React, { useState } from "react";
+import { LabelLauncher } from "../../app/page";
+import { SavedLabelWorkspace } from "../../app/saved-label-workspace";
 import { Orders } from "../../app/orders";
 import { OrderSetupPolish } from "../../app/order-setup-polish";
 import { OrderSetupFinalize } from "../../app/order-setup-finalize";
@@ -59,4 +61,5 @@ const order = {
 };
 window.print=()=>{(window as any).printCalls=((window as any).printCalls||0)+1;};
 if (!new URLSearchParams(location.search).has("orders")) localStorage.setItem("jinam:seiko:orders-v1", JSON.stringify([order]));
-createRoot(document.getElementById("root")!).render(new URLSearchParams(location.search).has("orders") ? <><Orders businessId="seiko"/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/></> : new URLSearchParams(location.search).has("task") ? <SavedLabelPrintPage/> : <div className="businessAppShell"><main className="businessAppMain"><PackingPersonLabelDesigner businessId="seiko" order={order as any} canManageSizes={false}/></main></div>);
+function CenterTest() { const [selected,setSelected]=useState<any>(null); return selected ? <SavedLabelWorkspace businessId="seiko" order={selected} onBack={()=>setSelected(null)}/> : <LabelLauncher businessId="seiko" onOpen={order=>setSelected(order)} onOpenOrders={()=>{}}/>; }
+createRoot(document.getElementById("root")!).render(new URLSearchParams(location.search).has("center") ? <CenterTest/> : new URLSearchParams(location.search).has("orders") ? <><Orders businessId="seiko"/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/></> : new URLSearchParams(location.search).has("task") ? <SavedLabelPrintPage/> : <div className="businessAppShell"><main className="businessAppMain"><PackingPersonLabelDesigner businessId="seiko" order={order as any} canManageSizes={false}/></main></div>);
