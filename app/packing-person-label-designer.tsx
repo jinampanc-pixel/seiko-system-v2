@@ -321,7 +321,7 @@ function FitText({ text, preferredPt, bold, widthMm, heightMm, align = "left" }:
   useLayoutEffect(() => { let active = true; const measure = () => { if (active) setMetrics(textMetrics(text, preferredPt, bold)); }; measure(); void document.fonts.ready.then(measure); return () => { active = false; }; }, [text, preferredPt, bold]);
   const small = heightMm / Math.max(1, text.split("\n").length) < 1;
   return <div className="physicalText" data-overflow={small || undefined} style={{ fontFamily: "Arial", fontSize: `${preferredPt}pt`, textAlign: align }}>
-    {metrics && <svg width="100%" height="100%" viewBox={`0 0 ${metrics.width} ${metrics.height}`} preserveAspectRatio="none" aria-label={text} style={{ display: "block", overflow: "visible" }}>
+    {metrics && <svg width="100%" height="100%" viewBox={`0 0 ${metrics.width} ${metrics.height}`} preserveAspectRatio={align === "right" ? "xMaxYMin meet" : align === "center" ? "xMidYMin meet" : "xMinYMin meet"} aria-label={text} style={{ display: "block", overflow: "visible" }}>
       {metrics.lines.map((line, index) => <text key={index} x={align === "right" ? metrics.width - .1 : align === "center" ? metrics.width / 2 : .1} y={metrics.ascent + index * metrics.advance + .1} textAnchor={align === "right" ? "end" : align === "center" ? "middle" : "start"} fontFamily="Arial" fontWeight={bold ? 700 : 400} fontSize={preferredPt * 96 / 72} fill="black">{line}</text>)}
     </svg>}
   </div>;
