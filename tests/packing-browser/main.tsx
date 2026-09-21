@@ -42,6 +42,10 @@ import "../../app/packing-workspace-audit.css";
 import "../../app/packing-workflow-final.css";
 import "../../app/seiko-stable.css";
 import React from "react";
+import { Orders } from "../../app/orders";
+import { OrderSetupPolish } from "../../app/order-setup-polish";
+import { OrderSetupFinalize } from "../../app/order-setup-finalize";
+import { OrderCompactUx } from "../../app/order-compact-ux";
 import { createRoot } from "react-dom/client";
 import { PackingPersonLabelDesigner } from "../../app/packing-person-label-designer";
 import SavedLabelPrintPage from "../../app/labels/print/page";
@@ -54,5 +58,5 @@ const order = {
   records:fixture.quantities.map((row,index)=>({recordId:`person-${index}`,personId:`P-${index}`,values:Object.fromEntries([["field:name",`Person ${index+1}`],["field:class",index % 3 === 0 ? "12 Art" : "6"],["field:gender","Sample"],...fixture.products.map((id,i)=>[`product:${id}:qty`,row[i]])])})),revisions:[],updatedAt:""
 };
 window.print=()=>{(window as any).printCalls=((window as any).printCalls||0)+1;};
-localStorage.setItem("jinam:seiko:orders-v1", JSON.stringify([order]));
-createRoot(document.getElementById("root")!).render(new URLSearchParams(location.search).has("task") ? <SavedLabelPrintPage/> : <div className="businessAppShell"><main className="businessAppMain"><PackingPersonLabelDesigner businessId="seiko" order={order as any} canManageSizes={false}/></main></div>);
+if (!new URLSearchParams(location.search).has("orders")) localStorage.setItem("jinam:seiko:orders-v1", JSON.stringify([order]));
+createRoot(document.getElementById("root")!).render(new URLSearchParams(location.search).has("orders") ? <><Orders businessId="seiko"/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/></> : new URLSearchParams(location.search).has("task") ? <SavedLabelPrintPage/> : <div className="businessAppShell"><main className="businessAppMain"><PackingPersonLabelDesigner businessId="seiko" order={order as any} canManageSizes={false}/></main></div>);

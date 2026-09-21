@@ -165,6 +165,7 @@ export function readinessIssues(order: SeikoOrder): string[] {
 export function validateOrder(order: SeikoOrder): string[] {
   const errors: string[] = [];
   if (!order.details.clientName.trim()) errors.push("Client name is required.");
+  if (!order.details.contactNumber?.trim()) errors.push("Phone number is required.");
   if (order.details.attnRequired && !order.details.contactPerson.trim()) errors.push("Attn name is required for this order.");
   return errors;
 }

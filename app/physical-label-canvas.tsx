@@ -56,7 +56,7 @@ export function PhysicalLabelCanvas<T extends PhysicalItem>({ items, onChange, r
       <button onClick={arrange}>Auto-arrange</button><span onPointerDown={endWheel}>{children}</span>
     </div>
     <p className="physicalHint">Drag to move · stretch any edge to resize text · scroll or pinch a field to scale · drag to the bin to remove</p>
-    <div className="physicalStage" ref={stage}><div style={{ width: 50 * MM_PX * zoom, height: 25 * MM_PX * zoom, flexShrink: 0 }}>
+    <div className="physicalStageWrap"><div className="physicalStage" ref={stage}><div style={{ width: 50 * MM_PX * zoom, height: 25 * MM_PX * zoom, flexShrink: 0 }}>
       <div className="physicalCanvas" tabIndex={0} aria-label="50 by 25 millimetre label editor" style={{ width: 50 * MM_PX, height: 25 * MM_PX, transform: `scale(${zoom})`, "--handle-size": `${10 / zoom}px`, "--handle-hit": `${24 / zoom}px` } as CSSProperties} onPointerDown={() => select("")}
         onKeyDown={event => {
           if (!selected || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Delete", "Backspace"].includes(event.key)) return;
@@ -91,7 +91,8 @@ export function PhysicalLabelCanvas<T extends PhysicalItem>({ items, onChange, r
         </div>)}
         {guides.x != null && <div className="physicalGuide vertical" style={{ left: guides.x * MM_PX }}/>}{guides.y != null && <div className="physicalGuide horizontal" style={{ top: guides.y * MM_PX }}/>}
       </div></div></div>
-    <div ref={trash} className={`physicalTrash ${dragging ? "visible" : ""} ${overTrash ? "over" : ""}`} aria-hidden={!dragging}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg>{overTrash ? "Release to remove" : "Drop here to remove"}</div>
+    <div ref={trash} className={`physicalTrash ${dragging ? "visible" : ""} ${overTrash ? "over" : ""}`} aria-label="Drop here to remove" aria-hidden={!dragging}><span aria-hidden="true">×</span></div></div>
+
     {selected && <div className="physicalInspector"><b>{selected.label}</b>{(["x", "y", "w", "h", "font"] as const).map(key => <label key={key}>{({ x: "X (mm)", y: "Y (mm)", w: "Width (mm)", h: "Height (mm)", font: "Font (pt)" })[key]}<input aria-label={key} type="number" step={key === "font" ? .25 : .1} min={key === "x" || key === "y" ? 0 : 1} value={Number(selected[key].toFixed(2))} onChange={e => {
       endWheel(); const value = Number(e.target.value); if (!Number.isFinite(value) || value < 0) return;
       update(key === "font" ? scaleTextBox(selected, value / selected.font) : key === "w" ? stretchTextBox(selected, "e", value - selected.w, 0) : key === "h" ? stretchTextBox(selected, "s", 0, value - selected.h) : { ...selected, [key]: value });
