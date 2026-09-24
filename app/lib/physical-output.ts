@@ -16,6 +16,14 @@ export const PHYSICAL_OUTPUT_PROFILES = {
     pagesPerSheet: 1,
     kind: "label",
   },
+  roll50x25TwoAcross: {
+    id: "roll-50x25-two-across",
+    label: "Two-across 50 × 25 mm labels (4 mm gap)",
+    widthMm: 104,
+    heightMm: 25,
+    pagesPerSheet: 1,
+    kind: "label",
+  },
   a4: {
     id: "a4",
     label: "A4",
@@ -37,3 +45,4 @@ export const PHYSICAL_OUTPUT_PROFILES = {
 export function physicalPageCss(profile: PhysicalOutputProfile) {
   return `@page { size:${profile.widthMm}mm ${profile.heightMm}mm; margin:0; }`;
 }
+

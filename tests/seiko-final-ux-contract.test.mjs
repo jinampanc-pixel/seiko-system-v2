@@ -41,7 +41,7 @@ test("packing canvas remains directly editable and physically proportional", () 
   const profile = readFileSync("app/lib/physical-output.ts", "utf8");
   assert.match(profile, /widthMm: 50/);
   assert.match(profile, /heightMm: 25/);
-  assert.match(packing, /physicalPageCss\(PACKING_OUTPUT\)/);
+  assert.match(packing, /physicalPageCss\(PACKING_ROLL\)/);
   assert.match(packing, /PACKING_OUTPUT.widthMm/);
   assert.match(packing, /PACKING_OUTPUT.heightMm/);
 });
