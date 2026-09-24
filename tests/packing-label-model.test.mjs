@@ -58,3 +58,11 @@ test("font fitting reports dense text and true overflow", () => {
   const dense = model.measureLabelText("W".repeat(200), 8, 10, 2, (line, pt) => line.length * pt);
   assert.equal(dense.small, true); assert.equal(dense.overflow, true);
 });
+
+test("ANY includes mixed packages once and excludes zero or unselected products", () => {
+ const q = new Map([["a",{Pant:1,Shirt:1,Vest:1}],["b",{Pant:1,Vest:1}],["c",{Kurti:1,Pant:1}],["d",{Kurti:1,Pant:1,Vest:1}],["e",{Vest:2}],["zero",{Vest:0}],["other",{Track:1}]]);
+ const products=["Kurti","Pant","Shirt","Vest"];
+ assert.equal(model.eligiblePackingIds(q,products).length,0);
+ assert.equal(JSON.stringify(model.eligiblePackingIds(q,products,"any")),JSON.stringify(["a","b","c","d","e"]));
+ assert.equal(model.eligiblePackingIds(q,[],"any").length,0);
+});

@@ -48,9 +48,9 @@ export function packingQuantities(order: SeikoOrder) {
     return [product.id, applies && Number.isFinite(qty) && qty > 0 ? qty : 0];
   }))]));
 }
-export function eligiblePackingIds(quantities: Map<string, Record<string, number>>, products: string[]): string[] {
+export function eligiblePackingIds(quantities: Map<string, Record<string, number>>, products: string[], matchMode: "all" | "any" = "all"): string[] {
   if (!products.length) return [];
-  return [...quantities].filter(([, values]) => products.every(id => values[id] > 0)).map(([id]) => id);
+  return [...quantities].filter(([, values]) => (matchMode === "any" ? products.some(id => values[id] > 0) : products.every(id => values[id] > 0))).map(([id]) => id);
 }
 
 export function measureLabelText(text: string, preferredPt: number, widthMm: number, heightMm: number, measure: (line: string, pt: number) => number) {
