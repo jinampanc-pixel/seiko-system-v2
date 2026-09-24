@@ -21,3 +21,5 @@
 
 @media print{.physicalPrintSheet .physicalPrintedItem>.physicalText{transform:none!important;max-width:100%!important;max-height:100%!important}}
 
+
+.physicalMatchChoices{margin:0;padding:12px;border:1px solid var(--line,#c8d5df);border-radius:8px;display:grid;gap:12px;background:var(--paper,#fff);color:var(--ink,#183247)}.physicalMatchChoices label{display:flex;align-items:center;gap:10px;cursor:pointer}.physicalMatchChoices input[type=radio]{appearance:auto;width:18px;height:18px;margin:0;flex-shrink:0;accent-color:var(--navy,#183247)}
