@@ -15,6 +15,7 @@ import {
 } from "./lib/foundation";
 
 const NAV_INTENT_KEY = "jinam:navigation-intent";
+type NavIntent = Module | "settings" | "meth jobs" | "clients" | "products" | "billing" | "users & access";
 
 const fallbackBusinesses: BusinessMembership[] = [
   normalizeMembership({
@@ -43,16 +44,17 @@ const fallbackBusinesses: BusinessMembership[] = [
   }),
 ];
 
-const moduleItems: Array<{ module: Module; label: string; icon: string }> = [
-  { module: "home", label: "Home", icon: "⌂" },
-  { module: "orders", label: "Orders", icon: "≡" },
-  { module: "labels", label: "Labels", icon: "▤" },
-  { module: "scan", label: "Scan", icon: "⌗" },
-  { module: "trace", label: "Trace", icon: "◎" },
-  { module: "production", label: "Production", icon: "•" },
-  { module: "inventory", label: "Inventory", icon: "•" },
-  { module: "sales", label: "Sales", icon: "•" },
-  { module: "delivery", label: "Delivery", icon: "•" },
+const standaloneItems: Array<{ intent: NavIntent; label: string; icon: string; module?: Module }> = [
+  { intent: "home", label: "Home", icon: "⌂", module: "home" },
+  { intent: "orders", label: "Orders", icon: "≡", module: "orders" },
+  { intent: "labels", label: "Labels", icon: "▤", module: "labels" },
+  { intent: "scan", label: "Scan", icon: "⌗", module: "scan" },
+  { intent: "trace", label: "Trace", icon: "◎", module: "trace" },
+  { intent: "production", label: "Production", icon: "•", module: "production" },
+  { intent: "meth jobs", label: "MeTh jobs", icon: "↔" },
+  { intent: "clients", label: "Clients", icon: "◎" },
+  { intent: "products", label: "Products", icon: "◇" },
+  { intent: "billing", label: "Billing", icon: "₹" },
 ];
 
 function currentBusinessId() {
@@ -69,8 +71,9 @@ function rootUrl(businessId = currentBusinessId()) {
   return `/?business=${encodeURIComponent(businessId)}`;
 }
 
-function navigateToRoot(target: Module | "settings") {
-  sessionStorage.setItem(NAV_INTENT_KEY, target);
+function goToRoot(intent: NavIntent) {
+  if (intent === "home") sessionStorage.removeItem(NAV_INTENT_KEY);
+  else sessionStorage.setItem(NAV_INTENT_KEY, intent);
   window.location.assign(rootUrl());
 }
 
@@ -87,7 +90,6 @@ function BusinessNavigator({ businesses, businessId, onChange }: {
 }) {
   const selected = businesses.find(item => item.businessId === businessId) || businesses[0];
   if (!selected) return null;
-
   return <div className="globalBusinessNavigator" title="Switch business">
     <span className={`globalBusinessIcon logo-${selected.businessId}`} aria-hidden="true">
       {selected.logoUrl ? <img src={selected.logoUrl} alt=""/> : <b>{selected.businessName.slice(0, 1)}</b>}
@@ -108,6 +110,7 @@ function StandaloneNavigation({ businesses, businessId, onBusinessChange }: {
   const [open, setOpen] = useState(false);
   const membership = businesses.find(item => item.businessId === businessId) || businesses[0];
   if (!membership) return null;
+  const visible = standaloneItems.filter(item => !item.module || canAccess(membership, item.module));
 
   return <>
     <div className="topbarEnd globalStandaloneNavEnd">
@@ -118,15 +121,15 @@ function StandaloneNavigation({ businesses, businessId, onBusinessChange }: {
     {open && <>
       <button className="menuBackdrop" aria-label="Close menu" onClick={() => setOpen(false)}/>
       <nav className="moduleMenu globalStandaloneMenu" aria-label="Modules">
-        <div className="moduleMenuHead"><b>Menu</b><button onClick={() => setOpen(false)} aria-label="Close menu">×</button></div>
-        {moduleItems.filter(item => canAccess(membership, item.module)).map(item => <button
-          type="button"
-          className={`nav ${item.module === "labels" ? "active" : ""}`}
-          key={item.module}
-          onClick={() => navigateToRoot(item.module)}
-        ><span>{item.icon}</span><small>{item.label}</small></button>)}
-        {canAccess(membership, "admin") && <div className="moduleMenuSettings"><button type="button" className="nav" onClick={() => navigateToRoot("settings")}><span>⚙</span><small>Settings</small></button></div>}
         <BusinessNavigator businesses={businesses} businessId={businessId} onChange={onBusinessChange}/>
+        <div className="moduleMenuHead"><b>Menu</b><button onClick={() => setOpen(false)} aria-label="Close menu">×</button></div>
+        {visible.map(item => <button type="button" className={`nav ${item.intent === "labels" ? "active" : ""}`} key={item.intent} onClick={() => goToRoot(item.intent)}>
+          <span>{item.icon}</span><small>{item.label}</small>
+        </button>)}
+        {canAccess(membership, "admin") && <div className="moduleMenuSettings">
+          <button type="button" className="nav" onClick={() => goToRoot("settings")}><span>⚙</span><small>Settings</small></button>
+          <button type="button" className="nav" onClick={() => goToRoot("users & access")}><span>◎</span><small>Users &amp; access</small></button>
+        </div>}
       </nav>
     </>}
   </>;
@@ -153,129 +156,52 @@ export function GlobalNavigation() {
   }, []);
 
   useEffect(() => {
-    let frame = 0;
-    const sync = () => {
-      frame = 0;
-      const rootMenu = document.querySelector<HTMLElement>(".app .topbar .moduleMenu");
-      const labelHeader = document.querySelector<HTMLElement>(".labelCreateApp .labelCreateTopbar");
-      setMenuHost(current => current === rootMenu ? current : rootMenu);
-      setCreateHeader(current => current === labelHeader ? current : labelHeader);
-
-      document.querySelectorAll<HTMLElement>(".moduleMenu .nav small").forEach(label => {
-        if (label.textContent?.trim() === "Overview") label.textContent = "Home";
-      });
-
-      document.querySelectorAll<HTMLElement>(".compactBusinessPicker,.labelCreateBrand").forEach(logo => {
-        logo.setAttribute("role", "button");
-        logo.setAttribute("tabindex", "0");
-        logo.setAttribute("aria-label", "Go to Home");
-        logo.classList.add("globalHomeLogo");
-      });
+    const syncHosts = () => {
+      setMenuHost(document.querySelector<HTMLElement>(".app .topbar .moduleMenu"));
+      setCreateHeader(document.querySelector<HTMLElement>(".labelCreateApp .labelCreateTopbar"));
     };
-    const schedule = () => { if (!frame) frame = requestAnimationFrame(sync); };
-    sync();
-    const observer = new MutationObserver(schedule);
+    syncHosts();
+    const observer = new MutationObserver(syncHosts);
     observer.observe(document.body, { childList: true, subtree: true });
-    return () => { observer.disconnect(); if (frame) cancelAnimationFrame(frame); };
-  }, []);
-
-  useEffect(() => {
-    const goHome = () => {
-      sessionStorage.removeItem(NAV_INTENT_KEY);
-      window.location.assign(rootUrl());
-    };
-    const click = (event: MouseEvent) => {
-      const target = event.target as Element | null;
-      if (!target) return;
-      const logo = target.closest<HTMLElement>(".globalHomeLogo");
-      if (logo) {
-        event.preventDefault();
-        goHome();
-        return;
-      }
-
-      const activeNav = target.closest<HTMLButtonElement>(".app .topbar .moduleMenu .nav.active");
-      const label = activeNav?.querySelector("small")?.textContent?.trim();
-      if (activeNav && (label === "Orders" || label === "Labels")) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        navigateToRoot(label.toLowerCase() as "orders" | "labels");
-      }
-    };
-    const keydown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (!target?.classList.contains("globalHomeLogo") || !["Enter", " "].includes(event.key)) return;
-      event.preventDefault();
-      goHome();
-    };
-    document.addEventListener("click", click, true);
-    document.addEventListener("keydown", keydown, true);
-    return () => {
-      document.removeEventListener("click", click, true);
-      document.removeEventListener("keydown", keydown, true);
-    };
-  }, []);
-
-  useEffect(() => {
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      const target = event.target as Element | null;
-      if (!target || target.closest(".moduleMenu") || target.closest(".menuToggle")) return;
-      const openToggle = document.querySelector<HTMLButtonElement>('.menuToggle[aria-expanded="true"]');
-      openToggle?.click();
-    };
-    document.addEventListener("pointerdown", closeOnOutsidePointer, true);
-    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
     if (pathname !== "/") return;
     const requestedBusiness = new URLSearchParams(window.location.search).get("business");
     if (!requestedBusiness) return;
-
-    let attempts = 0;
-    const applyBusiness = () => {
-      attempts += 1;
+    const timer = window.setTimeout(() => {
       const select = document.querySelector<HTMLSelectElement>(".app .compactBusinessPicker select");
-      if (!select) {
-        if (attempts < 50) window.setTimeout(applyBusiness, 40);
-        return;
+      if (select && Array.from(select.options).some(option => option.value === requestedBusiness) && select.value !== requestedBusiness) {
+        setReactSelectValue(select, requestedBusiness);
       }
-      if (!Array.from(select.options).some(option => option.value === requestedBusiness)) return;
-      if (select.value !== requestedBusiness) setReactSelectValue(select, requestedBusiness);
       localStorage.setItem("jinam:selected-business", requestedBusiness);
       setBusinessId(requestedBusiness);
-      const url = new URL(window.location.href);
-      url.searchParams.delete("business");
-      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-    };
-    applyBusiness();
+    }, 80);
+    return () => window.clearTimeout(timer);
   }, [pathname]);
 
   useEffect(() => {
     if (pathname !== "/") return;
-    const intent = sessionStorage.getItem(NAV_INTENT_KEY) as Module | "settings" | null;
+    const intent = sessionStorage.getItem(NAV_INTENT_KEY) as NavIntent | null;
     if (!intent) return;
     sessionStorage.removeItem(NAV_INTENT_KEY);
-    if (intent === "home") return;
-
-    let attempts = 0;
-    const openTarget = () => {
-      attempts += 1;
+    const timer = window.setTimeout(() => {
       const toggle = document.querySelector<HTMLButtonElement>(".app .topbar .menuToggle");
-      if (!toggle) {
-        if (attempts < 50) window.setTimeout(openTarget, 40);
-        return;
-      }
+      if (!toggle) return;
       if (toggle.getAttribute("aria-expanded") !== "true") toggle.click();
       window.setTimeout(() => {
-        const expected = intent === "settings" ? "Settings" : moduleItems.find(item => item.module === intent)?.label;
-        const target = Array.from(document.querySelectorAll<HTMLButtonElement>(".moduleMenu .nav")).find(button => button.querySelector("small")?.textContent?.trim() === expected);
+        const expected = intent === "home" ? "Home" : intent.split(" ").map(word => word[0].toUpperCase() + word.slice(1)).join(" ");
+        const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>(".app .topbar .moduleMenu .nav"));
+        const target = buttons.find(button => {
+          const label = button.querySelector("small")?.textContent?.trim() || "";
+          return label.toLowerCase() === expected.toLowerCase() || (intent === "home" && label === "Overview");
+        });
         if (target) target.click();
-        else if (attempts < 50) window.setTimeout(openTarget, 40);
-      }, 0);
-    };
-    openTarget();
+        else if (toggle.getAttribute("aria-expanded") === "true") toggle.click();
+      }, 30);
+    }, 120);
+    return () => window.clearTimeout(timer);
   }, [pathname]);
 
   const visibleBusinesses = cleanBusinesses(businesses);
@@ -283,7 +209,6 @@ export function GlobalNavigation() {
     localStorage.setItem("jinam:selected-business", nextBusinessId);
     setBusinessId(nextBusinessId);
     sessionStorage.removeItem(NAV_INTENT_KEY);
-
     if (standaloneLabels) {
       const url = new URL(window.location.href);
       url.searchParams.set("business", nextBusinessId);
@@ -292,16 +217,9 @@ export function GlobalNavigation() {
       window.location.assign(`${url.pathname}?${url.searchParams.toString()}`);
       return;
     }
-
     const rootSelect = document.querySelector<HTMLSelectElement>(".app .compactBusinessPicker select");
-    if (rootSelect && Array.from(rootSelect.options).some(option => option.value === nextBusinessId)) {
-      setReactSelectValue(rootSelect, nextBusinessId);
-      const openToggle = document.querySelector<HTMLButtonElement>('.menuToggle[aria-expanded="true"]');
-      openToggle?.click();
-      return;
-    }
-
-    window.location.assign(rootUrl(nextBusinessId));
+    if (rootSelect && Array.from(rootSelect.options).some(option => option.value === nextBusinessId)) setReactSelectValue(rootSelect, nextBusinessId);
+    else window.location.assign(rootUrl(nextBusinessId));
   };
 
   return <>

@@ -1,0 +1,37 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const assert=require('node:assert/strict');
+const fixture=require('./fixtures/packing-quantity-regression.json');
+(async()=>{
+ const browser=await chromium.launch({headless:true,channel:'msedge'});
+ const page=await browser.newPage({viewport:{width:1400,height:1000}});
+ const url='http://127.0.0.1:5176/tests/packing-browser/index.html';
+ await page.goto(url);
+ const open=()=>page.locator('.physicalPackageSummary:not(.physicalInfo) button').click();
+ await open();
+ for(const name of ['T-Shirt','Track Pant']) await page.locator('.physicalProductChoices label').filter({has:page.locator('b',{hasText:new RegExp('^'+name+'$')})}).getByRole('checkbox').uncheck();
+ assert.match(await page.locator('.physicalDrawer footer').innerText(),/0 eligible/);
+ await page.getByRole('radio',{name:'Any selected product',exact:true}).check();
+ const expected=fixture.quantities.filter(q=>q.slice(0,4).some(n=>n>0)).length;
+ assert.match(await page.locator('.physicalDrawer footer').innerText(),new RegExp(expected+' eligible'));
+ await page.getByRole('button',{name:'Apply',exact:true}).click();
+ assert.equal(Number(await page.locator('.physicalPackingEditor').getAttribute('data-selected-count')),expected);
+ await open();await page.getByRole('radio',{name:'All selected products',exact:true}).check();
+ await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).last().click();
+ assert.equal(Number(await page.locator('.physicalPackingEditor').getAttribute('data-selected-count')),expected);
+ await page.getByRole('button',{name:'Save label set',exact:true}).click();
+ await page.goto(url+'?center');
+ await page.locator('.labelBatchModuleList article').getByRole('button',{name:'Open',exact:true}).click();
+ await page.locator('.physicalPackingEditor').waitFor();
+ assert.equal(Number(await page.locator('.physicalPackingEditor').getAttribute('data-selected-count')),expected);
+ await open();assert.equal(await page.getByRole('radio',{name:'Any selected product',exact:true}).isChecked(),true);
+ await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).last().click();
+ await page.getByRole('button',{name:/Print.*PDF/}).click();
+ await page.waitForFunction(()=>window.printCalls===1);
+ const labels=await page.locator('.physicalPrintedLabel').allTextContents();
+ assert.equal(labels.length,expected);
+ const rows=fixture.quantities.filter(q=>q.slice(0,4).some(n=>n>0));
+ labels.forEach((text,i)=>fixture.products.slice(0,4).forEach((name,j)=>assert.equal(text.includes(name+':'),rows[i][j]>0,'only ordered selected products print')));
+ console.log('PASS ANY: mixed quantities, no duplicates, Cancel, saved center reopen, printed contents for every record: '+expected);
+ await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});
+

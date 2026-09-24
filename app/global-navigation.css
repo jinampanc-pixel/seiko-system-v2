@@ -1,140 +1,37 @@
-/* Global navigation rules: header is logo + menu only; business switching lives in Menu. */
+/* Shared Jinam navigation grammar for the legacy SEIKO operational surface. */
+.app .topbar .compactBusinessPicker{padding-right:0!important;cursor:pointer!important}.app .topbar .compactBusinessPicker::after{display:none!important}.app .topbar .compactBusinessPicker>select{display:none!important;pointer-events:none!important}.app .topbar .globalHomeLogo{outline:none}.app .topbar .globalHomeLogo:focus-visible{border-radius:8px;box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 22%,transparent)}
 
-/* Root header: logo is Home; business switching belongs in the menu. */
-.app .topbar .compactBusinessPicker{
-  padding-right:0!important;
-  cursor:pointer!important;
-}
-.app .topbar .compactBusinessPicker::after{display:none!important}
-.app .topbar .compactBusinessPicker>select{display:none!important;pointer-events:none!important}
-.app .topbar .globalHomeLogo{outline:none}
-.app .topbar .globalHomeLogo:focus-visible{
-  border-radius:8px;
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 22%,transparent);
-}
+/* SEIKO now uses the same white right drawer geometry as the first-class Jinam business shells. */
+.app .topbar .moduleMenu,.globalStandaloneMenu{top:64px!important;right:0!important;bottom:0!important;width:min(316px,92vw)!important;min-height:0!important;height:auto!important;padding:14px!important;border:0!important;border-left:1px solid rgba(0,0,0,.08)!important;border-radius:0!important;background:rgba(255,255,255,.99)!important;color:var(--ink)!important;box-shadow:-24px 0 54px rgba(0,0,0,.12)!important;overflow:auto!important}.app .moduleMenu .moduleMenuHead,.globalStandaloneMenu .moduleMenuHead{display:none!important}.app .moduleMenu .nav,.globalStandaloneMenu .nav{display:grid!important;grid-template-columns:32px minmax(0,1fr)!important;align-items:center!important;gap:10px!important;width:100%!important;min-height:46px!important;height:auto!important;margin:0 0 4px!important;padding:7px 10px!important;border:0!important;border-radius:10px!important;background:transparent!important;color:var(--ink)!important;text-align:left!important}.app .moduleMenu .nav>span,.globalStandaloneMenu .nav>span{display:grid!important;place-items:center!important;width:30px!important;height:30px!important;border-radius:8px!important;background:color-mix(in srgb,var(--navy) 7%,transparent)!important;color:var(--navy)!important}.app .moduleMenu .nav>small,.globalStandaloneMenu .nav>small{font-size:12px!important;color:var(--ink)!important}.app .moduleMenu .nav:hover,.app .moduleMenu .nav.active,.globalStandaloneMenu .nav:hover,.globalStandaloneMenu .nav.active{background:color-mix(in srgb,var(--navy) 7%,transparent)!important}.app .moduleMenu .nav.active>span,.globalStandaloneMenu .nav.active>span{background:var(--navy)!important;color:#fff!important}.app .moduleMenu .moduleMenuSettings,.globalStandaloneMenu .moduleMenuSettings{margin-top:6px!important;padding-top:8px!important;border-top:1px solid rgba(0,0,0,.08)!important}
 
-/* Settings stays in the normal navigation stack. */
-.app .moduleMenu .moduleMenuSettings,
+.globalBusinessNavigator{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr) 16px;align-items:center;gap:9px;min-height:48px;margin-top:auto!important;padding:7px 10px;border:1px solid rgba(0,0,0,.10);border-radius:9px;background:#fff;color:var(--ink);overflow:hidden}.globalBusinessNavigator:hover,.globalBusinessNavigator:focus-within{background:color-mix(in srgb,var(--navy) 4%,#fff);border-color:color-mix(in srgb,var(--navy) 18%,rgba(0,0,0,.10))}.globalBusinessIcon{width:34px;height:34px;display:grid;place-items:center;overflow:hidden;border-radius:8px;background:rgba(0,0,0,.025);pointer-events:none}.globalBusinessIcon img{display:block;width:100%;height:100%;object-fit:contain;object-position:center}.globalBusinessIcon.logo-meth img{mix-blend-mode:normal;transform:scale(1.2)}.globalBusinessName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-size:11px;font-weight:700;line-height:1.2;pointer-events:none}.globalBusinessChevron{width:14px;height:14px;pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='m3 5 4 4 4-4' fill='none' stroke='%23181818' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px 14px no-repeat}.globalBusinessNavigator>select{position:absolute;inset:0;z-index:2;width:100%;height:100%;opacity:0;cursor:pointer;appearance:auto}.globalBusinessNavigator>select:focus-visible{outline:none}.moduleMenu>.globalBusinessNavigator,.globalStandaloneMenu>.globalBusinessNavigator{margin-top:auto!important;margin-bottom:0!important}
+
+.labelCreateTopbar{position:relative}.labelCreateTopbar .globalStandaloneNavEnd{margin-left:auto}.labelCreateTopbar .menuToggle{display:grid;place-content:center;gap:5px;width:42px;height:42px;border:1px solid rgba(0,0,0,.08);border-radius:10px;background:#fff;color:var(--navy)}.labelCreateTopbar .menuToggle span{display:block;width:22px;height:2px;border-radius:2px;background:currentColor}.labelCreateTopbar .menuToggle:hover,.labelCreateTopbar .menuToggle.active{background:color-mix(in srgb,var(--navy) 7%,#fff)}.labelCreateTopbar .globalHomeLogo{cursor:pointer}.labelCreateTopbar .globalHomeLogo:focus-visible{border-radius:8px;box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 22%,transparent)}
+
+@media(max-width:700px){.globalBusinessNavigator{grid-template-columns:34px minmax(0,1fr) 16px;min-height:52px;padding:8px 9px}.globalBusinessName{font-size:12px}.labelCreateTopbar .menuToggle{width:40px;height:40px}}
+
+/* precision-pass: stable menu height */
+.app .topbar .moduleMenu,
+.globalStandaloneMenu{
+  display:flex!important;
+  flex-direction:column!important;
+  height:calc(100dvh - 64px)!important;
+  max-height:calc(100dvh - 64px)!important;
+  overflow:auto!important;
+  overscroll-behavior:contain;
+  padding-bottom:max(14px,env(safe-area-inset-bottom))!important;
+}
+.app .topbar .moduleMenu .moduleMenuSettings,
 .globalStandaloneMenu .moduleMenuSettings{
-  margin-top:8px!important;
-  padding-top:8px!important;
-  border-top:1px solid #ffffff1f!important;
+  display:grid!important;
+  gap:4px!important;
+  flex:0 0 auto!important;
+  margin-top:10px!important;
+  padding-top:10px!important;
+  border-top:1px solid color-mix(in srgb,var(--line) 78%,transparent)!important;
 }
+.app .topbar .moduleMenu .globalBusinessNavigator,
+.globalStandaloneMenu .globalBusinessNavigator{margin-top:auto!important;flex:0 0 auto!important}
+.app .topbar .moduleMenu .moduleMenuSettings .accessMenuEntry,
+.globalStandaloneMenu .moduleMenuSettings .accessMenuEntry{width:100%!important;min-height:44px!important}
 
-/* Business navigator uses one predictable row. */
-.globalBusinessNavigator{
-  position:relative;
-  display:grid;
-  grid-template-columns:36px minmax(0,1fr) 16px;
-  align-items:center;
-  gap:9px;
-  min-height:50px;
-  margin-top:2px;
-  padding:7px 10px;
-  border:1px solid #ffffff18;
-  border-radius:9px;
-  background:#ffffff0b;
-  color:#fff;
-  overflow:hidden;
-}
-.globalBusinessNavigator:hover,
-.globalBusinessNavigator:focus-within{
-  background:#ffffff12;
-  border-color:#ffffff27;
-}
-.globalBusinessIcon{
-  width:34px;
-  height:34px;
-  display:grid;
-  place-items:center;
-  overflow:hidden;
-  border-radius:8px;
-  background:#ffffff0d;
-  pointer-events:none;
-}
-.globalBusinessIcon img{
-  display:block;
-  width:100%;
-  height:100%;
-  object-fit:contain;
-  object-position:center;
-}
-.globalBusinessIcon.logo-meth img{mix-blend-mode:screen}
-.globalBusinessName{
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  color:#fff;
-  font-size:11px;
-  font-weight:700;
-  line-height:1.2;
-  pointer-events:none;
-}
-.globalBusinessChevron{
-  width:14px;
-  height:14px;
-  pointer-events:none;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='m3 5 4 4 4-4' fill='none' stroke='%23ffffff' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px 14px no-repeat;
-}
-.globalBusinessNavigator>select{
-  position:absolute;
-  inset:0;
-  z-index:2;
-  width:100%;
-  height:100%;
-  opacity:0;
-  cursor:pointer;
-  appearance:auto;
-}
-.globalBusinessNavigator>select:focus-visible{
-  outline:none;
-}
-
-/* The business switcher is the final menu item, flush with the bottom edge. */
-.moduleMenu>.globalBusinessNavigator,
-.globalStandaloneMenu>.globalBusinessNavigator{
-  margin-top:auto!important;
-  margin-bottom:0!important;
-}
-
-/* Standalone Create Labels / Designer route gets the same navigation trigger. */
-.labelCreateTopbar{position:relative}
-.labelCreateTopbar .globalStandaloneNavEnd{margin-left:auto}
-.labelCreateTopbar .menuToggle{
-  display:grid;
-  place-content:center;
-  gap:5px;
-  width:42px;
-  height:42px;
-  border:0;
-  border-radius:10px;
-  background:transparent;
-  color:var(--navy);
-}
-.labelCreateTopbar .menuToggle span{
-  display:block;
-  width:22px;
-  height:2px;
-  border-radius:2px;
-  background:currentColor;
-}
-.labelCreateTopbar .menuToggle:hover,
-.labelCreateTopbar .menuToggle.active{
-  background:color-mix(in srgb,var(--navy) 9%,transparent);
-}
-.labelCreateTopbar .globalHomeLogo{cursor:pointer}
-.labelCreateTopbar .globalHomeLogo:focus-visible{
-  border-radius:8px;
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 22%,transparent);
-}
-
-@media(max-width:700px){
-  .globalBusinessNavigator{
-    grid-template-columns:34px minmax(0,1fr) 16px;
-    min-height:52px;
-    padding:8px 9px;
-  }
-  .globalBusinessName{font-size:12px}
-  .labelCreateTopbar .menuToggle{width:40px;height:40px}
-}

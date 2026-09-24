@@ -1,12 +1,12 @@
 {
-  "name": "Seiko System V2",
-  "short_name": "Seiko V2",
-  "description": "Seiko operational system for labels, scanning and traceability.",
+  "name": "Jinam",
+  "short_name": "Jinam",
+  "description": "Jinam securely operates the separate SEIKO, véyn health and MeTh business applications.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#edf2f4",
-  "theme_color": "#082f4d",
+  "background_color": "#f4f4f2",
+  "theme_color": "#050505",
   "icons": [
-    { "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/app-icon.svg?v=4", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
 }

@@ -24,18 +24,36 @@ import "./global-navigation.css";
 import "./control-consistency.css";
 import "./access-control.css";
 import "./modern-auth.css";
-import { AppEnhancements } from "./app-enhancements";
+import "./jinam-shell.css";
+import "./channel-connections.css";
+import "./meth-commerce-settings.css";
+import "./seiko-meth.css";
+import "./veyn-app.css";
+import "./veyn-functional.css";
+import "./phase1-visual.css";
+import "./seiko-phase1.css";
+import "./seiko-phase2.css";
+import "./seiko-stage2-safe.css";
+import "./seiko-workspace-label-final.css";
+import "./seiko-list-center-enhancements.css";
+import "./seiko-refinement.css";
+import "./seiko-operational-ux.css";
+import "./seiko-interface-fixes.css";
+import "./packing-workspace-audit.css";
+import "./packing-workflow-final.css";
+import "./seiko-stable.css";
 import { AccessProvider } from "./access-control";
+import { BusinessApplicationRouter } from "./business-application-router";
 
 export const metadata: Metadata = {
-  title: "Jinam Foundation",
-  description: "Business-separated operations and traceability for Jinam.",
-  icons: { icon: "/favicon.svg" },
-  manifest: "/manifest.webmanifest",
-  applicationName: "Jinam Foundation",
+  title: "Jinam",
+  description: "One secure platform for the separate SEIKO, véyn health and MeTh business applications.",
+  icons: { icon: "/favicon.svg?v=4", shortcut: "/favicon.svg?v=4", apple: "/app-icon.svg?v=4" },
+  manifest: "/manifest.webmanifest?v=4",
+  applicationName: "Jinam",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Jinam" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><AccessProvider><AppEnhancements />{children}</AccessProvider></body></html>;
+  return <html lang="en"><body><AccessProvider><BusinessApplicationRouter>{children}</BusinessApplicationRouter></AccessProvider></body></html>;
 }

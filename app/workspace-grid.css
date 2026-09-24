@@ -123,22 +123,22 @@
   position: relative;
 }
 
-/* Keep both header bands visible while the user works down a long order. */
-.workspaceTable.groupedWorkspace thead tr:first-child th {
+/* Keep both header bands visible as one unit. Sticky individual rows can overlap
+   the first record after a partial scroll, which made P-0001 look blank. */
+.workspaceTable.groupedWorkspace thead {
   position: sticky;
-  top: 0 !important;
+  top: 0;
   z-index: 12;
 }
-
+.workspaceTable.groupedWorkspace thead tr:first-child th,
 .workspaceTable.groupedWorkspace thead tr:nth-child(2) th {
-  position: sticky;
-  top: 31px !important;
-  z-index: 11;
+  position: relative;
+  top: auto !important;
+  z-index: auto;
 }
-
 .workspaceTable.groupedWorkspace thead th.stickyId,
 .workspaceTable.groupedWorkspace thead tr:first-child th:first-child {
-  z-index: 15;
+  z-index: 1;
 }
 
 /* One compact sheet toolbar: add rows / columns, row count, search and pager

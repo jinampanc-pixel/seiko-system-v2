@@ -1,0 +1,484 @@
+/* SEIKO Stage 2 operational finish.
+   Loaded last so the production workflow has one deliberate final visual layer. */
+
+/* ---------- Order setup ---------- */
+.orderSetup .clientDetails .setupGrid{
+  display:grid!important;
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:10px 12px!important;
+  align-items:start!important;
+}
+.orderSetup .clientDetails .seikoClientName,
+.orderSetup .clientDetails .seikoClientType,
+.orderSetup .clientDetails .seikoDeliveryDate{grid-column:span 2!important}
+.orderSetup .clientDetails .seikoAttn,
+.orderSetup .clientDetails .seikoPhone{grid-column:span 3!important}
+.orderSetup .clientDetails .seikoDeliveryAddress,
+.orderSetup .clientDetails .seikoBillingAddress{grid-column:span 3!important}
+.orderSetup .clientDetails .seikoDeliveryAddress textarea,
+.orderSetup .clientDetails .seikoBillingAddress textarea{
+  min-height:58px!important;
+  max-height:150px!important;
+}
+.orderSetup .quantityGroupRules{
+  max-width:780px!important;
+  border-left:2px solid color-mix(in srgb,var(--brand) 28%,var(--line))!important;
+  padding-left:13px!important;
+}
+.orderSetup .quantityGroupRules>summary{
+  width:max-content!important;
+  min-width:220px!important;
+  font-weight:800!important;
+}
+.orderSetup .quantityGroupRules>.sourceFieldPicker{max-width:620px!important}
+.orderSetup .quantityGroupRules>div{
+  display:grid!important;
+  grid-template-columns:minmax(240px,1fr) 96px 32px!important;
+  max-width:660px!important;
+}
+.orderSetup .sourceOwnerToggle,
+.orderSetup .ownerManagedTrigger{
+  width:38px!important;
+  min-width:38px!important;
+}
+.orderSetup .sourceOwnerToggle{font-size:0!important}
+.orderSetup .sourceOwnerToggle::after{content:"⌄";font-size:16px;line-height:1}
+.orderSetup .sourceOwnerPanel,
+.orderSetup .ownerManagedPanel{
+  border:1px solid var(--line)!important;
+  border-radius:9px!important;
+  background:var(--paper)!important;
+  overflow:auto!important;
+}
+
+/* ---------- Workspace validation and row operations ---------- */
+.workspacePage .workspaceReadinessCompact{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:9px 14px!important;
+  align-items:center!important;
+  margin:10px 0!important;
+  padding:11px 13px!important;
+  min-height:0!important;
+  border:1px solid color-mix(in srgb,#b7791f 24%,var(--line))!important;
+  border-left:3px solid #b7791f!important;
+  border-radius:10px!important;
+  background:color-mix(in srgb,#fffaf0 72%,var(--paper))!important;
+  color:var(--ink)!important;
+  box-shadow:none!important;
+}
+.workspacePage .workspaceReadinessCompact>div:first-child{min-width:0!important}
+.workspacePage .workspaceReadinessCompact h3,
+.workspacePage .workspaceReadinessCompact strong{font-size:13px!important;margin:0!important}
+.workspacePage .workspaceReadinessCompact p{font-size:11px!important;line-height:1.45!important;margin:3px 0 0!important}
+.workspacePage .workspaceReadinessCompact details{
+  grid-column:1 / -1!important;
+  margin:0!important;
+  padding:0!important;
+  background:transparent!important;
+  border:0!important;
+}
+.workspacePage .workspaceReadinessCompact details>summary{
+  width:max-content!important;
+  padding:5px 0!important;
+  font-size:11px!important;
+  font-weight:800!important;
+  color:var(--brand)!important;
+  cursor:pointer;
+}
+.workspacePage .workspaceReadinessCompact details ul{
+  max-height:210px!important;
+  overflow:auto!important;
+  margin:7px 0 0!important;
+  padding:8px 8px 8px 26px!important;
+  border:1px solid var(--line)!important;
+  border-radius:8px!important;
+  background:var(--paper)!important;
+}
+.workspaceIssueChips{
+  grid-column:1 / -1;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.workspaceIssueChips button{
+  min-height:29px;
+  padding:4px 9px;
+  border:1px solid color-mix(in srgb,#b7791f 28%,var(--line));
+  border-radius:999px;
+  background:var(--paper);
+  color:var(--ink);
+  font:700 10.5px/1.2 var(--ui-font);
+}
+.workspaceIssueChips button:hover{border-color:#b7791f}
+
+.workspaceBulkBar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-height:42px;
+  margin:7px 0;
+  padding:7px 10px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--paper);
+}
+.workspaceBulkBar>b{font-size:12px;white-space:nowrap}
+.workspaceBulkBar>span{font-size:10.5px;color:var(--muted);flex:1}
+.workspaceBulkBar>div{display:flex;gap:6px}
+.workspaceBulkBar button{min-height:32px;padding:5px 10px;font-size:11px}
+.workspaceBulkDelete:not(:disabled){border-color:#b42318;color:#b42318;background:#fff}
+.workspaceBulkDelete:disabled{opacity:.45}
+.workspaceRowSelectHead,
+.workspaceRowSelectCell{
+  width:38px!important;
+  min-width:38px!important;
+  max-width:38px!important;
+  text-align:center!important;
+  padding:0!important;
+  background:var(--paper)!important;
+}
+.workspaceRowSelectHead{position:sticky!important;left:0!important;z-index:15!important}
+.workspaceRowSelectCell{position:sticky!important;left:0!important;z-index:8!important}
+.workspaceRowSelectHead input,
+.workspaceRowSelectCell input{width:16px!important;height:16px!important;accent-color:var(--brand)}
+.workspaceTable tr.workspaceRowSelected>td{background:color-mix(in srgb,var(--brand) 7%,var(--paper))!important}
+.workspaceTable tr.workspaceRowSelected>.workspaceRowSelectCell{background:color-mix(in srgb,var(--brand) 10%,var(--paper))!important}
+.orderActionMenu .orderMenuPrimaryLabels{
+  font-weight:850!important;
+  color:var(--brand)!important;
+}
+
+/* ---------- Shared confirmation / feedback ---------- */
+.seikoConfirmLayer{
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  display:grid;
+  place-items:center;
+  padding:20px;
+  background:rgba(9,30,45,.38);
+  backdrop-filter:blur(2px);
+}
+.seikoConfirmDialog{
+  width:min(440px,calc(100vw - 32px));
+  padding:20px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--paper);
+  box-shadow:0 24px 70px rgba(8,35,54,.22);
+}
+.seikoConfirmDialog h3{margin:0 0 7px;font-size:18px}
+.seikoConfirmDialog p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+.seikoConfirmDialog>div{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.seikoConfirmDialog button{min-height:40px;padding:8px 14px}
+.seikoConfirmDialog .dangerAction{background:#b42318!important;border-color:#b42318!important;color:#fff!important}
+.seikoOperationalToast,
+.labelV2Toast{
+  position:fixed;
+  right:22px;
+  bottom:22px;
+  z-index:11000;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-height:42px;
+  max-width:min(460px,calc(100vw - 32px));
+  padding:9px 12px;
+  border:1px solid color-mix(in srgb,#18794e 35%,var(--line));
+  border-radius:10px;
+  background:var(--paper);
+  box-shadow:0 14px 42px rgba(8,35,54,.18);
+  color:var(--ink);
+  font:750 12px/1.35 var(--ui-font);
+}
+.seikoOperationalToast button{border:0;background:transparent;color:var(--brand);font-weight:850;text-decoration:underline}
+
+/* ---------- Labels center ---------- */
+.labelLauncher .labelOrderPicker{display:block!important}
+.labelLauncher .labelBatchModule,
+.labelLauncher .labelOrderPicker{border-radius:12px!important}
+.labelLauncher .labelBatchModuleHead h3,
+.labelLauncher .labelOrderPickerHead h3{font-size:17px!important}
+.labelLauncher .labelOrderActions button{white-space:nowrap}
+
+/* ---------- Stage 2 label designer ---------- */
+.labelDesignerV2{
+  width:min(1500px,calc(100vw - 32px));
+  max-width:none!important;
+  margin:0 auto;
+  padding-bottom:48px;
+}
+.labelDesignerV2 .panel{border-radius:12px}
+.labelV2Topbar{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:18px!important;
+  padding:18px!important;
+}
+.labelV2Topbar h2{margin:2px 0 4px!important;font-size:24px!important}
+.labelV2Topbar p:not(.eyebrow){margin:0!important;color:var(--muted);font-size:12px!important;line-height:1.45}
+.labelV2TopActions{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.labelV2TopActions button{min-height:40px}
+
+.labelV2LibraryBar{
+  position:sticky;
+  top:8px;
+  z-index:70;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin:10px 0;
+  padding:7px 9px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:color-mix(in srgb,var(--paper) 95%,transparent);
+  box-shadow:0 7px 25px rgba(8,35,54,.07);
+  backdrop-filter:blur(10px);
+}
+.labelV2LibraryBar button{min-height:34px;padding:6px 10px;font-size:11.5px}
+.labelV2LibraryBar button span{display:inline-grid;place-items:center;min-width:19px;height:19px;margin-left:4px;border-radius:999px;background:color-mix(in srgb,var(--brand) 10%,var(--paper));font-size:10px}
+.labelV2LibraryBar i{width:1px;height:23px;background:var(--line);margin:0 2px}
+.labelV2LibraryBar .labelSetSave{
+  background:var(--brand)!important;
+  border-color:var(--brand)!important;
+  color:#fff!important;
+  font-weight:850!important;
+}
+.labelV2Library{
+  margin:8px 0;
+  padding:14px!important;
+}
+.labelV2LibraryHead{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.labelV2LibraryHead h3{margin:2px 0 3px;font-size:17px}
+.labelV2LibraryHead p:not(.eyebrow){margin:0;color:var(--muted);font-size:11px}
+.labelV2LibraryRows{display:grid;gap:6px;margin-top:10px}
+.labelV2LibraryRows article{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  gap:7px;
+  align-items:center;
+  padding:8px 9px;
+  border:1px solid var(--line);
+  border-radius:9px;
+}
+.labelV2LibraryRows article div{min-width:0}
+.labelV2LibraryRows article b,.labelV2LibraryRows article small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.labelV2LibraryRows article b{font-size:12px}
+.labelV2LibraryRows article small{font-size:10px;color:var(--muted);margin-top:2px}
+.labelV2LibraryRows article button{min-height:31px;padding:5px 9px;font-size:10.5px}
+
+.labelV2SetupGrid{
+  display:grid;
+  grid-template-columns:minmax(0,1.25fr) minmax(360px,.75fr);
+  gap:10px;
+  margin:10px 0;
+  align-items:start;
+}
+.labelV2Setup,.labelV2Trace,.labelV2Information,.labelV2FilterPanel{padding:14px!important}
+.labelV2SectionHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.labelV2SectionHead h3{margin:2px 0 0;font-size:16px}
+.labelV2SectionHead p:not(.eyebrow){margin:4px 0 0;font-size:10.5px;color:var(--muted);line-height:1.4}
+.labelV2MainSelect>span,
+.labelV2Conditional label>span,
+.labelV2TraceGrid label>span,
+.labelV2FilterTop label>span,
+.labelV2PropertyGrid label>span,
+.labelV2Naming label>span,
+.labelV2PreviewPicker>span,
+.labelV2NewSize label>span{display:block;margin-bottom:4px;font-size:10px;font-weight:850;color:var(--muted)}
+.labelV2MainSelect select,
+.labelV2Conditional select,
+.labelV2TraceGrid input,
+.labelV2TraceGrid select,
+.labelV2FilterTop input,
+.labelV2FilterTop select,
+.labelV2FilterRules select,
+.labelV2PropertyGrid input,
+.labelV2Naming input,
+.labelV2PreviewPicker select,
+.labelV2NewSize input{
+  width:100%;
+  min-height:38px;
+  box-sizing:border-box;
+  padding:7px 9px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--paper);
+  color:var(--ink);
+  font:650 12px/1.2 var(--ui-font);
+}
+.labelV2MainSelect select{font-size:14px;font-weight:800}
+.labelV2MainSelect>small{display:block;margin-top:6px;color:var(--muted);font-size:10.5px;line-height:1.45}
+.labelV2Conditional{margin-top:10px;padding:10px;border:1px solid color-mix(in srgb,var(--brand) 20%,var(--line));border-radius:9px;background:color-mix(in srgb,var(--brand) 3%,var(--paper))}
+.labelV2Conditional p{margin:6px 0 0;font-size:10.5px;color:var(--muted);line-height:1.4}
+.labelV2Grouping{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;padding:9px;border:1px solid var(--line);border-radius:9px}
+.labelV2Grouping legend{padding:0 5px;font-size:10.5px;font-weight:850}
+.labelV2Grouping label{display:flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid var(--line);border-radius:999px;font-size:10.5px;font-weight:700}
+.labelV2Grouping input{accent-color:var(--brand)}
+.labelV2Grouping small{width:100%;color:#b42318;font-size:10px}
+
+.labelV2TraceGrid{display:grid;grid-template-columns:minmax(120px,.7fr) minmax(160px,1fr);gap:8px}
+.labelV2TraceGrid .labelV2Check{grid-column:1/-1}
+.labelV2Check{display:flex!important;align-items:center;gap:7px;font-size:11px;font-weight:700}
+.labelV2Check input{width:16px!important;height:16px!important;min-height:0!important;accent-color:var(--brand)}
+.labelV2TraceExample{margin:8px 0 0;padding:6px 8px;border-radius:7px;background:var(--app-background);font-size:10.5px;font-weight:750}
+
+.labelV2Information{margin:10px 0}
+.labelV2Categories{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.labelV2Categories>div{min-width:0;padding:9px;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--paper) 97%,var(--app-background))}
+.labelV2Categories>div>b{display:block;margin-bottom:6px;font-size:11px}
+.labelV2Categories>div>div{display:grid;gap:4px;max-height:260px;overflow:auto;padding-right:2px}
+.labelV2Categories article{position:relative;border:1px solid transparent;border-radius:7px}
+.labelV2Categories article.selected{border-color:color-mix(in srgb,var(--brand) 30%,var(--line));background:color-mix(in srgb,var(--brand) 5%,var(--paper))}
+.labelV2Categories article label{display:flex;align-items:flex-start;gap:7px;padding:6px 28px 6px 6px;font-size:10.5px;line-height:1.3;cursor:pointer}
+.labelV2Categories article input{margin-top:1px;accent-color:var(--brand)}
+.labelV2FieldRemove{position:absolute;right:3px;top:3px;width:24px!important;height:24px!important;min-height:24px!important;padding:0!important;border:0!important;background:transparent!important;color:var(--muted)!important;font-size:15px!important}
+
+.labelV2FilterPanel{margin:10px 0}
+.labelV2FilterTop{display:grid;grid-template-columns:minmax(260px,1fr) 180px 180px;gap:8px;align-items:end}
+.labelV2FilterRules{display:grid;gap:5px;margin-top:8px}
+.labelV2FilterRules>div{display:grid;grid-template-columns:minmax(150px,230px) minmax(150px,260px) 32px;gap:6px;max-width:560px}
+.labelV2FilterSummary{display:flex;align-items:center;gap:11px;margin-top:9px;padding-top:8px;border-top:1px solid var(--line);font-size:10.5px}
+.labelV2FilterSummary>b{font-size:11.5px}
+.labelV2FilterSummary>span{color:var(--muted);flex:1}
+
+.labelV2WorkGrid{
+  display:grid;
+  grid-template-columns:minmax(280px,.72fr) minmax(500px,1.35fr) minmax(270px,.68fr);
+  gap:10px;
+  align-items:start;
+}
+.labelV2Records,.labelV2CanvasPanel,.labelV2Properties{padding:12px!important;min-width:0}
+.labelV2RecordsHead{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.labelV2RecordsHead h3{margin:2px 0 0;font-size:15px}
+.labelV2RecordScroll{height:560px;overflow:auto;padding-right:3px;overscroll-behavior:contain}
+.labelV2RecordGroup>h4{position:sticky;top:0;z-index:4;margin:6px 0 3px;padding:5px 6px;background:color-mix(in srgb,var(--paper) 95%,transparent);backdrop-filter:blur(6px);font-size:10px;color:var(--muted)}
+.labelV2RecordGroup article{margin:4px 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--paper)}
+.labelV2RecordGroup article.selected{border-color:color-mix(in srgb,var(--brand) 52%,var(--line));box-shadow:inset 3px 0 0 var(--brand)}
+.labelV2RecordPick{display:grid!important;grid-template-columns:22px minmax(0,1fr)!important;gap:7px!important;width:100%!important;min-height:0!important;padding:8px!important;text-align:left!important;border:0!important;background:transparent!important;color:var(--ink)!important}
+.labelV2RecordPick .check{display:grid;place-items:center;width:18px;height:18px;border:1px solid var(--line);border-radius:5px;font-size:11px}
+.labelV2RecordGroup article.selected .check{background:var(--brand);border-color:var(--brand);color:#fff}
+.labelV2RecordPick b,.labelV2RecordPick small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.labelV2RecordPick b{font-size:11.5px}
+.labelV2RecordPick small{margin-top:2px;font-size:9.5px;color:var(--muted)}
+.labelV2RecordGroup details{border-top:1px solid var(--line);padding:0 8px 7px}
+.labelV2RecordGroup details summary{padding:6px 0 3px;font-size:9.5px;font-weight:800;color:var(--brand);cursor:pointer}
+.labelV2RecordGroup details ul{margin:3px 0 0;padding-left:17px;font-size:9.5px;color:var(--muted);line-height:1.45}
+.labelV2NoRecords{padding:24px 8px;text-align:center;color:var(--muted);font-size:11px}
+
+.labelV2CanvasPanel{position:sticky;top:60px}
+.labelV2CanvasPanel .canvasToolbar{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:10px!important}
+.labelV2CanvasPanel .canvasToolbar b{display:block;font-size:13px}
+.labelV2CanvasPanel .canvasToolbar span{display:block;margin-top:3px;font-size:9.5px;color:var(--muted);line-height:1.4}
+.labelV2CanvasActions{display:flex;gap:5px;flex-shrink:0}
+.labelV2CanvasActions button{min-height:31px!important;padding:5px 8px!important;font-size:10px!important}
+.labelV2PreviewPicker{display:block;margin:10px 0;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--app-background)}
+.labelV2PreviewPicker select{min-height:34px}
+.labelV2PreviewPicker small{display:block;margin-top:4px;font-size:9.5px;color:var(--muted)}
+.labelV2Stage{display:grid;place-items:center;min-height:410px;padding:34px 22px;border-radius:10px;background:linear-gradient(135deg,color-mix(in srgb,var(--app-background) 94%,#fff),color-mix(in srgb,var(--line) 26%,#fff));overflow:auto}
+.labelDesignerV2 .labelCanvas{
+  position:relative!important;
+  flex:none!important;
+  max-width:100%!important;
+  aspect-ratio:2/1;
+  overflow:hidden!important;
+  border:1px solid #aab5bd!important;
+  border-radius:2px!important;
+  background:#fff!important;
+  box-shadow:0 12px 30px rgba(8,35,54,.14)!important;
+  color:#111!important;
+  touch-action:none;
+}
+.labelV2SafeArea{position:absolute;inset:6%;border:1px dashed rgba(31,75,101,.2);pointer-events:none}
+.labelDesignerV2 .canvasElement{
+  position:absolute!important;
+  display:flex!important;
+  align-items:center!important;
+  overflow:hidden!important;
+  padding:0!important;
+  line-height:1.05!important;
+  white-space:normal!important;
+  cursor:default;
+  outline:0;
+}
+.labelDesignerV2 .canvasElement.selected{outline:1px solid #2477a7!important;outline-offset:1px;z-index:5}
+.labelDesignerV2 .canvasElement:focus-visible{outline:2px solid #2477a7!important;outline-offset:2px}
+.labelDesignerV2 .labelV2CanvasPanel:has(.canvasElement.selected) .canvasElement.selected{cursor:move}
+.labelV2ResizeHandle{position:absolute;right:-1px;bottom:-1px;width:9px;height:9px;border:1px solid #fff;background:#2477a7;cursor:nwse-resize;z-index:8}
+.labelDesignerV2 .fakeQr,.labelDesignerV2 .fakeQr svg{display:block;width:100%;height:100%}
+.labelDesignerV2 .fakeBarcode{display:grid;width:100%;height:100%;grid-template-rows:1fr auto}
+.labelDesignerV2 .fakeBarcode i{background:repeating-linear-gradient(90deg,#111 0 2px,transparent 2px 4px,#111 4px 5px,transparent 5px 8px)}
+.labelDesignerV2 .fakeBarcode small{text-align:center;font:6px monospace;white-space:nowrap;color:#111}
+.labelDesignerV2 .fieldName{margin-right:.25em}
+
+.labelV2Properties{min-height:330px}
+.labelV2PropertyGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.labelV2PropertyGrid .labelV2Check,.labelV2PropertyGrid .dangerText{grid-column:1/-1}
+.labelV2PropertyHelp{margin:4px 0 12px;color:var(--muted);font-size:10.5px;line-height:1.5}
+.labelV2Naming{display:grid;gap:7px;margin-top:14px;padding-top:11px;border-top:1px solid var(--line)}
+
+.labelV2SizeEditor{margin:10px 0;padding:14px!important}
+.labelV2PresetList{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.labelV2PresetList button{min-height:34px;padding:6px 9px;font-size:10.5px}
+.labelV2PresetList button.active{border-color:var(--brand);color:var(--brand);font-weight:850}
+.labelV2NewSize{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;padding-top:9px;border-top:1px solid var(--line)}
+.labelV2NewSize>input{align-self:end}
+.labelV2NewSize>.primary{align-self:end;min-height:38px}
+
+.labelDesignerV2 .printSheet{display:none!important}
+
+@media(max-width:1180px){
+  .labelV2WorkGrid{grid-template-columns:minmax(250px,.75fr) minmax(480px,1.25fr)}
+  .labelV2Properties{grid-column:1/-1}
+  .labelV2PropertyGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .labelV2Categories{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:920px){
+  .orderSetup .clientDetails .setupGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .orderSetup .clientDetails .seikoClientName,
+  .orderSetup .clientDetails .seikoClientType,
+  .orderSetup .clientDetails .seikoDeliveryDate,
+  .orderSetup .clientDetails .seikoAttn,
+  .orderSetup .clientDetails .seikoPhone,
+  .orderSetup .clientDetails .seikoDeliveryAddress,
+  .orderSetup .clientDetails .seikoBillingAddress{grid-column:span 1!important}
+  .labelV2SetupGrid,.labelV2WorkGrid{grid-template-columns:1fr}
+  .labelV2CanvasPanel{position:relative;top:auto}
+  .labelV2RecordScroll{height:380px}
+  .labelV2FilterTop{grid-template-columns:1fr 1fr}
+  .labelV2FilterTop>input{grid-column:1/-1}
+}
+@media(max-width:720px){
+  .orderSetup .clientDetails .setupGrid{grid-template-columns:1fr!important}
+  .workspaceBulkBar{align-items:flex-start;flex-wrap:wrap}
+  .workspaceBulkBar>span{order:3;flex-basis:100%}
+  .workspaceBulkBar>div{margin-left:auto}
+  .workspacePage .workspaceReadinessCompact{grid-template-columns:1fr!important}
+  .labelDesignerV2{width:calc(100vw - 18px);padding-bottom:90px}
+  .labelV2Topbar{display:grid!important}
+  .labelV2TopActions{display:grid;grid-template-columns:1fr 1fr}
+  .labelV2LibraryBar{top:4px;overflow-x:auto;white-space:nowrap}
+  .labelV2LibraryBar i{display:none}
+  .labelV2Categories{grid-template-columns:1fr}
+  .labelV2FilterTop{grid-template-columns:1fr}
+  .labelV2FilterTop>input{grid-column:auto}
+  .labelV2FilterRules>div{grid-template-columns:1fr 1fr 32px;max-width:none}
+  .labelV2FilterSummary{align-items:flex-start;flex-wrap:wrap}
+  .labelV2FilterSummary>span{flex-basis:100%}
+  .labelV2TraceGrid{grid-template-columns:1fr}
+  .labelV2TraceGrid .labelV2Check{grid-column:auto}
+  .labelV2Stage{min-height:280px;padding:20px 10px}
+  .labelV2CanvasPanel .canvasToolbar{display:grid!important}
+  .labelV2CanvasActions{width:100%}
+  .labelV2CanvasActions button{flex:1}
+  .labelV2PropertyGrid{grid-template-columns:1fr 1fr}
+  .labelV2NewSize{grid-template-columns:1fr 1fr}
+  .seikoOperationalToast,.labelV2Toast{right:10px;bottom:calc(82px + env(safe-area-inset-bottom));left:10px}
+}
+
+@media print{
+  .labelDesignerV2>*:not(.printSheet){display:none!important}
+  .labelDesignerV2 .printSheet{display:grid!important}
+}

@@ -1,0 +1,31 @@
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const assert = require('node:assert/strict');
+(async () => {
+ const browser = await chromium.launch({headless:true,channel:'msedge'});
+ const page = await browser.newPage({viewport:{width:1400,height:1000}});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const url='http://127.0.0.1:5176/tests/packing-browser/index.html';
+ await page.goto(url);
+ await page.locator('.physicalPackageSummary:not(.physicalInfo) button').click();
+ for(const name of ['Pant','Kurti','Shirt','T-Shirt','Track Pant']) await page.locator('.physicalProductChoices label').filter({has:page.locator('b',{hasText:new RegExp(`^${name}$`)})}).getByRole('checkbox').uncheck();
+ await page.getByRole('button',{name:'Apply',exact:true}).click();
+ assert.equal(await page.locator('.physicalPackingEditor').getAttribute('data-selected-count'),'258');
+ assert.match(await page.locator('.physicalCanvas').innerText(),/Vest:.*Qty/,'new product formats include order quantity');
+ await page.getByRole('button',{name:'Save label set',exact:true}).click();
+ const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('jinam:seiko:labels:tasks-v1'))[0]);
+ const texts=await page.locator('.physicalCanvas svg').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-label')));
+ await page.goto(url+'?center');
+ await page.locator('.labelBatchModuleList article').getByRole('button',{name:'Open',exact:true}).click();
+ await page.locator('.physicalPackingEditor').waitFor();
+ assert.equal(await page.locator('.physicalPackingEditor').getAttribute('data-selected-count'),'258');
+ assert.equal(await page.locator('.labelCanvas').count(),0,'legacy barcode editor must not open');
+ assert.deepEqual(await page.locator('.physicalCanvas svg').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-label'))),texts);
+ assert.equal(await page.locator('.physicalItem').count(),saved.items.length);
+ await page.getByRole('button',{name:/Print \/ PDF/}).click();
+ await page.waitForFunction(()=>window.printCalls===1);
+ assert.equal(await page.locator('.physicalPrintedLabel').count(),258);
+ assert.deepEqual(errors,[]);
+ console.log('PASS: save Vest batch, open from actual Label Center, preserve 258 selections/text/layout and print.');
+ await browser.close();
+})().catch(error=>{console.error(error);process.exit(1);});
+

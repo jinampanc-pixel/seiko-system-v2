@@ -1,6 +1,11 @@
 import { env } from "cloudflare:workers";
 import { createSession, findUserByIdentifier, rateLimitStatus, recordAuthEvent, verifyPassword } from "../../../../lib/server-password-auth";
 
+type PreviewEnv = {
+  JINAM_ENVIRONMENT?: string;
+  JINAM_PREVIEW_ADMIN_PASSWORD?: string;
+};
+
 export async function POST(request: Request) {
   const db = env.DB;
   if (!db) return error("ERP_DB_NOT_CONFIGURED", "Shared ERP storage is not connected.", 503);
@@ -13,13 +18,30 @@ export async function POST(request: Request) {
   const password = body.password || "";
   if (!identifier || !password) return error("CREDENTIALS_REQUIRED", "Enter your email or phone number and password.", 400);
 
-  const limit = await rateLimitStatus(db, request, identifier);
-  if (limit.limited) return error("TOO_MANY_ATTEMPTS", "Too many unsuccessful sign-in attempts. Try again in about 15 minutes.", 429);
+  const previewEnv = env as unknown as PreviewEnv;
+  const isIsolatedShopifyTest = String(previewEnv.JINAM_ENVIRONMENT || "") === "shopify-test";
+  if (!isIsolatedShopifyTest) {
+    const limit = await rateLimitStatus(db, request, identifier);
+    if (limit.limited) return error("TOO_MANY_ATTEMPTS", "Too many unsuccessful sign-in attempts. Try again in about 15 minutes.", 429);
+  }
 
   const user = await findUserByIdentifier(db, identifier);
-  const valid = await verifyPassword(password, user?.passwordHash || null);
+  let valid = false;
+  if (isIsolatedShopifyTest && user) {
+    const previewPassword = previewEnv.JINAM_PREVIEW_ADMIN_PASSWORD || "";
+    if (!previewPassword) return error("PREVIEW_PASSWORD_NOT_CONFIGURED", "Preview login secret is not configured.", 503);
+    valid = await secretEqual(password, previewPassword);
+  } else {
+    valid = await verifyPassword(password, user?.passwordHash || null);
+  }
+
   if (!user || !valid) {
     await recordAuthEvent(db, request, { identifier, userId: user?.id, email: user?.email, event: "login.failed", success: false });
+    if (isIsolatedShopifyTest) {
+      return !user
+        ? error("PREVIEW_USER_NOT_FOUND", "Preview Owner record was not found.", 401)
+        : error("PREVIEW_PASSWORD_MISMATCH", "Preview Owner credential did not verify.", 401);
+    }
     return error("INVALID_CREDENTIALS", "Email/phone or password is incorrect.", 401);
   }
   if (!user.active) {
@@ -44,6 +66,19 @@ export async function POST(request: Request) {
     { ok: true, data: { user: { displayName: user.displayName, email: user.email }, mustChangePassword: user.mustChangePassword } },
     { headers: { "set-cookie": session.cookie, "cache-control": "no-store" } },
   );
+}
+
+async function secretEqual(left: string, right: string) {
+  const [leftDigest, rightDigest] = await Promise.all([
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(left)),
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(right)),
+  ]);
+  const a = new Uint8Array(leftDigest);
+  const b = new Uint8Array(rightDigest);
+  if (a.length !== b.length) return false;
+  let difference = 0;
+  for (let index = 0; index < a.length; index += 1) difference |= a[index] ^ b[index];
+  return difference === 0;
 }
 
 function error(code: string, message: string, status: number) {

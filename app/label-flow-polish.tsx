@@ -123,13 +123,17 @@ function enhanceLabelLauncher() {
     if (heading) heading.textContent = "Labels & printing";
 
     const orderCenter = head?.querySelector<HTMLButtonElement>("button.secondary");
-    if (orderCenter) orderCenter.textContent = "Order Center";
+    if (head && orderCenter) {
+      orderCenter.textContent = "← Back to Orders";
+      orderCenter.classList.add("contextBackButton");
+      const title = head.firstElementChild as HTMLElement | null;
+      if (title && orderCenter.parentElement !== title) title.prepend(orderCenter);
+    }
     let headActions = head?.querySelector<HTMLElement>(".labelLauncherHeadActions");
-    if (head && orderCenter && !headActions) {
+    if (head && !headActions) {
       headActions = document.createElement("div");
       headActions.className = "labelLauncherHeadActions";
-      orderCenter.insertAdjacentElement("beforebegin", headActions);
-      headActions.appendChild(orderCenter);
+      head.appendChild(headActions);
     }
     if (headActions && !headActions.querySelector(".labelCreateNewTab")) {
       const create = document.createElement("button");

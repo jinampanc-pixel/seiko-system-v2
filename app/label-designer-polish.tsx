@@ -7,9 +7,6 @@ function sourceMode() {
 }
 
 function tidyTopActions(page: HTMLElement) {
-  const back = Array.from(page.querySelectorAll<HTMLButtonElement>(".labelTopbar button.secondary"))
-    .find(item => item.textContent?.includes("Back to order") || item.textContent?.includes("Back to setup"));
-  if (back) back.textContent = "← Back to setup";
 
   const print = Array.from(page.querySelectorAll<HTMLButtonElement>(".labelTopbar button.primary"))
     .find(item => item.textContent?.includes("Print"));
@@ -18,15 +15,21 @@ function tidyTopActions(page: HTMLElement) {
     print.title = "Print the selected labels. Your browser print dialog can also save them as PDF.";
   }
 
-  page.querySelector(".labelSaveMeaning")?.remove();
   const saveBar = page.querySelector<HTMLElement>(".labelSaveBar");
+  let meaning = page.querySelector<HTMLElement>(".labelSaveMeaning");
+  if (saveBar && !meaning) {
+    meaning = document.createElement("p");
+    meaning.className = "labelSaveMeaning";
+    meaning.innerHTML = "<b>Layout</b> saves the reusable physical design, size, components and placement. <b>Label set</b> saves this order's selected records for repeat printing.";
+    saveBar.insertAdjacentElement("afterend", meaning);
+  }
   if (saveBar) {
     Array.from(saveBar.querySelectorAll<HTMLButtonElement>("button")).forEach(button => {
       const text = button.textContent?.trim() || "";
-      if (text.startsWith("Save batch")) button.textContent = "Save label set";
-      if (text.startsWith("Update batch")) button.textContent = "Update label set";
+      if (text.startsWith("Save batch")) { button.textContent = "Save label set"; button.classList.remove("textButton"); button.classList.add("primary", "labelSetSave"); }
+      if (text.startsWith("Update batch")) { button.textContent = "Update label set"; button.classList.remove("textButton"); button.classList.add("primary", "labelSetSave"); }
       if (text.startsWith("Batches")) button.childNodes[0].textContent = "Saved sets ";
-      if (text.startsWith("Layouts")) button.childNodes[0].textContent = "Saved layouts ";
+      if (text.startsWith("Layouts")) button.childNodes[0].textContent = "Layout Library ";
     });
   }
 
@@ -49,13 +52,13 @@ function forceInteractiveCanvas(page: HTMLElement) {
     .find(button => /Advanced layout|Use simple setup/i.test(button.textContent || ""));
   if (!toggle) return;
   page.dataset.manualCanvasReady = "true";
-  if (/Advanced layout/i.test(toggle.textContent || "")) toggle.click();
-  toggle.hidden = true;
+  toggle.hidden = false;
 }
 
 function groupForLabel(label: string) {
   if (label.startsWith("Person detail ·")) return "Person details";
-  if (label.includes(" · ")) return `Product details · ${label.split(" · ")[0]}`;
+  if (/^(Trace code|Label number|Person number|Product number|Number within|Piece \/ pair|Package \/ set)/i.test(label)) return "Trace & codes";
+  if (/^Applicable product \d+ ·/i.test(label) || label.includes(" · ")) return "Product details";
   return "Core information";
 }
 
@@ -88,7 +91,7 @@ function organizeInformation(page: HTMLElement) {
     if (heading) heading.textContent = "Label information";
     if (note) note.textContent = "Choose the details that should appear on this label.";
 
-    const chosenCount = () => checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
+    const chosenCount = () => section.querySelectorAll(".labelInfoSelectedStripReact .labelInfoChip").length || checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "secondary labelInfoToggle";
@@ -99,18 +102,30 @@ function organizeInformation(page: HTMLElement) {
     });
     section.querySelector(".simpleDesignerHead")?.appendChild(toggle);
 
-    const selectedStrip = document.createElement("div");
-    selectedStrip.className = "labelInfoSelectedStrip";
-    section.querySelector(".simpleDesignerHead")?.insertAdjacentElement("afterend", selectedStrip);
 
     const tools = document.createElement("div");
     tools.className = "labelInfoTools";
+    const searchToggle = document.createElement("button");
+    searchToggle.type = "button";
+    searchToggle.className = "labelInfoSearchToggle";
+    searchToggle.setAttribute("aria-label", "Search label information");
+    searchToggle.textContent = "⌕";
     const search = document.createElement("input");
     search.type = "search";
-    search.placeholder = "Find a field or measurement…";
+    search.hidden = true;
+    search.placeholder = "Search fields…";
     search.setAttribute("aria-label", "Find label information");
-    tools.appendChild(search);
+    tools.append(searchToggle, search);
     checklist.insertAdjacentElement("beforebegin", tools);
+    searchToggle.addEventListener("click", () => {
+      search.hidden = !search.hidden;
+      searchToggle.classList.toggle("active", !search.hidden);
+      if (!search.hidden) search.focus();
+      else { search.value = ""; search.dispatchEvent(new Event("input")); }
+    });
+    search.addEventListener("keydown", event => {
+      if (event.key === "Escape") { search.hidden = true; searchToggle.classList.remove("active"); search.value = ""; search.dispatchEvent(new Event("input")); searchToggle.focus(); }
+    });
     search.addEventListener("input", () => {
       const query = search.value.trim().toLowerCase();
       checklist.querySelectorAll<HTMLElement>(".fieldChoice").forEach(choice => {
@@ -121,8 +136,8 @@ function organizeInformation(page: HTMLElement) {
     });
   }
 
-  checklist.querySelectorAll(".fieldGroupHeading").forEach(node => node.remove());
-  let lastGroup = "";
+  checklist.querySelectorAll(".fieldGroupHeading,.fieldSubGroupHeading").forEach(node => node.remove());
+  let lastGroup = "", lastSubGroup = "";
   checklist.querySelectorAll<HTMLElement>(":scope > .fieldChoice").forEach(choice => {
     const label = choice.querySelector("label span")?.textContent?.trim() || "Other";
     const group = groupForLabel(label);
@@ -134,6 +149,15 @@ function organizeInformation(page: HTMLElement) {
       heading.textContent = group;
       checklist.insertBefore(heading, choice);
       lastGroup = group;
+      lastSubGroup = "";
+    }
+    const subGroup = choice.dataset.productDetailGroup || "";
+    if (group === "Product details" && subGroup && subGroup !== lastSubGroup) {
+      const subHeading = document.createElement("div");
+      subHeading.className = "fieldSubGroupHeading";
+      subHeading.textContent = subGroup;
+      checklist.insertBefore(subHeading, choice);
+      lastSubGroup = subGroup;
     }
 
     /* Selected fields always expose their compact styling controls. The old Options
@@ -149,7 +173,7 @@ function organizeInformation(page: HTMLElement) {
   refreshFieldHeadings(checklist);
 
   const selectedStrip = section.querySelector<HTMLElement>(".labelInfoSelectedStrip");
-  if (selectedStrip) {
+  if (selectedStrip && !selectedStrip.classList.contains("labelInfoSelectedStripReact")) {
     selectedStrip.replaceChildren();
     const selectedChoices = Array.from(checklist.querySelectorAll<HTMLElement>(".fieldChoice.chosen"));
     selectedChoices.forEach(choice => {
@@ -158,8 +182,21 @@ function organizeInformation(page: HTMLElement) {
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "labelInfoChip";
-      chip.textContent = label;
       chip.title = `Edit ${label}`;
+      const text = document.createElement("span");
+      text.className = "labelInfoChipText";
+      text.textContent = label;
+      const remove = document.createElement("span");
+      remove.className = "labelInfoChipRemove";
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", `Remove ${label}`);
+      remove.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const checkbox = choice.querySelector<HTMLInputElement>(':scope > label:first-child input[type="checkbox"]');
+        checkbox?.click();
+      });
+      chip.append(text, remove);
       chip.addEventListener("click", () => {
         section.classList.remove("labelInfoCollapsed");
         const toggle = section.querySelector<HTMLButtonElement>(".labelInfoToggle");
@@ -172,7 +209,7 @@ function organizeInformation(page: HTMLElement) {
 
   const toggle = section.querySelector<HTMLButtonElement>(".labelInfoToggle");
   if (toggle && section.classList.contains("labelInfoCollapsed")) {
-    const count = checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
+    const count = section.querySelectorAll(".labelInfoSelectedStripReact .labelInfoChip").length || checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
     toggle.textContent = `Choose information · ${count} selected`;
   }
 }
@@ -256,7 +293,7 @@ function cleanCanvasChrome(page: HTMLElement) {
   const button = page.querySelector<HTMLButtonElement>(".canvasSizeButton");
   if (button && !button.classList.contains("labelFinalSizeManage")) button.hidden = true;
   const hint = page.querySelector<HTMLElement>(".canvasToolbar span");
-  if (hint) hint.textContent = "Drag an element to move it. Use the mouse wheel on a selected element to resize it.";
+  if (hint) hint.textContent = "Drag to move. Use the mouse wheel to resize. Arrow keys nudge; Shift + Arrow moves 1 mm.";
 }
 
 function tidyRecordLabels(page: HTMLElement) {

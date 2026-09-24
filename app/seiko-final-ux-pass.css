@@ -1,0 +1,125 @@
+/* Final SEIKO UX pass: packing label editor, navigation, Home and list density. */
+
+/* The pre-print brief belongs before the information chooser. */
+.packingWorkflowDesigner > .packingReadinessPanel{order:2!important;margin:0 0 10px!important}
+.packingWorkflowDesigner > .packingInformationPanel{order:3!important}
+.packingWorkflowDesigner > .packingPresentationSummary{order:4!important}
+.packingWorkflowDesigner > .packingDesignerGrid{order:5!important}
+
+/* Information becomes a compact summary; its real controls live in the focused drawer. */
+.packingWorkflowDesigner > .packingInformationPanel{display:block!important;position:relative!important;padding:11px 14px!important}
+.packingWorkflowDesigner .finalInfoHead{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.packingWorkflowDesigner .finalInfoHead h3{margin:1px 0 2px!important;font-size:13px!important}
+.packingWorkflowDesigner .finalInfoHead p:last-child{margin:0!important;color:var(--muted);font-size:10px}
+.packingWorkflowDesigner .finalInfoLegacyHeading{display:none!important}
+.packingWorkflowDesigner > .packingInformationPanel:not(.finalInfoDrawerOpen)>.packingInfoGrid{display:none!important}
+.packingWorkflowDesigner .finalInfoCustomize{min-height:34px!important;flex:0 0 auto}
+.packingWorkflowDesigner .finalInfoBackdrop{position:fixed;inset:0;z-index:10040;border:0;background:rgba(16,45,73,.42)}
+.packingWorkflowDesigner > .packingInformationPanel.finalInfoDrawerOpen{position:fixed!important;z-index:10050!important;top:0!important;right:0!important;bottom:0!important;left:auto!important;width:min(620px,96vw)!important;height:100dvh!important;margin:0!important;padding:0 18px 22px!important;overflow:auto!important;background:#fffaf4!important;box-shadow:-18px 0 50px rgba(16,45,73,.24)!important}
+.packingWorkflowDesigner .finalInfoDrawerOpen .finalInfoHead{position:sticky;top:0;z-index:3;margin:0 -18px 10px;padding:16px 18px 13px;background:#fffaf4;border-bottom:1px solid var(--line)}
+.packingWorkflowDesigner .finalInfoDrawerOpen>.packingInfoGrid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+.packingWorkflowDesigner .finalInfoDrawerOpen .fieldChoice{min-height:0!important;padding:9px 10px!important;display:grid!important;gap:7px!important}
+.packingWorkflowDesigner .finalInfoDrawerOpen .fieldChoice>label:first-child{min-height:22px!important}
+.packingWorkflowDesigner .finalInfoDrawerOpen .fieldChoice .showName{margin:0!important;display:inline-flex!important;align-items:center!important;gap:5px!important;font-size:10px!important}
+.packingWorkflowDesigner .finalInfoDrawerOpen .fieldChoice .finalFieldNameBold[hidden]{display:none!important}
+.packingWorkflowDesigner .finalInfoDrawerOpen .finalPackageChoice{display:none!important}
+
+/* Product controls are dense and only reveal configuration once that product is included. */
+.packingWorkflowDesigner .packingPresentationDrawer{width:min(660px,96vw)!important;max-width:660px!important}
+.packingWorkflowDesigner .packingPresentationRules{gap:7px!important}
+.packingWorkflowDesigner .packingPresentationRules details{border-radius:9px!important;overflow:hidden!important}
+.packingWorkflowDesigner .packingPresentationRules summary{min-height:44px!important;padding:8px 10px!important}
+.packingWorkflowDesigner .packingRuleBody{padding:9px 10px 11px!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px 10px!important}
+.packingWorkflowDesigner .packingRuleBody>label{gap:3px!important;margin:0!important}
+.packingWorkflowDesigner .packingRuleBody input[type="text"],
+.packingWorkflowDesigner .packingRuleBody select{min-height:34px!important;height:34px!important;padding-top:4px!important;padding-bottom:4px!important}
+.packingWorkflowDesigner .packingRuleBody>.packingCheck:first-child{grid-column:1/-1!important;padding:7px 9px!important;margin:0!important;min-height:34px!important}
+.packingWorkflowDesigner .finalProductTypography{grid-column:1/-1;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:6px 0 2px;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.packingWorkflowDesigner .finalProductTypography label{display:inline-flex!important;align-items:center!important;gap:5px!important;margin:0!important;font-size:10px!important;color:var(--ink)!important}
+.packingWorkflowDesigner .finalProductExcluded .packingRuleBody>*:not(.packingCheck:first-child){display:none!important}
+.packingWorkflowDesigner .finalProductExcluded summary{opacity:.68}
+.packingWorkflowDesigner .packingDetailRules{grid-column:1/-1!important;display:grid!important;gap:5px!important;margin-top:1px!important}
+.packingWorkflowDesigner .packingMeasurementRow{grid-template-columns:minmax(0,1fr) 140px!important;gap:8px!important;align-items:center!important;min-height:34px!important}
+.packingWorkflowDesigner .packingMeasurementRow select{width:140px!important}
+
+/* The old package visibility mirror is intentionally removed from the workspace.
+   Product inclusion now belongs to each order-product card in Customize. */
+.packingWorkflowDesigner .finalLegacyPackageVisibility,
+.packingWorkflowDesigner .packingPackageVisibility{display:none!important}
+
+/* The selected-element inspector is a useful typography/geometry toolbar. */
+.packingWorkflowDesigner .packingInspectorBar{grid-template-columns:minmax(130px,auto) minmax(150px,190px) minmax(105px,125px) minmax(105px,125px) auto minmax(180px,1fr)!important;align-items:end!important;gap:8px!important;padding:9px 10px!important}
+.packingWorkflowDesigner .packingInspectorBar label{position:relative!important;gap:3px!important;font-size:9px!important;font-weight:750!important}
+.packingWorkflowDesigner .packingInspectorBar input{height:34px!important;min-height:34px!important;padding:4px 8px!important;font-size:13px!important;font-variant-numeric:tabular-nums}
+.packingWorkflowDesigner .finalFontStepper{position:absolute;right:3px;bottom:3px;display:flex;gap:2px}
+.packingWorkflowDesigner .finalFontStepper button{display:grid;place-items:center;width:27px;height:28px;min-height:0!important;padding:0!important;border:0!important;border-radius:5px!important;background:#eef2f5!important;color:var(--navy)!important;font-size:15px!important;font-weight:850!important}
+.packingWorkflowDesigner .packingInspectorBar label:has(.finalFontStepper) input{padding-right:64px!important}
+.packingWorkflowDesigner .packingFitBoxButton{height:34px!important;min-height:34px!important;padding:0 10px!important}
+.packingWorkflowDesigner .packingInspectorHint{font-size:9px!important;line-height:1.3!important}
+
+/* Canvas and record panel form one aligned working row. */
+.packingWorkflowDesigner>.packingDesignerGrid{align-items:stretch!important}
+.packingWorkflowDesigner .labelCanvasPanel,
+.packingWorkflowDesigner .labelSidebar{height:100%!important}
+.packingWorkflowDesigner .labelSidebar{display:flex!important;flex-direction:column!important;max-height:none!important;position:relative!important;top:auto!important}
+.packingWorkflowDesigner .labelSidebar .recordList{flex:1 1 auto!important;max-height:480px!important;min-height:250px!important}
+.packingWorkflowDesigner .finalTraceTools{margin-top:10px;padding:10px 0 0;border-top:1px solid var(--line)}
+.packingWorkflowDesigner .finalTraceTools p{margin:2px 0 7px;font-size:9.5px;line-height:1.35;color:var(--muted)}
+.packingWorkflowDesigner .finalTraceTools .eyebrow{font-size:8px!important;color:var(--muted)}
+.packingWorkflowDesigner .finalTraceTools button{width:100%;min-height:34px!important}
+
+/* Session-aware back controls. */
+.finalSessionBack{display:inline-flex!important;align-items:center!important;min-height:30px!important;margin:0 10px 0 0!important;padding:0!important;border:0!important;background:transparent!important;color:var(--navy)!important;font-size:10px!important;font-weight:800!important}
+.orderCenterHead:has(.finalSessionBack),.labelLauncherHead:has(.finalSessionBack){position:relative!important}
+.ordersPage .orderCenterHead>.finalSessionBack,.labelLauncherHead>.finalSessionBack{grid-column:1/-1;justify-self:start}
+
+/* Compact Order Center rows. */
+.ordersPage .orderRowClickable{min-height:64px!important;padding-top:9px!important;padding-bottom:9px!important}
+.ordersPage .orderRowClickable>div:first-child{gap:0!important}
+.ordersPage .orderRowClickable>div:first-child>b{margin-bottom:1px!important}
+.ordersPage .orderRowClickable>div:first-child>strong{line-height:1.2!important;margin:0!important}
+.ordersPage .orderCenterOperationalMeta{margin-top:1px!important;gap:7px!important}
+.ordersPage .orderCenterOperationalMeta span{line-height:1.15!important}
+
+/* Business switching belongs at the top of the menu. */
+.moduleMenu>.globalBusinessNavigator{order:-30!important;margin:0 0 10px!important;flex:0 0 auto!important}
+.moduleMenu>.moduleMenuHead{order:-40!important}
+.moduleMenu{padding-top:10px!important}
+
+/* Home: compact informational metrics and bottom-right customization. */
+.seikoOperationalDashboard{position:relative!important;padding-bottom:52px!important}
+.seikoOperationalDashboard .seikoDashboardMetrics{gap:7px!important;margin:8px 0 12px!important}
+.seikoOperationalDashboard .seikoMetricReadout{min-height:58px!important;padding:8px 10px!important;gap:2px!important;grid-template-columns:1fr auto!important;grid-template-rows:auto auto!important;align-items:center!important}
+.seikoOperationalDashboard .seikoMetricReadout small{grid-column:1;font-size:8px!important}
+.seikoOperationalDashboard .seikoMetricReadout strong{grid-column:2;grid-row:1/3;font-size:20px!important;line-height:1!important}
+.seikoOperationalDashboard .seikoMetricReadout span{grid-column:1;font-size:8.5px!important;line-height:1.15!important}
+.seikoOperationalDashboard .seikoDashboardHeadActions{position:absolute!important;right:0!important;bottom:0!important;z-index:2}
+.seikoOperationalDashboard .seikoDashboardHeadActions button{min-height:34px!important;padding:0 11px!important}
+
+/* Order destination chooser from Home. */
+.finalOrderChooserLayer{position:fixed;inset:0;z-index:14000;display:grid;place-items:center;padding:20px;background:rgba(16,45,73,.42)}
+.finalOrderChooser{width:min(620px,94vw);padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--paper);box-shadow:0 24px 70px rgba(8,35,54,.23)}
+.finalOrderChooser header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.finalOrderChooser h3{margin:2px 0 3px;font-size:18px}.finalOrderChooser header p:last-child{margin:0;color:var(--muted);font-size:11px}
+.finalChooserClose{width:34px!important;min-width:34px!important;height:34px!important;padding:0!important;font-size:17px!important}
+.finalOrderDestinations{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding-top:12px}
+.finalOrderDestinations button{display:grid;gap:4px;min-height:94px;padding:12px;border:1px solid var(--line)!important;border-radius:9px!important;background:var(--paper)!important;color:var(--ink)!important;text-align:left!important}
+.finalOrderDestinations button:hover{border-color:#d2a452!important;background:#fff8ed!important}
+.finalOrderDestinations b{font-size:12px}.finalOrderDestinations span{color:var(--muted);font-size:10px;line-height:1.35}
+
+/* Typography spans created by the final presentation layer must not add spacing. */
+.packingFitText .finalStyledLine{white-space:pre-wrap}
+
+@media(max-width:980px){
+  .packingWorkflowDesigner .packingInspectorBar{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .packingWorkflowDesigner .packingInspectorBar>b,.packingWorkflowDesigner .packingInspectorHint{grid-column:1/-1!important}
+  .finalOrderDestinations{grid-template-columns:1fr!important}
+  .finalOrderDestinations button{min-height:70px}
+}
+@media(max-width:700px){
+  .packingWorkflowDesigner .finalInfoDrawerOpen>.packingInfoGrid{grid-template-columns:1fr!important}
+  .packingWorkflowDesigner .packingRuleBody{grid-template-columns:1fr!important}
+  .packingWorkflowDesigner .packingMeasurementRow{grid-template-columns:1fr!important}.packingWorkflowDesigner .packingMeasurementRow select{width:100%!important}
+  .packingWorkflowDesigner .packingInspectorBar{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .seikoOperationalDashboard .seikoDashboardMetrics{grid-template-columns:1fr!important}
+}
