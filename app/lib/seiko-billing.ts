@@ -27,6 +27,10 @@ export type SeikoCommercialDocument = {
   status: "draft" | "issued" | "cancelled" | "paid" | "part_paid";
   createdAt: string;
   updatedAt: string;
+  clientPhone?: string;
+  clientAddress?: string;
+  clientGstin?: string;
+  supplier?: { name: string; address: string; phone: string; gstin: string; bank: string };
 };
 
 export type SeikoPaymentRecord = {
@@ -89,13 +93,13 @@ export function documentTotals(document: Pick<SeikoCommercialDocument, "taxMode"
   const subtotal = roundMoney(document.lines.reduce((sum, line) => sum + lineSubtotal(line), 0));
   const tax = document.taxMode === "gst" ? roundMoney(document.lines.reduce((sum, line) => sum + lineSubtotal(line) * Math.max(0, Number(line.taxRate) || 0) / 100, 0)) : 0;
   const cgst = document.taxMode === "gst" && document.taxTreatment === "intra_state" ? roundMoney(tax / 2) : 0;
-  const sgst = document.taxMode === "gst" && document.taxTreatment === "intra_state" ? roundMoney(tax / 2) : 0;
+  const sgst = document.taxMode === "gst" && document.taxTreatment === "intra_state" ? roundMoney(tax - cgst) : 0;
   const igst = document.taxMode === "gst" && document.taxTreatment === "inter_state" ? tax : 0;
   return { subtotal, tax, cgst, sgst, igst, total: roundMoney(subtotal + tax) };
 }
 
 export function paymentsForInvoice(payments: SeikoPaymentRecord[], invoiceId: string) {
-  return payments.filter(payment => payment.invoiceId === invoiceId).reduce((sum, payment) => sum + Math.max(0, Number(payment.amount) || 0), 0);
+  return roundMoney(payments.filter(payment => payment.invoiceId === invoiceId).reduce((sum, payment) => sum + Math.max(0, Number(payment.amount) || 0), 0));
 }
 
 export function invoiceOutstanding(invoice: SeikoCommercialDocument, payments: SeikoPaymentRecord[]) {
@@ -111,3 +115,25 @@ export function nextDocumentNumber(kind: SeikoDocumentKind, existing: SeikoComme
 }
 
 export function roundMoney(value: number) { return Math.round((value + Number.EPSILON) * 100) / 100; }
+
+export function billingStatus(document: SeikoCommercialDocument, payments: SeikoPaymentRecord[]) {
+  if (document.status === "cancelled" || document.kind !== "invoice") return document.status;
+  return invoiceOutstanding(document, payments) === 0 ? "paid" : paymentsForInvoice(payments, document.id) > 0 ? "part_paid" : "issued";
+}
+
+export function validateBillingDocument(document: SeikoCommercialDocument): string {
+  if (!["invoice", "quotation", "delivery_challan"].includes(document.kind)) return "Choose an invoice, quotation or challan.";
+  if (!document.clientName?.trim() || !document.clientPhone?.trim()) return "Client name and phone are required.";
+  if (!document.supplier?.name?.trim()) return "Supplier name is required.";
+  if (!validBillingDate(document.issueDate)) return "Choose a valid invoice date.";
+  if (document.dueDate && (!validBillingDate(document.dueDate) || document.dueDate < document.issueDate)) return "Due date must be on or after the invoice date.";
+  if (!["gst", "non_gst"].includes(document.taxMode) || !["intra_state", "inter_state"].includes(document.taxTreatment)) return "Choose a valid tax treatment.";
+  if (!Array.isArray(document.lines) || !document.lines.length || document.lines.length > 200) return "Add between 1 and 200 item lines.";
+  if (document.lines.some(line => !line.description?.trim() || !Number.isFinite(line.quantity) || line.quantity <= 0 || !Number.isFinite(line.unitRate) || line.unitRate < 0 || !Number.isFinite(line.taxRate) || line.taxRate < 0 || line.taxRate > 100)) return "Each item needs a description, positive quantity and valid rate/tax.";
+  if (documentTotals(document).total > 1_000_000_000) return "Invoice total is too large.";
+  return "";
+}
+
+export function validBillingDate(value: string) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+}

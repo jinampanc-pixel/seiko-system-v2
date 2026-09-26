@@ -109,9 +109,10 @@ test("SEIKO billing links documents, tax treatment, payments and outstanding bal
   assert.match(seikoBilling, /invoiceOutstanding/);
   assert.match(seikoBilling, /paymentStoreKey/);
   assert.match(seikoBilling, /showCustomerAcknowledgement/);
-  assert.match(seikoPhase2, /Record payment/);
-  assert.match(seikoPhase2, /GST document/);
-  assert.match(seikoPhase2, /Without GST/);
+  const billingWorkspace = readFileSync(new URL("../app/seiko-billing-workspace.tsx", import.meta.url), "utf8");
+  assert.match(billingWorkspace, /Record payment/);
+  assert.match(billingWorkspace, /GST document/);
+  assert.match(billingWorkspace, /Without GST/);
 });
 
 test("Users and access is nested inside business settings rather than exposed as a shell module", () => {
