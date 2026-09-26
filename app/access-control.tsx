@@ -154,8 +154,11 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ identifier, password }),
       });
-      const result = await response.json() as { ok?: boolean; message?: string };
-      if (!result.ok) throw new Error(result.message || "Sign in failed.");
+      const raw = await response.text();
+      let result: { ok?: boolean; message?: string };
+      try { result = raw ? JSON.parse(raw) as { ok?: boolean; message?: string } : {}; }
+      catch { throw new Error(`Sign in service returned an invalid response (${response.status}).`); }
+      if (!response.ok || !result.ok) throw new Error(result.message || `Sign in failed (${response.status}).`);
       await onRetry();
     } catch (cause) {
       setFormError(cause instanceof Error ? cause.message : "Sign in failed.");
@@ -164,7 +167,7 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
 
   const bootstrap = async () => {
     setBusy(true); setFormError("");
-    try { const response = await fetch("/api/erp/auth/bootstrap", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: identifier, displayName: bootstrapName, password }) }); const result = await response.json() as { ok?: boolean; message?: string }; if (!result.ok) throw new Error(result.message || "Owner setup failed."); setBootstrapOpen(false); await signIn(); }
+    try { const response = await fetch("/api/erp/auth/bootstrap", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: identifier, displayName: bootstrapName, password }) }); const raw = await response.text(); let result: { ok?: boolean; message?: string }; try { result = raw ? JSON.parse(raw) as { ok?: boolean; message?: string } : {}; } catch { throw new Error(`Owner setup service returned an invalid response (${response.status}).`); } if (!response.ok || !result.ok) throw new Error(result.message || `Owner setup failed (${response.status}).`); setBootstrapOpen(false); await signIn(); }
     catch (cause) { setFormError(cause instanceof Error ? cause.message : "Owner setup failed."); } finally { setBusy(false); }
   };
 
@@ -430,3 +433,4 @@ function defaultModules(role: AccessRole): Module[] {
 function titleRole(role: AccessRole) {
   return role === "owner" ? "Owner" : role === "admin" ? "Admin" : role === "operations" ? "Operations" : "Viewer";
 }
+
