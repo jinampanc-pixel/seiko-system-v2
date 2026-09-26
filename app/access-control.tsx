@@ -143,6 +143,8 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
+  const [bootstrapOpen, setBootstrapOpen] = useState(false);
+  const [bootstrapName, setBootstrapName] = useState("SEIKO Owner");
 
   const signIn = async () => {
     setBusy(true); setFormError("");
@@ -158,6 +160,12 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
     } catch (cause) {
       setFormError(cause instanceof Error ? cause.message : "Sign in failed.");
     } finally { setBusy(false); }
+  };
+
+  const bootstrap = async () => {
+    setBusy(true); setFormError("");
+    try { const response = await fetch("/api/erp/auth/bootstrap", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: identifier, displayName: bootstrapName, password }) }); const result = await response.json() as { ok?: boolean; message?: string }; if (!result.ok) throw new Error(result.message || "Owner setup failed."); setBootstrapOpen(false); await signIn(); }
+    catch (cause) { setFormError(cause instanceof Error ? cause.message : "Owner setup failed."); } finally { setBusy(false); }
   };
 
   const changePassword = async () => {
@@ -196,6 +204,8 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
           <label><span>Password</span><input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Password"/></label>
           {formError && <div className="accessError" role="alert">{formError}</div>}
           <button className="primary" type="submit" disabled={busy || !identifier.trim() || !password}>{busy ? "Signing in…" : "Sign in"}</button>
+          <button type="button" className="secondary" onClick={() => setBootstrapOpen(value => !value)}>Create first SEIKO owner</button>
+          {bootstrapOpen && <div className="bootstrapPanel"><label><span>Owner name</span><input value={bootstrapName} onChange={event => setBootstrapName(event.target.value)} /></label><small>Only works while SEIKO has no active owner. Use the email and password above.</small><button type="button" className="primary" onClick={() => void bootstrap()} disabled={busy || !identifier.trim() || password.length < 12}>Create owner account</button></div>}
           <small className="accessLoginHelp">Your administrator creates your account and initial password. Users not listed in the ERP cannot sign in.</small>
         </form>
         <ModernLoginOptions onSignedIn={onRetry}/>
