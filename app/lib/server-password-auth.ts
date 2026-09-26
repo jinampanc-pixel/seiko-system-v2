@@ -2,7 +2,9 @@ import { env } from "cloudflare:workers";
 
 const SESSION_COOKIE = "jinam_erp_session";
 const PASSWORD_ALGORITHM = "PBKDF2-SHA256";
-const PASSWORD_ITERATIONS = 600_000;
+// Cloudflare Workers WebCrypto supports at most 100,000 PBKDF2 iterations.
+// Keep the encoded iteration count explicit so existing hashes remain verifiable.
+const PASSWORD_ITERATIONS = 100_000;
 const PASSWORD_MIN_LENGTH = 12;
 const SESSION_HOURS = 12;
 const IDENTITY_FAILURE_LIMIT = 6;
@@ -341,3 +343,4 @@ function fromBase64Url(value: string) {
   const binary = atob(normalized);
   return Uint8Array.from(binary, char => char.charCodeAt(0));
 }
+
