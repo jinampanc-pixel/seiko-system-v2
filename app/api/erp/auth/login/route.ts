@@ -7,6 +7,7 @@ type PreviewEnv = {
 };
 
 export async function POST(request: Request) {
+ try {
   const db = env.DB;
   if (!db) return error("ERP_DB_NOT_CONFIGURED", "Shared ERP storage is not connected.", 503);
 
@@ -66,6 +67,10 @@ export async function POST(request: Request) {
     { ok: true, data: { user: { displayName: user.displayName, email: user.email }, mustChangePassword: user.mustChangePassword } },
     { headers: { "set-cookie": session.cookie, "cache-control": "no-store" } },
   );
+ } catch (cause) {
+  const message = cause instanceof Error ? cause.message : "Login failed on the server.";
+  return error("LOGIN_FAILED", message, 500);
+ }
 }
 
 async function secretEqual(left: string, right: string) {
@@ -84,3 +89,4 @@ async function secretEqual(left: string, right: string) {
 function error(code: string, message: string, status: number) {
   return Response.json({ ok: false, code, message }, { status, headers: { "cache-control": "no-store" } });
 }
+
