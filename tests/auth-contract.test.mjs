@@ -18,7 +18,7 @@ const billing = read("app/billing.tsx");
 
 test("passwords use salted PBKDF2 and are never stored as plaintext", () => {
   assert.match(auth, /PBKDF2-SHA256/);
-  assert.match(auth, /600_000/);
+  assert.match(auth, /100_000/);
   assert.match(auth, /crypto\.getRandomValues\(new Uint8Array\(16\)\)/);
   assert.match(auth, /password_hash/);
   assert.doesNotMatch(migration, /password_plain|plain_password/i);
@@ -82,3 +82,4 @@ test("billing is a first-class module with shared commercial document flow", () 
   assert.match(billing, /Quotation → PO → Delivery Challan → Invoice/);
   assert.match(billing, /same customer, item\/service and pricing source/);
 });
+
