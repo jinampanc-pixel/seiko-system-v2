@@ -29,7 +29,12 @@ export type SessionIdentity = {
   mustChangePassword: boolean;
 };
 
+// Cache only completed schema setup, never a request-owned I/O promise.
+// Each binding/isolate still initializes independently, and failures can retry.
+const initializedAuthDatabases = new WeakSet<object>();
+
 export async function ensureAuthSchema(db: NonNullable<typeof env.DB>) {
+  if (initializedAuthDatabases.has(db)) return;
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS erp_users (
       id TEXT PRIMARY KEY NOT NULL,
@@ -75,6 +80,7 @@ export async function ensureAuthSchema(db: NonNullable<typeof env.DB>) {
     db.prepare(`CREATE INDEX IF NOT EXISTS erp_auth_events_ip_idx ON erp_auth_events(ip_hash,at)`),
     db.prepare(`CREATE INDEX IF NOT EXISTS erp_auth_events_user_idx ON erp_auth_events(user_id,at)`),
   ]);
+  initializedAuthDatabases.add(db);
 }
 
 export function normalizePhone(value: string | null | undefined): string | null {
@@ -343,4 +349,3 @@ function fromBase64Url(value: string) {
   const binary = atob(normalized);
   return Uint8Array.from(binary, char => char.charCodeAt(0));
 }
-

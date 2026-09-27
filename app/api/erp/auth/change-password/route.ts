@@ -2,6 +2,15 @@ import { env } from "cloudflare:workers";
 import { createSession, findUserByIdentifier, getSessionIdentity, recordAuthEvent, revokeAllUserSessions, setPasswordForUser, validatePassword } from "../../../../lib/server-password-auth";
 
 export async function POST(request: Request) {
+  try {
+    return await changePassword(request);
+  } catch (cause) {
+    console.error("Password change failed", cause);
+    return error("PASSWORD_CHANGE_FAILED", "Password change could not be completed. Try signing in with your new password; if it was not saved, use your temporary password and try again.", 500);
+  }
+}
+
+async function changePassword(request: Request) {
   const db = env.DB;
   if (!db) return error("ERP_DB_NOT_CONFIGURED", "Shared ERP storage is not connected.", 503);
 

@@ -131,9 +131,23 @@ export function AccessProvider({ children }: { children: ReactNode }) {
 
   return <AccessContext.Provider value={value}>
     {children}
-    {menuHost && createPortal(<button type="button" className="nav accessMenuEntry" onClick={() => setPanelOpen(true)}><span>◉</span><small>{can("users.manage") ? "Users & access" : "My access"}</small></button>, menuHost)}
+    {menuHost && createPortal(<><button type="button" className="nav accessMenuEntry" onClick={() => setPanelOpen(true)}><span>◉</span><small>{can("users.manage") ? "Users & access" : "My access"}</small></button><button type="button" className="nav accessMenuEntry" onClick={() => void logoutSession()}><span>↪</span><small>Sign out</small></button></>, menuHost)}
     {panelOpen && <AccessPanel onClose={() => setPanelOpen(false)}/>} 
   </AccessContext.Provider>;
+}
+
+
+async function logoutSession(all = false) {
+  try {
+    const response = await fetch("/api/erp/auth/logout", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ all }),
+    });
+    if (!response.ok) throw new Error("Sign out failed. Please try again.");
+    window.location.reload();
+  } catch {
+    window.alert("Could not sign out. Please check your connection and try again.");
+  }
 }
 
 function AccessGate({ status, message, onRetry }: { status: AccessStatus; message: string; onRetry: () => Promise<void> }) {
@@ -143,7 +157,7 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
-  const [bootstrapOpen, setBootstrapOpen] = useState(true);
+  const [bootstrapOpen, setBootstrapOpen] = useState(false);
   const [bootstrapName, setBootstrapName] = useState("SEIKO Owner");
 
   const signIn = async () => {
@@ -180,8 +194,8 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ newPassword }),
       });
-      const result = await response.json() as { ok?: boolean; message?: string };
-      if (!result.ok) throw new Error(result.message || "Password could not be changed.");
+      const result = await response.json().catch(() => null) as { ok?: boolean; message?: string } | null;
+      if (!response.ok || !result?.ok) throw new Error(result?.message || `Password could not be changed (${response.status}). Please try again.`);
       await onRetry();
     } catch (cause) {
       setFormError(cause instanceof Error ? cause.message : "Password could not be changed.");
@@ -220,6 +234,7 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
         {formError && <div className="accessError" role="alert">{formError}</div>}
         <button className="primary" type="submit" disabled={busy || newPassword.length < 12 || !confirmPassword}>{busy ? "Saving…" : "Set password & continue"}</button>
         <small className="accessLoginHelp">This replaces the temporary password your administrator gave you.</small>
+        <button className="secondary" type="button" disabled={busy} onClick={() => void logoutSession()}>Sign out</button>
       </form>}
 
       {(status === "error" || status === "no-access") && <button className="secondary" onClick={() => void onRetry()}>Retry</button>}
@@ -255,10 +270,7 @@ function AccessPanel({ onClose }: { onClose: () => void }) {
   const permissions = permissionsForRole(membership?.role || "viewer", membership?.permissions);
   const businessName = membership?.businessName || businessId;
 
-  const signOut = async (all = false) => {
-    await fetch("/api/erp/auth/logout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ all }) });
-    window.location.reload();
-  };
+  const signOut = logoutSession;
 
   return <div className="accessPanelBackdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="accessPanel" role="dialog" aria-modal="true" aria-label="Account and access">
@@ -433,4 +445,3 @@ function defaultModules(role: AccessRole): Module[] {
 function titleRole(role: AccessRole) {
   return role === "owner" ? "Owner" : role === "admin" ? "Admin" : role === "operations" ? "Operations" : "Viewer";
 }
-

@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "seiko-system-v2",
+  "name": "seiko-system-v2-app",
   "main": "dist/server/index.js",
   "compatibility_date": "2026-08-15",
   "compatibility_flags": ["nodejs_compat"],
