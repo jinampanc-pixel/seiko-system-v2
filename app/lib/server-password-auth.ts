@@ -292,7 +292,14 @@ export async function revokeAllUserSessions(db: NonNullable<typeof env.DB>, user
 }
 
 export function clearSessionCookie() {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+  // Remember explicit ERP logout for this browser session. Removing the cookie
+  // alone would let the outer Cloudflare Access identity sign the user back in.
+  // A password/passkey login replaces this marker with a new session token.
+  return `${SESSION_COOKIE}=signed-out; Path=/; HttpOnly; Secure; SameSite=Lax`;
+}
+
+export function isExplicitlySignedOut(request: Request) {
+  return cookieValue(request.headers.get("cookie"), SESSION_COOKIE) === "signed-out";
 }
 
 function normalizeIdentifier(identifier: string): { kind: "email" | "phone"; value: string } | null {

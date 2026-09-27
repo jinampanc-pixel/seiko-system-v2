@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { parseAccessConfig, permissionsForRole, type AccessRole, type Permission } from "./access-control";
-import { getSessionIdentity } from "./server-password-auth";
+import { getSessionIdentity, isExplicitlySignedOut } from "./server-password-auth";
 
 export type Actor = {
   userId: string;
@@ -33,6 +33,7 @@ const membershipCache = new Map<string, { expires: number; memberships: Membersh
 const keyCache = new Map<string, { expires: number; keys: JsonWebKey[] }>();
 
 export async function authenticateActor(request: Request): Promise<Actor | null> {
+  if (isExplicitlySignedOut(request)) return null;
   const session = await getSessionIdentity(request);
   if (session) {
     return {

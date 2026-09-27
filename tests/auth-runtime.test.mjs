@@ -10,6 +10,7 @@ test("Workers password lifecycle: temporary login, replacement, revocation and l
     stdin: { contents: `
       import { env } from "cloudflare:workers";
       import * as auth from "./app/lib/server-password-auth";
+      import { authenticateActor } from "./app/lib/server-erp-auth";
       import { POST as login } from "./app/api/erp/auth/login/route";
       import { POST as change } from "./app/api/erp/auth/change-password/route";
       import { POST as logout } from "./app/api/erp/auth/logout/route";
@@ -26,6 +27,7 @@ test("Workers password lifecycle: temporary login, replacement, revocation and l
         if (path === "/login") return login(request);
         if (path === "/change") return change(request);
         if (path === "/logout") return logout(request);
+        if (path === "/actor") return Response.json(await authenticateActor(request));
         return Response.json(await auth.getSessionIdentity(request));
       }};
     `, resolveDir: process.cwd(), loader: "ts" },
@@ -46,7 +48,7 @@ test("Workers password lifecycle: temporary login, replacement, revocation and l
   });
   const mf = new Miniflare({
     modules: true, script: bundle.outputFiles[0].text,
-    compatibilityDate: "2026-05-22", d1Databases: ["DB"],
+    compatibilityDate: "2026-05-22", compatibilityFlags: ["nodejs_compat"], d1Databases: ["DB"],
   });
   const call = (path, body, cookie) => mf.dispatchFetch("https://local.test" + path, {
     method: body ? "POST" : "GET",
@@ -73,8 +75,18 @@ test("Workers password lifecycle: temporary login, replacement, revocation and l
     assert.equal((await call("/login", credentials("Private-test-456!"))).status, 200);
     const signedOut = await call("/logout", {}, newCookie);
     assert.equal(signedOut.status, 200);
-    assert.match(signedOut.headers.get("set-cookie"), /Max-Age=0/);
+    assert.match(signedOut.headers.get("set-cookie"), /jinam_erp_session=signed-out;/);
     assert.equal(await (await call("/identity", null, newCookie)).json(), null);
+    const externalHeaders = { "oai-authenticated-user-id": "external-test", "oai-authenticated-user-email": "auth@example.invalid" };
+    const external = await mf.dispatchFetch("https://local.test/actor", { headers: externalHeaders });
+    assert.equal((await external.json()).source, "chatgpt");
+    const optedOut = await mf.dispatchFetch("https://local.test/actor", {
+      headers: { ...externalHeaders, cookie: cookieFrom(signedOut) },
+    });
+    assert.equal(await optedOut.json(), null, "external identity must not silently undo explicit ERP logout");
+    const signedInAgain = await call("/login", credentials("Private-test-456!"), cookieFrom(signedOut));
+    assert.equal(signedInAgain.status, 200);
+    assert.equal((await (await call("/actor", null, cookieFrom(signedInAgain))).json()).source, "erp-session");
   } finally {
     await mf.dispose();
   }
