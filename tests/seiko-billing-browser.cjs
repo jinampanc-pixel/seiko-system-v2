@@ -7,6 +7,8 @@ const { DatabaseSync } = require('node:sqlite');
 function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports, require: name => imports[name], crypto, Response, Request, URL, TextDecoder, Uint8Array }); return exports; }
 (async () => {
  const sqlite = new DatabaseSync(':memory:');
+ sqlite.exec("CREATE TABLE erp_orders(id TEXT, business_id TEXT, status TEXT, document_json TEXT)");
+ sqlite.prepare("INSERT INTO erp_orders VALUES(?,?,?,?)").run("order-test","seiko","Active",JSON.stringify({details:{orderNo:"ORDER-TEST",clientName:"School test",contactNumber:"9999999999"}}));
  const db = { withSession() { return this; }, prepare(sql) { const stmt = sqlite.prepare(sql); let args = []; return { bind(...values) { args = values; return this; }, async run() { return stmt.run(...args); }, async first() { return stmt.get(...args) || null; }, async all() { return { results: stmt.all(...args) }; } }; } };
  const model = load('app/lib/seiko-billing.ts');
  const api = load('app/api/erp/billing/route.ts', { 'cloudflare:workers': {env:{DB:db}}, '../../../lib/seiko-billing': model, '../../../lib/server-erp-auth': { authenticateActor: async () => ({ email:'test@example.invalid' }), authorizePermission: async () => true } });
@@ -15,6 +17,21 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   const page = await browser.newPage({ viewport:{width:1400,height:1100} }); const errors=[]; page.on('pageerror', e=>errors.push(e.message));
   await page.route('**/api/erp/billing', async route => { const response = await api.POST(new Request('http://127.0.0.1:5176/api/erp/billing', { method:'POST', body:route.request().postData() })); await route.fulfill({ status:response.status, contentType:'application/json', body:await response.text() }); });
   await page.goto('http://127.0.0.1:5176/tests/packing-browser/billing.html');
+  await page.getByRole('button',{name:'Record payment',exact:true}).click();
+  fs.mkdirSync('outputs',{recursive:true});
+  await page.screenshot({path:'outputs/order-payment-picker.png',fullPage:true});
+  await page.getByRole('button',{name:/School test · ORDER-TEST · Received/}).click();
+  let advanceForm=page.getByRole('dialog',{name:'Record payment · ORDER-TEST',exact:true});
+  await advanceForm.getByLabel('Amount received ₹',{exact:true}).fill('60');
+  await advanceForm.getByRole('button',{name:'Save',exact:true}).click();
+  let receiptFrame=page.frameLocator('iframe[title="Billing print preview"]');
+  await receiptFrame.getByText('Against order',{exact:false}).first().waitFor();
+  assert.match(await receiptFrame.locator('body').innerText(),/₹60.00/);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM seiko_billing_documents').get().n,0);
+  await page.getByRole('button',{name:'Close',exact:true}).click();
+  await page.getByRole('button',{name:'Payments & receipts',exact:true}).click();
+  assert.match(await page.getByRole('region',{name:'Payment history'}).innerText(),/School test/);
+  await page.getByRole('button',{name:'Invoices & documents',exact:true}).click();
   await page.getByRole('button',{name:'+ Invoice',exact:true}).click();
   let form = page.getByRole('dialog',{name:'New invoice',exact:true});
   await form.getByLabel('Client name *',{exact:true}).fill('Standalone customer');
@@ -22,11 +39,11 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   await form.getByLabel('Description',{exact:true}).fill('Uniform stitching');
   await form.getByLabel('Quantity',{exact:true}).fill('2'); await form.getByLabel('Rate ₹',{exact:true}).fill('125');
   await form.getByRole('button',{name:'Save',exact:true}).click();
-  await page.getByRole('button',{name:'Record payment',exact:true}).waitFor();
+  await page.getByRole('dialog').getByRole('button',{name:'Record payment',exact:true}).waitFor();
   let preview=page.frameLocator('iframe[title="Billing print preview"]');
   assert.equal(await preview.locator('.copy').count(),2);
   assert.match(await preview.locator('body').innerText(),/₹250.00/);
-  await page.getByRole('button',{name:'Record payment',exact:true}).click();
+  await page.getByRole('dialog').getByRole('button',{name:'Record payment',exact:true}).click();
   const pay=page.getByRole('dialog',{name:/Record payment/});
   await pay.getByLabel('Amount received ₹',{exact:true}).fill('100'); await pay.getByRole('button',{name:'Save',exact:true}).click();
   await page.getByRole('button',{name:'Updated invoice',exact:true}).click();
@@ -47,14 +64,15 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   assert.equal(await form.getByLabel('Quantity',{exact:true}).inputValue(),'3');
   assert.equal(await form.getByLabel('Client name *',{exact:true}).inputValue(),'School test');
   await form.getByLabel('Rate ₹',{exact:true}).fill('50'); await form.getByRole('button',{name:'Save',exact:true}).click();
-  await page.getByRole('button',{name:'Record payment',exact:true}).waitFor();
+  await page.getByRole('dialog').getByRole('button',{name:'Record payment',exact:true}).waitFor();
   assert.match(await preview.locator('body').innerText(),/ORDER-TEST/);
+  assert.match(await preview.locator('body').innerText(),/₹90.00/);
   await page.getByRole('button',{name:'Close',exact:true}).click();
   await page.setViewportSize({width:390,height:844});
   await page.getByRole('button',{name:'+ Invoice',exact:true}).click();
   await page.screenshot({path:'outputs/billing-mobile.png',fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
   assert.deepEqual(errors,[]);
-  console.log('PASS: standalone and order invoice, quantity 3 excluding held, partial payment, stable number, receipt, reload, A4 copies, mobile, no runtime errors.');
+  console.log('PASS: advance before invoice, order receipt, payment history, automatic allocation, standalone and order invoice, quantity 3 excluding held, partial payment, stable number, receipt, reload, A4 copies, mobile, no runtime errors.');
  } finally { await browser.close(); sqlite.close(); }
 })().catch(error=>{console.error(error);process.exit(1)});

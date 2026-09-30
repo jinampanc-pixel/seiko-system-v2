@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
-import { documentTotals, roundMoney, validBillingDate, validateBillingDocument, type SeikoCommercialDocument, type SeikoPaymentRecord } from "../../../lib/seiko-billing";
+import { allocateOrderPayments, documentTotals, roundMoney, validBillingDate, validateBillingDocument, type SeikoCommercialDocument, type SeikoPaymentRecord } from "../../../lib/seiko-billing";
 
 type DocumentRow = { sequence: number; id: string; data: string; cancelled: number };
 type PaymentRow = { sequence: number; id: string; data: string };
@@ -47,7 +47,20 @@ export async function POST(request: Request) {
     } else if (body.operation === "payment") {
       const payment = body.payment;
       if (!payment || typeof payment.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(payment.id) || typeof payment.invoiceId !== "string") return reply("Invalid payment.");
-      if (!Number.isFinite(payment.amount) || payment.amount <= 0 || roundMoney(payment.amount) !== payment.amount || !validBillingDate(payment.date) || !payment.mode?.trim()) return reply("Enter a positive amount with at most two decimal places, a valid date and payment mode.");
+      if (!Number.isFinite(payment.amount) || payment.amount <= 0 || payment.amount > 1_000_000_000 || roundMoney(payment.amount) !== payment.amount || !validBillingDate(payment.date) || !payment.mode?.trim()) return reply("Enter a positive amount with at most two decimal places, a valid date and payment mode.");
+      // A receipt belongs either to a verified order or to a standalone invoice.
+      if (!payment.invoiceId) {
+        if (typeof payment.orderId !== "string" || !payment.orderId) return reply("Choose an order for this payment.");
+        const orderRow = await db.prepare("SELECT document_json,status FROM erp_orders WHERE id = ? AND business_id = 'seiko'").bind(payment.orderId).first<{ document_json: string; status: string }>();
+        if (!orderRow) return reply("Order was not found. Save the order before taking payment.", 404);
+        if (orderRow.status === "Cancelled") return reply("Cannot receive payment for a cancelled order.");
+        const order = JSON.parse(orderRow.document_json) as { details: { orderNo?: string; clientName?: string; contactNumber?: string } };
+        const saved: SeikoPaymentRecord = { id: payment.id, invoiceId: "", orderId: payment.orderId, orderNo: order.details.orderNo || "", clientName: order.details.clientName || "", clientPhone: order.details.contactNumber || "", receiptNumber: "", amount: payment.amount, date: payment.date, mode: payment.mode.trim(), reference: String(payment.reference || ""), notes: String(payment.notes || ""), createdAt: new Date().toISOString() };
+        await db.prepare("INSERT INTO seiko_billing_payments(id,invoice_id,amount_paise,data,created_by) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(saved.id, "", Math.round(saved.amount * 100), JSON.stringify(saved), actor.email).run();
+        const recorded = await db.prepare("SELECT data FROM seiko_billing_payments WHERE id = ?").bind(saved.id).first<{ data: string }>();
+        const original = recorded && JSON.parse(recorded.data) as SeikoPaymentRecord;
+        if (!original || original.orderId !== saved.orderId || original.invoiceId || original.amount !== saved.amount || original.date !== saved.date || original.mode !== saved.mode || original.reference !== saved.reference || original.notes !== saved.notes) return reply("This payment reference was already saved with different details. Refresh before trying again.", 409);
+      } else {
       const row = await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE id = ?").bind(payment.invoiceId).first<DocumentRow>();
       if (!row) return reply("Invoice was not found.", 404);
       const invoice = documentFromRow(row);
@@ -61,10 +74,11 @@ export async function POST(request: Request) {
         ON CONFLICT(id) DO NOTHING`).bind(payment.id, paise, JSON.stringify(saved), actor.email, invoice.id, invoice.id, paise).run();
       const recorded = await db.prepare("SELECT id FROM seiko_billing_payments WHERE id = ? AND invoice_id = ?").bind(payment.id, invoice.id).first();
       if (!recorded) return reply("Payment exceeds the current outstanding balance. Refresh and check the amount.", 409);
+      }
     } else if (body.operation !== "list") return reply("Unknown billing operation.");
     const docs = await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents ORDER BY sequence DESC").all<DocumentRow>();
     const payments = await db.prepare("SELECT sequence,id,data FROM seiko_billing_payments ORDER BY sequence DESC").all<PaymentRow>();
-    return Response.json({ ok: true, documents: docs.results.map(documentFromRow), payments: payments.results.map(paymentFromRow), canManage }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ ok: true, documents: docs.results.map(documentFromRow), payments: allocateOrderPayments(docs.results.map(documentFromRow), payments.results.map(paymentFromRow)), canManage }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return reply("Billing could not be saved or loaded. Your form is still available; retry when connected.", 503);
   }

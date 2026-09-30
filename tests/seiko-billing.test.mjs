@@ -69,3 +69,52 @@ test("database persists invoices and idempotent payments, rejecting overpayment 
     authenticated = false; assert.equal((await call({ operation: "list" })).status, 401);
   } finally { sqlite.close(); }
 });
+
+test("order advances create receipts before invoices and allocate once across multiple invoices", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec("CREATE TABLE erp_orders(id TEXT, business_id TEXT, status TEXT, document_json TEXT)");
+  sqlite.prepare("INSERT INTO erp_orders VALUES(?,?,?,?)").run("order-advance", "seiko", "Active", JSON.stringify({ details: { orderNo: "ORD-01", clientName: "Advance Client", contactNumber: "1234567890" } }));
+  const db = { withSession() { return this; }, prepare(sql) { let args = []; const statement = sqlite.prepare(sql); return { bind(...values) { args = values; return this; }, async run() { return statement.run(...args); }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } }; } };
+  let manage = true;
+  const route = load("../app/api/erp/billing/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-billing": model, "../../../lib/server-erp-auth": { authenticateActor: async () => ({ email: "test@example.invalid" }), authorizePermission: async (_, __, permission) => permission === "financials.view" || manage } });
+  const call = body => route.POST(new Request("https://test.invalid/api/erp/billing", { method: "POST", body: JSON.stringify(body) }));
+  const advance = { ...payment("order-payment-01", 300), invoiceId: "", orderId: "order-advance", clientName: "Spoofed name", allocations: [{ invoiceId: "wrong", amount: 999 }] };
+  try {
+    assert.equal((await call({ operation: "payment", payment: { ...advance, orderId: "missing" } })).status, 404);
+    let result = await (await call({ operation: "payment", payment: advance })).json();
+    assert.equal(result.documents.length, 0);
+    assert.equal(result.payments[0].clientName, "Advance Client");
+    assert.equal(result.payments[0].receiptNumber, "RCP-2026-00001");
+    assert.equal(model.unappliedOrderPayment(result.payments[0]), 300);
+    const html = printing.billingPrintHtml(model.orderReceiptDocument(result.payments[0]), result.payments, "customer", result.payments[0]);
+    assert.match(html, /Against order/); assert.match(html, /ORD-01/); assert.doesNotMatch(html, /Invoice total|Against invoice/);
+    await call({ operation: "payment", payment: advance });
+    assert.equal((await call({ operation: "payment", payment: { ...advance, amount: 400 } })).status, 409);
+    result = await (await call({ operation: "create", document: { ...invoice("advance-invoice-01"), orderId: "order-advance", issueDate: "2026-09-30" } })).json();
+    assert.equal(model.invoiceOutstanding(result.documents[0], result.payments), 0);
+    assert.equal(model.unappliedOrderPayment(result.payments[0]), 50);
+    result = await (await call({ operation: "create", document: { ...invoice("advance-invoice-02"), orderId: "order-advance", issueDate: "2026-09-30" } })).json();
+    assert.equal(result.payments.length, 1);
+    assert.equal(model.paymentsForInvoice(result.payments, "advance-invoice-01"), 250);
+    assert.equal(model.paymentsForInvoice(result.payments, "advance-invoice-02"), 50);
+    assert.equal(result.documents.reduce((sum,d) => sum + model.paymentsForInvoice(result.payments, d.id), 0), 300);
+    result = await (await call({ operation: "payment", payment: { ...advance, id: "order-payment-02", amount: 100, date: "2026-10-01" } })).json();
+    assert.equal(model.paymentsForInvoice(result.payments, "advance-invoice-02"), 150);
+    const refreshed = await (await call({ operation: "list" })).json();
+    assert.deepEqual(refreshed.payments, result.payments);
+    manage = false;
+    assert.equal((await call({ operation: "payment", payment: { ...advance, id: "order-payment-03" } })).status, 403);
+  } finally { sqlite.close(); }
+});
+
+test("order allocations respect direct payments, other orders, cancelled invoices and paise", () => {
+  const docs = [{ ...invoice("invoice-1"), orderId: "order-1", number: "INV-01", createdAt: "2026-01-01" }, { ...invoice("invoice-2"), orderId: "other", number: "INV-02", createdAt: "2026-01-02" }];
+  const direct = { ...payment("direct", 100), invoiceId: "invoice-1", orderId: "order-1" };
+  const advance = { ...payment("advance", 150.01), invoiceId: "", orderId: "order-1", receiptNumber: "RCP-01" };
+  let allocated = model.allocateOrderPayments(docs, [direct, advance]);
+  assert.equal(model.paymentsForInvoice(allocated, "invoice-1"), 250);
+  assert.equal(model.paymentsForInvoice(allocated, "invoice-2"), 0);
+  assert.equal(model.unappliedOrderPayment(allocated[1]), 0.01);
+  allocated = model.allocateOrderPayments([{ ...docs[0], status: "cancelled" }], [advance]);
+  assert.equal(model.unappliedOrderPayment(allocated[0]), 150.01);
+});

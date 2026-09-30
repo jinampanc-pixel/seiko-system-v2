@@ -34,6 +34,10 @@ export type SeikoCommercialDocument = {
 };
 
 export type SeikoPaymentRecord = {
+  orderNo?: string;
+  clientName?: string;
+  clientPhone?: string;
+  allocations?: { invoiceId: string; amount: number }[];
   id: string;
   invoiceId: string;
   orderId: string;
@@ -99,7 +103,7 @@ export function documentTotals(document: Pick<SeikoCommercialDocument, "taxMode"
 }
 
 export function paymentsForInvoice(payments: SeikoPaymentRecord[], invoiceId: string) {
-  return roundMoney(payments.filter(payment => payment.invoiceId === invoiceId).reduce((sum, payment) => sum + Math.max(0, Number(payment.amount) || 0), 0));
+  return roundMoney(payments.reduce((sum, payment) => sum + paymentAppliedToInvoice(payment, invoiceId), 0));
 }
 
 export function invoiceOutstanding(invoice: SeikoCommercialDocument, payments: SeikoPaymentRecord[]) {
@@ -136,4 +140,31 @@ export function validateBillingDocument(document: SeikoCommercialDocument): stri
 
 export function validBillingDate(value: string) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+}
+
+// Order money is applied oldest-invoice-first in integer paise. Original receipts
+// remain immutable; allocations are a derived view, never additional payments.
+export function paymentAppliedToInvoice(payment: SeikoPaymentRecord, invoiceId: string) {
+  return payment.invoiceId === invoiceId ? payment.amount : (payment.allocations || []).filter(item => item.invoiceId === invoiceId).reduce((sum, item) => sum + item.amount, 0);
+}
+export function allocateOrderPayments(documents: SeikoCommercialDocument[], payments: SeikoPaymentRecord[]) {
+  const ordered = [...documents].filter(d => d.kind === "invoice" && d.status !== "cancelled").sort((a,b) => (a.createdAt || "").localeCompare(b.createdAt || "") || a.number.localeCompare(b.number) || a.id.localeCompare(b.id));
+  const remaining = new Map(ordered.map(d => [d.id, Math.max(0, Math.round(documentTotals(d).total * 100) - payments.filter(p => p.invoiceId === d.id).reduce((sum,p) => sum + Math.round(p.amount * 100), 0))]));
+  const allocations = new Map<string, { invoiceId: string; amount: number }[]>();
+  for (const payment of [...payments].sort((a,b) => (a.createdAt || "").localeCompare(b.createdAt || "") || a.receiptNumber.localeCompare(b.receiptNumber) || a.id.localeCompare(b.id))) {
+    if (payment.invoiceId || !payment.orderId) continue;
+    let available = Math.round(payment.amount * 100); const applied = [];
+    for (const invoice of ordered.filter(d => d.orderId === payment.orderId)) {
+      const amount = Math.min(available, remaining.get(invoice.id) || 0);
+      if (amount > 0) { applied.push({ invoiceId: invoice.id, amount: amount / 100 }); remaining.set(invoice.id, remaining.get(invoice.id)! - amount); available -= amount; }
+    }
+    allocations.set(payment.id, applied);
+  }
+  return payments.map(p => ({ ...p, allocations: allocations.get(p.id) || [] }));
+}
+export function unappliedOrderPayment(payment: SeikoPaymentRecord) {
+  return payment.invoiceId ? 0 : Math.max(0, roundMoney(payment.amount - (payment.allocations || []).reduce((sum,a) => sum + a.amount, 0)));
+}
+export function orderReceiptDocument(payment: SeikoPaymentRecord): SeikoCommercialDocument {
+  return { id: "receipt:" + payment.id, kind: "payment_receipt", number: payment.receiptNumber, orderId: payment.orderId, orderNo: payment.orderNo || payment.orderId, clientName: payment.clientName || "Order payment", clientPhone: payment.clientPhone || "", issueDate: payment.date, taxMode: "non_gst", taxTreatment: "intra_state", lines: [], notes: "", status: "issued", createdAt: payment.createdAt, updatedAt: payment.createdAt };
 }
