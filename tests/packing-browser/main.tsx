@@ -41,7 +41,7 @@ import "../../app/seiko-interface-fixes.css";
 import "../../app/packing-workspace-audit.css";
 import "../../app/packing-workflow-final.css";
 import "../../app/seiko-stable.css";
-import React, { useState } from "react";
+import { useState } from "react";
 import { LabelLauncher } from "../../app/page";
 import { SavedLabelWorkspace } from "../../app/saved-label-workspace";
 import { Orders } from "../../app/orders";
@@ -52,6 +52,7 @@ import { createRoot } from "react-dom/client";
 import { PackingPersonLabelDesigner } from "../../app/packing-person-label-designer";
 import SavedLabelPrintPage from "../../app/labels/print/page";
 import fixture from "../../tests/fixtures/packing-quantity-regression.json";
+import type { SeikoOrder } from "../../app/lib/order-domain";
 const order = {
   orderId:"quantity-regression",status:"Active",archived:false,
   details:{orderNo:"2026-09-001",clientName:"Packing label validation",clientType:"School / Institution"},
@@ -59,7 +60,7 @@ const order = {
   fields:[{id:"name",name:"Name",type:"text",options:[],required:false},{id:"class",name:"Class",type:"text",options:[],required:false},{id:"gender",name:"Gender",type:"text",options:[],required:false}],measurements:[],
   records:fixture.quantities.map((row,index)=>({recordId:`person-${index}`,personId:`P-${index}`,values:Object.fromEntries([["field:name",`Person ${index+1}`],["field:class",index % 3 === 0 ? "12 Art" : "6"],["field:gender","Sample"],...fixture.products.map((id,i)=>[`product:${id}:qty`,row[i]])])})),revisions:[],updatedAt:""
 };
-window.print=()=>{(window as any).printCalls=((window as any).printCalls||0)+1;};
+window.print=()=>{(window as Window & { printCalls?: number }).printCalls=((window as Window & { printCalls?: number }).printCalls||0)+1;};
 if (!new URLSearchParams(location.search).has("orders")) localStorage.setItem("jinam:seiko:orders-v1", JSON.stringify([order]));
-function CenterTest() { const [selected,setSelected]=useState<any>(null); return selected ? <SavedLabelWorkspace businessId="seiko" order={selected} onBack={()=>setSelected(null)}/> : <LabelLauncher businessId="seiko" onOpen={order=>setSelected(order)} onOpenOrders={()=>{}}/>; }
-createRoot(document.getElementById("root")!).render(new URLSearchParams(location.search).has("center") ? <CenterTest/> : new URLSearchParams(location.search).has("orders") ? <><Orders businessId="seiko"/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/></> : new URLSearchParams(location.search).has("task") ? <SavedLabelPrintPage/> : <div className="businessAppShell"><main className="businessAppMain"><PackingPersonLabelDesigner businessId="seiko" order={order as any} canManageSizes={false}/></main></div>);
+function CenterTest() { const [selected,setSelected]=useState<SeikoOrder | null>(null); return selected ? <SavedLabelWorkspace businessId="seiko" order={selected} onBack={()=>setSelected(null)}/> : <LabelLauncher businessId="seiko" onOpen={order=>setSelected(order)} onOpenOrders={()=>{}}/>; }
+createRoot(document.getElementById("root")!).render(new URLSearchParams(location.search).has("center") ? <CenterTest/> : new URLSearchParams(location.search).has("orders") ? <><Orders businessId="seiko"/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/></> : new URLSearchParams(location.search).has("task") ? <SavedLabelPrintPage/> : <div className="businessAppShell"><main className="businessAppMain"><PackingPersonLabelDesigner businessId="seiko" order={order as unknown as SeikoOrder} canManageSizes={false}/></main></div>);

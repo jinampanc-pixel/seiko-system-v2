@@ -319,7 +319,7 @@ function textMetrics(text: string, font: number, bold: boolean) {
   const advance = font * 96 / 72 * 1.12;
   return { lines, width: Math.max(1, ...metrics.map(m => Math.max(m.width, m.actualBoundingBoxLeft + m.actualBoundingBoxRight))) + .2, height: ascent + descent + (lines.length - 1) * advance + .2, ascent, advance };
 }
-function FitText({ text, preferredPt, bold, widthMm, heightMm, align = "left" }: { text: string; preferredPt: number; bold: boolean; widthMm: number; heightMm: number; align?: "left" | "center" | "right" }) {
+function FitText({ text, preferredPt, bold, heightMm, align = "left" }: { text: string; preferredPt: number; bold: boolean; widthMm: number; heightMm: number; align?: "left" | "center" | "right" }) {
   const [metrics, setMetrics] = useState<ReturnType<typeof textMetrics> | null>(null);
   useLayoutEffect(() => { let active = true; const measure = () => { if (active) setMetrics(textMetrics(text, preferredPt, bold)); }; measure(); void document.fonts.ready.then(measure); return () => { active = false; }; }, [text, preferredPt, bold]);
   const small = heightMm / Math.max(1, text.split("\n").length) < 1;
@@ -356,7 +356,8 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   const quantities = useMemo(() => packingQuantities(order), [order]);
   const records = useMemo(() => buildPersonRecords(order, rules, packagePresentation, quantities), [order, rules, packagePresentation, quantities]);
   const [items, rawSetItems] = useState<LabelItem[]>(() => openedTask ? migrateItems(order, openedTask.items) : defaultItems(order).map(constrainBox));
-  const itemsRef = useRef(items); itemsRef.current = items;
+  const itemsRef = useRef(items);
+  useLayoutEffect(() => { itemsRef.current = items; }, [items]);
   const [past, setPast] = useState<LabelItem[][]>([]);
   const [future, setFuture] = useState<LabelItem[][]>([]);
   const gesture = useRef<LabelItem[] | null>(null);
@@ -377,7 +378,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   const [query, setQuery] = useState("");
   const [scrollTop, setScrollTop] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
-  const visibleRecords = records.filter(record => `${record.name} ${record.group} ${record.packageProducts.join(" ")}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const visibleRecords = useMemo(() => records.filter(record => `${record.name} ${record.group} ${record.packageProducts.join(" ")}`.toLowerCase().includes(query.trim().toLowerCase())), [records, query]);
   const start = Math.max(0, Math.min(Math.floor(scrollTop / 56) - 2, visibleRecords.length - 1));
   const windowRecords = visibleRecords.slice(start, start + 12);
   const eligibilityKey = records.map(record => record.id).join("|");
@@ -400,7 +401,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
     const index = visibleRecords.findIndex(record => record.id === previewId); if (index < 0) return;
     const list = listRef.current, top = index * 56;
     if (top < list.scrollTop || top + 56 > list.scrollTop + list.clientHeight) { list.scrollTop = Math.max(0, top - list.clientHeight / 2 + 28); setScrollTop(list.scrollTop); }
-  }, [previewId]);
+  }, [previewId, visibleRecords]);
   // One-time conversion removes legacy container padding while preserving the
   // existing text size. Subsequent gestures scale the glyphs with the box.
   useLayoutEffect(() => {
@@ -481,13 +482,15 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
     const text = item.showLabel && value ? `${item.printedLabel}: ${value}` : value;
     return <FitText text={text} preferredPt={item.font} bold={item.bold} widthMm={item.w} heightMm={item.h} align={item.align}/>;
   };
-  return <div className="physicalPackingEditor" data-selected-count={selectedRows.length} data-eligible-count={records.length} onKeyDown={event => {
+  // Delegate Escape and undo/redo from descendant controls without changing their semantics.
+  // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+  return <div className="physicalPackingEditor" role="application" aria-label="Packing label editor" data-selected-count={selectedRows.length} data-eligible-count={records.length} onKeyDown={event => {
     const target = event.target as HTMLElement;
     if (event.key === "Escape" && infoOpen) { event.preventDefault(); closeInfo(); }
     if (event.key === "Escape") setRecordDetail(null);
     if (event.key === "Escape" && presentationOpen) { event.preventDefault(); closeDrawer(); }
     if ((event.ctrlKey || event.metaKey) && !target.closest("input,textarea,select") && !presentationOpen && !infoOpen) {
-      if (event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); }
+      if (event.key.toLowerCase() === "z") { event.preventDefault(); if (event.shiftKey) redo(); else undo(); }
       if (event.key.toLowerCase() === "y") { event.preventDefault(); redo(); }
     }
   }}>
@@ -506,7 +509,9 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
       {!records.length && <p>Select a product combination with eligible people.</p>}
     </aside></div>
     {recordDetail && <div id="packing-record-details" role="tooltip" className="physicalRecordPopover" style={{ top: recordDetail.top, left: recordDetail.left }}><b>{recordDetail.record.name}</b><dl>{order.fields.filter(field => field.name.trim()).map(field => <div key={field.id}><dt>{field.name}</dt><dd>{String(recordDetail.record.values[`field:${field.id}`] ?? "—")}</dd></div>)}</dl><strong>Package contents</strong>{recordDetail.record.packageLines.map((line, index) => <p key={index}>{line}</p>)}</div>}
-    {infoOpen && <div className="physicalDrawerBackdrop" onPointerDown={event => { if (event.target === event.currentTarget) closeInfo(); }}><section className="physicalDrawer" role="dialog" aria-modal="true" aria-label="Customize label information" ref={infoDrawer} onKeyDown={event => {
+    {/* Dialog keyboard handler traps Tab within its focusable controls. */}
+    {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+    {infoOpen && <div className="physicalDrawerBackdrop" onPointerDown={event => { if (event.target === event.currentTarget) closeInfo(); }}><div className="physicalDrawer" role="dialog" aria-modal="true" aria-label="Customize label information" ref={infoDrawer} onKeyDown={event => {
       if (event.key !== "Tab") return; const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button,input,select")).filter(node => node.getClientRects().length && !(node as HTMLButtonElement).disabled); const first = controls[0], last = controls[controls.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }}><header><h3>Information on the label</h3><button onClick={closeInfo}>Cancel</button></header><div className="physicalDrawerBody"><p>Choose fields for your label. Drag and stretch them directly on the canvas after applying.</p><div className="physicalFieldChoices">{infoOptions.map(option => {
       const matching = (item: LabelItem) => option.key === PACKAGE_FIELD ? isPackageField(item.field) : item.field === option.key;
@@ -514,8 +519,10 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
       const change = (patch: Partial<LabelItem>) => setDraftItems(draftItems.map(other => matching(other) ? { ...other, ...patch } : other));
       const sample = current ? fieldValue(order, current, option.key as InfoKey, records.indexOf(current), records.length) : "";
       return <div key={option.key} className={item ? "enabled" : ""}><label className="physicalFieldToggle"><input type="checkbox" checked={!!item} onChange={() => toggleInfo(option.key as InfoKey)}/><b>{option.label}</b></label><p className="physicalFieldExample">{sample || "No value in this record"}</p>{item && <div className="physicalFieldSettings"><label><input type="checkbox" checked={item.showLabel} onChange={e => change({ showLabel: e.target.checked })}/>Print field name</label>{item.showLabel && <label>Printed field name<input aria-label={`${option.label} printed caption`} value={item.printedLabel} onChange={e => change({ printedLabel: e.target.value })}/></label>}<label><input type="checkbox" checked={item.bold} onChange={e => change({ bold: e.target.checked })}/>Bold text</label></div>}</div>;
-    })}</div></div><footer><div><b>{draftItems.length} fields selected</b><small>Changes apply to every label in this set.</small></div><button onClick={closeInfo}>Cancel</button><button className="primary" onClick={() => { setItems(draftItems); closeInfo(); }}>Apply</button></footer></section></div>}
-    {presentationOpen && <div className="physicalDrawerBackdrop" onPointerDown={event => { if (event.target === event.currentTarget) closeDrawer(); }}><section className="physicalDrawer" role="dialog" aria-modal="true" aria-label="Customize package contents" ref={drawerRef} onKeyDown={event => {
+    })}</div></div><footer><div><b>{draftItems.length} fields selected</b><small>Changes apply to every label in this set.</small></div><button onClick={closeInfo}>Cancel</button><button className="primary" onClick={() => { setItems(draftItems); closeInfo(); }}>Apply</button></footer></div></div>}
+    {/* Dialog keyboard handler traps Tab within its focusable controls. */}
+    {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+    {presentationOpen && <div className="physicalDrawerBackdrop" onPointerDown={event => { if (event.target === event.currentTarget) closeDrawer(); }}><div className="physicalDrawer" role="dialog" aria-modal="true" aria-label="Customize package contents" ref={drawerRef} onKeyDown={event => {
       if (event.key !== "Tab") return; const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button,input,select,summary,[tabindex='0']")).filter(node => node.getClientRects().length && !(node as HTMLButtonElement).disabled); const first = controls[0], last = controls[controls.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }}><header><h3>Package contents</h3><button onClick={closeDrawer}>Cancel</button></header><div className="physicalDrawerBody"><fieldset className="physicalMatchChoices"><legend>Include people with</legend>{([["any", "Any selected product"], ["all", "All selected products"]] as const).map(([mode, label]) => <label key={mode}><input type="radio" name="packing-product-match" value={mode} checked={(draftPresentation.matchMode || "all") === mode} onChange={() => setDraftPresentation(old => ({ ...old, matchMode: mode }))}/><span>{label}</span></label>)}</fieldset><p>{draftPresentation.matchMode === "any" ? "Include anyone who ordered at least one checked product. Each person gets one label showing only their ordered products from this selection." : "Include only people who ordered every checked product."} Pieces and people below are totals for the whole order.</p><div className="physicalProductChoices">{order.products.filter(product => product.name.trim()).map(product => {
       const values = [...quantities.values()].map(row => row[product.id] || 0); const people = values.filter(qty => qty > 0).length; const pieces = values.reduce((a, b) => a + b, 0);
@@ -523,7 +530,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
     })}</div><div className="physicalLayoutOptions"><label>Product layout<select value={draftPresentation.layoutMode} onChange={e => setDraftPresentation(old => ({ ...old, layoutMode: e.target.value as PackageLayoutMode }))}><option value="flow">Flow rows</option><option value="inline">Inline</option><option value="separate">Separate movable rows</option></select></label>{draftPresentation.layoutMode === "inline" && <label>Separator<input value={draftPresentation.delimiter} onChange={e => setDraftPresentation(old => ({ ...old, delimiter: e.target.value }))}/></label>}</div>
       <div className="physicalPackageExample"><b>Formatting preview{draftExample ? ` · ${draftExample.name}` : ""}</b><p>{draftExample?.packageText || "No person matches this product selection and matching rule."}</p><small>{draftPresentation.layoutMode === "separate" ? "Each product becomes its own movable text box on the canvas." : "Products share one text box on the canvas."}</small></div>
       <div className="packingPresentationRules">{order.products.filter(product => product.name.trim()).map(product => { const rule = draftRules[product.id] || defaultRule(order, product); const measurements = order.measurements.filter(item => item.appliesTo.includes(product.id) && item.name.trim()); const specs = product.specifications.filter(item => item.name.trim() && item.role !== "asset"); return <details key={product.id}><summary><b>{product.name} formatting</b><span>{rule.alias || product.name}</span></summary><div className="packingRuleBody"><label><span>Printed product name</span><input value={rule.alias} onChange={event => updateRule(product.id, { alias: event.target.value })}/></label><label><span>Format</span><select value={rule.displayMode} onChange={event => updateRule(product.id, { displayMode: event.target.value as DisplayMode })}><option value="name_details">Name: details</option><option value="name_space_details">Name details</option><option value="details_only">Details only</option><option value="name_only">Name only</option></select></label><label><span>Primary measurement</span><select value={rule.primaryMeasurementId} onChange={event => updateRule(product.id, { primaryMeasurementId: event.target.value })}><option value="">None</option>{measurements.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="packingCheck"><input type="checkbox" checked={rule.showQuantity} onChange={event => updateRule(product.id, { showQuantity: event.target.checked })}/><span>Show quantity</span></label>{measurements.length > 0 && <div className="packingDetailRules"><b>Measurements</b>{measurements.map(measurement => <div className="packingMeasurementRow" key={measurement.id}><input aria-label={`${measurement.name} printed name`} value={rule.measurementAliases[measurement.id] || measurement.name} onChange={event => updateRule(product.id, { measurementAliases: { ...rule.measurementAliases, [measurement.id]: event.target.value } })}/><select aria-label={`${measurement.name} display rule`} value={rule.measurementModes[measurement.id] || "never"} onChange={event => updateRule(product.id, { measurementModes: { ...rule.measurementModes, [measurement.id]: event.target.value as ConditionalMode } })}><option value="never">Never</option><option value="when_present">When present</option><option value="always">Always</option></select></div>)}</div>}{specs.length > 0 && <div className="packingDetailRules"><b>Attributes / specifications</b>{specs.map(spec => <div className="packingMeasurementRow" key={spec.id}><input aria-label={`${spec.name} printed name`} value={rule.specificationAliases[spec.id] || spec.name} onChange={event => updateRule(product.id, { specificationAliases: { ...rule.specificationAliases, [spec.id]: event.target.value } })}/><select aria-label={`${spec.name} display rule`} value={rule.specificationModes[spec.id] || "never"} onChange={event => updateRule(product.id, { specificationModes: { ...rule.specificationModes, [spec.id]: event.target.value as ConditionalMode } })}><option value="never">Never</option><option value="when_present">When present</option><option value="always">Always</option></select></div>)}</div>}</div></details>; })}</div>
-      </div><footer><div aria-live="polite"><b>{predicted} eligible labels</b><small>{draftProducts.map(product => product.name).join(" + ") || "Choose at least one product"}</small></div><button onClick={closeDrawer}>Cancel</button><button className="primary" onClick={apply}>Apply</button></footer></section></div>}
+      </div><footer><div aria-live="polite"><b>{predicted} eligible labels</b><small>{draftProducts.map(product => product.name).join(" + ") || "Choose at least one product"}</small></div><button onClick={closeDrawer}>Cancel</button><button className="primary" onClick={apply}>Apply</button></footer></div></div>}
     <style media="print">{physicalPageCss(PACKING_ROLL)}</style>
     {printReady && <section className="physicalPrintSheet" aria-hidden="true" style={{ width: `${PACKING_ROLL.widthMm}mm` }}>{selectedRecords.map(record => <div className="physicalPrintedLabel" key={record.id} style={{ width: `${PACKING_OUTPUT.widthMm}mm`, height: `${PACKING_OUTPUT.heightMm}mm` }}><div className="physicalPrintedCanvas" style={{ width: PACKING_OUTPUT.widthMm * MM_PX, height: PACKING_OUTPUT.heightMm * MM_PX }}>{items.map(item => <div className="physicalPrintedItem" key={item.id} style={{ left: item.x * MM_PX, top: item.y * MM_PX, width: item.w * MM_PX, height: item.h * MM_PX }}>{renderItem(item, record)}</div>)}</div></div>)}</section>}
   </div>;

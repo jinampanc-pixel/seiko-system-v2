@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
   ]),
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
+  // CommonJS runners load a configurable Playwright installation at runtime.
+  { files: ["tests/**/*.cjs"], rules: { "@typescript-eslint/no-require-imports": "off" } },
   react.configs.flat.recommended,
   react.configs.flat["jsx-runtime"],
   reactHooks.configs.flat.recommended,

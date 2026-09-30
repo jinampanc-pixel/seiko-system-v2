@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties, type PointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties, type PointerEvent } from "react";
 import { flushSync } from "react-dom";
 import { constrainBox, MM_PX, moveBox, outsideSafeArea, stretchTextBox, scaleTextBox, type LabelBox } from "./lib/packing-label-model";
 export type PhysicalItem = LabelBox & { id: string; label: string; font: number; bold: boolean; align?: "left" | "center" | "right" };
@@ -15,9 +15,10 @@ export function PhysicalLabelCanvas<T extends PhysicalItem>({ items, onChange, r
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const drag = useRef<{ item: T; x: number; y: number; edge: string; pinch?: number } | null>(null);
   const wheelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latest = useRef({ items, onChange, onGesture }); latest.current = { items, onChange, onGesture };
+  const latest = useRef({ items, onChange, onGesture });
+  useLayoutEffect(() => { latest.current = { items, onChange, onGesture }; }, [items, onChange, onGesture]);
   const selected = items.find(item => item.id === selectedId);
-  const update = (item: T) => latest.current.onChange(latest.current.items.map(candidate => candidate.id === item.id ? constrainBox(item) : candidate));
+  const update = useCallback((item: T) => latest.current.onChange(latest.current.items.map(candidate => candidate.id === item.id ? constrainBox(item) : candidate)), []);
   const endWheel = () => { if (wheelTimer.current) { clearTimeout(wheelTimer.current); wheelTimer.current = null; latest.current.onGesture(false); } };
   useEffect(() => () => { if (wheelTimer.current) clearTimeout(wheelTimer.current); }, []);
   useLayoutEffect(() => {
@@ -38,7 +39,7 @@ export function PhysicalLabelCanvas<T extends PhysicalItem>({ items, onChange, r
       wheelTimer.current = setTimeout(() => { wheelTimer.current = null; latest.current.onGesture(false); }, 220);
     };
     element.addEventListener("wheel", wheel, { passive: false }); return () => element.removeEventListener("wheel", wheel);
-  }, []);
+  }, [update]);
   const distance = () => { const [a, b] = [...pointers.current.values()]; return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0; };
   const inTrash = (x: number, y: number) => { const box = trash.current?.getBoundingClientRect(); return !!box && x >= box.left && x <= box.right && y >= box.top && y <= box.bottom; };
   const finish = (event: PointerEvent, cancelled = false) => {
@@ -59,7 +60,9 @@ export function PhysicalLabelCanvas<T extends PhysicalItem>({ items, onChange, r
     </div>
     <p className="physicalHint">Drag to move · stretch any edge to resize text · scroll or pinch a field to scale · drag to the bin to remove</p>
     <div className="physicalStageWrap"><div className="physicalStage" ref={stage}><div style={{ position: "relative", width: 50 * MM_PX * zoom, height: 25 * MM_PX * zoom, flexShrink: 0 }}>
-      <div className="physicalCanvas" tabIndex={0} aria-label="50 by 25 millimetre label editor" style={{ width: 50 * MM_PX, height: 25 * MM_PX, transform: `scale(${zoom})`, "--handle-size": `${10 / zoom}px`, "--handle-hit": `${24 / zoom}px` } as CSSProperties} onPointerDown={() => select("")}
+      {/* The application canvas receives arrow/delete shortcuts, not a button activation. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
+      <div className="physicalCanvas" role="application" tabIndex={0} aria-label="50 by 25 millimetre label editor" style={{ width: 50 * MM_PX, height: 25 * MM_PX, transform: `scale(${zoom})`, "--handle-size": `${10 / zoom}px`, "--handle-hit": `${24 / zoom}px` } as CSSProperties} onPointerDown={() => select("")}
         onKeyDown={event => {
           if (!selected || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Delete", "Backspace"].includes(event.key)) return;
           event.preventDefault(); endWheel();
