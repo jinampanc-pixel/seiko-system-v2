@@ -34,7 +34,10 @@ export type SeikoCommercialDocument = {
   clientPhone?: string;
   clientAddress?: string;
   clientGstin?: string;
-  supplier?: { name: string; address: string; phone: string; gstin: string; bank: string };
+  supplier?: {
+    name: string; address: string; phone: string; gstin: string; bank: string;
+    upi?: string; paymentQr?: string; showBank?: boolean; showUpi?: boolean; showQr?: boolean;
+  };
 };
 
 export type SeikoPaymentRecord = {
@@ -172,3 +175,4 @@ export function unappliedOrderPayment(payment: SeikoPaymentRecord) {
 export function orderReceiptDocument(payment: SeikoPaymentRecord): SeikoCommercialDocument {
   return { id: "receipt:" + payment.id, kind: "payment_receipt", number: payment.receiptNumber, orderId: payment.orderId, orderNo: payment.orderNo || payment.orderId, clientName: payment.clientName || "Order payment", clientPhone: payment.clientPhone || "", issueDate: payment.date, taxMode: "non_gst", taxTreatment: "intra_state", lines: [], notes: "", status: "issued", createdAt: payment.createdAt, updatedAt: payment.createdAt };
 }
+

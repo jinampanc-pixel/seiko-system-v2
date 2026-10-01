@@ -1,5 +1,7 @@
 "use client";
 
+import "./seiko-billing-polish.css";
+
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ORDER_STATUSES, orderStoreKey, type OrderStatus, type SeikoOrder } from "./lib/order-domain";
@@ -45,6 +47,14 @@ function openSeikoOrder(order: SeikoOrder) {
       row?.querySelector<HTMLButtonElement>(".openOrderButton")?.click();
     }, 50);
   });
+}
+
+function openNewOrder() {
+  openSeikoModule("Orders", () => Array.from(document.querySelectorAll<HTMLButtonElement>(".ordersPage button")).find(button => button.textContent?.trim() === "+ New order")?.click());
+}
+
+function openBillingAction(action: "payment" | "invoice" | "quotation" | "challan") {
+  window.dispatchEvent(new CustomEvent("seiko:open-billing", { detail: { action } }));
 }
 
 function readHomeConfig(): HomeConfig {
@@ -153,6 +163,7 @@ function SeikoDashboard() {
   return <section className="seikoOperationalDashboard"><div className="seikoDashboardHead"><div><h1>Home</h1><p>Configurable operational dashboard and quick access to working modules.</p></div><div className="seikoDashboardHeadActions"><button type="button" className="secondary" onClick={()=>setCustomizing(value=>!value)}>{customizing?"Done":"Customize dashboard"}</button></div></div>
     {customizing&&<section className="seikoHomeCustomizer panel" aria-label="Customize Home"><div><b>Dashboard</b><p>Choose the live operational views shown on Home. More business metrics can be registered here as Sales, Payments and Production data mature.</p></div><div className="seikoHomeOptionGrid">{metrics.map(metric=><label key={metric.key}><input type="checkbox" checked={config.metrics[metric.key]} onChange={event=>setConfig(current=>({...current,metrics:{...current.metrics,[metric.key]:event.target.checked}}))}/>{metric.label}</label>)}<label><input type="checkbox" checked={config.showActiveOrders} onChange={event=>setConfig(current=>({...current,showActiveOrders:event.target.checked}))}/>Operational list</label></div><div><b>Quick access</b><p>Choose implemented module shortcuts.</p></div><div className="seikoHomeOptionGrid">{(Object.keys(config.quickAccess) as QuickAccessKey[]).map(item=><label key={item}><input type="checkbox" checked={config.quickAccess[item]} onChange={event=>setConfig(current=>({...current,quickAccess:{...current.quickAccess,[item]:event.target.checked}}))}/>{item}</label>)}</div></section>}
     <div className="seikoDashboardMetrics">{metrics.filter(metric=>config.metrics[metric.key]).map(metric=><button type="button" className={`seikoMetricCard seikoMetricReadout ${workMode===metric.key?"active":""} ${metric.key==="sync"&&!metric.value?"positive":""}`} key={metric.key} onClick={()=>{setWorkMode(metric.key);setFiltersOpen(false);clearFilters();}}><small>{metric.label}</small><strong>{metric.value}</strong><span>{metric.note}</span></button>)}</div>
+    <section className="seikoDailyActions" aria-label="Daily quick actions"><div><b>Daily actions</b><p>Start frequent work directly from Home.</p></div><div className="seikoDailyActionGrid"><button type="button" className="primary" onClick={openNewOrder}>+ New order</button><button type="button" className="primary" onClick={()=>openBillingAction("payment")}>Record payment</button><button type="button" className="secondary" onClick={()=>openBillingAction("invoice")}>Create invoice</button><button type="button" className="secondary" onClick={()=>openBillingAction("challan")}>Delivery challan</button><button type="button" className="secondary" onClick={()=>openBillingAction("quotation")}>Quotation</button><button type="button" className="secondary" onClick={()=>openSeikoModule("Labels")}>Packing labels</button></div></section>
     {config.showActiveOrders&&<section className="seikoDashboardActivity"><div className="seikoDashboardActivityHead"><div><b>{workMode==="active"?"Active orders":workMode==="completed"?"Completed orders":"Scan sync queue"}</b><p>{workMode==="sync"?`${scanQueue.length} scan${scanQueue.length===1?"":"s"} waiting or syncing.`:`${filtered.length} of ${orderScope.length} order${orderScope.length===1?"":"s"} shown.`}</p></div>{workMode!=="sync"&&<button type="button" className={`homeWorkFilterToggle ${activeFilterCount?"active":""}`} aria-label="Filter orders" aria-expanded={filtersOpen} onClick={()=>setFiltersOpen(value=>!value)}><span className="homeFilterGlyph" aria-hidden="true"><i/><i/><i/></span>{activeFilterCount>0&&<em>{activeFilterCount}</em>}</button>}</div>
       {workMode!=="sync"&&filtersOpen&&<div className="seikoDashboardActivityFilters"><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Find order or client" aria-label="Filter orders"/><select value={status} onChange={event=>setStatus(event.target.value)}><option value="">{workMode==="active"?"All active statuses":"Completed"}</option>{(workMode==="active"?activeStatusOptions:["Completed"] as OrderStatus[]).map(value=><option key={value}>{value}</option>)}</select><select value={clientType} onChange={event=>{setClientType(event.target.value);setProduct("");}}><option value="">All client types</option>{clientTypes.map(value=><option key={value}>{value}</option>)}</select><select value={product} onChange={event=>setProduct(event.target.value)}><option value="">All products</option>{products.map(value=><option key={value}>{value}</option>)}</select><button type="button" className="textButton" aria-label="Clear all order filters" onClick={clearFilters}>Clear filters</button></div>}
       {workMode==="sync"?<div className="seikoDashboardQueueList">{scanQueue.length?scanQueue.slice(0,config.activeOrderPageSize).map((item,index)=><article key={`${queueTitle(item,index)}-${index}`}><b>{queueTitle(item,index)}</b><span>{queueTime(item)||"Waiting to sync"}</span></article>):<div className="seikoDashboardActivityEmpty">All scans are synced.</div>}</div>:<div className="seikoDashboardOrderList">{visible.length?visible.map(order=><article className="seikoDashboardActivityRow homeOrderOperationalRow" key={order.orderId}><button type="button" className="homeOrderOpen" onClick={()=>openSeikoOrder(order)}><strong>{order.details.orderNo||order.orderId}</strong><span>{order.details.clientName||"Client"}</span><small>{order.details.clientType} · {order.records.length} records</small></button><span className="homeOrderOperationalMeta"><span><small>Records</small><b>{order.records.length}</b></span><span><small>Products</small><b>{order.products.filter(item=>item.name.trim()).length}</b></span><span><small>Delivery</small><b>{order.details.deliveryDate||"Not set"}</b></span></span><label className="homeOrderStatus"><small>Status</small><select value={order.status} onChange={event=>changeStatus(order.orderId,event.target.value as OrderStatus)}>{ORDER_STATUSES.map(value=><option key={value}>{value}</option>)}</select></label></article>):<div className="seikoDashboardActivityEmpty">No orders match these filters.</div>}</div>}
@@ -160,3 +171,4 @@ function SeikoDashboard() {
     </section>}
   </section>;
 }
+

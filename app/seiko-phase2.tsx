@@ -34,6 +34,7 @@ function writeStore<T>(key: string, value: T) { localStorage.setItem(key, JSON.s
 export function SeikoPhase2() {
   const businessId = "seiko";
   const [view, setView] = useState<Phase2View>(null);
+  const [billingAction, setBillingAction] = useState<"payment" | "invoice" | "quotation" | "challan" | null>(null);
   const [clients, setClients] = useState<ClientLibraryRecord[]>([]);
   const [products, setProducts] = useState<ProductLibraryRecord[]>([]);
   const [documents, setDocuments] = useState<SeikoCommercialDocument[]>([]);
@@ -53,6 +54,19 @@ export function SeikoPhase2() {
     setPayments(readStore<SeikoPaymentRecord[]>(paymentStoreKey(businessId), []));
     setTemplates(readStore<SeikoTemplateSet>(templateStoreKey(businessId), DEFAULT_SEIKO_TEMPLATES));
   };
+
+  useEffect(() => {
+    const openBilling = (event: Event) => { const action = (event as CustomEvent<{ action?: "payment" | "invoice" | "quotation" | "challan" }>).detail?.action || null; setBillingAction(action); setView("billing"); };
+    window.addEventListener("seiko:open-billing", openBilling);
+    return () => window.removeEventListener("seiko:open-billing", openBilling);
+  }, []);
+
+  useEffect(() => {
+    if (!view) return;
+    const bodyOverflow = document.body.style.overflow; const rootOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden"; document.documentElement.style.overflow = "hidden";
+    return () => { document.body.style.overflow = bodyOverflow; document.documentElement.style.overflow = rootOverflow; };
+  }, [view]);
 
   useEffect(() => {
     queueMicrotask(load);
@@ -126,7 +140,7 @@ export function SeikoPhase2() {
     <header className="seikoPhase2Head"><div><button type="button" className="secondary" onClick={() => setView(null)}>← Back to Home</button><small>SEIKO</small><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
     {view === "clients" && <SeikoClientDirectory legacyRecords={clients}/>} {/* shared client directory */}
     {view === "products" && <ProductLibrary records={products} onChange={saveProducts}/>} {/* browser product library */}
-    {view === "billing" && <SeikoBillingWorkspace orders={orders} legacyDocuments={documents} legacyPayments={payments}/>}
+    {view === "billing" && <SeikoBillingWorkspace orders={orders} legacyDocuments={documents} legacyPayments={payments} initialAction={billingAction} onActionHandled={() => setBillingAction(null)}/>}
     {view === "templates" && <TemplateManager templates={templates} onChange={saveTemplates}/>} 
   </section>, document.body);
 }
@@ -156,3 +170,4 @@ function NumberInput({ label,value,onChange }: { label:string;value:number;onCha
 function Empty({ text }: { text:string }) { return <div className="phase2Empty">{text}</div>; }
 function templateLabel(key:string) { return ({ showPaymentTerms:"Payment terms",showBankDetails:"Bank details",showQrLink:"QR / document link",showTerms:"Terms",showAuthorizedSignatory:"Authorized signatory",showCustomerAcknowledgement:"Customer acknowledgement" } as Record<string,string>)[key] || key; }
 function escapeHtml(value:string) { return value.replace(/[&<>"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[char] || char)); }
+

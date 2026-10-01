@@ -35,12 +35,22 @@ test("A4 output has named copies, updated balance, escaped content and receipt r
   const bill = { ...invoice(), number: "INV-2026-00001", clientName: '<script>alert("x")</script>' };
   const payments = [{ ...payment("payment-01", 100), receiptNumber: "RCP-2026-00001" }];
   const html = printing.billingPrintHtml(bill, payments, "both");
-  assert.equal((html.match(/<article class="copy">/g) || []).length, 2);
-  assert.match(html, /size:A4 portrait/); assert.match(html, /Customer \/ Client Copy/); assert.match(html, /Supplier Copy/);
+  assert.equal((html.match(/<article class="copy /g) || []).length, 2);
+  assert.match(html, /size:A4 portrait/); assert.match(html, /Original for Recipient/); assert.match(html, /Duplicate for Supplier/);
   assert.match(html, /₹150.00/); assert.doesNotMatch(html, /<script>/);
   assert.equal((printing.billingPrintHtml(bill, payments, "customer").match(/<article/g) || []).length, 1);
   assert.match(printing.billingPrintHtml(bill, payments, "separate"), /body class="separate"/);
   assert.match(printing.billingPrintHtml(bill, payments, "customer", payments[0]), /Against invoice <b>INV-2026-00001/);
+});
+
+test("delivery challans are quantity-only and SEIKO documents control payment details", () => {
+  const bill = { ...invoice(), number: "DC-2026-00001", kind: "delivery_challan", supplier: { ...invoice().supplier, bank: "Bank A 123", upi: "seiko@upi", paymentQr: "data:image/png;base64,AAAA", showBank: true, showUpi: true, showQr: true } };
+  const challan = printing.billingPrintHtml(bill, [], "customer");
+  assert.match(challan, /Delivery Challan/); assert.match(challan, /<th>Qty<\/th><th>Unit<\/th>/);
+  assert.doesNotMatch(challan, /<th>Rate<\/th>|<th>Amount<\/th>|Sub Total|Balance Due|Bank A 123|seiko@upi|₹/);
+  const invoiceHtml = printing.billingPrintHtml({ ...bill, kind: "invoice", number: "INV-2026-00002" }, [], "customer");
+  assert.match(invoiceHtml, /Bank A 123/); assert.match(invoiceHtml, /seiko@upi/); assert.match(invoiceHtml, /Scan to pay/); assert.match(invoiceHtml, /#fffaf4|#153e63/);
+  assert.match(challan, /Recipient Copy/); assert.match(printing.billingPrintHtml(bill, [], "supplier"), /Office Copy/);
 });
 
 test("database persists invoices and idempotent payments, rejecting overpayment and unauthorized writes", async () => {
@@ -137,3 +147,12 @@ test("shared client directory saves typed clients, merges duplicate phones and e
     authenticated = false; assert.equal((await call({ operation: "list" })).status, 401);
   } finally { sqlite.close(); }
 });
+
+test("Home exposes daily billing actions and the billing surface locks background scrolling", () => {
+  const home = fs.readFileSync(new URL("../app/seiko-phase1.tsx", import.meta.url), "utf8");
+  const phase2 = fs.readFileSync(new URL("../app/seiko-phase2.tsx", import.meta.url), "utf8");
+  const polish = fs.readFileSync(new URL("../app/seiko-billing-polish.css", import.meta.url), "utf8");
+  for (const label of ["+ New order", "Record payment", "Create invoice", "Delivery challan", "Quotation", "Packing labels"]) assert.match(home, new RegExp(label.replace("+", "\\+")));
+  assert.match(home, /seiko:open-billing/); assert.match(phase2, /document\.body\.style\.overflow = "hidden"/); assert.match(polish, /\.seikoPhase2Surface \{ inset: 0 !important/);
+});
+

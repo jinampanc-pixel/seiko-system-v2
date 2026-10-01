@@ -1,0 +1,14 @@
+.seikoDailyActions { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 16px; border: 1px solid rgba(8,47,77,.12); border-radius: 14px; background: var(--paper, #fff); }
+.seikoDailyActions b { color: var(--navy, #153e63); font-size: 13px; }
+.seikoDailyActions p { margin: 3px 0 0; color: var(--muted, #64778a); font-size: 10px; }
+.seikoDailyActionGrid { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.seikoDailyActionGrid button { min-height: 38px; }
+.seikoPhase2Surface { inset: 0 !important; padding-top: 88px !important; overscroll-behavior: contain; }
+.billingPaymentSetup { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; padding: 14px; border: 1px solid rgba(8,47,77,.12); border-radius: 10px; background: rgba(8,47,77,.025); }
+.billingPaymentSetup h3 { grid-column: 1 / -1; margin: 0; font-size: 13px; }
+.billingPaymentSetup .phase2Check { align-self: end; }
+.billingQrReady { display: block; margin-top: 6px; color: #48704b; font-size: 10px; }
+.billingLine.challanLine { grid-template-columns: 2fr 1fr .7fr; }
+@media (max-width: 760px) { .seikoDailyActions { align-items: stretch; flex-direction: column; } .seikoDailyActionGrid { justify-content: stretch; display: grid; grid-template-columns: 1fr 1fr; } .billingPaymentSetup { grid-template-columns: 1fr; } .billingPaymentSetup h3 { grid-column: auto; } }
+@media (max-width: 480px) { .seikoDailyActionGrid { grid-template-columns: 1fr; } .seikoPhase2Surface { padding-top: 72px !important; } }
+

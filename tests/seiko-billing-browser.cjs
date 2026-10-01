@@ -56,7 +56,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   const pay=page.getByRole('dialog',{name:/Record payment/});
   await pay.getByLabel('Amount received ₹',{exact:true}).fill('100'); await pay.getByRole('button',{name:'Save',exact:true}).click();
   await page.getByRole('button',{name:'Updated invoice',exact:true}).click();
-  await preview.getByText('Current balance',{exact:true}).first().waitFor();
+  await preview.getByText('Balance Due',{exact:true}).first().waitFor();
   assert.match(await preview.locator('body').innerText(),/₹150.00/);
   assert.match(await preview.locator('body').innerText(),/INV-\d{4}-00001/);
   await page.getByLabel('Print copies').selectOption('customer'); assert.equal(await preview.locator('.copy').count(),1);
@@ -77,6 +77,15 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   assert.match(await preview.locator('body').innerText(),/ORDER-TEST/);
   assert.match(await preview.locator('body').innerText(),/₹90.00/);
   await page.getByRole('button',{name:'Close',exact:true}).click();
+  await page.getByRole('button',{name:'+ Challan',exact:true}).click();
+  form=page.getByRole('dialog',{name:'New delivery challan',exact:true});
+  await form.getByLabel('Bill source').selectOption('order-test');
+  assert.equal(await form.getByLabel('Rate ₹',{exact:true}).count(),0);
+  await form.getByRole('button',{name:'Save',exact:true}).click();
+  const challanText=await preview.locator('body').innerText();
+  assert.doesNotMatch(challanText,/₹|Rate|Amount|Sub Total|Balance Due|Payment details/);
+  await page.screenshot({path:'outputs/challan-preview.png',fullPage:true});
+  await page.getByRole('button',{name:'Close',exact:true}).click();
   await page.setViewportSize({width:390,height:844});
   await page.getByRole('button',{name:'+ Invoice',exact:true}).click();
   await page.screenshot({path:'outputs/billing-mobile.png',fullPage:true});
@@ -85,3 +94,4 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   console.log('PASS: advance before invoice, order receipt, payment history, automatic allocation, inline shared client creation, clickable invoice row, standalone and order invoice, quantity 3 excluding held, partial payment, stable number, receipt, reload, A4 copies, mobile, no runtime errors.');
  } finally { await browser.close(); sqlite.close(); }
 })().catch(error=>{console.error(error);process.exit(1)});
+
