@@ -4,6 +4,7 @@ import { allocateOrderPayments, documentTotals, roundMoney, validBillingDate, va
 
 type DocumentRow = { sequence: number; id: string; data: string; cancelled: number };
 type PaymentRow = { sequence: number; id: string; data: string };
+type ClientRow = { data: string; archived: number };
 const reply = (message: string, status = 400) => Response.json({ ok: false, message }, { status });
 const numbered = (prefix: string, date: string, sequence: number) => `${prefix}-${date.slice(0, 4)}-${String(sequence).padStart(5, "0")}`;
 function documentFromRow(row: DocumentRow): SeikoCommercialDocument {
@@ -36,13 +37,21 @@ export async function POST(request: Request) {
   try {
     await db.prepare(`CREATE TABLE IF NOT EXISTS seiko_billing_documents (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, data TEXT NOT NULL, total_paise INTEGER NOT NULL, cancelled INTEGER NOT NULL DEFAULT 0, created_by TEXT NOT NULL)`).run();
     await db.prepare(`CREATE TABLE IF NOT EXISTS seiko_billing_payments (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, invoice_id TEXT NOT NULL, amount_paise INTEGER NOT NULL, data TEXT NOT NULL, created_by TEXT NOT NULL)`).run();
+    await db.prepare(`CREATE TABLE IF NOT EXISTS seiko_clients (id TEXT PRIMARY KEY, name_key TEXT NOT NULL, phone_key TEXT NOT NULL, email_key TEXT NOT NULL, archived INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL, created_by TEXT NOT NULL, updated_by TEXT NOT NULL)`).run();
     await db.prepare(`CREATE INDEX IF NOT EXISTS seiko_billing_payment_invoice ON seiko_billing_payments(invoice_id)`).run();
     if (body.operation === "create") {
       const draft = body.document;
       if (!draft || typeof draft.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(draft.id)) return reply("Invalid document ID.");
-      const problem = validateBillingDocument(draft); if (problem) return reply(problem);
       const now = new Date().toISOString();
-      const saved = { ...draft, number: "", status: "issued", createdAt: now, updatedAt: now };
+      let clientSnapshot = {};
+      if (draft.clientId) {
+        const row = await db.prepare("SELECT data,archived FROM seiko_clients WHERE id = ?").bind(draft.clientId).first<ClientRow>();
+        if (!row || row.archived) return reply("The selected client is unavailable. Refresh clients and choose again.", 409);
+        const client = JSON.parse(row.data) as { id:string; type:string; name:string; contactPerson:string; phone:string; email:string; billingAddress:string; gstin:string };
+        clientSnapshot = { clientId: client.id, clientType: client.type, clientName: client.name, clientContactPerson: client.contactPerson, clientPhone: client.phone, clientEmail: client.email, clientAddress: client.billingAddress, clientGstin: client.gstin };
+      }
+      const saved = { ...draft, ...clientSnapshot, number: "", status: "issued", createdAt: now, updatedAt: now };
+      const problem = validateBillingDocument(saved); if (problem) return reply(problem);
       await db.prepare(`INSERT INTO seiko_billing_documents(id,data,total_paise,created_by) VALUES(?,?,?,?) ON CONFLICT(id) DO NOTHING`).bind(draft.id, JSON.stringify(saved), Math.round(documentTotals(draft).total * 100), actor.email).run();
     } else if (body.operation === "payment") {
       const payment = body.payment;

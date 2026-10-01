@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { SeikoBillingWorkspace } from "./seiko-billing-workspace";
+import { SeikoClientDirectory } from "./seiko-client-directory";
 import { startDomEnhancement } from "./lib/dom-enhancement";
 import { orderStoreKey, type SeikoOrder } from "./lib/order-domain";
 import {
@@ -116,7 +117,6 @@ export function SeikoPhase2() {
     return () => controller.stop();
   }, [clients, products]);
 
-  const saveClients = (next: ClientLibraryRecord[]) => { setClients(next); writeStore(libraryStoreKey(businessId, "clients"), next); };
   const saveProducts = (next: ProductLibraryRecord[]) => { setProducts(next); writeStore(libraryStoreKey(businessId, "products"), next); };
   const saveTemplates = (next: SeikoTemplateSet) => { setTemplates(next); writeStore(templateStoreKey(businessId), next); };
 
@@ -124,23 +124,11 @@ export function SeikoPhase2() {
   const orders = readStore<SeikoOrder[]>(orderStoreKey(businessId), []);
   return createPortal(<section className="seikoPhase2Surface" aria-label={`SEIKO ${view}`}>
     <header className="seikoPhase2Head"><div><button type="button" className="secondary" onClick={() => setView(null)}>← Back to Home</button><small>SEIKO</small><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
-    {view === "clients" && <ClientLibrary records={clients} onChange={saveClients}/>} 
-    {view === "products" && <ProductLibrary records={products} onChange={saveProducts}/>} 
+    {view === "clients" && <SeikoClientDirectory legacyRecords={clients}/>} {/* shared client directory */}
+    {view === "products" && <ProductLibrary records={products} onChange={saveProducts}/>} {/* browser product library */}
     {view === "billing" && <SeikoBillingWorkspace orders={orders} legacyDocuments={documents} legacyPayments={payments}/>}
     {view === "templates" && <TemplateManager templates={templates} onChange={saveTemplates}/>} 
   </section>, document.body);
-}
-
-function ClientLibrary({ records, onChange }: { records: ClientLibraryRecord[]; onChange: (records: ClientLibraryRecord[]) => void }) {
-  const [query, setQuery] = useState(""); const [archived, setArchived] = useState(false); const [editing, setEditing] = useState<ClientLibraryRecord | null>(null);
-  const visible = records.filter(record => record.archived === archived && `${record.name} ${record.type} ${record.phone} ${record.contactPerson}`.toLowerCase().includes(query.toLowerCase()));
-  const blank = (): ClientLibraryRecord => ({ id: crypto.randomUUID(), name: "", type: "", contactPerson: "", phone: "", email: "", billingAddress: "", deliveryAddress: "", gstin: "", archived: false, sourceOrderIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-  const save = () => { if (!editing?.name.trim()) return; const duplicate = records.find(item => item.id !== editing.id && item.name.trim().toLowerCase() === editing.name.trim().toLowerCase()); const record = { ...editing, id: duplicate?.id || stableLibraryId("client", editing.name), updatedAt: new Date().toISOString() }; onChange([record, ...records.filter(item => item.id !== editing.id && item.id !== duplicate?.id)]); setEditing(null); };
-  return <LibraryFrame query={query} setQuery={setQuery} archived={archived} setArchived={setArchived} onAdd={() => setEditing(blank())} addLabel="Add client">
-    {visible.map(record => <LibraryRow key={record.id} title={record.name} meta={[record.type, record.contactPerson, record.phone].filter(Boolean).join(" · ")} archived={record.archived} onEdit={() => setEditing({ ...record })} onArchive={() => onChange(records.map(item => item.id === record.id ? { ...item, archived: !item.archived, updatedAt: new Date().toISOString() } : item))}/>)}
-    {!visible.length && <Empty text={archived ? "No archived clients." : "No clients match this view."}/>} 
-    {editing && <Editor title="Client" onCancel={() => setEditing(null)} onSave={save}><Input label="Client name" value={editing.name} onChange={name => setEditing({ ...editing, name })}/><Input label="Client type" value={editing.type} onChange={type => setEditing({ ...editing, type })}/><Input label="Contact person" value={editing.contactPerson} onChange={contactPerson => setEditing({ ...editing, contactPerson })}/><Input label="Phone" value={editing.phone} onChange={phone => setEditing({ ...editing, phone })}/><Input label="Email" value={editing.email} onChange={email => setEditing({ ...editing, email })}/><Input label="GSTIN" value={editing.gstin} onChange={gstin => setEditing({ ...editing, gstin })}/><Input label="Billing address" value={editing.billingAddress} onChange={billingAddress => setEditing({ ...editing, billingAddress })}/><Input label="Delivery address" value={editing.deliveryAddress} onChange={deliveryAddress => setEditing({ ...editing, deliveryAddress })}/></Editor>}
-  </LibraryFrame>;
 }
 
 function ProductLibrary({ records, onChange }: { records: ProductLibraryRecord[]; onChange: (records: ProductLibraryRecord[]) => void }) {

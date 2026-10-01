@@ -118,3 +118,22 @@ test("order allocations respect direct payments, other orders, cancelled invoice
   allocated = model.allocateOrderPayments([{ ...docs[0], status: "cancelled" }], [advance]);
   assert.equal(model.unappliedOrderPayment(allocated[0]), 150.01);
 });
+
+test("shared client directory saves typed clients, merges duplicate phones and enforces access", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  const db = { withSession() { return this; }, prepare(sql) { let args = []; const statement = sqlite.prepare(sql); return { bind(...values) { args = values; return this; }, async run() { return statement.run(...args); }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } }; } };
+  let authenticated = true, manage = true;
+  const clients = load("../app/lib/seiko-clients.ts");
+  const route = load("../app/api/erp/clients/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-clients": clients, "../../../lib/server-erp-auth": { authenticateActor: async () => authenticated ? { email: "test@example.invalid" } : null, authorizePermission: async (_, __, permission) => permission === "financials.view" || manage } });
+  const call = body => route.POST(new Request("https://test.invalid/api/erp/clients", { method: "POST", body: JSON.stringify(body) }));
+  const base = { id: "client-test-001", name: "A S School", type: "School / Institution", contactPerson: "Principal", phone: "99999 99999", email: "OFFICE@EXAMPLE.INVALID", billingAddress: "Main Road", deliveryAddress: "Campus", gstin: "gst123", archived: false, sourceOrderIds: [], createdAt: "", updatedAt: "" };
+  try {
+    let result = await (await call({ operation: "save", client: base })).json();
+    assert.equal(result.clients[0].type, "institutional"); assert.equal(result.clients[0].email, "office@example.invalid"); assert.equal(result.clients[0].gstin, "GST123");
+    result = await (await call({ operation: "save", client: { ...base, id: "client-test-002", name: "A S School Updated" } })).json();
+    assert.equal(result.clients.length, 1); assert.equal(result.clients[0].id, "client-test-001"); assert.equal(result.clients[0].name, "A S School Updated");
+    assert.equal((await call({ operation: "save", client: { ...base, phone: "" } })).status, 400);
+    manage = false; assert.equal((await call({ operation: "save", client: base })).status, 403); assert.equal((await call({ operation: "list" })).status, 200);
+    authenticated = false; assert.equal((await call({ operation: "list" })).status, 401);
+  } finally { sqlite.close(); }
+});

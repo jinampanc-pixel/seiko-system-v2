@@ -11,11 +11,14 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
  sqlite.prepare("INSERT INTO erp_orders VALUES(?,?,?,?)").run("order-test","seiko","Active",JSON.stringify({details:{orderNo:"ORDER-TEST",clientName:"School test",contactNumber:"9999999999"}}));
  const db = { withSession() { return this; }, prepare(sql) { const stmt = sqlite.prepare(sql); let args = []; return { bind(...values) { args = values; return this; }, async run() { return stmt.run(...args); }, async first() { return stmt.get(...args) || null; }, async all() { return { results: stmt.all(...args) }; } }; } };
  const model = load('app/lib/seiko-billing.ts');
+ const clientModel = load('app/lib/seiko-clients.ts');
  const api = load('app/api/erp/billing/route.ts', { 'cloudflare:workers': {env:{DB:db}}, '../../../lib/seiko-billing': model, '../../../lib/server-erp-auth': { authenticateActor: async () => ({ email:'test@example.invalid' }), authorizePermission: async () => true } });
+ const clientApi = load('app/api/erp/clients/route.ts', { 'cloudflare:workers': {env:{DB:db}}, '../../../lib/seiko-clients': clientModel, '../../../lib/server-erp-auth': { authenticateActor: async () => ({ email:'test@example.invalid' }), authorizePermission: async () => true } });
  const browser = await chromium.launch({ headless:true, channel:process.env.PLAYWRIGHT_CHANNEL || 'msedge' });
  try {
   const page = await browser.newPage({ viewport:{width:1400,height:1100} }); const errors=[]; page.on('pageerror', e=>errors.push(e.message));
   await page.route('**/api/erp/billing', async route => { const response = await api.POST(new Request('http://127.0.0.1:5176/api/erp/billing', { method:'POST', body:route.request().postData() })); await route.fulfill({ status:response.status, contentType:'application/json', body:await response.text() }); });
+  await page.route('**/api/erp/clients', async route => { const response = await clientApi.POST(new Request('http://127.0.0.1:5176/api/erp/clients', { method:'POST', body:route.request().postData() })); await route.fulfill({ status:response.status, contentType:'application/json', body:await response.text() }); });
   await page.goto('http://127.0.0.1:5176/tests/packing-browser/billing.html');
   await page.getByRole('button',{name:'Record payment',exact:true}).click();
   fs.mkdirSync('outputs',{recursive:true});
@@ -34,8 +37,14 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   await page.getByRole('button',{name:'Invoices & documents',exact:true}).click();
   await page.getByRole('button',{name:'+ Invoice',exact:true}).click();
   let form = page.getByRole('dialog',{name:'New invoice',exact:true});
-  await form.getByLabel('Client name *',{exact:true}).fill('Standalone customer');
-  await form.getByLabel('Client phone *',{exact:true}).fill('9999999999');
+  await form.getByRole('button',{name:'+ Create client here',exact:true}).click();
+  await form.getByText('Create client without leaving this invoice',{exact:true}).waitFor();
+  await form.locator('label').filter({hasText:'Client type'}).locator('select').selectOption('retail');
+  await form.getByLabel('Client / organisation name *',{exact:true}).fill('Standalone customer');
+  await form.getByLabel('Phone *',{exact:true}).fill('9999999999');
+  await form.getByRole('button',{name:'Save client',exact:true}).click();
+  assert.notEqual(await form.getByLabel('Saved client',{exact:true}).inputValue(),'');
+  assert.equal(await form.getByLabel('Client name *',{exact:true}).inputValue(),'Standalone customer');
   await form.getByLabel('Description',{exact:true}).fill('Uniform stitching');
   await form.getByLabel('Quantity',{exact:true}).fill('2'); await form.getByLabel('Rate ₹',{exact:true}).fill('125');
   await form.getByRole('button',{name:'Save',exact:true}).click();
@@ -55,7 +64,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   await page.getByLabel('Print copies').selectOption('both');
   fs.mkdirSync('outputs',{recursive:true}); await page.screenshot({path:'outputs/billing-preview.png',fullPage:true});
   await page.getByRole('button',{name:'Close',exact:true}).click();
-  await page.reload(); await page.getByRole('button',{name:'Open',exact:true}).click();
+  await page.reload(); await page.screenshot({path:'outputs/billing-list.png',fullPage:true}); await page.getByRole('button',{name:/Open INV-\d{4}-00001 for Standalone customer/}).click();
   assert.match(await preview.locator('body').innerText(),/₹150.00/);
   await page.getByRole('button',{name:'Close',exact:true}).click();
   await page.getByRole('button',{name:'+ Invoice',exact:true}).click();
@@ -73,6 +82,6 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   await page.screenshot({path:'outputs/billing-mobile.png',fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
   assert.deepEqual(errors,[]);
-  console.log('PASS: advance before invoice, order receipt, payment history, automatic allocation, standalone and order invoice, quantity 3 excluding held, partial payment, stable number, receipt, reload, A4 copies, mobile, no runtime errors.');
+  console.log('PASS: advance before invoice, order receipt, payment history, automatic allocation, inline shared client creation, clickable invoice row, standalone and order invoice, quantity 3 excluding held, partial payment, stable number, receipt, reload, A4 copies, mobile, no runtime errors.');
  } finally { await browser.close(); sqlite.close(); }
 })().catch(error=>{console.error(error);process.exit(1)});

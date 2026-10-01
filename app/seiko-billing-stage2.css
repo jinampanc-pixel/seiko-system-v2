@@ -1,0 +1,13 @@
+.seikoBillingWorkspace .phase2Metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.billingDocumentRow { position: relative; }
+.billingRowLink { position: relative; z-index: 1; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.billingRowLink::after { content: ""; position: absolute; z-index: -1; inset: -12px; right: min(-1100px, -70vw); }
+.billingRowLink:hover b, .billingRowLink:focus-visible b { text-decoration: underline; }
+.billingRowLink:focus-visible { outline: 2px solid #0c84b2; outline-offset: 4px; border-radius: 3px; }
+.billingRowAction { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.billingRowAction .primary { white-space: nowrap; }
+.billingInlineClient { grid-column: 1 / -1; padding: 14px; border: 1px solid rgba(8,47,77,.14); border-radius: 12px; background: rgba(8,47,77,.025); }
+.billingInlineClient h3 { margin: 0 0 12px; }
+.billingInlineClient .phase2Actions { margin-top: 12px; justify-content: flex-end; }
+@media (max-width: 900px) { .seikoBillingWorkspace .phase2Metrics { grid-template-columns: 1fr 1fr; } .billingRowLink::after { right: min(-700px, -70vw); } .billingRowAction { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 620px) { .seikoBillingWorkspace .phase2Metrics { grid-template-columns: 1fr; } .billingRowLink::after { right: -70vw; } .billingRowAction { width: 100%; } .billingRowAction .primary { width: 100%; } }
