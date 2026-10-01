@@ -8,6 +8,7 @@ export type SeikoBillingLine = {
   unit: string;
   unitRate: number;
   taxRate: number;
+  hsnSac?: string;
 };
 
 export type SeikoCommercialDocument = {
@@ -34,6 +35,14 @@ export type SeikoCommercialDocument = {
   clientPhone?: string;
   clientAddress?: string;
   clientGstin?: string;
+  clientDeliveryAddress?: string;
+  placeOfSupply?: string;
+  reverseCharge?: boolean;
+  supplyType?: "goods" | "services" | "mixed";
+  showMonetaryValues?: boolean;
+  dispatch?: { transporter?: string; vehicleNo?: string; eWayBillNo?: string; packages?: string; dispatchDate?: string; returnable?: boolean };
+  eInvoiceIrn?: string;
+  eInvoiceQr?: string;
   supplier?: {
     name: string; address: string; phone: string; gstin: string; bank: string;
     upi?: string; paymentQr?: string; showBank?: boolean; showUpi?: boolean; showQr?: boolean;
@@ -127,6 +136,20 @@ export function nextDocumentNumber(kind: SeikoDocumentKind, existing: SeikoComme
 
 export function roundMoney(value: number) { return Math.round((value + Number.EPSILON) * 100) / 100; }
 
+export function formatInr(value: number) {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2 }).format(Number(value) || 0);
+}
+
+export function amountInWords(value: number) {
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const under1000 = (n: number) => `${n >= 100 ? `${ones[Math.floor(n / 100)]} Hundred ` : ""}${n % 100 < 20 ? ones[n % 100] : `${tens[Math.floor((n % 100) / 10)]}${n % 10 ? ` ${ones[n % 10]}` : ""}`}`.trim();
+  let rupees = Math.floor(Math.abs(value)); const paise = Math.round((Math.abs(value) - rupees) * 100); const parts: string[] = [];
+  for (const [size, label] of [[10_000_000, "Crore"], [100_000, "Lakh"], [1_000, "Thousand"]] as const) if (rupees >= size) { parts.push(`${under1000(Math.floor(rupees / size))} ${label}`); rupees %= size; }
+  if (rupees) parts.push(under1000(rupees));
+  return `Indian Rupees ${parts.join(" ") || "Zero"}${paise ? ` and ${under1000(paise)} Paise` : ""} Only`;
+}
+
 export function billingStatus(document: SeikoCommercialDocument, payments: SeikoPaymentRecord[]) {
   if (document.status === "cancelled" || document.kind !== "invoice") return document.status;
   return invoiceOutstanding(document, payments) === 0 ? "paid" : paymentsForInvoice(payments, document.id) > 0 ? "part_paid" : "issued";
@@ -139,8 +162,12 @@ export function validateBillingDocument(document: SeikoCommercialDocument): stri
   if (!validBillingDate(document.issueDate)) return "Choose a valid invoice date.";
   if (document.dueDate && (!validBillingDate(document.dueDate) || document.dueDate < document.issueDate)) return "Due date must be on or after the invoice date.";
   if (!["gst", "non_gst"].includes(document.taxMode) || !["intra_state", "inter_state"].includes(document.taxTreatment)) return "Choose a valid tax treatment.";
+  if (document.taxMode === "gst" && (!document.supplier.address?.trim() || !document.supplier.gstin?.trim())) return "GST documents require the supplier address and GSTIN.";
+  if (document.taxMode === "gst" && !document.clientAddress?.trim()) return "GST documents require the recipient billing address.";
+  if (document.taxMode === "gst" && document.taxTreatment === "inter_state" && !document.placeOfSupply?.trim()) return "Enter the place of supply for an interstate GST document.";
   if (!Array.isArray(document.lines) || !document.lines.length || document.lines.length > 200) return "Add between 1 and 200 item lines.";
   if (document.lines.some(line => !line.description?.trim() || !Number.isFinite(line.quantity) || line.quantity <= 0 || !Number.isFinite(line.unitRate) || line.unitRate < 0 || !Number.isFinite(line.taxRate) || line.taxRate < 0 || line.taxRate > 100)) return "Each item needs a description, positive quantity and valid rate/tax.";
+  if (document.taxMode === "gst" && document.lines.some(line => !line.hsnSac?.trim())) return "Every GST item needs an HSN/SAC code.";
   if (documentTotals(document).total > 1_000_000_000) return "Invoice total is too large.";
   return "";
 }
