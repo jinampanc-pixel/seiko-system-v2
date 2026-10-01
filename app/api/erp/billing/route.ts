@@ -53,6 +53,20 @@ export async function POST(request: Request) {
       const saved = { ...draft, ...clientSnapshot, number: "", status: "issued", createdAt: now, updatedAt: now };
       const problem = validateBillingDocument(saved); if (problem) return reply(problem);
       await db.prepare(`INSERT INTO seiko_billing_documents(id,data,total_paise,created_by) VALUES(?,?,?,?) ON CONFLICT(id) DO NOTHING`).bind(draft.id, JSON.stringify(saved), Math.round(documentTotals(draft).total * 100), actor.email).run();
+    } else if (body.operation === "amend") {
+      const draft = body.document;
+      if (!draft?.id) return reply("Choose a document to amend.");
+      const row = await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE id = ?").bind(draft.id).first<DocumentRow>();
+      if (!row || row.cancelled) return reply("This document is unavailable for amendment.", 404);
+      const original = JSON.parse(row.data) as SeikoCommercialDocument;
+      if (draft.kind !== original.kind) return reply("The document type cannot be changed.");
+      const now = new Date().toISOString();
+      const saved = { ...draft, id: original.id, number: "", status: "issued", createdAt: original.createdAt, updatedAt: now, revision: (original.revision || 0) + 1, amendedAt: now, amendedBy: actor.email };
+      const problem = validateBillingDocument(saved); if (problem) return reply(problem);
+      const paid = await db.prepare("SELECT COALESCE(SUM(amount_paise),0) AS total FROM seiko_billing_payments WHERE invoice_id = ?").bind(draft.id).first<{ total: number }>();
+      const totalPaise = Math.round(documentTotals(saved).total * 100);
+      if (saved.kind === "invoice" && totalPaise < Number(paid?.total || 0)) return reply("The amended invoice total cannot be lower than payments already received.", 409);
+      await db.prepare("UPDATE seiko_billing_documents SET data = ?, total_paise = ? WHERE id = ?").bind(JSON.stringify(saved), totalPaise, saved.id).run();
     } else if (body.operation === "payment") {
       const payment = body.payment;
       if (!payment || typeof payment.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(payment.id) || typeof payment.invoiceId !== "string") return reply("Invalid payment.");
@@ -92,3 +106,4 @@ export async function POST(request: Request) {
     return reply("Billing could not be saved or loaded. Your form is still available; retry when connected.", 503);
   }
 }
+

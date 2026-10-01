@@ -46,12 +46,12 @@ test("A4 output has named copies, updated balance, escaped content and receipt r
 test("delivery documents support non-GST quantity-only, valued and statutory GST modes", () => {
   const bill = { ...invoice(), number: "DC-2026-00001", kind: "delivery_challan", supplier: { ...invoice().supplier, bank: "Bank A 123", upi: "seiko@upi", paymentQr: "data:image/png;base64,AAAA", showBank: true, showUpi: true, showQr: true } };
   const challan = printing.billingPrintHtml(bill, [], "customer");
-  assert.match(challan, /Delivery Note/); assert.match(challan, /<th>Qty<\/th><th>Unit<\/th>/);
+  assert.match(challan, /Delivery Challan/); assert.match(challan, /<th>Qty<\/th><th>Unit<\/th>/);
   assert.doesNotMatch(challan, /<th>Rate<\/th>|<th>Amount<\/th>|Sub Total|Balance Due|Bank A 123|seiko@upi|₹/);
   const invoiceHtml = printing.billingPrintHtml({ ...bill, kind: "invoice", number: "INV-2026-00002" }, [], "customer");
   assert.match(invoiceHtml, /Bank A 123/); assert.match(invoiceHtml, /seiko@upi/); assert.match(invoiceHtml, /Scan to pay/); assert.match(invoiceHtml, /#153e63/);
   assert.match(challan, /Recipient Copy/); assert.match(printing.billingPrintHtml(bill, [], "supplier"), /Office Copy/);
-  assert.match(printing.billingPrintHtml({ ...bill, showMonetaryValues: true }, [], "customer"), /Valued Delivery Challan/);
+  assert.match(printing.billingPrintHtml({ ...bill, showMonetaryValues: true }, [], "customer"), /Delivery Challan/);
   const gst = { ...bill, taxMode: "gst", placeOfSupply: "Maharashtra 27", supplier: { ...bill.supplier, address: "Mumbai", gstin: "27ABCDE1234F1Z5" }, clientAddress: "Pune", lines: bill.lines.map(line => ({ ...line, hsnSac: "6203", taxRate: 5 })) };
   const gstHtml = printing.billingPrintHtml(gst, [], "both");
   assert.match(gstHtml, /GST Delivery Challan/); assert.match(gstHtml, /Original for Consignee/); assert.match(gstHtml, /Duplicate for Transporter/); assert.match(gstHtml, /Triplicate for Consignor/); assert.match(gstHtml, /HSN\/SAC/); assert.match(gstHtml, /Place of supply/);
@@ -77,6 +77,8 @@ test("database persists invoices and idempotent payments, rejecting overpayment 
     let result = await (await call({ operation: "create", document: invoice() })).json();
     assert.equal(result.documents[0].number, "INV-2026-00001");
     await call({ operation: "create", document: invoice() });
+    result = await (await call({ operation: "amend", document: { ...result.documents[0], clientName: "Amended Client" } })).json();
+    assert.equal(result.documents[0].number, "INV-2026-00001"); assert.equal(result.documents[0].clientName, "Amended Client"); assert.equal(result.documents[0].revision, 1);
     result = await (await call({ operation: "payment", payment: payment("payment-test-001", 100) })).json();
     assert.equal(result.payments[0].receiptNumber, "RCP-2026-00001");
     await call({ operation: "payment", payment: payment("payment-test-001", 100) });

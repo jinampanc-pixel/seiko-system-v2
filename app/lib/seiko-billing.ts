@@ -43,6 +43,9 @@ export type SeikoCommercialDocument = {
   dispatch?: { transporter?: string; vehicleNo?: string; eWayBillNo?: string; packages?: string; dispatchDate?: string; returnable?: boolean };
   eInvoiceIrn?: string;
   eInvoiceQr?: string;
+  revision?: number;
+  amendedAt?: string;
+  amendedBy?: string;
   supplier?: {
     name: string; address: string; phone: string; gstin: string; bank: string;
     upi?: string; paymentQr?: string; showBank?: boolean; showUpi?: boolean; showQr?: boolean;
