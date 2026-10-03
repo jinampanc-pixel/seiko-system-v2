@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { groupRuleMatches, quantityForRecord, type ProductPolicy, type SeikoOrder } from "./lib/order-domain";

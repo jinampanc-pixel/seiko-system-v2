@@ -18,11 +18,11 @@ test("packing person labels use a dedicated workflow-first designer", () => {
 test("new information fields are placed in free non-overlapping areas", () => {
   assert.match(designer, /function freePlacement/);
   assert.match(designer, /rectanglesOverlap/);
-  assert.match(designer, /const position = freePlacement\(currentItems, key\)/);
+  assert.match(designer, /freePlacement\(draftItems, field\)/);
 });
 
 test("package contents use actual applicable products and conditional details", () => {
-  assert.match(designer, /resolvedQuantity/);
+  assert.match(designer, /packingQuantities/);
   assert.match(designer, /quantity <= 0/);
   assert.match(designer, /measurementModes/);
   assert.match(designer, /specificationModes/);
@@ -43,6 +43,6 @@ test("preview and print share the same renderer and fitted text", () => {
 test("saved packing person sets print through the same dedicated designer", () => {
   assert.match(printPage, /isPackingPerson/);
   assert.match(printPage, /<PackingPersonLabelDesigner/);
-  assert.match(designer, /designerKind: "packing-person-v3"/);
+  assert.match(designer, /designerKind: "packing-person-v4"/);
   assert.match(designer, /migrateItems/);
 });

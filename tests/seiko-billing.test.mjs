@@ -59,7 +59,7 @@ test("delivery documents support non-GST quantity-only, valued and statutory GST
 
 test("Indian money, amount words and professional receipt wording are printed", () => {
   assert.match(model.formatInr(213000), /2,13,000\.00/); assert.equal(model.amountInWords(213000), "Indian Rupees Two Lakh Thirteen Thousand Only");
-  const bill = invoice(); const receipt = { ...payment("payment-01", 213000), invoiceId: "", orderId: "order-1", receiptNumber: "RCP-2026-00001", allocations: [] };
+  const receipt = { ...payment("payment-01", 213000), invoiceId: "", orderId: "order-1", receiptNumber: "RCP-2026-00001", allocations: [] };
   const html = printing.billingPrintHtml(model.orderReceiptDocument(receipt), [], "customer", receipt);
   assert.match(html, /Advance balance available/); assert.match(html, /Payment acknowledgement only; this is not a tax invoice/); assert.doesNotMatch(html, /Unapplied order advance/);
 });

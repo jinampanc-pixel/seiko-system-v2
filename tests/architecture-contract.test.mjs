@@ -112,7 +112,7 @@ test("SEIKO billing links documents, tax treatment, payments and outstanding bal
   const billingWorkspace = readFileSync(new URL("../app/seiko-billing-workspace.tsx", import.meta.url), "utf8");
   assert.match(billingWorkspace, /Record payment/);
   assert.match(billingWorkspace, /GST document/);
-  assert.match(billingWorkspace, /Without GST/);
+  assert.match(billingWorkspace, /<option value="non_gst">Non-GST document<\/option>/);
 });
 
 test("Users and access is nested inside business settings rather than exposed as a shell module", () => {

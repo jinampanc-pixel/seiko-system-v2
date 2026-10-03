@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 const runtime = fs.readFileSync(new URL("../app/seiko-review-final.tsx", import.meta.url), "utf8");
 const css = fs.readFileSync(new URL("../app/seiko-review-final.css", import.meta.url), "utf8");
-const designer = fs.readFileSync(new URL("../app/packing-person-label-designer.tsx", import.meta.url), "utf8");
+const designer = fs.readFileSync(new URL("../app/physical-label-canvas.tsx", import.meta.url), "utf8");
 
 test("font resizing never changes a field's x or y position", () => {
   const apply = runtime.match(/function applyFontGrowth\([\s\S]*?\nfunction tightenSelected/)?.[0] || "";
@@ -14,8 +14,8 @@ test("font resizing never changes a field's x or y position", () => {
 });
 
 test("drop removal targets only the actively dragged item", () => {
-  assert.match(designer, /const removeId = dragging\.current\.id/);
-  assert.match(designer, /filter\(item => item\.id !== removeId\)/);
+  assert.match(designer, /const start = drag.current/);
+  assert.match(designer, /filter\(item => item\.id !== start.item.id\)/);
   assert.doesNotMatch(designer, /filter\(item => !isPackageField\(item\.field\)\)[\s\S]{0,180}removeId/);
   assert.match(css, /\.packingTrash\{pointer-events:none!important\}/);
 });

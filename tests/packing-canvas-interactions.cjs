@@ -31,7 +31,11 @@ const assert = require('node:assert/strict');
  const glyph=()=>field.locator('svg text').first().boundingBox();
  const resize=async(edge,dx,dy)=>{const b=await page.locator(`.handle-${edge}`).boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.mouse.move(b.x+b.width/2+dx,b.y+b.height/2+dy,{steps:5});await page.mouse.up();};
  const oldWidth=await value('w'),oldGlyph=await glyph();
- await resize('e',35,0);const wide=await glyph();assert.ok(wide.width>oldGlyph.width*1.1,'right edge widens glyphs');assert.ok(Math.abs(wide.height-oldGlyph.height)<1,'right edge leaves height');
+ // Chromium can change glyph bounding-box hinting under non-uniform SVG scale.
+ // Verify the actual vertical transform and saved geometry instead.
+ const verticalScale=()=>field.locator('svg').evaluate(svg=>svg.getScreenCTM().d);
+ const oldVerticalScale=await verticalScale(),oldBoxHeight=await value('h');
+ await resize('e',35,0);const wide=await glyph();assert.ok(wide.width>oldGlyph.width*1.1,'right edge widens glyphs');assert.ok(Math.abs(await verticalScale()-oldVerticalScale)<.001,'right edge leaves vertical scale');assert.equal(await value('h'),oldBoxHeight,'right edge leaves saved height');
  await page.getByRole('button',{name:'Undo',exact:true}).click();assert.ok(Math.abs(await value('w')-oldWidth)<.02);
  const oldHeight=await value('h');await resize('s',0,20);assert.ok((await glyph()).height>oldGlyph.height*1.2,'bottom edge increases text height');
  await page.getByRole('button',{name:'Undo',exact:true}).click();assert.ok(Math.abs(await value('h')-oldHeight)<.02);

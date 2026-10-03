@@ -242,7 +242,7 @@ function enhanceWorkspaceRows(page: HTMLElement) {
     actionsHead.appendChild(checkbox);
   }
 
-  workspaceRows(page).forEach((row, index) => {
+  workspaceRows(page).forEach(row => {
     const id = rowId(row);
     const actions = row.querySelector<HTMLElement>(".rowActions");
     if (!id || !actions) return;

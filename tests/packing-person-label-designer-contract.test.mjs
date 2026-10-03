@@ -10,12 +10,12 @@ test("packing person labels use a dedicated native designer", () => {
   assert.match(page, /selectedPurpose\.behavior === "packing" && selectedRepresentation\.sourceMode === "person"/);
 });
 
-test("native designer maps applicable products into generic slots", () => {
-  assert.match(source, /SLOT_PREFIX/);
-  assert.match(source, /Product \$\{index \+ 1\}/);
-  assert.match(source, /applicableProducts\(order, record, recordIndex\)/);
-  assert.match(source, /resolvedQuantity/);
-  assert.match(source, /quantityForRecord/);
+test("native designer builds eligible person packages from actual quantities", () => {
+  assert.match(source, /packingQuantities/);
+  assert.match(source, /eligiblePackingIds/);
+  assert.match(source, /quantities.get\(record.recordId\)/);
+  assert.match(source, /if \(quantity <= 0\) continue/);
+  assert.doesNotMatch(source, /SLOT_PREFIX|syntheticProductId/);
 });
 
 test("product presentation supports aliases formats quantity and conditional measurements", () => {
@@ -30,15 +30,20 @@ test("product presentation supports aliases formats quantity and conditional mea
   assert.match(source, /primaryMeasurementId/);
 });
 
-test("legacy per-product measurement fields are removed from the synthetic packing order", () => {
-  assert.match(source, /measurements: \[\]/);
-  assert.match(source, /products: \[\{ id: syntheticProductId/);
+test("legacy product and measurement fields migrate into a single package block", () => {
+  assert.match(source, /field.startsWith\("measurement:"\)/);
+  assert.match(source, /field.includes\("__packing_product_slot_"\)/);
+  assert.match(source, /mapped = PACKAGE_FIELD/);
+  assert.match(source, /mapped === PACKAGE_FIELD && hasPackage/);
 });
 
-test("preview and printed text auto-fit within user rectangles without changing saved font", () => {
-  assert.match(source, /function autoFit/);
-  assert.match(source, /\.canvasElement,.printedElement/);
-  assert.match(source, /preferredPt/);
-  assert.match(source, /Math\.max\(minPx, preferredPx \* scale\)/);
-  assert.match(source, /beforeprint/);
+test("preview and print fit the same measured SVG text without changing saved font", () => {
+  assert.match(source, /function FitText/);
+  assert.match(source, /context.measureText/);
+  assert.match(source, /viewBox=/);
+  assert.match(source, /preserveAspectRatio="none"/);
+  assert.match(source, /fontSize=\{preferredPt \* 96 \/ 72\}/);
+  assert.match(source, /await document.fonts.ready/);
+  assert.match(source, /renderItem\(item, current\)/);
+  assert.match(source, /renderItem\(item, record\)/);
 });
