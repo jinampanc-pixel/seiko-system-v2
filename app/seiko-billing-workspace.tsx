@@ -53,7 +53,7 @@ export function SeikoBillingWorkspace({ orders, legacyDocuments = [], legacyPaym
   const paymentOrder = orders.find(item => item.orderId === paymentOrderId);
   const paymentInvoice = ledger.documents.find(item => item.id === paymentInvoiceId);
   const unpaid = ledger.documents.filter(item => item.kind === "invoice" && item.status !== "cancelled" && invoiceOutstanding(item, ledger.payments) > 0);
-  const paymentOptions = unpaid.filter(item => (!filter || item.orderId === filter) && `${item.number} ${item.clientName} ${item.orderNo}`.toLowerCase().includes(paymentSearch.toLowerCase()));
+  const paymentOptions = unpaid.filter(item => (!initialOrderId || item.orderId === initialOrderId) && `${item.number} ${item.clientName} ${item.orderNo}`.toLowerCase().includes(paymentSearch.toLowerCase()));
   const visiblePayments = ledger.payments.filter(payment => {
     const invoice = ledger.documents.find(item => item.id === payment.invoiceId);
     return (!filter || payment.orderId === filter || invoice?.orderId === filter || payment.allocations?.some(allocation => ledger.documents.some(document => document.id === allocation.invoiceId && document.orderId === filter)) || (filter === "standalone" && !payment.orderId && !invoice?.orderId)) && `${payment.receiptNumber} ${payment.reference} ${payment.mode} ${payment.clientName || invoice?.clientName || ""} ${invoice?.number || ""} ${payment.orderNo || invoice?.orderNo || ""}`.toLowerCase().includes(query.toLowerCase());
