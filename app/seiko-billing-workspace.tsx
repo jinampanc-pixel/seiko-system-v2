@@ -12,23 +12,23 @@ import { ClientEditor } from "./seiko-client-directory";
 import { newSeikoClient, requestSeikoClients, type SeikoClientRecord } from "./lib/seiko-clients";
 
 type Ledger = { documents: SeikoCommercialDocument[]; payments: SeikoPaymentRecord[]; canManage: boolean };
-type Props = { orders: SeikoOrder[]; legacyDocuments?: SeikoCommercialDocument[]; legacyPayments?: SeikoPaymentRecord[]; initialAction?: "payment" | "invoice" | "quotation" | "challan" | null; onActionHandled?: () => void };
+type Props = { orders: SeikoOrder[]; legacyDocuments?: SeikoCommercialDocument[]; legacyPayments?: SeikoPaymentRecord[]; initialOrderId?: string; initialAction?: "payment" | "payments" | "invoice" | "quotation" | "challan" | null; onActionHandled?: () => void };
 const money = formatInr;
 const today = () => new Date().toLocaleDateString("en-CA");
 const newLine = (): SeikoBillingLine => ({ id: crypto.randomUUID(), description: "", quantity: 1, unit: "pc", unitRate: 0, taxRate: 0, hsnSac: "" });
 const supplierBlank = () => ({ name: "SEIKO Tailors", address: "", phone: "", gstin: "", bank: "", upi: "", paymentQr: "", showBank: false, showUpi: false, showQr: false });
 
-export function SeikoBillingWorkspace({ orders, legacyDocuments = [], legacyPayments = [], initialAction, onActionHandled }: Props) {
+export function SeikoBillingWorkspace({ orders, legacyDocuments = [], legacyPayments = [], initialAction, initialOrderId = "", onActionHandled }: Props) {
   const [ledger, setLedger] = useState<Ledger>({ documents: [], payments: [], canManage: false });
   const [loaded, setLoaded] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
-  const [query, setQuery] = useState(""); const [filter, setFilter] = useState("");
+  const [query, setQuery] = useState(""); const [filter, setFilter] = useState(initialOrderId);
   const [creating, setCreating] = useState<SeikoDocumentKind | null>(() => initialAction === "invoice" || initialAction === "quotation" ? initialAction : initialAction === "challan" ? "delivery_challan" : null);
   const [selectedId, setSelectedId] = useState(""); const [paying, setPaying] = useState(initialAction === "payment"); const [amending, setAmending] = useState(false);
   const [receiptId, setReceiptId] = useState(""); const [copies, setCopies] = useState<BillingCopies>("both");
-  const [paymentOrderId, setPaymentOrderId] = useState("");
+  const [paymentOrderId, setPaymentOrderId] = useState(initialAction === "payment" ? initialOrderId : "");
   const [paymentInvoiceId, setPaymentInvoiceId] = useState("");
   const [paymentSearch, setPaymentSearch] = useState("");
-  const [view, setView] = useState<"invoices" | "payments">("invoices");
+  const [view, setView] = useState<"invoices" | "payments">(initialAction === "payments" ? "payments" : "invoices");
   const [notice, setNotice] = useState("");
   const [clients, setClients] = useState<SeikoClientRecord[]>([]); const [clientBusy, setClientBusy] = useState(false); const [clientError, setClientError] = useState("");
   const frame = useRef<HTMLIFrameElement>(null); const pending = useRef(false);
@@ -53,12 +53,12 @@ export function SeikoBillingWorkspace({ orders, legacyDocuments = [], legacyPaym
   const paymentOrder = orders.find(item => item.orderId === paymentOrderId);
   const paymentInvoice = ledger.documents.find(item => item.id === paymentInvoiceId);
   const unpaid = ledger.documents.filter(item => item.kind === "invoice" && item.status !== "cancelled" && invoiceOutstanding(item, ledger.payments) > 0);
-  const paymentOptions = unpaid.filter(item => `${item.number} ${item.clientName} ${item.orderNo}`.toLowerCase().includes(paymentSearch.toLowerCase()));
+  const paymentOptions = unpaid.filter(item => (!filter || item.orderId === filter) && `${item.number} ${item.clientName} ${item.orderNo}`.toLowerCase().includes(paymentSearch.toLowerCase()));
   const visiblePayments = ledger.payments.filter(payment => {
     const invoice = ledger.documents.find(item => item.id === payment.invoiceId);
-    return (!filter || payment.orderId === filter || (filter === "standalone" && !payment.orderId)) && `${payment.receiptNumber} ${payment.reference} ${payment.mode} ${payment.clientName || invoice?.clientName || ""} ${invoice?.number || ""} ${payment.orderNo || invoice?.orderNo || ""}`.toLowerCase().includes(query.toLowerCase());
+    return (!filter || payment.orderId === filter || invoice?.orderId === filter || payment.allocations?.some(allocation => ledger.documents.some(document => document.id === allocation.invoiceId && document.orderId === filter)) || (filter === "standalone" && !payment.orderId && !invoice?.orderId)) && `${payment.receiptNumber} ${payment.reference} ${payment.mode} ${payment.clientName || invoice?.clientName || ""} ${invoice?.number || ""} ${payment.orderNo || invoice?.orderNo || ""}`.toLowerCase().includes(query.toLowerCase());
   });
-  function startPayment(invoiceId = "") { setPaymentOrderId(""); setError(""); setNotice(""); setPaymentSearch(""); setPaymentInvoiceId(invoiceId); setPaying(true); }
+  function startPayment(invoiceId = "") { setPaymentOrderId(invoiceId ? "" : initialOrderId); setError(""); setNotice(""); setPaymentSearch(""); setPaymentInvoiceId(invoiceId); setPaying(true); }
   const visible = ledger.documents.filter(item => (!filter || item.orderId === filter || (filter === "standalone" && !item.orderId)) && `${item.number} ${item.clientName} ${item.orderNo}`.toLowerCase().includes(query.toLowerCase()));
   const invoices = visible.filter(item => item.kind === "invoice" && item.status !== "cancelled");
   function backup() { const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), ...ledger, legacyDocuments, legacyPayments }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `seiko-billing-${today()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
@@ -97,7 +97,7 @@ function BillEditor({ kind, orders, clients, initialOrderId, initialDocument, su
   const chooseClient = (id: string) => { const client = clients.find(item => item.id === id); if (!client) { update({ clientId: "" }); return; } applyClient(client); };
   const lineUpdate = (id: string, patch: Partial<SeikoBillingLine>) => update({ lines: draft.lines.map(line => line.id === id ? { ...line, ...patch } : line) });
   return <BillingModal title={`${initialDocument ? "Amend" : "New"} ${kind.replace("_", " ")}`} busy={busy} onCancel={onCancel} onSave={() => { const validation = validateBillingDocument(draft); setProblem(validation); if (!validation) onSave(draft); }}>
-    {!initialDocument && <><label>Bill source<select value={draft.orderId} onChange={event => { setDraft(makeDraft(event.target.value)); setProblem(""); }}><option value="">Standalone bill · no order</option>{orders.filter(order => !order.archived && order.status !== "Cancelled").map(order => <option key={order.orderId} value={order.orderId}>{order.details.orderNo} · {order.details.clientName}</option>)}</select></label><p>Choosing another source starts a fresh draft. Order quantities exclude held records; review rates before saving.</p></>}{initialDocument && <p className="billingFull"><b>{initialDocument.number}</b> · Amendments preserve this number and are marked with a revision.</p>}
+    {!initialDocument && <><label>Bill source<select aria-label="Bill source" value={draft.orderId} onChange={event => { setDraft(makeDraft(event.target.value)); setProblem(""); }}><option value="">Standalone bill · no order</option>{orders.filter(order => !order.archived && order.status !== "Cancelled").map(order => <option key={order.orderId} value={order.orderId}>{order.details.orderNo} · {order.details.clientName}</option>)}</select></label><p>Choosing another source starts a fresh draft. Order quantities exclude held records; review rates before saving.</p></>}{initialDocument && <p className="billingFull"><b>{initialDocument.number}</b> · Amendments preserve this number and are marked with a revision.</p>}
     <label className="billingFull">Saved client<select aria-label="Saved client" value={draft.clientId || ""} onChange={event => chooseClient(event.target.value)}><option value="">Enter details manually</option>{clients.filter(client => !client.archived).map(client => <option value={client.id} key={client.id}>{client.name} · {client.phone}</option>)}</select></label>
     <button type="button" className="secondary billingFull" onClick={() => setAddingClient(true)}>+ Create client here</button>
     {addingClient && <ClientEditor compact client={newSeikoClient()} busy={busy} error={error} onCancel={() => setAddingClient(false)} onSave={async client => { const saved = await onCreateClient(client); if (saved) { applyClient(saved); setAddingClient(false); } }}/>} {/* inline client creation */}

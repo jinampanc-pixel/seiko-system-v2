@@ -13,7 +13,7 @@ function load(path, imports = {}) {
   }).outputText, { exports, require: name => {
     assert.ok(imports[name], `Unexpected import: ${name}`);
     return imports[name];
-  }, crypto, Response, Request, URL, TextDecoder, Uint8Array });
+  }, crypto, Response, Request, URL, TextDecoder, TextEncoder, Uint8Array });
   return exports;
 }
 
@@ -40,17 +40,24 @@ function load(path, imports = {}) {
         billTo: 'Test address', orderDate: '2026-10-03', deliveryDate: '', clientType: 'School / Institution',
         contactPerson: '', attnRequired: false, shipTo: '', remarks: '' },
       products: [{ ...domain.blankProduct(), id: 'vest', name: 'Vest', quantityMode: 'per_person', defaultQuantity: 0 }],
-      fields: [], measurements: [], records: [{ recordId: 'one', personId: 'one', values: { 'product:vest:qty': 2 } }],
+      fields: [{ ...domain.field("Name"), id: "name" }], measurements: [], records: [{ recordId: 'one', personId: 'one', values: { 'field:name': 'Original name', 'product:vest:qty': 2 } }],
       revisions: [], updatedAt: '2026-10-03T00:00:00Z',
     };
-    sqlite.exec('CREATE TABLE erp_orders(id TEXT, business_id TEXT, status TEXT, document_json TEXT)');
-    sqlite.prepare('INSERT INTO erp_orders VALUES(?,?,?,?)').run(order.orderId, 'seiko', 'Active', JSON.stringify(order));
+    sqlite.exec(fs.readFileSync('drizzle/0001_erp_foundation.sql', 'utf8'));
     const db = { withSession() { return this; }, prepare(sql) {
       const stmt = sqlite.prepare(sql); let args = [];
       return { bind(...values) { args = values; return this; }, async run() { return stmt.run(...args); },
         async first() { return stmt.get(...args) || null; }, async all() { return { results: stmt.all(...args) }; } };
     } };
-    const auth = { authenticateActor: async () => ({ email: 'smoke@example.invalid' }), authorizePermission: async () => true };
+    const auth = { authenticateActor: async () => ({ userId: 'smoke-owner', email: 'smoke@example.invalid' }), authorizePermission: async () => ({ role: 'owner' }) };
+    const ordersApi = load('app/api/erp/orders/route.ts', {
+      'cloudflare:workers': { env: { DB: db } }, '../../../lib/server-erp-auth': auth, '../../../lib/order-domain': domain,
+    });
+    const seed = async value => {
+      const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: JSON.stringify({ operation: 'upsert', businessId: 'seiko', order: value }) }));
+      assert.equal(response.status, 200, await response.text());
+    };
+    await seed(order);
     const billing = load('app/api/erp/billing/route.ts', {
       'cloudflare:workers': { env: { DB: db } }, '../../../lib/seiko-billing': load('app/lib/seiko-billing.ts'),
       '../../../lib/server-erp-auth': auth,
@@ -68,7 +75,10 @@ function load(path, imports = {}) {
     }] };
     await page.route('**/api/erp/session', route => route.fulfill({ json: { ok: true, data: session } }));
     await page.route('**/api/seiko', route => route.fulfill({ json: { ok: true, data: session } }));
-    await page.route('**/api/erp/orders', route => route.fulfill({ json: { ok: true, data: { orders: [{ order, version: 1, updatedAt: order.updatedAt }] } } }));
+    await page.route('**/api/erp/orders', async route => {
+      const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
+      await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
+    });
     for (const [path, api] of [['billing', billing], ['clients', clients]]) {
       await page.route(`**/api/erp/${path}`, async route => {
         const response = await api.POST(new Request(`${base}/api/erp/${path}`, { method: 'POST', body: route.request().postData() }));
@@ -103,6 +113,7 @@ function load(path, imports = {}) {
     assert.equal(await surface.count(), 0);
     await navigate('(Home|Overview)');
     await page.getByText('ACTIVE ORDERS', { exact: true }).first().waitFor();
+    if (process.argv.includes('--order-workflows')) await require('./order-workflows-browser.cjs')({ page, browser, sqlite, order, seed, navigate, base, ordersApi, session, errors });
     assert.deepEqual(errors, []);
     console.log('PASS: Home → Orders → Billing → order payment → persisted receipt → Back/Home; no page errors.');
   } finally {

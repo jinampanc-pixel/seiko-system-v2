@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { orderVersions, requestOrders } from "./lib/order-commands";
 import { useAccess } from "./access-control";
 import { normalizeProductMeasurements, type SeikoOrder } from "./lib/order-domain";
 
@@ -13,7 +14,6 @@ type Envelope = {
 
 type ApiSuccess<T> = { ok: true; data: T };
 type ApiFailure = { ok: false; code: string; message: string; data?: unknown };
-type ApiResult<T> = ApiSuccess<T> | ApiFailure;
 
 const LOCAL_POLL_MS = 1200;
 const REMOTE_POLL_MS = 15000;
@@ -50,19 +50,7 @@ function writeLocalOrders(businessId: string, orders: SeikoOrder[]) {
   window.dispatchEvent(new CustomEvent("seiko:orders-cache-updated", { detail: { businessId } }));
 }
 
-async function callOrders<T>(body: Record<string, unknown>): Promise<ApiResult<T>> {
-  try {
-    const response = await fetch("/api/erp/orders", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-      cache: "no-store",
-    });
-    return await response.json() as ApiResult<T>;
-  } catch {
-    return { ok: false, code: "NETWORK_ERROR", message: "Shared ERP storage is temporarily unreachable." };
-  }
-}
+const callOrders = requestOrders;
 
 function timestamp(value: unknown) {
   const result = typeof value === "string" ? Date.parse(value) : Number.NaN;
@@ -94,8 +82,17 @@ export function ErpOrderSync() {
     let retryAfter = 0;
     let localTimer = 0;
     let remoteTimer = 0;
-    const versions = new Map<string, number>();
+    const versions = orderVersions(activeBusiness);
     const lastSynced = new Map<string, string>();
+    let commandEpoch = 0;
+    const commandSaved = (event: Event) => {
+      const detail = (event as CustomEvent<{ businessId: string; envelope: Envelope; removed: boolean }>).detail;
+      if (detail.businessId !== activeBusiness) return;
+      commandEpoch += 1;
+      if (detail.removed) { versions.delete(detail.envelope.order.orderId); lastSynced.delete(detail.envelope.order.orderId); }
+      else { versions.set(detail.envelope.order.orderId, detail.envelope.version); lastSynced.set(detail.envelope.order.orderId, stable(detail.envelope.order)); }
+    };
+    window.addEventListener("seiko:order-command-saved", commandSaved);
 
     const list = async () => callOrders<{ orders: Envelope[] }>({ operation: "list", businessId: activeBusiness });
     const backOff = () => { ready = false; retryAfter = Date.now() + RETRY_BACKOFF_MS; };
@@ -140,6 +137,7 @@ export function ErpOrderSync() {
     };
 
     const initialize = async () => {
+      const epoch = commandEpoch;
       ready = false;
       syncing = true;
       versions.clear();
@@ -186,6 +184,7 @@ export function ErpOrderSync() {
       }
 
       if (cancelled) return;
+      if (epoch !== commandEpoch) { syncing = false; void initialize(); return; }
       applyServer(envelopes);
       ready = true;
       syncing = false;
@@ -215,6 +214,8 @@ export function ErpOrderSync() {
         if (result.ok) {
           byId.set(order.orderId, result.data.order);
           localChangedByServer = true;
+        } else if (result.code === "ORDER_DELETED") {
+          byId.delete(order.orderId); versions.delete(order.orderId); lastSynced.delete(order.orderId); localChangedByServer = true;
         } else if (result.code === "VERSION_CONFLICT") {
           preserveConflict(order, result);
           lastSynced.set(order.orderId, stable(order));
@@ -224,11 +225,20 @@ export function ErpOrderSync() {
         }
       }
 
-      if (localChangedByServer) writeLocalOrders(activeBusiness, [...byId.values()]);
+      if (localChangedByServer) {
+        const latest = readLocalOrders(activeBusiness);
+        const merged = latest.flatMap(order => {
+          const original = local.find(item => item.orderId === order.orderId);
+          if (!original || stable(order) !== stable(original)) return [order];
+          const saved = byId.get(order.orderId); return saved ? [saved] : [];
+        });
+        writeLocalOrders(activeBusiness, merged);
+      }
       syncing = false;
     };
 
     const pullRemoteChanges = async () => {
+      const epoch = commandEpoch;
       if (!ready || syncing) return;
       const local = readLocalOrders(activeBusiness);
       const dirty = local.some(order => !hasActiveConflict(activeBusiness, order.orderId) && lastSynced.get(order.orderId) !== stable(order));
@@ -236,12 +246,12 @@ export function ErpOrderSync() {
 
       syncing = true;
       const remote = await list();
-      if (remote.ok) {
+      if (remote.ok && epoch === commandEpoch) {
         const normalizedRemote = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
         const remoteFingerprint = JSON.stringify(normalizedRemote.map(item => [item.order.orderId, item.version]));
         const localFingerprint = JSON.stringify([...versions.entries()]);
         if (remoteFingerprint !== localFingerprint || local.some(order => hasActiveConflict(activeBusiness, order.orderId))) applyServer(normalizedRemote);
-      } else if (["AUTH_REQUIRED", "FORBIDDEN", "ERP_DB_NOT_CONFIGURED"].includes(remote.code)) {
+      } else if (!remote.ok && ["AUTH_REQUIRED", "FORBIDDEN", "ERP_DB_NOT_CONFIGURED"].includes(remote.code)) {
         backOff();
       }
       syncing = false;
@@ -260,6 +270,7 @@ export function ErpOrderSync() {
 
     return () => {
       cancelled = true;
+      window.removeEventListener("seiko:order-command-saved", commandSaved);
       window.clearInterval(localTimer);
       window.clearInterval(remoteTimer);
     };

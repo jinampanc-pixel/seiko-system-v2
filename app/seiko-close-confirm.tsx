@@ -67,7 +67,7 @@ export function SeikoCloseConfirm() {
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
       const target = event.target as Element | null;
-      if (!target) return;
+      if (!target || target.closest("[data-server-order-actions]")) return;
 
       const quickSave = target.closest<HTMLButtonElement>(".workspacePage .workspaceQuickSave");
       if (quickSave) {

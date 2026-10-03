@@ -34,7 +34,9 @@ function writeStore<T>(key: string, value: T) { localStorage.setItem(key, JSON.s
 export function SeikoPhase2() {
   const businessId = "seiko";
   const [view, setView] = useState<Phase2View>(null);
-  const [billingAction, setBillingAction] = useState<"payment" | "invoice" | "quotation" | "challan" | null>(null);
+  const [billingAction, setBillingAction] = useState<"payment" | "payments" | "invoice" | "quotation" | "challan" | null>(null);
+  const [billingOrderId, setBillingOrderId] = useState("");
+  const [billingRequestId, setBillingRequestId] = useState(0);
   const [clients, setClients] = useState<ClientLibraryRecord[]>([]);
   const [products, setProducts] = useState<ProductLibraryRecord[]>([]);
   const [documents, setDocuments] = useState<SeikoCommercialDocument[]>([]);
@@ -56,7 +58,10 @@ export function SeikoPhase2() {
   };
 
   useEffect(() => {
-    const openBilling = (event: Event) => { const action = (event as CustomEvent<{ action?: "payment" | "invoice" | "quotation" | "challan" }>).detail?.action || null; setBillingAction(action); setView("billing"); };
+    const openBilling = (event: Event) => {
+      const detail = (event as CustomEvent<{ action?: "payment" | "payments" | "invoice" | "quotation" | "challan"; orderId?: string }>).detail;
+      setBillingOrderId(detail?.orderId || ""); setBillingRequestId(value => value + 1); setBillingAction(detail?.action || null); setView("billing");
+    };
     window.addEventListener("seiko:open-billing", openBilling);
     return () => window.removeEventListener("seiko:open-billing", openBilling);
   }, []);
@@ -140,7 +145,7 @@ export function SeikoPhase2() {
     <header className="seikoPhase2Head"><div><button type="button" className="secondary" onClick={() => setView(null)}>← Back to Home</button><small>SEIKO</small><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
     {view === "clients" && <SeikoClientDirectory legacyRecords={clients}/>} {/* shared client directory */}
     {view === "products" && <ProductLibrary records={products} onChange={saveProducts}/>} {/* browser product library */}
-    {view === "billing" && <SeikoBillingWorkspace orders={orders} legacyDocuments={documents} legacyPayments={payments} initialAction={billingAction} onActionHandled={() => setBillingAction(null)}/>}
+    {view === "billing" && <SeikoBillingWorkspace key={billingRequestId} initialOrderId={billingOrderId} orders={orders} legacyDocuments={documents} legacyPayments={payments} initialAction={billingAction} onActionHandled={() => setBillingAction(null)}/>}
     {view === "templates" && <TemplateManager templates={templates} onChange={saveTemplates}/>} 
   </section>, document.body);
 }

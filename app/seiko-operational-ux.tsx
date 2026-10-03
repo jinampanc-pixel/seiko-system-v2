@@ -128,8 +128,8 @@ function enhanceOrderCenter(page: HTMLElement) {
     if (!order || !open || !nativeStatus || !panel || !menu) return;
 
     open.hidden = true;
-    statusWrap?.setAttribute("hidden", "");
-    statusWrap?.classList.remove("orderCenterInlineStatus");
+    statusWrap?.removeAttribute("hidden");
+    statusWrap?.classList.add("orderCenterInlineStatus");
     row.classList.add("orderRowClickable");
     row.tabIndex = 0;
     row.setAttribute("aria-label", `Open order ${order.details.orderNo} for ${order.details.clientName || "client"}`);
@@ -174,6 +174,7 @@ function enhanceOrderCenter(page: HTMLElement) {
       });
     }
 
+    if (row.dataset.orderSource !== "react") {
     let statusControl = panel.querySelector<HTMLElement>(".orderMenuStatusControl");
     if (!statusControl) {
       statusControl = document.createElement("label");
@@ -194,6 +195,7 @@ function enhanceOrderCenter(page: HTMLElement) {
     const menuSelect = statusControl.querySelector<HTMLSelectElement>("select");
     if (menuSelect) menuSelect.value = nativeStatus.value;
 
+    }
     const hasPrintable = tasks.some(task => task.orderId === order.orderId && (task.selectedRows?.length || 0) > 0);
     let print = panel.querySelector<HTMLButtonElement>(".orderMenuPrintLabels");
     if (hasPrintable && !print) {

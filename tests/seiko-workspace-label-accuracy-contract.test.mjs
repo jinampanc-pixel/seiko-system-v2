@@ -127,7 +127,7 @@ test("workspace transient tools and context menus dismiss outside their interact
 
 test("returning to Order Center and Clear all cannot retain invisible filters", () => {
   const listCenter = read("app/seiko-list-center-enhancements.tsx");
-  assert.match(orders, /setQuery\(""\); setArchivedOnly\(false\); save\(current, "Order saved", true\)/);
+  assert.match(orders, /setQuery\(""\); setArchivedOnly\(false\); setView\("center"\)/);
   assert.match(listCenter, /resetFilterState\(\)/);
   assert.match(listCenter, /setNativeInputValue\(nativeSearch\s*,\s*""\)/);
   assert.match(listCenter, /if\s*\(archivedNative\?\.checked\)\s*archivedNative\.click\(\)/);

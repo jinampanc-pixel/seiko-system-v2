@@ -115,8 +115,8 @@ test("workspace menu owns order status, save and secondary order actions", () =>
   assert.doesNotMatch(operationalUx, /className = "workspaceMenuOperational"/);
 });
 
-test("Order Center keeps status in the contextual menu, rich workflow filters and archived state inside filters", () => {
-  assert.match(operationalUx, /statusWrap\?\.setAttribute\("hidden", ""\)/);
+test("Order Center keeps status visible beside the contextual menu, rich workflow filters and archived state inside filters", () => {
+  assert.match(operationalUx, /statusWrap\?\.removeAttribute\("hidden"\)/);
   assert.match(operationalUx, /orderMenuStatusControl/);
   assert.match(operationalUx, /const select = nativeStatus\.cloneNode\(true\) as HTMLSelectElement/);
   assert.match(operationalUx, /setNativeSelect\(nativeStatus, select\.value\)/);
@@ -167,7 +167,7 @@ test("editing an existing order returns to its actual setup origin", () => {
 
 test("PDF acceptance keeps archive, setup policy controls and group rules explicit", () => {
   assert.match(orders, /Archived orders/);
-  assert.match(orders, /orderArchiveButton/);
+  assert.match(orders, /archiveOrder/);
   assert.match(setupFinalize, /Group values or range, e.g. 1-7/);
   assert.match(orderDomain, /range = value\.match/);
   assert.doesNotMatch(ownerDropdown, /enhanceEditableSelect/);

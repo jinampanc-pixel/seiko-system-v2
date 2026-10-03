@@ -4,6 +4,7 @@ import "./seiko-billing-polish.css";
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { changeSharedOrder } from "./lib/order-commands";
 import { ORDER_STATUSES, orderStoreKey, type OrderStatus, type SeikoOrder } from "./lib/order-domain";
 import { startDomEnhancement } from "./lib/dom-enhancement";
 
@@ -157,7 +158,10 @@ function SeikoDashboard() {
   const pageCount=Math.max(1,Math.ceil(filtered.length/config.activeOrderPageSize)),safePage=Math.min(page,pageCount),visible=filtered.slice((safePage-1)*config.activeOrderPageSize,safePage*config.activeOrderPageSize),activeFilterCount=[query.trim(),status,clientType,product].filter(Boolean).length;
   useEffect(()=>setPage(1),[clientType,product,query,status,config.activeOrderPageSize,workMode]);
   const clearFilters=()=>{setQuery("");setStatus("");setClientType("");setProduct("");setPage(1);};
-  const changeStatus=(orderId:string,next:OrderStatus)=>{const updated=orders.map(order=>order.orderId===orderId?{...order,status:next,updatedAt:new Date().toISOString()}:order);setOrders(updated);localStorage.setItem(orderStoreKey("seiko"),JSON.stringify(updated));window.dispatchEvent(new CustomEvent("seiko:orders-cache-updated",{detail:{businessId:"seiko"}}));if(next==="Completed"&&workMode==="active"){setWorkMode("completed");setStatus("");setPage(1);}else if(next!=="Completed"&&workMode==="completed"){setWorkMode("active");setStatus(next==="Cancelled"?"":next);setPage(1);}};
+  const changeStatus = async (orderId: string, next: OrderStatus) => {
+    try { await changeSharedOrder("seiko", orderId, { operation: "status", status: next }); }
+    catch (cause) { window.alert((cause as Error).message); }
+  };
   const metrics=[{key:"active" as MetricKey,label:"ACTIVE ORDERS",value:activeOrders.length,note:"Currently open work"},{key:"completed" as MetricKey,label:"COMPLETED ORDERS",value:completedOrders.length,note:"Completed work"},{key:"sync" as MetricKey,label:"SCAN SYNC QUEUE",value:scanQueue.length,note:scanQueue.length?"Waiting to sync":"All scans synced"}];
   const queueTitle=(item:Record<string,unknown>,index:number)=>String(item.token||item.labelToken||item.id||`Queued scan ${index+1}`),queueTime=(item:Record<string,unknown>)=>String(item.createdAt||item.at||item.timestamp||"");
   return <section className="seikoOperationalDashboard"><div className="seikoDashboardHead"><div><h1>Home</h1><p>Configurable operational dashboard and quick access to working modules.</p></div><div className="seikoDashboardHeadActions"><button type="button" className="secondary" onClick={()=>setCustomizing(value=>!value)}>{customizing?"Done":"Customize dashboard"}</button></div></div>

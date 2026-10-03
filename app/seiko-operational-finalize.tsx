@@ -351,7 +351,7 @@ function enhanceWorkspaceMenu(page: HTMLElement) {
 
   const edit = buttons.find(button => button.textContent?.trim() === "Edit setup");
   edit?.addEventListener("click", () => { if (orderNo) sessionStorage.setItem(SETUP_RETURN_KEY, orderNo); });
-  buttons.filter(button => ["Save", "Save & close"].includes(button.textContent?.trim() || "")).forEach(button => {
+  buttons.filter(button => !page.hasAttribute("data-server-order-actions") && ["Save", "Save & close"].includes(button.textContent?.trim() || "")).forEach(button => {
     if (button.dataset.saveNoticeReady) return;
     button.dataset.saveNoticeReady = "true";
     button.addEventListener("click", () => window.setTimeout(() => toast(button.textContent?.trim() === "Save & close" ? "Order saved." : "Changes saved."), 30));

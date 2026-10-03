@@ -57,7 +57,7 @@ Baseline locations below refer to the audited source, before removal of unused d
 
 Both CI and the manually triggered production deployment run lint, all contracts, production build, rendered-route checks and the navigation/payment browser smoke before deployment. The smoke runner starts and closes its own Vite fixture server and uses headless Chromium in CI. Locally, `PLAYWRIGHT_CHANNEL=msedge` selects installed Edge. Install Chromium with `npx playwright install --with-deps chromium` when needed.
 
-The smoke mounts the production Home, AccessProvider, BusinessApplicationRouter, all current enhancement layers and ordered styles. It follows Home → Orders → Billing → order payment → receipt → Back → Home, verifies the receipt reference/amount and persisted payment row, and fails on page errors. Real billing/client handlers run against isolated in-memory SQLite; authentication and order responses are test fixtures. It does not validate production credentials, Cloudflare infrastructure or live data. The Home menu accepts its current Home/Overview naming inconsistency; fixing that is Stage 4. Closing Back to Home currently dismisses the billing overlay, so the smoke explicitly chooses Home afterward.
+The smoke mounts the production Home, AccessProvider, BusinessApplicationRouter, all current enhancement layers and ordered styles. It follows Home → Orders → Billing → order payment → receipt → Back → Home, verifies the receipt reference/amount and persisted payment row, and fails on page errors. Real billing/client handlers run against isolated in-memory SQLite; authentication is a fixture. The expanded smoke below also runs the actual order handler. It does not validate production credentials, Cloudflare infrastructure or live data. The Home menu accepts its current Home/Overview naming inconsistency; fixing that is Stage 4. Closing Back to Home currently dismisses the billing overlay, so the smoke explicitly chooses Home afterward.
 
 ## Verification
 
@@ -69,3 +69,20 @@ The smoke mounts the production Home, AccessProvider, BusinessApplicationRouter,
 - Physical packing canvas, packing output and billing browser regressions are run against the isolated fixtures.
 
 The local Vinext dev Worker cannot start because its generated configuration repeats `nodejs_compat`; the plain Vite browser fixtures avoid that unrelated runtime startup issue. Production compilation and built Worker render checks are independently verified. Remote GitHub CI remains the release authority; no production deployment is requested by this stage.
+
+
+## Confirmed order workflow repairs
+
+The expanded audit's Stage 1 order repairs now use explicit, versioned server commands. Save & Close and Back to Orders wait for D1 acknowledgement before updating the local cache and returning to Order Center. Failed writes keep the draft open with an error. React owns the Order Center status control and its complete action menu; legacy adapters no longer hide its status or intercept its deletion as a discard action. Home status changes retain the selected list, filters and pagination.
+
+Archive/restore updates shared storage. Deletion requires owner membership, orders.edit, an exact order-number confirmation and an unchanged version. Orders with linked billing documents or payments must be archived. Deletion retains an audited tombstone in the existing order table; lists exclude it and stale imports/upserts cannot recreate it. Billing creation and direct payments atomically require a live source order, and amendments preserve the source link. No schema migration or production-data operation is part of this change.
+
+Order-specific menu actions open the payment form, payment/receipt history, invoice, challan and quotation drafts with that order selected. Setup and label creation also retain order identity. The default CI/deployment smoke now includes these workflows. Six stale source assertions were updated for the explicitly requested visible statuses, authoritative archive handler and filter reset after a successful save.
+
+Verification: npm ci from the committed lockfile; npm test (258 contract/runtime tests and two rendered routes, all passing); expanded Playwright smoke against the production React components and styles with real order/billing/client handlers and D1-compatible SQLite. Browser coverage includes save/reopen/reload, failed save, unchanged Home list, visible statuses, scoped payments and receipts, all commercial draft types, setup, label-route order identity, archive/restore/reload, protected deletion, exact confirmation, audit tombstone, fresh browser reads and deletion hidden for non-owners. Executable API tests also check version conflicts, business isolation, permission denial and stale-import protection.
+
+The setup browser regression also passes required client/phone validation, product measurements, shared creation and reopen; billing and physical packing browser regressions pass.
+
+Lint remains at zero errors and the same 23 reviewed warnings; no rule was weakened. Failed archive requests also leave the order visible and unchanged.
+
+These isolated checks do not constitute a live production D1 or backup/restore drill. A separate exploratory tsc --noEmit check still reports existing repository type errors (including missing Cloudflare worker declarations); the repository's supported production build and render gate passes. CSS and remaining enhancement consolidation belong to Stage 4, with incremental browser verification rather than combining the application into one file.

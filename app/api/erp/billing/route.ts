@@ -52,13 +52,17 @@ export async function POST(request: Request) {
       }
       const saved = { ...draft, ...clientSnapshot, number: "", status: "issued", createdAt: now, updatedAt: now };
       const problem = validateBillingDocument(saved); if (problem) return reply(problem);
-      await db.prepare(`INSERT INTO seiko_billing_documents(id,data,total_paise,created_by) VALUES(?,?,?,?) ON CONFLICT(id) DO NOTHING`).bind(draft.id, JSON.stringify(saved), Math.round(documentTotals(draft).total * 100), actor.email).run();
+      await db.prepare(`INSERT INTO seiko_billing_documents(id,data,total_paise,created_by)
+        SELECT ?,?,?,? ${saved.orderId ? "WHERE EXISTS (SELECT 1 FROM erp_orders WHERE id = ? AND business_id = 'seiko' AND json_extract(document_json, '$.deletedAt') IS NULL)" : ""}
+        ON CONFLICT(id) DO NOTHING`).bind(draft.id, JSON.stringify(saved), Math.round(documentTotals(draft).total * 100), actor.email, ...(saved.orderId ? [saved.orderId] : [])).run();
+      if (!await db.prepare("SELECT id FROM seiko_billing_documents WHERE id = ?").bind(saved.id).first()) return reply("The order is unavailable. Refresh before creating this document.", 409);
     } else if (body.operation === "amend") {
       const draft = body.document;
       if (!draft?.id) return reply("Choose a document to amend.");
       const row = await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE id = ?").bind(draft.id).first<DocumentRow>();
       if (!row || row.cancelled) return reply("This document is unavailable for amendment.", 404);
       const original = JSON.parse(row.data) as SeikoCommercialDocument;
+      if (draft.orderId !== original.orderId) return reply("The source order cannot be changed during amendment.");
       if (draft.kind !== original.kind) return reply("The document type cannot be changed.");
       const now = new Date().toISOString();
       const saved = { ...draft, id: original.id, number: "", status: "issued", createdAt: original.createdAt, updatedAt: now, revision: (original.revision || 0) + 1, amendedAt: now, amendedBy: actor.email };
@@ -74,12 +78,12 @@ export async function POST(request: Request) {
       // A receipt belongs either to a verified order or to a standalone invoice.
       if (!payment.invoiceId) {
         if (typeof payment.orderId !== "string" || !payment.orderId) return reply("Choose an order for this payment.");
-        const orderRow = await db.prepare("SELECT document_json,status FROM erp_orders WHERE id = ? AND business_id = 'seiko'").bind(payment.orderId).first<{ document_json: string; status: string }>();
+        const orderRow = await db.prepare("SELECT document_json,status FROM erp_orders WHERE id = ? AND business_id = 'seiko' AND json_extract(document_json, '$.deletedAt') IS NULL").bind(payment.orderId).first<{ document_json: string; status: string }>();
         if (!orderRow) return reply("Order was not found. Save the order before taking payment.", 404);
         if (orderRow.status === "Cancelled") return reply("Cannot receive payment for a cancelled order.");
         const order = JSON.parse(orderRow.document_json) as { details: { orderNo?: string; clientName?: string; contactNumber?: string } };
         const saved: SeikoPaymentRecord = { id: payment.id, invoiceId: "", orderId: payment.orderId, orderNo: order.details.orderNo || "", clientName: order.details.clientName || "", clientPhone: order.details.contactNumber || "", receiptNumber: "", amount: payment.amount, date: payment.date, mode: payment.mode.trim(), reference: String(payment.reference || ""), notes: String(payment.notes || ""), createdAt: new Date().toISOString() };
-        await db.prepare("INSERT INTO seiko_billing_payments(id,invoice_id,amount_paise,data,created_by) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(saved.id, "", Math.round(saved.amount * 100), JSON.stringify(saved), actor.email).run();
+        await db.prepare("INSERT INTO seiko_billing_payments(id,invoice_id,amount_paise,data,created_by) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM erp_orders WHERE id = ? AND business_id = 'seiko' AND json_extract(document_json, '$.deletedAt') IS NULL) ON CONFLICT(id) DO NOTHING").bind(saved.id, "", Math.round(saved.amount * 100), JSON.stringify(saved), actor.email, saved.orderId).run();
         const recorded = await db.prepare("SELECT data FROM seiko_billing_payments WHERE id = ?").bind(saved.id).first<{ data: string }>();
         const original = recorded && JSON.parse(recorded.data) as SeikoPaymentRecord;
         if (!original || original.orderId !== saved.orderId || original.invoiceId || original.amount !== saved.amount || original.date !== saved.date || original.mode !== saved.mode || original.reference !== saved.reference || original.notes !== saved.notes) return reply("This payment reference was already saved with different details. Refresh before trying again.", 409);

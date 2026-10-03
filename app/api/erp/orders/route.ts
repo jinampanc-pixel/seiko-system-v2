@@ -1,21 +1,26 @@
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
+import { ORDER_STATUSES } from "../../../lib/order-domain";
 
 type OrderLike = {
   orderId?: unknown;
   status?: unknown;
   archived?: unknown;
+  deletedAt?: string;
   updatedAt?: unknown;
   details?: { orderNo?: unknown };
 };
 
 type RequestBody = {
-  operation?: "list" | "upsert" | "import-local" | "audit";
+  operation?: "list" | "upsert" | "import-local" | "audit" | "status" | "archive" | "delete";
   businessId?: string;
   order?: OrderLike;
   orders?: OrderLike[];
   expectedVersion?: number | null;
   orderId?: string;
+  status?: string;
+  archived?: boolean;
+  confirmOrderNo?: string;
 };
 
 type OrderEnvelope = {
@@ -24,6 +29,8 @@ type OrderEnvelope = {
   updatedAt: string;
   updatedBy: string;
 };
+
+type OrderDb = Pick<NonNullable<typeof env.DB>, "prepare">;
 
 type OrderWriteAccess = { canCreate: boolean; canEdit: boolean };
 
@@ -53,7 +60,7 @@ export async function POST(request: Request) {
   const operation = body.operation;
   if (!operation) return error("INVALID_OPERATION", "Choose a valid operation.", 400);
 
-  const db = env.DB;
+  const db = env.DB?.withSession("first-primary");
   if (!db) {
     return error(
       "ERP_DB_NOT_CONFIGURED",
@@ -65,15 +72,15 @@ export async function POST(request: Request) {
   try {
     if (operation === "list") {
       if (!await authorizePermission(actor, businessId, "orders.view")) return forbidden();
-      return listOrders(db, businessId);
+      return await listOrders(db, businessId);
     }
     if (operation === "import-local") {
       if (!await authorizePermission(actor, businessId, "orders.create")) return forbidden();
-      return importLocalOrders(db, businessId, actor, body.orders);
+      return await importLocalOrders(db, businessId, actor, body.orders);
     }
     if (operation === "audit") {
       if (!await authorizePermission(actor, businessId, "audit.view")) return forbidden();
-      return auditTrail(db, businessId, body.orderId);
+      return await auditTrail(db, businessId, body.orderId);
     }
     if (operation === "upsert") {
       const access: OrderWriteAccess = {
@@ -81,7 +88,12 @@ export async function POST(request: Request) {
         canEdit: Boolean(await authorizePermission(actor, businessId, "orders.edit")),
       };
       if (!access.canCreate && !access.canEdit) return forbidden();
-      return upsertOrder(db, businessId, actor, body.order, body.expectedVersion, access);
+      return await upsertOrder(db, businessId, actor, body.order, body.expectedVersion, access);
+    }
+    if (operation === "status" || operation === "archive" || operation === "delete") {
+      const membership = await authorizePermission(actor, businessId, "orders.edit");
+      if (!membership || (operation === "delete" && membership.role !== "owner")) return forbidden();
+      return await mutateOrder(db, businessId, actor, body);
     }
     return error("INVALID_OPERATION", "Choose a valid operation.", 400);
   } catch (cause) {
@@ -90,11 +102,11 @@ export async function POST(request: Request) {
   }
 }
 
-async function listOrders(db: NonNullable<typeof env.DB>, businessId: string) {
+async function listOrders(db: OrderDb, businessId: string) {
   const result = await db.prepare(
     `SELECT document_json, version, updated_at, updated_by_email
        FROM erp_orders
-      WHERE business_id = ?
+      WHERE business_id = ? AND json_extract(document_json, '$.deletedAt') IS NULL
       ORDER BY updated_at DESC`,
   ).bind(businessId).all<{ document_json: string; version: number; updated_at: string; updated_by_email: string }>();
 
@@ -115,7 +127,7 @@ async function listOrders(db: NonNullable<typeof env.DB>, businessId: string) {
 }
 
 async function upsertOrder(
-  db: NonNullable<typeof env.DB>,
+  db: OrderDb,
   businessId: string,
   actor: { userId: string; email: string },
   candidate: OrderLike | undefined,
@@ -130,6 +142,7 @@ async function upsertOrder(
     `SELECT version, document_json, updated_at, updated_by_email
        FROM erp_orders WHERE business_id = ? AND id = ?`,
   ).bind(businessId, orderId).first<{ version: number; document_json: string; updated_at: string; updated_by_email: string }>();
+  if (candidate?.deletedAt || (current && JSON.parse(current.document_json).deletedAt)) return error("ORDER_DELETED", "This order was deleted and cannot be saved again.", 409);
 
   if (!current && !access.canCreate) return error("FORBIDDEN", "You do not have permission to create orders.", 403);
   if (current && !access.canEdit) return error("FORBIDDEN", "You do not have permission to edit orders.", 403);
@@ -194,7 +207,7 @@ async function upsertOrder(
 }
 
 async function importLocalOrders(
-  db: NonNullable<typeof env.DB>,
+  db: OrderDb,
   businessId: string,
   actor: { userId: string; email: string },
   candidates: OrderLike[] | undefined,
@@ -239,7 +252,7 @@ async function importLocalOrders(
   return Response.json({ ok: true, data: { imported, existing, invalid } });
 }
 
-async function auditTrail(db: NonNullable<typeof env.DB>, businessId: string, orderId?: string) {
+async function auditTrail(db: OrderDb, businessId: string, orderId?: string) {
   if (!orderId || orderId.length > 128) return error("ORDER_REQUIRED", "Choose an order.", 400);
   const result = await db.prepare(
     `SELECT action, version, actor_user_id, actor_email, at
@@ -250,11 +263,52 @@ async function auditTrail(db: NonNullable<typeof env.DB>, businessId: string, or
   return Response.json({ ok: true, data: { events: result.results || [] } });
 }
 
+async function mutateOrder(db: OrderDb, businessId: string, actor: { userId: string; email: string }, body: RequestBody) {
+  if (!body.orderId || body.orderId.length > 128) return error("ORDER_REQUIRED", "Choose an order.", 400);
+  const row = await db.prepare("SELECT version,document_json,updated_at,updated_by_email FROM erp_orders WHERE business_id = ? AND id = ?")
+    .bind(businessId, body.orderId).first<{ version: number; document_json: string; updated_at: string; updated_by_email: string }>();
+  if (!row) return error("ORDER_NOT_FOUND", "This order no longer exists.", 404);
+  const order = JSON.parse(row.document_json) as OrderLike;
+  if (order.deletedAt) return error("ORDER_DELETED", "This order was deleted.", 409);
+  if (!Number.isInteger(body.expectedVersion) || body.expectedVersion !== row.version) return conflict(row);
+  if (body.operation === "status" && !(ORDER_STATUSES as readonly unknown[]).includes(body.status)) return error("INVALID_STATUS", "Choose a valid status.", 400);
+  if (body.operation === "archive" && typeof body.archived !== "boolean") return error("INVALID_ARCHIVE", "Choose archive or restore.", 400);
+  if (body.operation === "delete" && body.confirmOrderNo !== order.details?.orderNo) return error("CONFIRM_ORDER_NUMBER", "Enter the exact order number to delete it.", 400);
+  const now = new Date().toISOString();
+  const document = { ...order, updatedAt: now,
+    ...(body.operation === "status" ? { status: body.status } : {}),
+    ...(body.operation === "archive" ? { archived: body.archived } : {}),
+    ...(body.operation === "delete" ? { archived: true, deletedAt: now, deletedBy: actor.email } : {}),
+  };
+  // Keep the row as a tombstone: stale local imports/upserts cannot resurrect it.
+  // The existing UPDATE audit trigger atomically records its immutable snapshot.
+  let financialGuard = "";
+  if (body.operation === "delete" && businessId === "seiko") {
+    for (const table of ["seiko_billing_documents", "seiko_billing_payments"] as const) {
+      const exists = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").bind(table).first();
+      if (exists) financialGuard += ` AND NOT EXISTS (SELECT 1 FROM ${table} WHERE json_extract(data, '$.orderId') = erp_orders.id)`;
+    }
+  }
+  const changed = await db.prepare(`UPDATE erp_orders SET status = ?, archived = ?, document_json = ?, version = version + 1,
+    updated_at = ?, updated_by_user_id = ?, updated_by_email = ?
+    WHERE business_id = ? AND id = ? AND version = ?${financialGuard} RETURNING version`)
+    .bind(document.status, document.archived ? 1 : 0, JSON.stringify(document), now, actor.userId, actor.email, businessId, body.orderId, row.version).first<{ version: number }>();
+  if (!changed) {
+    const latest = await db.prepare("SELECT version,document_json,updated_at,updated_by_email FROM erp_orders WHERE business_id = ? AND id = ?")
+      .bind(businessId, body.orderId).first<typeof row>();
+    if (latest && latest.version !== row.version) return conflict(latest);
+    return error("ORDER_HAS_FINANCIAL_RECORDS", "This order has financial documents or payments. Archive it instead.", 409);
+  }
+  return Response.json({ ok: true, data: { order: document, version: changed.version, updatedAt: now, updatedBy: actor.email } });
+}
+
 function validateOrder(candidate: OrderLike | undefined): { ok: true; orderId: string; orderNo: string } | { ok: false; message: string } {
   const orderId = typeof candidate?.orderId === "string" ? candidate.orderId.trim() : "";
   const orderNo = typeof candidate?.details?.orderNo === "string" ? candidate.details.orderNo.trim() : "";
   if (!orderId || orderId.length > 128) return { ok: false, message: "Order ID is missing or invalid." };
   if (!orderNo || orderNo.length > 80) return { ok: false, message: "Order number is missing or invalid." };
+  if (candidate?.deletedAt) return { ok: false, message: "Deleted orders cannot be imported or saved." };
+  if (!(ORDER_STATUSES as readonly unknown[]).includes(candidate?.status)) return { ok: false, message: "Choose a valid order status." };
   try {
     const bytes = new TextEncoder().encode(JSON.stringify(candidate)).byteLength;
     if (bytes > 5 * 1024 * 1024) return { ok: false, message: "This order is too large to save safely." };

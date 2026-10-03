@@ -36,15 +36,15 @@ test("workspace transient menus close when work continues elsewhere", () => {
 });
 
 test("Order Center cannot return with invisible stale filters", () => {
-  assert.match(orders, /setQuery\(""\); setArchivedOnly\(false\); save\(current, "Order saved", true\)/);
+  assert.match(orders, /setQuery\(""\); setArchivedOnly\(false\); setView\("center"\)/);
   assert.match(listCenter, /orderFilterSession/);
   assert.match(listCenter, /resetFilterState\(\)/);
   assert.match(listCenter, /setNativeInputValue\(nativeSearch\s*,\s*""\)/);
   assert.match(listCenter, /archivedNative\?\.checked/);
 });
 
-test("Order Center status is owned by the contextual menu", () => {
-  assert.match(operationalUx, /statusWrap\?\.setAttribute\("hidden", ""\)/);
+test("Order Center status remains visible beside the contextual menu", () => {
+  assert.match(operationalUx, /statusWrap\?\.removeAttribute\("hidden"\)/);
   assert.match(operationalUx, /orderMenuStatusControl/);
   assert.match(operationalUx, /const select = nativeStatus\.cloneNode\(true\) as HTMLSelectElement/);
   assert.match(operationalUx, /setNativeSelect\(nativeStatus, select\.value\)/);
