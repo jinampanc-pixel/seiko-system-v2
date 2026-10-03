@@ -25,6 +25,27 @@ The 12 failing tests include 11 packing/label designer contracts and one billing
 
 ## 1. Flow and navigation
 
+### Audit correction — confirmed order workflow defects
+
+The original audit did not test enough end-to-end order interactions. The following are confirmed defects and must be treated as stabilization work:
+
+1. **Save & Close is not trustworthy.** The action passes through the React workspace menu, a capture-phase confirmation layer and additional DOM enhancement listeners. The automated contracts only check that the words exist in source; they do not prove that clicking the action saves to shared storage and returns to Order Center. The reported failure must be reproduced and fixed with a real browser test.
+2. **Delete order is not a real shared-data deletion.** The current handler removes the order from browser `localStorage`, but the shared Orders API supports only list, upsert, local import and audit. It has no archive/delete operation. A locally deleted order can therefore return from D1 synchronization.
+3. **Completing one order changes the whole Home view.** `changeStatus` explicitly changes `workMode` from `active` to `completed` when an order is marked Completed. This makes the status action behave like a dashboard filter selection and unexpectedly replaces the Active Orders list.
+4. **Order Center hides the status that the source component renders.** The enhancement layer sets the native status wrapper to hidden and moves a cloned selector into the three-dot menu. Status must remain visible for every order row, with the menu used for secondary actions.
+5. **Order Center actions are incomplete.** The row menu contains Edit setup, Create labels and Archive/Restore only. It needs order-context actions for Open workspace, Record payment, View payments/receipts, Create invoice, Create delivery challan, Create quotation, Edit setup, Create labels, Archive and owner-controlled deletion.
+6. **Archive and delete are conflated.** Normal users should archive; permanent deletion should be owner-only, server-authoritative, blocked or specially handled when financial documents/payments exist, confirmed with the order number, and written to an immutable audit log.
+7. **Status changes are fragmented.** Home, Order Center and Workspace each implement status changes differently. They must call one server-backed command with the same validation and then update every view from the returned order version.
+
+Required acceptance tests:
+
+- Edit a value → Save & Close → Order Center appears → reopen order → value remains → reload browser → value remains from D1.
+- Delete an eligible test order → reload and sign in on another browser session → order remains deleted/tombstoned and an audit event exists.
+- Mark one Active order Completed → that row leaves Active Orders while the dashboard remains on Active Orders.
+- Every Order Center row visibly shows status without opening the menu.
+- Record payment from an Order Center row → the payment is attached to that order and its receipt opens.
+- View payments from an Order Center row → only that order's payments and allocations are shown.
+
 ### What works
 
 - The app has business-aware permissions and hides inaccessible modules.
@@ -214,6 +235,7 @@ The business export should include orders, clients, products, billing documents,
 - Remove the lint error and review all 28 warnings.
 - Require green CI before deployment.
 - Add a smoke test for Home → Orders → Billing → payment → receipt → Back/Home.
+- Repair and browser-test Save & Close, server-authoritative archive/delete, non-navigating Home status changes, visible Order Center statuses and order-context financial actions.
 
 ### Stage 2 — Make storage reproducible
 
