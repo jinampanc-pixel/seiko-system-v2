@@ -86,3 +86,5 @@ The setup browser regression also passes required client/phone validation, produ
 Lint remains at zero errors and the same 23 reviewed warnings; no rule was weakened. Failed archive requests also leave the order visible and unchanged.
 
 These isolated checks do not constitute a live production D1 or backup/restore drill. A separate exploratory tsc --noEmit check still reports existing repository type errors (including missing Cloudflare worker declarations); the repository's supported production build and render gate passes. CSS and remaining enhancement consolidation belong to Stage 4, with incremental browser verification rather than combining the application into one file.
+
+The first Linux Chromium CI run exposed a clipped menu: automatic scrolling closed the menu before owner deletion could be clicked. Order Center now positions its source-owned panel within the viewport, and scrolling inside action panels keeps them open. The browser regression exercises deletion in a 500-pixel-high viewport.

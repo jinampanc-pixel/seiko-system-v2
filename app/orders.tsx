@@ -85,7 +85,17 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
       <div><b>{order.details.orderNo}</b><span>{order.details.clientName}</span><small>{order.details.clientType} · {order.records.length} person/record entries · {order.revisions.length} revisions</small></div>
       <label className="orderListStatus orderCenterInlineStatus"><span className="srOnly">Status for {order.details.orderNo}</span><select aria-label={`Status for ${order.details.orderNo}`} disabled={busy} className={`status-${order.status.toLowerCase().replace(" ", "-")}`} value={order.status} onChange={event => void changeStatus(order, event.target.value as OrderStatus)}>{ORDER_STATUSES.map(status => <option key={status}>{status}</option>)}</select></label>
       <button className="openOrderButton" onClick={() => openWorkspace(order)}>Open order</button>
-      <details className="seikoRowActionMenu orderCenterActionMenu"><summary aria-label={`Actions for ${order.details.orderNo}`}>•••</summary><div className="seikoRowActionPanel" style={{ maxHeight: "70vh", overflowY: "auto" }}>
+      <details className="seikoRowActionMenu orderCenterActionMenu" onToggle={event => {
+        const menu = event.currentTarget; if (!menu.open) return;
+        document.querySelectorAll<HTMLDetailsElement>(".seikoRowActionMenu[open]").forEach(other => { if (other !== menu) other.open = false; });
+        const anchor = menu.querySelector("summary")!.getBoundingClientRect();
+        const panel = menu.querySelector<HTMLElement>(".seikoRowActionPanel")!;
+        const width = Math.min(240, window.innerWidth - 16);
+        panel.style.width = `${width}px`; panel.style.maxHeight = `${window.innerHeight - 16}px`;
+        panel.style.left = `${Math.max(8, Math.min(window.innerWidth - width - 8, anchor.right - width))}px`;
+        const top = Math.max(8, Math.min(window.innerHeight - panel.getBoundingClientRect().height - 8, anchor.bottom + 5));
+        panel.style.top = `${top}px`; panel.style.maxHeight = `${window.innerHeight - top - 8}px`;
+      }}><summary aria-label={`Actions for ${order.details.orderNo}`}>•••</summary><div className="seikoRowActionPanel" onClickCapture={event => { if ((event.target as Element).closest("button")) event.currentTarget.closest("details")!.open = false; }} style={{ position: "fixed", right: "auto", zIndex: 12000, boxSizing: "border-box", maxHeight: "calc(100dvh - 16px)", overflowY: "auto" }}>
         <button disabled={busy} onClick={() => openWorkspace(order)}>Open workspace</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "payment")}>Record payment</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "payments")}>View payments / receipts</button>

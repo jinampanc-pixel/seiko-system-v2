@@ -9,7 +9,13 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   const row = number => page.locator('.orderRow').filter({ has: page.locator('b', { hasText: new RegExp(`^${number}$`) }) });
   const action = async (number, name) => {
     const target = row(number); const summary = target.locator('summary').first();
+    await summary.scrollIntoViewIfNeeded();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     if (!await target.locator('details').first().evaluate(node => node.open)) await summary.click();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
+    assert.equal(await target.locator('details').first().evaluate(node => node.open), true, `Menu opens for ${number}`);
+    const bounds = await target.locator('.seikoRowActionPanel').boundingBox(); const viewport = page.viewportSize();
+    assert.ok(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height, `Menu fits viewport for ${number}`);
     await target.getByRole('button', { name, exact: true }).click();
   };
   for (const number of ['SMOKE-001', 'SECOND-002', 'DELETE-003']) {
@@ -111,6 +117,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await action('SMOKE-001', 'Restore order');
   assert.equal(read(order.orderId).archived, false);
   await page.reload(); await navigate('Orders');
+  await page.setViewportSize({ width: 900, height: 500 });
   page.once('dialog', dialog => dialog.accept('SMOKE-001'));
   await action('SMOKE-001', 'Delete order');
   await page.getByRole('alert').filter({ hasText: 'financial documents or payments' }).waitFor();
