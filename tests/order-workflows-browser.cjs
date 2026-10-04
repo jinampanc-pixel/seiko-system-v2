@@ -21,6 +21,26 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   for (const number of ['SMOKE-001', 'SECOND-002', 'DELETE-003']) {
     await row(number).getByLabel(`Status for ${number}`, { exact: true }).waitFor({ state: "visible" });
   }
+  await page.locator('.orderRowClickable').first().waitFor();
+  for (const width of [1860, 900, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const layout = await page.locator('.orderRow').evaluateAll(rows => rows.map(node => {
+      const row = node.getBoundingClientRect(); const list = node.closest('.orderList').getBoundingClientRect();
+      return { height: row.height, contained: [...node.querySelectorAll('.orderCenterInlineStatus, .seikoRowActionMenu > summary')].every(control => {
+        const box = control.getBoundingClientRect();
+        return box.left >= row.left && box.right <= row.right + 1 && box.top >= row.top && box.bottom <= row.bottom + 1 && box.right <= list.right + 1;
+      }) };
+    }));
+    assert.ok(layout.every(item => item.contained), `Status and menu stay inside their row and list at ${width}px`);
+    assert.ok(layout.every(item => item.height < (width > 720 ? 110 : 220)), `Rows stay compact at ${width}px: ${JSON.stringify(layout)}`);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `No horizontal overflow at ${width}px`);
+    if (process.env.ORDER_LAYOUT_SCREENSHOTS && [1860, 390].includes(width)) {
+      require('node:fs').mkdirSync(process.env.ORDER_LAYOUT_SCREENSHOTS, { recursive: true });
+      await page.screenshot({ path: require('node:path').join(process.env.ORDER_LAYOUT_SCREENSHOTS, `order-center-${width}.png`), fullPage: true });
+    }
+  }
+  await page.setViewportSize({ width: 1365, height: 900 });
   await action('SMOKE-001', 'Open workspace');
   const cell = page.locator('td[data-column-id="field:name"] input').first();
   await cell.fill('Persisted through Save and Close'); await cell.press('Tab');
