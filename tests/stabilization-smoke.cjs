@@ -91,6 +91,8 @@ function load(path, imports = {}) {
       localStorage.setItem('jinam:seiko:orders-v1', JSON.stringify([value]));
     }, order);
     await page.goto(`${base}/tests/packing-browser/smoke.html`);
+    try { await page.getByRole('button', { name: 'Open menu', exact: true }).waitFor({ timeout: 10000 }); }
+    catch { throw new Error(`Application did not mount: ${JSON.stringify(errors)}. ${await page.locator('body').innerText()}`); }
     const navigate = async name => {
       await page.getByRole('button', { name: 'Open menu', exact: true }).click();
       await page.getByRole('navigation', { name: 'Modules' }).getByRole('button', { name: new RegExp(`${name}$`) }).click();

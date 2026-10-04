@@ -1,0 +1,44 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const { spawn } = require('node:child_process');
+
+(async () => {
+  const { fixture } = await import('./backup-runtime.test.mjs');
+  const { decryptBackup } = await import('../app/lib/backup-format.mjs');
+  const source = fixture(); const empty = fixture(); let target = source;
+  source.sqlite.prepare('INSERT INTO seiko_clients VALUES(?,?,?,?,?,?,?,?)').run('client', 'fixture', '', '', 0, '{"id":"client","name":"Browser recovery"}', 'owner', 'owner');
+  const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--config', 'tests/backups-browser/vite.config.mjs'], { stdio: 'pipe' });
+  let output = ''; server.stdout.on('data', data => output += data); server.stderr.on('data', data => output += data); let browser;
+  try {
+    for (let attempt = 0; ; attempt++) {
+      try { if ((await fetch('http://127.0.0.1:5183/tests/backups-browser/index.html')).ok) break; } catch { /* Starting fixture. */ }
+      if (attempt > 60 || server.exitCode !== null) throw new Error(output);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
+    const page = await browser.newPage(); const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/api/erp/backups', async route => {
+      const response = await target.api.POST(new Request('https://test.invalid/api/erp/backups', { method: 'POST', headers: { Origin: 'https://test.invalid' }, body: route.request().postData() }));
+      await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
+    });
+    await page.goto('http://127.0.0.1:5183/tests/backups-browser/index.html');
+    const passphrase = 'browser recovery fixture key';
+    await page.getByLabel('Backup passphrase (at least 16 characters)').fill(passphrase);
+    const downloadPromise = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download encrypted backup' }).click();
+    const download = await downloadPromise; const file = await download.path();
+    const decoded = await decryptBackup(JSON.parse(fs.readFileSync(file, 'utf8')), passphrase); assert.equal(decoded.tables.seiko_clients.rows[0].id, 'client');
+    await page.getByLabel('Encrypted backup file').setInputFiles(file);
+    await page.getByRole('status').filter({ hasText: 'Checksum and schema verified' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Restore empty system' }).count(), 0);
+    target = empty; await page.getByLabel('Encrypted backup file').setInputFiles([]); await page.getByLabel('Encrypted backup file').setInputFiles(file);
+    await page.getByRole('button', { name: 'Restore empty system' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Restore empty system' }).isEnabled(), false);
+    await page.getByLabel('Type RESTORE EMPTY SYSTEM').fill('RESTORE EMPTY SYSTEM');
+    await page.getByRole('button', { name: 'Restore empty system' }).click();
+    await page.getByRole('status').filter({ hasText: 'Business records restored' }).waitFor();
+    assert.equal(empty.sqlite.prepare('SELECT id FROM seiko_clients').get().id, 'client');
+    assert.deepEqual(errors, []);
+    console.log('PASS: real browser encrypted download, validation, existing-data protection, confirmation and atomic empty-system restore.');
+  } finally { await browser?.close(); server.kill(); source.sqlite.close(); empty.sqlite.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

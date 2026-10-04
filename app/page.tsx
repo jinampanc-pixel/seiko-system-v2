@@ -351,6 +351,7 @@ function Timeline({ title, text, time, active = false }: { title: string; text: 
 function pretty(v: string) { return ({ name: "Name", group: "Class / group", product: "Product", size: "Size", qty: "Quantity" } as Record<string,string>)[v] || v; }
 
 function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessName: string; theme: BusinessTheme; onSave: (theme: BusinessTheme) => void; onClose: () => void }) {
+  const { membership } = useAccess();
   const [draft, setDraft] = useState(theme);
   const [section, setSection] = useState<"appearance" | "users">("appearance");
   const [message, setMessage] = useState("Choose a preset, edit colours, or analyse a logo.");
@@ -372,6 +373,7 @@ function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessNam
   return <div className="themeScrim" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className="themePanel" role="dialog" aria-modal="true" aria-labelledby="theme-title">
     <div className="themeHead"><div><p className="eyebrow">SYSTEM SETTINGS</p><h2 id="theme-title">Settings · {businessName}</h2><p className="settingsIntro">Manage appearance, users and access from one settings area.</p></div><button onClick={onClose} aria-label="Close settings">×</button></div>
     <nav className="settingsModuleNav" aria-label="Settings modules">
+      {membership?.role === "owner" && <a href="/backups">Backup &amp; recovery</a>}
       <button type="button" className={section === "appearance" ? "active" : ""} onClick={() => setSection("appearance")}><small>1</small><span>Appearance</span></button>
       <button type="button" className={section === "users" ? "active" : ""} onClick={() => setSection("users")}><small>2</small><span>Users & access</span></button>
     </nav>

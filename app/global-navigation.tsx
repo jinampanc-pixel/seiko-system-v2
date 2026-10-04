@@ -127,6 +127,7 @@ function StandaloneNavigation({ businesses, businessId, onBusinessChange }: {
           <span>{item.icon}</span><small>{item.label}</small>
         </button>)}
         {canAccess(membership, "admin") && <div className="moduleMenuSettings">
+          {membership?.role === "owner" && <a className="nav" href="/backups"><span>↓</span><small>Backup &amp; recovery</small></a>}
           <button type="button" className="nav" onClick={() => goToRoot("settings")}><span>⚙</span><small>Settings</small></button>
           <button type="button" className="nav" onClick={() => goToRoot("users & access")}><span>◎</span><small>Users &amp; access</small></button>
         </div>}
