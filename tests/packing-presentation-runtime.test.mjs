@@ -15,7 +15,7 @@ function load(path, imports = {}, expose = "") {
   }, crypto: globalThis.crypto });
   return exports;
 }
-const domain = load("../app/lib/order-domain.ts");
+const domain = load("../app/lib/order-domain.ts", { "./order-statuses": load("../app/lib/order-statuses.ts") });
 const model = load("../app/lib/packing-label-model.ts", { "./order-domain": domain });
 const designer = load("../app/packing-person-label-designer.tsx", {
   react: {}, "react-dom": {}, "react/jsx-runtime": {}, "./physical-label-canvas": {},

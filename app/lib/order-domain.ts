@@ -1,7 +1,7 @@
 export type QuantityMode = "same_for_all" | "by_group" | "per_person" | "default_with_exceptions" | "order_total";
 export type ValueMode = "same_for_all" | "by_group" | "per_person" | "default_with_exceptions";
-export const ORDER_STATUSES = ["Draft", "Active", "Production", "QC 1", "Packing", "QC 2", "On Hold", "Completed", "Cancelled"] as const;
-export type OrderStatus = typeof ORDER_STATUSES[number];
+import { ORDER_STATUSES, type OrderStatus } from "./order-statuses";
+export { ORDER_STATUSES, type OrderStatus };
 
 export type OrderField = { id: string; name: string; type: "text" | "number" | "date" | "dropdown"; options: string[]; required: boolean };
 export type ArtworkAttachment = { id: string; name: string; mimeType: string; size: number; storageKey: string; addedAt: string };

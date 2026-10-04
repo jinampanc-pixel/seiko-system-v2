@@ -33,7 +33,7 @@ function load(path, imports = {}) {
       if (attempt >= 60 || (server && server.exitCode !== null)) throw new Error(`Smoke server did not start: ${serverOutput}`);
       await new Promise(resolve => setTimeout(resolve, 500));
     }
-    const domain = load('app/lib/order-domain.ts');
+    const domain = load('app/lib/order-domain.ts', { './order-statuses': load('app/lib/order-statuses.ts') });
     const order = {
       orderId: 'smoke-order', status: 'Active', archived: false,
       details: { orderNo: 'SMOKE-001', clientName: 'Smoke School', contactNumber: '9999999999',
@@ -51,7 +51,7 @@ function load(path, imports = {}) {
     } };
     const auth = { authenticateActor: async () => ({ userId: 'smoke-owner', email: 'smoke@example.invalid' }), authorizePermission: async () => ({ role: 'owner' }) };
     const ordersApi = load('app/api/erp/orders/route.ts', {
-      'cloudflare:workers': { env: { DB: db } }, '../../../lib/server-erp-auth': auth, '../../../lib/order-domain': domain,
+      'cloudflare:workers': { env: { DB: db } }, '../../../lib/server-erp-auth': auth, '../../../lib/order-statuses': load('app/lib/order-statuses.ts'),
     });
     const seed = async value => {
       const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: JSON.stringify({ operation: 'upsert', businessId: 'seiko', order: value }) }));

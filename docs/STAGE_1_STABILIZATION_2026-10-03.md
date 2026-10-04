@@ -88,3 +88,13 @@ Lint remains at zero errors and the same 23 reviewed warnings; no rule was weake
 These isolated checks do not constitute a live production D1 or backup/restore drill. A separate exploratory tsc --noEmit check still reports existing repository type errors (including missing Cloudflare worker declarations); the repository's supported production build and render gate passes. CSS and remaining enhancement consolidation belong to Stage 4, with incremental browser verification rather than combining the application into one file.
 
 The first Linux Chromium CI run exposed a clipped menu: automatic scrolling closed the menu before owner deletion could be clicked. Order Center now positions its source-owned panel within the viewport, and scrolling inside action panels keeps them open. The browser regression exercises deletion in a 500-pixel-high viewport.
+
+## Production Save & Close failure — 4 October
+
+Read-only Cloudflare live logs confirmed that the Orders API failed before entering its request handler: importing order-domain initialized client field presets using crypto.randomUUID(), forbidden during Workers module initialization. The request returned HTTP 500 instead of JSON, which the client reported as a generic network failure. The API now imports the canonical statuses from an inert module; order-domain re-exports them for existing consumers. Client field creation and accepted order behavior are unchanged.
+
+Authentication and D1 session initialization now participate in the API's JSON error boundary. The client distinguishes expired sessions, unreadable HTTP responses and malformed acknowledgements while keeping edits open. Save & Close still waits for a successful shared write before returning to Order Center.
+
+Verification includes a production-build cold-start request in Miniflare/workerd, a module-import test that forbids random generation, and browser checks for HTML gateway failures, expired sessions, malformed success responses and a successful retry of the retained draft. The local workerd binary supports compatibility dates through 22 May 2026, so its regression uses that date while production retains its existing 15 August configuration. Full contracts/build/render and browser workflow checks pass; lint remains zero errors with 23 reviewed warnings.
+
+The follow-up workflow brief is retained in FOLLOW_UP_ORDER_REQUIREMENTS.md as requirements for a later stage, per the user's instruction. It is not implemented during this repair.

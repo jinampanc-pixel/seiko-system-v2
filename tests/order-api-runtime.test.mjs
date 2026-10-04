@@ -5,12 +5,41 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { DatabaseSync } from 'node:sqlite';
 
-function load(path, imports = {}) {
+function load(path, imports = {}, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
-    { exports, require: name => imports[name], crypto, Response, Request, TextEncoder });
+    { exports, require: name => { assert.ok(imports[name], `Unexpected import: ${name}`); return imports[name]; }, crypto, Response, Request, TextEncoder, ...globals });
   return exports;
 }
+
+test('cold Orders API initialization never generates IDs in Workers global scope', async () => {
+  const globalCrypto = { randomUUID() { throw new Error('Random values forbidden at module scope'); } };
+  const statuses = load('app/lib/order-statuses.ts', {}, { crypto: globalCrypto });
+  const api = load('app/api/erp/orders/route.ts', {
+    'cloudflare:workers': { env: {} },
+    '../../../lib/order-statuses': statuses,
+    '../../../lib/server-erp-auth': { authenticateActor: async () => null },
+  }, { crypto: globalCrypto });
+  const response = await api.POST(new Request('https://test.invalid/api/erp/orders', { method: 'POST', body: JSON.stringify({ operation: 'list', businessId: 'seiko' }) }));
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).code, 'AUTH_REQUIRED');
+});
+
+test('order API returns JSON when authentication or session initialization fails', async () => {
+  for (const stage of ['authentication', 'session']) {
+    const api = load('app/api/erp/orders/route.ts', {
+      'cloudflare:workers': { env: { DB: { withSession() { throw new Error('session unavailable'); } } } },
+      '../../../lib/order-statuses': load('app/lib/order-statuses.ts'),
+      '../../../lib/server-erp-auth': { authenticateActor: async () => {
+        if (stage === 'authentication') throw new Error('identity storage unavailable');
+        return { userId: 'test-owner', email: 'owner@example.invalid' };
+      } },
+    });
+    const response = await api.POST(new Request('https://test.invalid/api/erp/orders', { method: 'POST', body: JSON.stringify({ operation: 'list', businessId: 'seiko' }) }));
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).code, 'ERP_STORAGE_ERROR');
+  }
+});
 
 test('order commands enforce versions, business scope, owner deletion, financial protection and tombstones', async () => {
   const sqlite = new DatabaseSync(':memory:');
@@ -23,7 +52,7 @@ test('order commands enforce versions, business scope, owner deletion, financial
     let role = 'owner';
     const api = load('app/api/erp/orders/route.ts', {
       'cloudflare:workers': { env: { DB: db } },
-      '../../../lib/order-domain': load('app/lib/order-domain.ts'),
+      '../../../lib/order-statuses': load('app/lib/order-statuses.ts'),
       '../../../lib/server-erp-auth': { authenticateActor: async () => ({ userId: 'test-owner', email: 'owner@example.invalid' }), authorizePermission: async () => role ? { role } : null },
     });
     const call = async body => { const response = await api.POST(new Request('https://test.invalid/api/erp/orders', { method: 'POST', body: JSON.stringify({ businessId: 'seiko', ...body }) })); return { status: response.status, ...await response.json() }; };

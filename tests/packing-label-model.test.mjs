@@ -10,7 +10,7 @@ function load(path, imports = {}) {
   vm.runInNewContext(code, { exports, require: name => { if (!imports[name]) throw new Error(`Unexpected import ${name}`); return imports[name]; }, crypto: globalThis.crypto });
   return exports;
 }
-const domain = load("../app/lib/order-domain.ts");
+const domain = load("../app/lib/order-domain.ts", { "./order-statuses": load("../app/lib/order-statuses.ts") });
 const model = load("../app/lib/packing-label-model.ts", { "./order-domain": domain });
 const fixture = JSON.parse(fs.readFileSync(new URL("./fixtures/packing-quantity-regression.json", import.meta.url)));
 export const order = {

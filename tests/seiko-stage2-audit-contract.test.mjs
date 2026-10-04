@@ -60,7 +60,7 @@ test("Home metrics switch one configurable operational list and status changes d
   assert.doesNotMatch(home, /PERSON \/ RECORD ENTRIES/);
   assert.doesNotMatch(home, /quickAccess: \{ Orders:/);
   assert.match(orderDomain, /ORDER_STATUSES/);
-  for (const status of ["Production", "QC 1", "Packing", "QC 2"]) assert.match(orderDomain, new RegExp(status));
+  for (const status of ["Production", "QC 1", "Packing", "QC 2"]) assert.match(read("app/lib/order-statuses.ts"), new RegExp(status));
 });
 
 test("workspace row and column operations are state-backed and page size is truly editable", () => {

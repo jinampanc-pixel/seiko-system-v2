@@ -29,6 +29,30 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await page.getByRole('button', { name: 'Save & close', exact: true }).click();
   await row('SMOKE-001').waitFor();
   assert.equal(read(order.orderId).records[0].values['field:name'], 'Persisted through Save and Close');
+  for (const [status, body, message] of [[502, '<html>Gateway unavailable</html>', 'unreadable response (HTTP 502)'], [401, '<html>Sign in</html>', 'sign-in session has expired'], [200, '{}', 'did not confirm the save']]) {
+    await page.unroute('**/api/erp/orders');
+    await page.route('**/api/erp/orders', async (route, request) => {
+      if (JSON.parse(request.postData()).operation === 'upsert') await route.fulfill({ status, contentType: 'text/html', body });
+      else await route.fallback();
+    });
+    await action('SMOKE-001', 'Open workspace');
+    await cell.fill('Unsaved failure fixture'); await cell.press('Tab');
+    await page.getByRole('button', { name: 'More order actions', exact: true }).click();
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Save & close', exact: true }).click();
+    await page.getByRole('alert').filter({ hasText: message }).waitFor();
+    assert.equal(await cell.inputValue(), 'Unsaved failure fixture');
+    assert.equal(read(order.orderId).records[0].values['field:name'], 'Persisted through Save and Close');
+    await page.getByRole('button', { name: 'More order actions', exact: true }).click();
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Close without saving', exact: true }).click();
+    await row('SMOKE-001').waitFor();
+  }
+  await page.unroute('**/api/erp/orders');
+  await page.route('**/api/erp/orders', async route => {
+    const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
+    await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
+  });
   await action('SMOKE-001', 'Open workspace');
   assert.equal(await cell.inputValue(), 'Persisted through Save and Close');
   await page.reload(); await navigate('Orders'); await action('SMOKE-001', 'Open workspace');
@@ -50,6 +74,11 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
     await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
   });
+  await page.getByRole('button', { name: 'More order actions', exact: true }).click();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Save & close', exact: true }).click();
+  await row('SMOKE-001').waitFor();
+  assert.equal(read(order.orderId).records[0].values['field:name'], 'Unsaved failure fixture');
   await page.reload();
   const homeRow = page.locator('.homeOrderOperationalRow').filter({ hasText: 'SECOND-002' });
   await homeRow.locator('select').selectOption('Completed');

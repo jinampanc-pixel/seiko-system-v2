@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
-import { ORDER_STATUSES } from "../../../lib/order-domain";
+import { ORDER_STATUSES } from "../../../lib/order-statuses";
 
 type OrderLike = {
   orderId?: unknown;
@@ -54,22 +54,22 @@ export async function POST(request: Request) {
   const businessId = body.businessId?.trim() || "";
   if (!BUSINESS_ID.test(businessId)) return error("BUSINESS_REQUIRED", "Select a valid business.", 400);
 
-  const actor = await authenticateActor(request);
-  if (!actor) return error("AUTH_REQUIRED", "Sign in is required.", 401);
-
-  const operation = body.operation;
-  if (!operation) return error("INVALID_OPERATION", "Choose a valid operation.", 400);
-
-  const db = env.DB?.withSession("first-primary");
-  if (!db) {
-    return error(
-      "ERP_DB_NOT_CONFIGURED",
-      "Shared ERP storage is not connected yet. The app is still using its local safety copy.",
-      503,
-    );
-  }
-
   try {
+    const actor = await authenticateActor(request);
+    if (!actor) return error("AUTH_REQUIRED", "Sign in is required.", 401);
+
+    const operation = body.operation;
+    if (!operation) return error("INVALID_OPERATION", "Choose a valid operation.", 400);
+
+    const db = env.DB?.withSession("first-primary");
+    if (!db) {
+      return error(
+        "ERP_DB_NOT_CONFIGURED",
+        "Shared ERP storage is not connected yet. The app is still using its local safety copy.",
+        503,
+      );
+    }
+
     if (operation === "list") {
       if (!await authorizePermission(actor, businessId, "orders.view")) return forbidden();
       return await listOrders(db, businessId);

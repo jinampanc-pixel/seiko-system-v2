@@ -14,7 +14,18 @@ export function requestOrders<T>(body: Record<string, unknown>): Promise<Result<
   const run = async (): Promise<Result<T>> => {
     try {
       const response = await fetch("/api/erp/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
-      return await response.json() as Result<T>;
+      if (response.redirected || response.status === 401) {
+        return { ok: false, code: "AUTH_REQUIRED", message: "Your sign-in session has expired. Sign in in another tab, then retry Save & Close here. Your changes remain open." };
+      }
+      let result: Result<T>;
+      try { result = await response.json() as Result<T>; }
+      catch {
+        return { ok: false, code: "INVALID_RESPONSE", message: `Shared storage returned an unreadable response (HTTP ${response.status}). Your changes remain open; retry Save & Close.` };
+      }
+      if (!result || typeof result.ok !== "boolean" || (result.ok && (!response.ok || result.data == null)) || (!result.ok && (typeof result.code !== "string" || typeof result.message !== "string"))) {
+        return { ok: false, code: "INVALID_RESPONSE", message: "Shared storage did not confirm the save. Your changes remain open; retry Save & Close." };
+      }
+      return result;
     } catch { return { ok: false, code: "NETWORK_ERROR", message: "Shared ERP storage is temporarily unreachable. Your changes remain open." }; }
   };
   const next = (queues.get(businessId) || Promise.resolve()).then(run, run);
