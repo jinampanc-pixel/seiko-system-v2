@@ -13,7 +13,8 @@
     {
       "binding": "DB",
       "database_name": "seiko-system-v2-db",
-      "database_id": "f7d40009-5b76-410d-8013-4210978bf182"
+      "database_id": "f7d40009-5b76-410d-8013-4210978bf182",
+      "migrations_dir": "migrations"
     }
   ],
   "vars": {

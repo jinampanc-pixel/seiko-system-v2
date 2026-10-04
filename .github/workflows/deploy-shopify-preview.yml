@@ -77,6 +77,8 @@ jobs:
         run: |
           node --input-type=commonjs <<'NODE'
           const fs = require('node:fs');
+          const production = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8')).d1_databases?.[0];
+          if (production?.database_id === process.env.PREVIEW_DB_ID) throw new Error('Preview migrations cannot target production D1');
           const paths = ['wrangler.jsonc', 'dist/server/wrangler.json'];
           for (const path of paths) {
             if (!fs.existsSync(path)) throw new Error(`Required Wrangler config missing: ${path}`);
@@ -102,6 +104,12 @@ jobs:
           NODE
 
       # Existing accounts, sessions, memberships, and business data are preserved.
+
+      - name: Export isolated preview D1 and apply committed migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run db:migrate:remote
 
       - name: Deploy isolated preview worker
         env:

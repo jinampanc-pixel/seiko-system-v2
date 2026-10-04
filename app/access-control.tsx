@@ -1,4 +1,5 @@
 "use client";
+import { SharedLabelStorage } from "./shared-label-storage";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -130,7 +131,7 @@ export function AccessProvider({ children }: { children: ReactNode }) {
   }
 
   return <AccessContext.Provider value={value}>
-    {children}
+    <SharedLabelStorage business={value.businessId} enabled={can("labels.view")}>{children}</SharedLabelStorage>
     {menuHost && createPortal(<><button type="button" className="nav accessMenuEntry" onClick={() => setPanelOpen(true)}><span>◉</span><small>{can("users.manage") ? "Users & access" : "My access"}</small></button><button type="button" className="nav accessMenuEntry" onClick={() => void logoutSession()}><span>↪</span><small>Sign out</small></button></>, menuHost)}
     {panelOpen && <AccessPanel onClose={() => setPanelOpen(false)}/>} 
   </AccessContext.Provider>;

@@ -18,7 +18,7 @@ function load(path, imports = {}, expose = "") {
 const domain = load("../app/lib/order-domain.ts", { "./order-statuses": load("../app/lib/order-statuses.ts") });
 const model = load("../app/lib/packing-label-model.ts", { "./order-domain": domain });
 const designer = load("../app/packing-person-label-designer.tsx", {
-  react: {}, "react-dom": {}, "react/jsx-runtime": {}, "./physical-label-canvas": {},
+  "./lib/label-storage": load("../app/lib/label-storage.ts"), react: {}, "react-dom": {}, "react/jsx-runtime": {}, "./physical-label-canvas": {},
   "./physical-label-editor.css": {}, "./lib/physical-output": load("../app/lib/physical-output.ts"),
   "./lib/order-domain": domain, "./lib/packing-label-model": model,
 }, "\nexports.mergeRules = mergeRules; exports.migrateItems = migrateItems; exports.freePlacement = freePlacement;");

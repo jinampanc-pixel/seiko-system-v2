@@ -1,4 +1,5 @@
 "use client";
+import { writeLabelStorage } from "./lib/label-storage";
 
 import { useEffect } from "react";
 
@@ -297,7 +298,7 @@ function openSavedLibrary(page: HTMLElement, kind: "sets" | "layouts") {
       packagePresentation: item.packagePresentation,
       designerKind: item.designerKind || "packing-person-v4",
     };
-    localStorage.setItem(tasksKey, JSON.stringify([...tasks, task]));
+    writeLabelStorage(tasksKey, JSON.stringify([...tasks, task]));
     sessionStorage.setItem(openKey, taskId);
     window.location.reload();
   }));

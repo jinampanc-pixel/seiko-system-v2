@@ -44,6 +44,7 @@ import "../../app/seiko-stable.css";
 import { useState } from "react";
 import { LabelLauncher } from "../../app/page";
 import { SavedLabelWorkspace } from "../../app/saved-label-workspace";
+import { SharedLabelStorage } from "../../app/shared-label-storage";
 import { AccessProvider } from "../../app/access-control";
 import { Orders } from "../../app/orders";
 import { OrderSetupPolish } from "../../app/order-setup-polish";
@@ -64,4 +65,5 @@ const order = {
 window.print=()=>{(window as Window & { printCalls?: number }).printCalls=((window as Window & { printCalls?: number }).printCalls||0)+1;};
 if (!new URLSearchParams(location.search).has("orders")) localStorage.setItem("jinam:seiko:orders-v1", JSON.stringify([order]));
 function CenterTest() { const [selected,setSelected]=useState<SeikoOrder | null>(null); return selected ? <SavedLabelWorkspace businessId="seiko" order={selected} onBack={()=>setSelected(null)}/> : <LabelLauncher businessId="seiko" onOpen={order=>setSelected(order)} onOpenOrders={()=>{}}/>; }
-createRoot(document.getElementById("root")!).render(new URLSearchParams(location.search).has("center") ? <CenterTest/> : new URLSearchParams(location.search).has("orders") ? <AccessProvider><Orders businessId="seiko"/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/></AccessProvider> : new URLSearchParams(location.search).has("task") ? <SavedLabelPrintPage/> : <div className="businessAppShell"><main className="businessAppMain"><PackingPersonLabelDesigner businessId="seiko" order={order as unknown as SeikoOrder} canManageSizes={false}/></main></div>);
+const surface = (new URLSearchParams(location.search).has("center") ? <CenterTest/> : new URLSearchParams(location.search).has("orders") ? <AccessProvider><Orders businessId="seiko"/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/></AccessProvider> : new URLSearchParams(location.search).has("task") ? <SavedLabelPrintPage/> : <div className="businessAppShell"><main className="businessAppMain"><PackingPersonLabelDesigner businessId="seiko" order={order as unknown as SeikoOrder} canManageSizes={false}/></main></div> );
+createRoot(document.getElementById("root")!).render(new URLSearchParams(location.search).has("shared") ? <SharedLabelStorage business="seiko" enabled>{surface}</SharedLabelStorage> : surface);

@@ -1,4 +1,5 @@
 "use client";
+import { writeLabelStorage } from "./lib/label-storage";
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { groupRuleMatches, quantityForRecord, type ProductPolicy, type SeikoOrder } from "./lib/order-domain";
@@ -553,8 +554,8 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
     const layout: SavedLayout = { id: activeLayoutId || crypto.randomUUID(), name, presetId, items: displayedItems, advanced, updatedAt: new Date().toISOString() };
     const next = activeLayoutId ? layouts.map(item => item.id === activeLayoutId ? layout : item) : [...layouts, layout];
     setLayouts(next); setActiveLayoutId(layout.id); setLayoutName(name); setItems(displayedItems);
-    localStorage.setItem(storageKey(businessId, "layouts-v2"), JSON.stringify(next));
-    flash(activeLayoutId ? "Layout updated" : "Layout saved");
+    writeLabelStorage(storageKey(businessId, "layouts-v2"), JSON.stringify(next));
+    flash(activeLayoutId ? "Layout updated on this device" : "Layout saved on this device");
   };
 
   const loadLayout = (layout: SavedLayout) => {
@@ -570,7 +571,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
     };
     const next = activeSetId ? labelSets.map(item => item.id === activeSetId ? saved : item) : [...labelSets, saved];
     setLabelSets(next); setActiveSetId(saved.id); setSetName(name); setItems(displayedItems);
-    localStorage.setItem(storageKey(businessId, "tasks-v1"), JSON.stringify(next));
+    writeLabelStorage(storageKey(businessId, "tasks-v1"), JSON.stringify(next));
     flash(activeSetId ? "Label set updated" : "Label set saved");
   };
 
@@ -587,7 +588,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
     if (!next.name || [next.labelW, next.labelH, next.rollW, next.columns].some(value => !Number.isFinite(value) || value <= 0)) return;
     const custom = [...presets.filter(item => item.locked), ...presets.filter(item => !item.locked), next];
     setPresets(custom); setPresetId(next.id); setSizeOpen(false);
-    localStorage.setItem(storageKey(businessId, "presets-v1"), JSON.stringify(custom.filter(item => !item.locked)));
+    writeLabelStorage(storageKey(businessId, "presets-v1"), JSON.stringify(custom.filter(item => !item.locked)));
   };
 
   const filterValueOptions = (key: string) => [...new Set(generated.map(unit => unit.values[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
@@ -615,7 +616,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
 
     <nav className="labelV2LibraryBar" aria-label="Label libraries"><button className="secondary" onClick={saveLayout}>{activeLayoutId ? "Update layout" : "Save layout"}</button><button onClick={() => setLibrary(library === "layouts" ? null : "layouts")}>Layouts <span>{layouts.length}</span></button><i/><button className="primary labelSetSave" onClick={saveLabelSet}>{activeSetId ? "Update label set" : "Save label set"}</button><button onClick={() => setLibrary(library === "sets" ? null : "sets")}>Label sets <span>{labelSets.filter(item => item.orderId === actualOrder.orderId).length}</span></button></nav>
 
-    {library === "layouts" && <section className="panel labelV2Library"><div className="labelV2LibraryHead"><div><p className="eyebrow">LAYOUT LIBRARY</p><h3>Reusable physical layouts</h3><p>Layouts control label size, content placement and typography.</p></div><button className="iconButton" onClick={() => setLibrary(null)} aria-label="Close layout library">×</button></div><div className="labelV2LibraryRows">{layouts.map(layout => <article key={layout.id}><div><b>{layout.name}</b><small>{presets.find(item => item.id === layout.presetId)?.name || "Saved size"}</small></div><button onClick={() => loadLayout(layout)}>Use</button>{canManageSizes && <button className="iconButton" aria-label={`Delete ${layout.name}`} onClick={() => { const next = layouts.filter(item => item.id !== layout.id); setLayouts(next); localStorage.setItem(storageKey(businessId, "layouts-v2"), JSON.stringify(next)); }}>×</button>}</article>)}{!layouts.length && <p>No saved layouts yet.</p>}</div></section>}
+    {library === "layouts" && <section className="panel labelV2Library"><div className="labelV2LibraryHead"><div><p className="eyebrow">LAYOUT LIBRARY</p><h3>Reusable physical layouts</h3><p>Layouts control label size, content placement and typography.</p></div><button className="iconButton" onClick={() => setLibrary(null)} aria-label="Close layout library">×</button></div><div className="labelV2LibraryRows">{layouts.map(layout => <article key={layout.id}><div><b>{layout.name}</b><small>{presets.find(item => item.id === layout.presetId)?.name || "Saved size"}</small></div><button onClick={() => loadLayout(layout)}>Use</button>{canManageSizes && <button className="iconButton" aria-label={`Delete ${layout.name}`} onClick={() => { const next = layouts.filter(item => item.id !== layout.id); setLayouts(next); writeLabelStorage(storageKey(businessId, "layouts-v2"), JSON.stringify(next)); }}>×</button>}</article>)}{!layouts.length && <p>No saved layouts yet.</p>}</div></section>}
     {library === "sets" && <section className="panel labelV2Library"><div className="labelV2LibraryHead"><div><p className="eyebrow">LABEL SET LIBRARY</p><h3>Saved label jobs for this order</h3><p>Label sets remember what one label represents, filtering, numbering and layout.</p></div><button className="iconButton" onClick={() => setLibrary(null)} aria-label="Close label set library">×</button></div><div className="labelV2LibraryRows">{labelSets.filter(item => item.orderId === actualOrder.orderId).map(saved => <article key={saved.id}><div><b>{saved.name}</b><small>{saved.selectedRows.length} selected · {saved.purpose}</small></div><button onClick={() => loadLabelSet(saved)}>Open</button><button onClick={() => { loadLabelSet(saved); window.setTimeout(() => window.print(), 80); }}>Print</button></article>)}{!labelSets.some(item => item.orderId === actualOrder.orderId) && <p>No saved label sets yet.</p>}</div></section>}
 
     <div className="labelV2SetupGrid">

@@ -1,4 +1,5 @@
 "use client";
+import { writeLabelStorage } from "./lib/label-storage";
 
 import { useEffect } from "react";
 import { startDomEnhancement } from "./lib/dom-enhancement";
@@ -18,7 +19,7 @@ function archiveViewKey() { return `jinam:${currentBusiness()}:labels:archive-vi
 function ordersForBusiness(): SeikoOrder[] { try { return JSON.parse(localStorage.getItem(`jinam:${currentBusiness()}:orders-v1`) || "[]") as SeikoOrder[]; } catch { return []; } }
 function labelTasks(): SavedLabelTask[] { try { return JSON.parse(localStorage.getItem(labelTaskKey()) || "[]") as SavedLabelTask[]; } catch { return []; } }
 function pdfRecords(): PdfRecord[] { try { return JSON.parse(localStorage.getItem(pdfRecordKey()) || "[]") as PdfRecord[]; } catch { return []; } }
-function saveLabelTasks(tasks: SavedLabelTask[]) { localStorage.setItem(labelTaskKey(), JSON.stringify(tasks)); }
+function saveLabelTasks(tasks: SavedLabelTask[]) { writeLabelStorage(labelTaskKey(), JSON.stringify(tasks)); }
 function orderNumberFromRow(row: HTMLElement) { return row.querySelector<HTMLElement>(":scope > div:first-child > b")?.textContent?.trim() || ""; }
 function option(select: HTMLSelectElement, value: string, label: string) { const node = document.createElement("option"); node.value = value; node.textContent = label; select.appendChild(node); }
 function buildSelect(label: string, className: string, values: Array<[string, string]>, onChange: (value: string) => void) { const wrap=document.createElement("label");wrap.className=`orderAdvancedFilter ${className}`;const span=document.createElement("span");span.textContent=label;const select=document.createElement("select");values.forEach(([value,text])=>option(select,value,text));select.addEventListener("change",()=>onChange(select.value));wrap.append(span,select);return wrap; }

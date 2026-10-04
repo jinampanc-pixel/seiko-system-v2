@@ -70,7 +70,9 @@ export async function POST(request: Request) {
       const paid = await db.prepare("SELECT COALESCE(SUM(amount_paise),0) AS total FROM seiko_billing_payments WHERE invoice_id = ?").bind(draft.id).first<{ total: number }>();
       const totalPaise = Math.round(documentTotals(saved).total * 100);
       if (saved.kind === "invoice" && totalPaise < Number(paid?.total || 0)) return reply("The amended invoice total cannot be lower than payments already received.", 409);
-      await db.prepare("UPDATE seiko_billing_documents SET data = ?, total_paise = ? WHERE id = ?").bind(JSON.stringify(saved), totalPaise, saved.id).run();
+      // Check both the original revision and payments in the same statement as the amendment.
+      const amended = await db.prepare("UPDATE seiko_billing_documents SET data = ?, total_paise = ? WHERE id = ? AND data = ? AND cancelled = 0 AND (? <> 'invoice' OR ? >= COALESCE((SELECT SUM(amount_paise) FROM seiko_billing_payments WHERE invoice_id = ?),0))").bind(JSON.stringify(saved), totalPaise, saved.id, row.data, saved.kind, totalPaise, saved.id).run();
+      if (!amended.meta?.changes) return reply("This document or its payments changed while you were editing. Refresh before amending again.", 409);
     } else if (body.operation === "payment") {
       const payment = body.payment;
       if (!payment || typeof payment.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(payment.id) || typeof payment.invoiceId !== "string") return reply("Invalid payment.");

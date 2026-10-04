@@ -43,10 +43,10 @@ function load(path, imports = {}) {
       fields: [{ ...domain.field("Name"), id: "name" }], measurements: [], records: [{ recordId: 'one', personId: 'one', values: { 'field:name': 'Original name', 'product:vest:qty': 2 } }],
       revisions: [], updatedAt: '2026-10-03T00:00:00Z',
     };
-    sqlite.exec(fs.readFileSync('drizzle/0001_erp_foundation.sql', 'utf8'));
+    for (const file of fs.readdirSync('migrations').sort()) sqlite.exec(fs.readFileSync(`migrations/${file}`, 'utf8'));
     const db = { withSession() { return this; }, prepare(sql) {
       const stmt = sqlite.prepare(sql); let args = [];
-      return { bind(...values) { args = values; return this; }, async run() { return stmt.run(...args); },
+      return { bind(...values) { args = values; return this; }, async run() { return { meta: { changes: Number(stmt.run(...args).changes) } }; },
         async first() { return stmt.get(...args) || null; }, async all() { return { results: stmt.all(...args) }; } };
     } };
     const auth = { authenticateActor: async () => ({ userId: 'smoke-owner', email: 'smoke@example.invalid' }), authorizePermission: async () => ({ role: 'owner' }) };
@@ -79,7 +79,8 @@ function load(path, imports = {}) {
       const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
       await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
     });
-    for (const [path, api] of [['billing', billing], ['clients', clients]]) {
+    const labels = load('app/api/erp/labels/route.ts', { 'cloudflare:workers': { env: { DB: db } }, '../../../lib/server-erp-auth': auth });
+    for (const [path, api] of [['billing', billing], ['clients', clients], ['labels', labels]]) {
       await page.route(`**/api/erp/${path}`, async route => {
         const response = await api.POST(new Request(`${base}/api/erp/${path}`, { method: 'POST', body: route.request().postData() }));
         await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });

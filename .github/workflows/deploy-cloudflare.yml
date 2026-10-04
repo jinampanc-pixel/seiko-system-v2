@@ -40,7 +40,7 @@ jobs:
       - name: Navigation and payment smoke
         run: npm run test:smoke
 
-      - name: Deploy with Wrangler
+      - name: Verify main CI, export D1, apply migrations and deploy
         run: npm run deploy:cloudflare
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

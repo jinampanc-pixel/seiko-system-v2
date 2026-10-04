@@ -16,6 +16,37 @@ const printing = load("../app/lib/seiko-billing-print.ts", { "./seiko-billing": 
 const invoice = (id = "invoice-test-001") => ({ id, kind: "invoice", clientName: "Test Client", clientPhone: "1234567890", supplier: { name: "SEIKO", address: "", phone: "", bank: "", gstin: "" }, orderId: "", orderNo: "", issueDate: "2026-09-26", taxMode: "non_gst", taxTreatment: "intra_state", lines: [{ id: "line", description: "Vest", quantity: 2, unit: "pc", unitRate: 125, taxRate: 0 }], notes: "", status: "issued" });
 const payment = (id, amount) => ({ id, invoiceId: "invoice-test-001", amount, date: "2026-09-26", mode: "UPI", reference: "test", notes: "" });
 
+test("amendments cannot overwrite a concurrent revision or undercut a concurrent payment", async () => {
+  for (const race of ["revision", "payment"]) {
+    const sqlite = new DatabaseSync(':memory:');
+    try {
+      for (const file of fs.readdirSync('migrations').sort()) sqlite.exec(fs.readFileSync(`migrations/${file}`, 'utf8'));
+      let raceArmed = false;
+      const db = { withSession() { return this; }, prepare(sql) {
+        const statement = sqlite.prepare(sql); let args = [];
+        return { bind(...values) { args = values; return this; }, async run() {
+          if (raceArmed && sql.startsWith('UPDATE seiko_billing_documents SET')) {
+            raceArmed = false;
+            if (race === 'revision') sqlite.prepare('UPDATE seiko_billing_documents SET data=? WHERE id=?').run(JSON.stringify({ ...invoice(), clientName: 'Concurrent winner', revision: 1, amendedBy: 'other-owner' }), invoice().id);
+            else sqlite.prepare('INSERT INTO seiko_billing_payments(id,invoice_id,amount_paise,data,created_by) VALUES(?,?,?,?,?)').run('racing-payment', invoice().id, 20000, JSON.stringify(payment('racing-payment', 200)), 'cashier');
+          }
+          return { meta: { changes: Number(statement.run(...args).changes) } };
+        }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } };
+      } };
+      const api = load('../app/api/erp/billing/route.ts', { 'cloudflare:workers': { env: { DB: db } }, '../../../lib/seiko-billing': model, '../../../lib/server-erp-auth': { authenticateActor: async () => ({ email: 'owner' }), authorizePermission: async () => ({ role: 'owner' }) } });
+      const call = body => api.POST(new Request('https://test.invalid/api/erp/billing', { method: 'POST', body: JSON.stringify(body) }));
+      assert.equal((await call({ operation: 'create', document: invoice() })).status, 200);
+      raceArmed = true;
+      const amended = { ...invoice(), lines: [{ ...invoice().lines[0], unitRate: 50 }] };
+      assert.equal((await call({ operation: 'amend', document: amended })).status, 409);
+      const saved = sqlite.prepare('SELECT data,total_paise FROM seiko_billing_documents').get();
+      assert.equal(saved.total_paise, 25000);
+      if (race === 'revision') assert.equal(JSON.parse(saved.data).clientName, 'Concurrent winner');
+      else assert.equal(sqlite.prepare('SELECT sum(amount_paise) AS n FROM seiko_billing_payments').get().n, 20000);
+    } finally { sqlite.close(); }
+  }
+});
+
 test("billing totals and refreshed invoice status use payment history without replacing invoice identity", () => {
   const bill = invoice();
   assert.equal(model.validateBillingDocument(bill), "");
@@ -68,7 +99,7 @@ test("database persists invoices and idempotent payments, rejecting overpayment 
   const sqlite = new DatabaseSync(":memory:");
   const db = { withSession() { return this; }, prepare(sql) {
     let args = []; const statement = sqlite.prepare(sql);
-    return { bind(...values) { args = values; return this; }, async run() { return statement.run(...args); }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } };
+    return { bind(...values) { args = values; return this; }, async run() { return { meta: { changes: Number(statement.run(...args).changes) } }; }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } };
   } };
   let authenticated = true, manage = true;
   const route = load("../app/api/erp/billing/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-billing": model, "../../../lib/server-erp-auth": { authenticateActor: async () => authenticated ? { email: "test@example.invalid" } : null, authorizePermission: async (_, __, permission) => permission === "financials.view" || manage } });
@@ -97,7 +128,7 @@ test("order advances create receipts before invoices and allocate once across mu
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("CREATE TABLE erp_orders(id TEXT, business_id TEXT, status TEXT, document_json TEXT)");
   sqlite.prepare("INSERT INTO erp_orders VALUES(?,?,?,?)").run("order-advance", "seiko", "Active", JSON.stringify({ details: { orderNo: "ORD-01", clientName: "Advance Client", contactNumber: "1234567890" } }));
-  const db = { withSession() { return this; }, prepare(sql) { let args = []; const statement = sqlite.prepare(sql); return { bind(...values) { args = values; return this; }, async run() { return statement.run(...args); }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } }; } };
+  const db = { withSession() { return this; }, prepare(sql) { let args = []; const statement = sqlite.prepare(sql); return { bind(...values) { args = values; return this; }, async run() { return { meta: { changes: Number(statement.run(...args).changes) } }; }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } }; } };
   let manage = true;
   const route = load("../app/api/erp/billing/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-billing": model, "../../../lib/server-erp-auth": { authenticateActor: async () => ({ email: "test@example.invalid" }), authorizePermission: async (_, __, permission) => permission === "financials.view" || manage } });
   const call = body => route.POST(new Request("https://test.invalid/api/erp/billing", { method: "POST", body: JSON.stringify(body) }));
@@ -144,7 +175,7 @@ test("order allocations respect direct payments, other orders, cancelled invoice
 
 test("shared client directory saves typed clients, merges duplicate phones and enforces access", async () => {
   const sqlite = new DatabaseSync(":memory:");
-  const db = { withSession() { return this; }, prepare(sql) { let args = []; const statement = sqlite.prepare(sql); return { bind(...values) { args = values; return this; }, async run() { return statement.run(...args); }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } }; } };
+  const db = { withSession() { return this; }, prepare(sql) { let args = []; const statement = sqlite.prepare(sql); return { bind(...values) { args = values; return this; }, async run() { return { meta: { changes: Number(statement.run(...args).changes) } }; }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } }; } };
   let authenticated = true, manage = true;
   const clients = load("../app/lib/seiko-clients.ts");
   const route = load("../app/api/erp/clients/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-clients": clients, "../../../lib/server-erp-auth": { authenticateActor: async () => authenticated ? { email: "test@example.invalid" } : null, authorizePermission: async (_, __, permission) => permission === "financials.view" || manage } });

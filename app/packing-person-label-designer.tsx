@@ -1,4 +1,5 @@
 "use client";
+import { writeLabelStorage } from "./lib/label-storage";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -432,8 +433,8 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   const updateRule = (id: string, change: Partial<ProductRule>) => setDraftRules(old => ({ ...old, [id]: { ...old[id], ...change } }));
   const closeDrawer = () => { setPresentationOpen(false); customizeRef.current?.focus(); };
   useEffect(() => { if (presentationOpen) drawerRef.current?.querySelector<HTMLButtonElement>("button")?.focus(); }, [presentationOpen]);
-  useEffect(() => { localStorage.setItem(presentationKey(businessId, order.orderId), JSON.stringify(rules)); }, [businessId, order.orderId, rules]);
-  useEffect(() => { localStorage.setItem(packagePresentationKey(businessId, order.orderId), JSON.stringify(packagePresentation)); }, [businessId, order.orderId, packagePresentation]);
+  useEffect(() => { writeLabelStorage(presentationKey(businessId, order.orderId), JSON.stringify(rules)); }, [businessId, order.orderId, rules]);
+  useEffect(() => { writeLabelStorage(packagePresentationKey(businessId, order.orderId), JSON.stringify(packagePresentation)); }, [businessId, order.orderId, packagePresentation]);
   useEffect(() => { sessionStorage.removeItem(openTaskKey(businessId)); }, [businessId]);
   useEffect(() => {
     const prepare = () => flushSync(() => setPrintReady(true));
@@ -459,12 +460,12 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   const saveSet = () => {
     const task: SavedTask = { id: activeTaskId || crypto.randomUUID(), name: `Packing batch · ${order.details.clientName} · ${selectedRows.length} labels`, orderId: order.orderId, orderNo: order.details.orderNo, client: order.details.clientName, createdAt: new Date().toISOString(), purpose: "packing", sourceMode: "person", outputMode: "combined", presetId: "pixra-109", items, selectedRows, personPackagePlan: "together", includedProducts: order.products.filter(product => rules[product.id]?.included).map(product => product.id), packageGroupBy: "product", packageCounts: {}, customerUpdates: false, presentationRules: rules, packagePresentation, designerKind: "packing-person-v4" };
     const tasks = JSON.parse(localStorage.getItem(taskKey(businessId)) || "[]") as SavedTask[];
-    localStorage.setItem(taskKey(businessId), JSON.stringify([...tasks.filter(item => item.id !== task.id), task])); setActiveTaskId(task.id); setNotice("Label set saved.");
+    writeLabelStorage(taskKey(businessId), JSON.stringify([...tasks.filter(item => item.id !== task.id), task])); setActiveTaskId(task.id); setNotice("Label set saved on this device; shared save pending.");
   };
   const saveLayout = () => {
     const layout: SavedLayout = { id: crypto.randomUUID(), name: `Packing · ${order.details.clientName}`, clientType: order.details.clientType, product: "", presetId: "pixra-109", items, purpose: "packing", sourceMode: "person", outputMode: "combined", presentationRules: rules, packagePresentation, designerKind: "packing-person-v4" };
     const layouts = JSON.parse(localStorage.getItem(layoutKey(businessId)) || "[]") as SavedLayout[];
-    localStorage.setItem(layoutKey(businessId), JSON.stringify([...layouts, layout])); setNotice("Layout saved.");
+    writeLabelStorage(layoutKey(businessId), JSON.stringify([...layouts, layout])); setNotice("Layout saved on this device; shared save pending.");
   };
   const print = useCallback(async () => {
     setPrintBusy(true); setPrintReady(true);
