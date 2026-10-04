@@ -27,12 +27,16 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const layout = await page.locator('.orderRow').evaluateAll(rows => rows.map(node => {
       const row = node.getBoundingClientRect(); const list = node.closest('.orderList').getBoundingClientRect();
-      return { height: row.height, contained: [...node.querySelectorAll('.orderCenterInlineStatus, .seikoRowActionMenu > summary')].every(control => {
+      const readable = parseFloat(getComputedStyle(node.querySelector('.orderCenterInfo > span')).fontSize) >= 15
+        && parseFloat(getComputedStyle(node.querySelector('.orderCenterInlineStatus select')).fontSize) >= 12
+        && [...node.querySelectorAll('.orderCenterOperationalMeta b')].every(value => parseFloat(getComputedStyle(value).fontSize) >= 12);
+      return { height: row.height, readable, contained: [...node.querySelectorAll('.orderCenterInlineStatus, .seikoRowActionMenu > summary')].every(control => {
         const box = control.getBoundingClientRect();
         return box.left >= row.left && box.right <= row.right + 1 && box.top >= row.top && box.bottom <= row.bottom + 1 && box.right <= list.right + 1;
       }) };
     }));
     assert.ok(layout.every(item => item.contained), `Status and menu stay inside their row and list at ${width}px`);
+    assert.ok(layout.every(item => item.readable), `Names, status and metadata remain readable at ${width}px`);
     assert.ok(layout.every(item => item.height < (width > 720 ? 110 : 220)), `Rows stay compact at ${width}px: ${JSON.stringify(layout)}`);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `No horizontal overflow at ${width}px`);
     if (process.env.ORDER_LAYOUT_SCREENSHOTS && [1860, 390].includes(width)) {
