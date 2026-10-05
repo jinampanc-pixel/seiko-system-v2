@@ -1,0 +1,33 @@
+name: Jinam independent cloud backup
+on:
+  schedule:
+    - cron: '47 14 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: jinam-cloud-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    # Remains visibly skipped until direct Jinam credentials have been provisioned and reviewed.
+    if: vars.SEIKO_CLOUD_BACKUP_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22.13.0'
+          cache: npm
+      - run: npm ci
+      - name: Export, encrypt, rehearse restore, upload and verify Drive bytes
+        run: node scripts/cloud-backup.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.SEIKO_BACKUP_D1_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BACKUP_RECOVERY_KEY: ${{ secrets.SEIKO_BACKUP_RECOVERY_KEY }}
+          GOOGLE_DRIVE_CLIENT_ID: ${{ secrets.SEIKO_DRIVE_CLIENT_ID }}
+          GOOGLE_DRIVE_CLIENT_SECRET: ${{ secrets.SEIKO_DRIVE_CLIENT_SECRET }}
+          GOOGLE_DRIVE_REFRESH_TOKEN: ${{ secrets.SEIKO_DRIVE_REFRESH_TOKEN }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ vars.SEIKO_DRIVE_FOLDER_ID }}

@@ -73,16 +73,22 @@ async function keyFor(password, salt) {
 }
 export async function encryptBackup(backup, password) {
   await validateBackup(backup);
+  return encryptPayload(backup, password, 'seiko-encrypted-backup', 'SEIKO-BACKUP-1');
+}
+export async function encryptPayload(payload, password, format, marker) {
   const salt = crypto.getRandomValues(new Uint8Array(16)); const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: encoder.encode('SEIKO-BACKUP-1') }, await keyFor(password, salt), encoder.encode(JSON.stringify(backup)));
-  return { format: 'seiko-encrypted-backup', version: 1, cipher: 'AES-256-GCM', kdf: 'PBKDF2-SHA256', iterations: 100000, salt: base64(salt), iv: base64(iv), ciphertext: base64(new Uint8Array(encrypted)) };
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: encoder.encode(marker) }, await keyFor(password, salt), encoder.encode(JSON.stringify(payload)));
+  return { format, version: 1, cipher: 'AES-256-GCM', kdf: 'PBKDF2-SHA256', iterations: 100000, salt: base64(salt), iv: base64(iv), ciphertext: base64(new Uint8Array(encrypted)) };
 }
 export async function decryptBackup(envelope, password) {
-  if (!envelope || envelope.format !== 'seiko-encrypted-backup' || envelope.version !== 1 || envelope.cipher !== 'AES-256-GCM' || envelope.kdf !== 'PBKDF2-SHA256' || envelope.iterations !== 100000) throw new Error('Unsupported encrypted backup.');
+  return validateBackup(await decryptPayload(envelope, password, 'seiko-encrypted-backup', 'SEIKO-BACKUP-1'));
+}
+export async function decryptPayload(envelope, password, format, marker) {
+  if (!envelope || envelope.format !== format || envelope.version !== 1 || envelope.cipher !== 'AES-256-GCM' || envelope.kdf !== 'PBKDF2-SHA256' || envelope.iterations !== 100000) throw new Error('Unsupported encrypted backup.');
   try {
     const salt = unbase64(envelope.salt); const iv = unbase64(envelope.iv);
     if (salt.length !== 16 || iv.length !== 12) throw new Error('Invalid encryption metadata.');
-    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData: encoder.encode('SEIKO-BACKUP-1') }, await keyFor(password, salt), unbase64(envelope.ciphertext));
-    return await validateBackup(JSON.parse(new TextDecoder().decode(decrypted)));
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData: encoder.encode(marker) }, await keyFor(password, salt), unbase64(envelope.ciphertext));
+    return JSON.parse(new TextDecoder().decode(decrypted));
   } catch { throw new Error('Backup is damaged or the passphrase is incorrect.'); }
 }

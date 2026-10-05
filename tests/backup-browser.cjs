@@ -38,7 +38,22 @@ const { spawn } = require('node:child_process');
     await page.getByRole('button', { name: 'Restore empty system' }).click();
     await page.getByRole('status').filter({ hasText: 'Business records restored' }).waitFor();
     assert.equal(empty.sqlite.prepare('SELECT id FROM seiko_clients').get().id, 'client');
+    await page.evaluate(() => {
+      localStorage.setItem('jinam:seiko:orders-v1', '[{"orderId":"offline"}]');
+      localStorage.setItem('jinam:seiko:labels:shared-pending-v1', '[{"collection":"tasks-v1","id":"pending","expectedVersion":2}]');
+      localStorage.setItem('jinam:session', 'must-not-export');
+    });
+    let offlineRequests = 0; page.on('request', request => { if (request.url().includes('/api/erp/backups')) offlineRequests++; });
+    await page.context().setOffline(true);
+    const offlineDownloadPromise = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download local recovery copy', exact: true }).click();
+    const offlineDownload = await offlineDownloadPromise; const offlineFile = await offlineDownload.path();
+    const { decryptLocalRecovery } = await import('../app/lib/local-recovery.mjs');
+    const local = await decryptLocalRecovery(JSON.parse(fs.readFileSync(offlineFile, 'utf8')), passphrase);
+    assert.equal(local.completeD1Snapshot, false); assert.equal(local.entries['jinam:session'], undefined); assert.ok(local.entries['jinam:seiko:labels:shared-pending-v1']);
+    await page.getByLabel('Encrypted backup file').setInputFiles(offlineFile);
+    await page.getByRole('status').filter({ hasText: 'Local recovery verified' }).waitFor();
+    assert.equal(offlineRequests, 0); assert.equal(await page.getByRole('button', { name: 'Restore empty system' }).count(), 0);
     assert.deepEqual(errors, []);
-    console.log('PASS: real browser encrypted download, validation, existing-data protection, confirmation and atomic empty-system restore.');
+    console.log('PASS: encrypted D1 download/restore and real offline encrypted caches/outbox download/validation; no server request or automatic import for local copies.');
   } finally { await browser?.close(); server.kill(); source.sqlite.close(); empty.sqlite.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
