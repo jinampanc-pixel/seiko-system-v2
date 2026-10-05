@@ -4,9 +4,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { TABLES, canonical, makeBackup, encryptBackup, decryptBackup, summarizeRestore } from '../app/lib/backup-format.mjs';
+import { TABLES, SEQUENCE_TABLES, canonical, makeBackup, encryptBackup, decryptBackup, summarizeRestore } from '../app/lib/backup-format.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+export function readSequences(db) {
+  return Object.fromEntries(SEQUENCE_TABLES.map(table => [table, db.prepare('SELECT seq FROM sqlite_sequence WHERE name=?').get(table)?.seq || 0]));
+}
 export function readBusinessDatabase(db) {
   return Object.fromEntries(Object.keys(TABLES).map(table => [table, {
     columns: db.prepare(`PRAGMA table_info("${table}")`).all().map(column => column.name),
@@ -32,13 +35,18 @@ export function restoreDrill(backup, destination) {
         const statement = db.prepare(`INSERT INTO "${table}" (${columns.map(column => `"${column}"`).join(',')}) VALUES (${columns.map(() => '?').join(',')})`);
         for (const row of rows) statement.run(...columns.map(column => row[column]));
       }
+      for (const [table, seq] of Object.entries(backup.sequences || {})) {
+        db.prepare('INSERT INTO sqlite_sequence(name,seq) SELECT ?,? WHERE NOT EXISTS(SELECT 1 FROM sqlite_sequence WHERE name=?)').run(table, seq, table);
+        db.prepare('UPDATE sqlite_sequence SET seq=max(seq,?) WHERE name=?').run(seq, table);
+      }
       for (const trigger of triggers) db.exec(trigger.sql);
       const restored = readBusinessDatabase(db);
       for (const table of Object.keys(TABLES)) if (canonical(restored[table]) !== canonical(backup.tables[table])) throw new Error(`Restore verification failed for ${table}.`);
+      if (backup.sequences && canonical(readSequences(db)) !== canonical(backup.sequences)) throw new Error('Restore numbering verification failed.');
       if (db.prepare('PRAGMA integrity_check').get().integrity_check !== 'ok') throw new Error('Restored database integrity check failed.');
       db.exec('COMMIT');
     } catch (cause) { db.exec('ROLLBACK'); throw cause; }
-    return { verifiedAt: new Date().toISOString(), checksum: backup.checksum, tables: Object.keys(TABLES).length, records: summary.new, integrity: 'ok' };
+    return { verifiedAt: new Date().toISOString(), checksum: backup.checksum, tables: Object.keys(TABLES).length, records: summary.new, numberingCountersIncluded: !!backup.sequences, integrity: 'ok' };
   } finally { db.close(); }
 }
 export async function diskBackup(config, run = spawnSync) {
@@ -57,7 +65,7 @@ export async function diskBackup(config, run = spawnSync) {
     // Raw SQL is transient and includes security records. The disk/Drive archive excludes them.
     db = new DatabaseSync(':memory:'); db.exec(fs.readFileSync(raw, 'utf8'));
     const schemaVersion = db.prepare('SELECT name FROM d1_migrations ORDER BY id').all().map(row => row.name);
-    const backup = await makeBackup(readBusinessDatabase(db), schemaVersion, 'production-d1');
+    const backup = await makeBackup(readBusinessDatabase(db), schemaVersion, 'production-d1', readSequences(db));
     const drill = restoreDrill(backup, ':memory:');
     const envelope = await encryptBackup(backup, passphrase);
     // Authenticate the exact encrypted bytes before calling this copy successful.

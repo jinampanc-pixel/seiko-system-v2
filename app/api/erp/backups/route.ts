@@ -1,10 +1,10 @@
 import { env } from 'cloudflare:workers';
 import { authenticateActor } from '../../../lib/server-erp-auth';
-import { TABLES, makeBackup, validateBackup, summarizeRestore, canonical } from '../../../lib/backup-format.mjs';
+import { TABLES, SEQUENCE_TABLES, makeBackup, validateBackup, summarizeRestore, canonical } from '../../../lib/backup-format.mjs';
 
 type Row = Record<string, string | number | null>;
 type TableData = { columns: string[]; rows: Row[] };
-type Backup = { checksum: string; schemaVersion: string[]; tables: Record<string, TableData> };
+type Backup = { checksum: string; schemaVersion: string[]; tables: Record<string, TableData>; sequences?: Record<string, number> };
 const names = Object.keys(TABLES);
 const histories = ['erp_audit_events', 'seiko_storage_audit', 'erp_label_history', 'jinam_shared_changes'];
 const reply = (message: string, status = 400) => Response.json({ ok: false, message }, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -30,12 +30,14 @@ export async function POST(request: Request) {
     const columns = names.map(table => columnRows.results.filter(row => row.table_name === table).sort((a, b) => a.cid - b.cid).map(row => row.name));
     if (columns.some(fields => !fields.length)) return reply('Database migrations are incomplete.', 503);
     // D1 batch reads are one transaction, so records and their histories describe one snapshot.
-    const results = await db.batch(names.map(table => db.prepare(`SELECT * FROM "${table}" ORDER BY ${TABLES[table as keyof typeof TABLES].map((key: string) => `"${key}"`).join(',')}`)));
+    const results = await db.batch([...names.map(table => db.prepare(`SELECT * FROM "${table}" ORDER BY ${TABLES[table as keyof typeof TABLES].map((key: string) => `"${key}"`).join(',')}`)), db.prepare('SELECT name,seq FROM sqlite_sequence')]);
     const tables: Record<string, TableData> = Object.fromEntries(names.map((table, index) => [table, { columns: columns[index], rows: results[index].results as Row[] }]));
     const audit = (operation: string, checksum: string, details: object, status = 'verified') => db.prepare('INSERT INTO erp_backup_operations(id,operation,actor_email,at,checksum,details_json,status) VALUES(?,?,?,?,?,?,?)').bind(crypto.randomUUID(), operation, actor.email, new Date().toISOString(), checksum, JSON.stringify(details), status);
     if (body.operation === 'export') {
-      const backup = await makeBackup(tables, schemaVersion, 'production-d1');
-      await audit('export', backup.checksum, { records: results.reduce((count, result) => count + result.results.length, 0) }).run();
+      const counters = results[names.length].results as { name: string; seq: number }[];
+      const sequences = Object.fromEntries(SEQUENCE_TABLES.map((table: string) => [table, counters.find(row => row.name === table)?.seq || 0]));
+      const backup = await makeBackup(tables, schemaVersion, 'production-d1', sequences);
+      await audit('export', backup.checksum, { records: results.slice(0, names.length).reduce((count, result) => count + result.results.length, 0) }).run();
       return Response.json({ ok: true, backup }, { headers: { 'Cache-Control': 'no-store' } });
     }
     let backup: Backup;
@@ -73,7 +75,13 @@ export async function POST(request: Request) {
       }
       flush();
     }
-    if (statements.length > 20) return reply('Backup is too large for an atomic free-plan restore. Use isolated local recovery.', 413);
+    if (backup.sequences) {
+      const counters = JSON.stringify(backup.sequences);
+      statements.push(db.prepare('INSERT INTO sqlite_sequence(name,seq) SELECT key,value FROM json_each(?) WHERE NOT EXISTS(SELECT 1 FROM sqlite_sequence WHERE name=key)').bind(counters));
+      // Recovery triggers may already have advanced history counters; never move them backwards.
+      statements.push(db.prepare('UPDATE sqlite_sequence SET seq=max(seq,(SELECT value FROM json_each(?) WHERE key=name)) WHERE name IN(SELECT key FROM json_each(?))').bind(counters, counters));
+    }
+    if (statements.length > 19) return reply('Backup is too large for an atomic free-plan restore. Use isolated local recovery.', 413);
     try { await db.batch(statements); } catch { return reply('Restore refused or rolled back. A conflict or database constraint prevented import.', 409); }
     return Response.json({ ok: true, summary, message: 'Business records restored. Reload all open devices. Accounts and connector credentials were not imported.' }, { headers: { 'Cache-Control': 'no-store' } });
   } catch { return reply('Backup operation failed. Retry after checking storage availability.', 503); }

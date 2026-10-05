@@ -4,7 +4,7 @@ D1 remains the live authority. This implementation requires no paid Cloudflare p
 
 ## Coverage and encryption
 
-The versioned business archive includes 14 operational tables: orders and order history; preferences; clients; billing documents (including invoices, challans, quotations and receipts represented by these documents); payments and their history; label tasks, templates, layouts, presets and history; shared product/commerce collections and their changes; MeTh stock, fulfilment policy and routing claims. IDs, numbering, JSON fields, archived states, tombstones and original histories are preserved. Passwords, memberships, sessions, passkeys, OAuth state, connector secrets and security events are excluded. Rebuild accounts and reconnect integrations through a separate security-admin recovery process. Application code and repository assets are recovered from GitHub. Unsaved browser drafts and offline scan queues are not D1 records and are not included in scheduled exports.
+The versioned business archive includes 14 operational tables: orders and order history; preferences; clients; billing documents (including invoices, challans, quotations and receipts represented by these documents); payments and their history; label tasks, templates, layouts, presets and history; shared product/commerce collections and their changes; MeTh stock, fulfilment policy and routing claims. IDs, numbering (including deleted-record sequence high-water counters in new archives), JSON fields, archived states, tombstones and original histories are preserved. Passwords, memberships, sessions, passkeys, OAuth state, connector secrets and security events are excluded. Rebuild accounts and reconnect integrations through a separate security-admin recovery process. Application code and repository assets are recovered from GitHub. Unsaved browser drafts and offline scan queues are not D1 records and are not included in scheduled exports.
 
 Files use AES-256-GCM with a random salt and nonce, PBKDF2-SHA256 (100,000 iterations), an authenticated format marker and an internal SHA-256 manifest. Backup passphrases never go to the application's server. Keep the recovery key separately from the encrypted backups and from Google Drive. Losing every copy of the key makes encrypted backups unrecoverable. The local scheduled runner reads a private owner-controlled key file; do not commit that file or configuration.
 
@@ -14,7 +14,7 @@ Open Settings → Backup & recovery, or `/backups`. Whole-system export requires
 
 Select a backup to authenticate encryption and checksum, verify the migration version and compare new, duplicate and changed records. No business records change during this dry run. The initial restore path intentionally accepts only an empty operational database; it never merges or overwrites existing/newer records. Restoring requires an ERP login less than ten minutes old and the exact confirmation `RESTORE EMPTY SYSTEM`. A D1 transaction checks emptiness again, imports history before entities and appends a restore event. Constraint errors and concurrent inserts roll the entire restore back. Existing accounts are retained; security credentials are never imported. History contains the original archived events plus new insertion events from recovery. Reload open devices after recovery.
 
-Large archives exceeding the 16 MB request limit, 1.8 MB row/chunk bound or 20-statement free-plan transaction budget require isolated recovery with the local tool. These limits are refusals, not partial import.
+Large archives exceeding the 16 MB request limit, 1.8 MB row/chunk bound or 19-statement free-plan transaction budget require isolated recovery with the local tool. These limits are refusals, not partial import.
 
 ## Periodic PC copy
 
@@ -44,3 +44,5 @@ Production recovery must first preserve the current D1 database and accounts, re
 ## Recorded drill: 4 October 2026
 
 A production D1 business export was encrypted and restored into a new local SQLite file on the owner's computer. All 14 operational tables and 189 rows compared exactly with the source archive, including original audit history. Integrity check returned `ok`. Archive payload checksum: `ad8b28e2e9b7f9828cd9ddc986c3d35f3fc591b622a9db4ef39b4116b7441772`. Private data, the recovery key and the SQLite drill file remain outside Git. This drill proves recovery of that snapshot; it does not prove recovery of later updates or security credentials.
+
+Archives created before numbering metadata was added still restore their rows, but cannot recover a counter higher than the greatest surviving record. The dry-run report identifies whether numbering counters are included. Use a new verified archive for complete numbering recovery.

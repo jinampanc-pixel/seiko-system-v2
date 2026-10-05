@@ -1,5 +1,6 @@
 // One portable format for browser exports, scheduled disk copies and restore drills.
 export const BACKUP_VERSION = 1;
+export const SEQUENCE_TABLES = ['seiko_billing_documents', 'seiko_billing_payments', 'seiko_storage_audit', 'erp_label_history', 'jinam_shared_changes'];
 export const TABLES = {
   erp_orders: ['id'], erp_audit_events: ['id'], erp_preferences: ['business_id', 'key'],
   seiko_billing_documents: ['id'], seiko_billing_payments: ['id'], seiko_clients: ['id'],
@@ -14,8 +15,8 @@ const encoder = new TextEncoder();
 export async function checksum(value) {
   return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(canonical(value)))), byte => byte.toString(16).padStart(2, '0')).join('');
 }
-export async function makeBackup(tables, schemaVersion, source) {
-  const payload = { format: 'seiko-business-backup', version: BACKUP_VERSION, exportedAt: new Date().toISOString(), schemaVersion, source, tables };
+export async function makeBackup(tables, schemaVersion, source, sequences) {
+  const payload = { format: 'seiko-business-backup', version: BACKUP_VERSION, exportedAt: new Date().toISOString(), schemaVersion, source, tables, ...(sequences ? { sequences } : {}) };
   return { ...payload, checksum: await checksum(payload) };
 }
 export async function validateBackup(backup) {
@@ -32,6 +33,13 @@ export async function validateBackup(backup) {
       const key = canonical(keys.map(key => row[key]));
       if (seen.has(key)) throw new Error('Duplicate backup identity.');
       seen.add(key);
+    }
+  }
+  if (backup.sequences !== undefined) {
+    if (!backup.sequences || canonical(Object.keys(backup.sequences).sort()) !== canonical([...SEQUENCE_TABLES].sort())) throw new Error('Invalid backup numbering coverage.');
+    for (const table of SEQUENCE_TABLES) {
+      const counter = backup.sequences[table];
+      if (!Number.isSafeInteger(counter) || counter < 0 || backup.tables[table].rows.some(row => !Number.isSafeInteger(row.sequence) || row.sequence > counter)) throw new Error('Invalid backup numbering counter.');
     }
   }
   return backup;
@@ -51,7 +59,7 @@ export function summarizeRestore(backup, current) {
     summary.tables[table] = result;
   }
   // Initial recovery deliberately targets an empty database. A live merge needs separate review.
-  return { ...summary, canRestore: summary.existing === 0 && summary.new > 0 };
+  return { ...summary, numberingCountersIncluded: backup.sequences !== undefined, canRestore: summary.existing === 0 && summary.new > 0 };
 }
 function base64(bytes) {
   let text = ''; for (let offset = 0; offset < bytes.length; offset += 8192) text += String.fromCharCode(...bytes.subarray(offset, offset + 8192));

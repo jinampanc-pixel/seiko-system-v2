@@ -114,3 +114,28 @@ test('restore constraints and a concurrent write roll back the entire import', a
     assert.equal(target.sqlite.prepare('SELECT count(*) AS n FROM erp_backup_operations').get().n, 0);
   } finally { source.sqlite.close(); target.sqlite.close(); }
 });
+
+
+test('recovery preserves deleted high-water numbering and validates counter metadata', async () => {
+  const source = fixture(); const target = fixture();
+  try {
+    seed(source.sqlite);
+    source.sqlite.exec("UPDATE sqlite_sequence SET seq=80 WHERE name='seiko_billing_documents'");
+    source.sqlite.exec("INSERT INTO sqlite_sequence(name,seq) VALUES('jinam_shared_changes',70)");
+    const backup = (await source.call({ operation: 'export' })).backup;
+    assert.equal(backup.sequences.seiko_billing_documents, 80);
+    assert.equal(backup.sequences.jinam_shared_changes, 70);
+    assert.equal(restoreDrill(backup, ':memory:').numberingCountersIncluded, true);
+    assert.equal((await target.call({ operation: 'restore', backup, confirmation: 'RESTORE EMPTY SYSTEM' })).status, 200);
+    target.sqlite.prepare('INSERT INTO seiko_billing_documents(id,data,total_paise,created_by) VALUES(?,?,?,?)').run('next', '{}', 0, 'owner');
+    assert.equal(target.sqlite.prepare("SELECT sequence FROM seiko_billing_documents WHERE id='next'").get().sequence, 81);
+    assert.equal(target.sqlite.prepare("SELECT seq FROM sqlite_sequence WHERE name='jinam_shared_changes'").get().seq, 70);
+    const invalid = structuredClone(backup); invalid.sequences.seiko_billing_documents = 0;
+    const { checksum: ignored, ...payload } = invalid; void ignored; invalid.checksum = await format.checksum(payload);
+    await assert.rejects(format.validateBackup(invalid), /numbering/);
+    const { sequences: omitted, checksum: digest, ...oldPayload } = backup; void omitted; void digest;
+    const legacy = { ...oldPayload, checksum: await format.checksum(oldPayload) };
+    await format.validateBackup(legacy);
+    assert.equal(restoreDrill(legacy, ':memory:').numberingCountersIncluded, false);
+  } finally { source.sqlite.close(); target.sqlite.close(); }
+});

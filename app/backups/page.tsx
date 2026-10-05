@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { encryptBackup, decryptBackup } from '../lib/backup-format.mjs';
 
 type Backup = { checksum: string; schemaVersion: string[]; tables: Record<string, { columns: string[]; rows: Record<string, string | number | null>[] }> };
-type Summary = { new: number; duplicate: number; changed: number; rejected: number; existing: number; canRestore: boolean };
+type Summary = { new: number; duplicate: number; changed: number; rejected: number; existing: number; canRestore: boolean; numberingCountersIncluded: boolean };
 async function call(body: object) {
   const response = await fetch('/api/erp/backups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.message || 'Backup request failed.'); return result;
@@ -36,6 +36,7 @@ export default function BackupsPage() {
       });
     }}/></label>
     {summary && <><p>New: {summary.new} · Duplicates: {summary.duplicate} · Changed: {summary.changed} · Rejected: {summary.rejected} · Existing: {summary.existing}</p>
+      {!summary.numberingCountersIncluded && <p>This older archive has no numbering counters. Numbers above the greatest surviving record cannot be recovered; use a newer backup for complete numbering recovery.</p>}
       {summary.canRestore ? <><p>Restore is available only into an empty business database. Sign in again first; your ERP session must be less than ten minutes old.</p>
         <label>Type RESTORE EMPTY SYSTEM<input value={confirmation} onChange={event => setConfirmation(event.target.value)}/></label>
         <button type='button' disabled={busy || confirmation !== 'RESTORE EMPTY SYSTEM'} onClick={() => void perform(async () => { const result = await call({ operation: 'restore', backup, confirmation }); setMessage(result.message); setSummary(null); setBackup(null); })}>Restore empty system</button>
