@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import ArchiveBrowser from './ArchiveBrowser';
+import styles from './backups.module.css';
 import { encryptBackup, decryptBackup } from '../lib/backup-format.mjs';
 import { makeLocalRecovery, encryptLocalRecovery, decryptLocalRecovery } from '../lib/local-recovery.mjs';
 
@@ -16,7 +17,7 @@ export default function BackupsPage() {
   const [summary, setSummary] = useState<Summary | null>(null); const [confirmation, setConfirmation] = useState('');
   const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
   const perform = async (action: () => Promise<void>) => { setBusy(true); setMessage('Working…'); try { await action(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'Backup operation failed.'); } finally { setBusy(false); } };
-  return <main style={{ maxWidth: 840, margin: '32px auto', padding: 24 }}>
+  return <main className={styles.page}>
     <Link href='/'>← Back to Home</Link><h1>Backup &amp; recovery</h1>
     <p>Download an encrypted system backup to this PC, then keep a second encrypted copy in your private Google Drive folder. Owner access to all three businesses is required.</p>
     <p>Includes orders, clients, products stored in shared collections, documents, payments, labels, settings and operational histories. Accounts, passwords, sessions, passkeys and connector secrets are excluded. Unsynced browser drafts must be saved separately.</p>
