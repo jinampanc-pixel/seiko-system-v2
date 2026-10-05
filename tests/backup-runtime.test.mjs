@@ -8,8 +8,9 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import * as format from '../app/lib/backup-format.mjs';
 import { restoreDrill, diskBackup } from '../scripts/business-backup.mjs';
+import { publishBackupStatus } from '../scripts/backup-status.mjs';
 
-export function fixture() {
+export function fixture(managedKey) {
   const sqlite = new DatabaseSync(':memory:');
   const files = fs.readdirSync('migrations').sort();
   for (const file of files) sqlite.exec(fs.readFileSync(`migrations/${file}`, 'utf8'));
@@ -27,7 +28,7 @@ export function fixture() {
   const api = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync('app/api/erp/backups/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
     exports: api, Response, Request, URL, TextDecoder, TextEncoder, Uint8Array, crypto, Date,
-    require(name) { if (name === 'cloudflare:workers') return { env: { DB: db } }; if (name.endsWith('backup-format.mjs')) return format; return { authenticateActor: async () => actor }; },
+    require(name) { if (name === 'cloudflare:workers') return { env: { DB: db, BACKUP_RECOVERY_KEY: managedKey } }; if (name.endsWith('backup-format.mjs')) return format; return { authenticateActor: async () => actor }; },
   });
   for (const business of ['seiko', 'meth', 'veyn-health']) sqlite.prepare("INSERT INTO erp_memberships(id,business_id,email,role,active,created_at,created_by_email,updated_at,updated_by_email) VALUES(?,?,?,'owner',1,?,?,?,?)").run(business, business, actor.email, 'now', actor.email, 'now', actor.email);
   sqlite.prepare("INSERT INTO erp_sessions(id,user_id,token_hash,created_at,last_seen_at,expires_at) VALUES('session','owner','fixture',?,?,?)").run(new Date().toISOString(), new Date().toISOString(), new Date(Date.now() + 3600000).toISOString());
@@ -40,6 +41,34 @@ function seed(sqlite) {
   sqlite.prepare('INSERT INTO seiko_billing_payments(id,invoice_id,amount_paise,data,created_by) VALUES(?,?,?,?,?)').run('payment', 'invoice', 5000, '{"id":"payment"}', 'owner');
   sqlite.prepare('INSERT INTO erp_label_records(business_id,collection,id,document_json,updated_at,updated_by_email) VALUES(?,?,?,?,?,?)').run('seiko', 'tasks-v1', 'task', '{"id":"task","unknownFutureField":true}', 'now', 'owner');
 }
+test('owner-managed backups unlock without returning keys and require fresh owner authentication', async () => {
+  const key = 'managed fixture recovery key'; const f = fixture(key); const missing = fixture();
+  try {
+    seed(f.sqlite);
+    const status = await f.call({ operation: 'status' }); assert.equal(status.managedRecoveryReady, true); assert.equal(status.records > 0, true); assert.equal(status.copies.length, 0); assert.equal(JSON.stringify(status).includes(key), false);
+    const result = await f.call({ operation: 'managed-export' }); assert.equal(result.status, 200); assert.equal(result.backup, undefined); assert.equal(JSON.stringify(result).includes(key), false);
+    const decoded = await format.decryptBackup(result.envelope, key);
+    const inspected = await f.call({ operation: 'managed-inspect', envelope: result.envelope }); assert.equal(inspected.backup.checksum, decoded.checksum);
+    const corrupt = structuredClone(result.envelope); corrupt.ciphertext = 'invalid'; assert.equal((await f.call({ operation: 'managed-inspect', envelope: corrupt })).status, 400);
+    f.sqlite.exec("UPDATE erp_sessions SET created_at='2000-01-01T00:00:00Z'"); assert.equal((await f.call({ operation: 'managed-inspect', envelope: result.envelope })).status, 401);
+    f.sqlite.exec("DELETE FROM erp_memberships WHERE business_id='seiko'"); assert.equal((await f.call({ operation: 'status' })).status, 403);
+    assert.equal((await missing.call({ operation: 'managed-export' })).status, 503);
+  } finally { f.sqlite.close(); missing.sqlite.close(); }
+});
+test('published copy receipts match decrypted archives and cannot claim an unverified Drive copy', async () => {
+  const f = fixture(); const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'seiko-status-test-'));
+  try {
+    seed(f.sqlite); const backup = (await f.call({ operation: 'export' })).backup;
+    const keyFile = path.join(directory, 'key'); fs.writeFileSync(keyFile, 'private fixture receipt key');
+    const report = { ...restoreDrill(backup, ':memory:'), file: 'seiko-2026-10-05T00-00-00-000Z.seiko-backup', driveCopy: 'not-configured' };
+    fs.writeFileSync(path.join(directory, report.file), JSON.stringify(await format.encryptBackup(backup, 'private fixture receipt key')));
+    const result = await publishBackupStatus({ directory, keyFile }, report, (_exe, args) => { f.sqlite.exec(args[args.indexOf('--command') + 1]); return { status: 0 }; });
+    assert.deepEqual(result.reported, ['pc']);
+    const status = await f.call({ operation: 'status' }); assert.equal(status.copies[0].location, 'pc'); assert.equal(status.copies[0].records, report.records);
+    await assert.rejects(publishBackupStatus({ directory, keyFile }, { ...report, records: 999 }, () => { throw new Error('must not publish'); }), /does not match/);
+    await assert.rejects(publishBackupStatus({ directory, keyFile }, { ...report, driveCopy: 'remote-byte-verified' }), /incomplete/);
+  } finally { f.sqlite.close(); fs.rmSync(directory, { recursive: true, force: true }); }
+});
 test('encrypted full-business backup round-trips with exact history, excludes credentials and detects corruption', async () => {
   const f = fixture(); const passphrase = 'fixture recovery passphrase';
   try {

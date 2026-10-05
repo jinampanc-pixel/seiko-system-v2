@@ -37,6 +37,9 @@
 .page section h2 { margin-top: 0; }
 .page [role=status]:not(:empty) { padding: 12px 16px; border-left: 4px solid #347895; border-radius: 6px; background: #e4f0f6; }
 .page details { background: #fff; }
+.page > details { margin-top: 28px; padding: 20px; border: 1px solid #c6d6e0; border-radius: 12px; }
+.page article { padding: 16px; border: 1px solid #c6d6e0; border-radius: 10px; background: #fff; }
+.page h3 { font-size: 18px; font-weight: 700; margin: 0 0 8px; }
 .page summary { padding: 4px; font-weight: 600; cursor: pointer; overflow-wrap: anywhere; }
 @media(max-width: 700px) {
   .page { margin: 12px; padding: 20px; font-size: 16px; }

@@ -9,7 +9,7 @@ function readable(value: string | number | null) {
   if (typeof value !== 'string') return String(value ?? '—');
   try { return JSON.stringify(JSON.parse(value), null, 2); } catch { return value; }
 }
-export default function ArchiveBrowser({ passphrase }: { passphrase: string }) {
+export default function ArchiveBrowser({ passphrase, unlock }: { passphrase: string; unlock?: (envelope: object) => Promise<Archive> }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [archives, setArchives] = useState<Archive[]>([]);
   const [query, setQuery] = useState(''); const [collection, setCollection] = useState('erp_orders');
@@ -19,8 +19,8 @@ export default function ArchiveBrowser({ passphrase }: { passphrase: string }) {
     .map((row, index) => ({ archive, row, index }))), [archives, collection, query]);
   return <section aria-label='Search saved archives'>
     <h2>Search saved archives</h2>
-    <p>Open encrypted copies from this device or downloaded from Drive. Search old orders and other records without restoring or changing the live database. Files are unlocked on this device and are not uploaded. A snapshot shows data as it was on its backup date.</p>
-    <label>Archives to search<input ref={fileInput} type='file' multiple accept='.seiko-backup' disabled={busy || passphrase.length < 16} onChange={event => {
+    <p>Open encrypted copies from this device or downloaded from Drive. Search old orders and other records without changing the live database. {unlock ? 'Owner authentication unlocks files through Jinam’s secure recovery service. Files are sent to that service for decryption.' : 'Files are unlocked on this device and are not uploaded.'} A snapshot shows data as it was on its backup date.</p>
+    <label>Archives to search<input ref={fileInput} type='file' multiple accept='.seiko-backup' disabled={busy || (!unlock && passphrase.length < 16)} onChange={event => {
       const files = Array.from(event.target.files || []); setArchives([]); setMessage(''); setQuery('');
       if (!files.length) return;
       setBusy(true);
@@ -28,7 +28,11 @@ export default function ArchiveBrowser({ passphrase }: { passphrase: string }) {
         try {
           if (files.reduce((size, file) => size + file.size, 0) > 48 * 1024 * 1024) throw new Error('Open fewer archives at once (48 MB maximum).');
           const decoded: Archive[] = [];
-          for (const file of files) decoded.push({ ...(await decryptBackup(JSON.parse(await file.text()), passphrase)), name: file.name });
+          for (const file of files) {
+            if (unlock && file.size > 16 * 1024 * 1024) throw new Error('Use Advanced recovery for offline browsing of archives larger than 16 MB.');
+            const envelope = JSON.parse(await file.text());
+            decoded.push({ ...(unlock ? await unlock(envelope) : await decryptBackup(envelope, passphrase)), name: file.name });
+          }
           setArchives(decoded); setMessage(`${decoded.length} verified archive(s) ready to search. No live records changed.`);
         } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'Archive could not be opened.'); }
         finally { setBusy(false); }

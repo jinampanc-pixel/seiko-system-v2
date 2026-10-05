@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { authenticateActor } from '../../../lib/server-erp-auth';
-import { TABLES, SEQUENCE_TABLES, makeBackup, validateBackup, summarizeRestore, canonical } from '../../../lib/backup-format.mjs';
+import { TABLES, SEQUENCE_TABLES, makeBackup, validateBackup, summarizeRestore, canonical, encryptBackup, decryptBackup } from '../../../lib/backup-format.mjs';
 
 type Row = Record<string, string | number | null>;
 type TableData = { columns: string[]; rows: Row[] };
@@ -22,8 +22,27 @@ export async function POST(request: Request) {
     const reader = request.body?.getReader(); let size = 0; const chunks: Uint8Array[] = [];
     if (reader) for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.byteLength; if (size > 16 * 1024 * 1024) { await reader.cancel(); return reply('Use the local recovery tool for backups larger than 16 MB.', 413); } chunks.push(part.value); }
     const bytes = new Uint8Array(size); let offset = 0; for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-    const body = JSON.parse(new TextDecoder().decode(bytes)) as { operation?: string; backup?: Backup; confirmation?: string };
-    if (!['export', 'dry-run', 'restore'].includes(body.operation || '')) return reply('Choose a valid backup operation.');
+    const body = JSON.parse(new TextDecoder().decode(bytes)) as { operation?: string; backup?: Backup; envelope?: object; confirmation?: string };
+    if (!['status', 'managed-export', 'managed-inspect', 'export', 'dry-run', 'restore'].includes(body.operation || '')) return reply('Choose a valid backup operation.');
+    const managedKey = (env as unknown as { BACKUP_RECOVERY_KEY?: string }).BACKUP_RECOVERY_KEY?.trim();
+    if (body.operation === 'status') {
+      const copies = await db.prepare("SELECT at,details_json FROM erp_backup_operations WHERE operation IN('pc-copy-verified','drive-copy-verified') ORDER BY at DESC LIMIT 40").all<{ at: string; details_json: string }>();
+      const counts = await db.prepare(names.map(table => `SELECT '${table}' AS table_name,count(*) AS records FROM "${table}"`).join(' UNION ALL ')).all<{ table_name: string; records: number }>();
+      const databaseBytes = (counts as unknown as { meta?: { size_after?: number } }).meta?.size_after ?? null;
+      return Response.json({ ok: true, managedRecoveryReady: !!managedKey && managedKey.length >= 16, records: counts.results.reduce((sum, row) => sum + row.records, 0), orders: counts.results.find(row => row.table_name === 'erp_orders')?.records || 0, databaseBytes, copies: copies.results.map(row => ({ ...JSON.parse(row.details_json), recordedAt: row.at })) }, { headers: { 'Cache-Control': 'no-store' } });
+    }
+    if (body.operation?.startsWith('managed-')) {
+      if (!managedKey || managedKey.length < 16) return reply('Owner recovery key is not configured. Existing backups remain protected.', 503);
+      const session = actor.sessionId && await db.prepare('SELECT created_at FROM erp_sessions WHERE id=? AND revoked_at IS NULL AND expires_at>?').bind(actor.sessionId, new Date().toISOString()).first<{ created_at: string }>();
+      const age = session ? Date.now() - Date.parse(session.created_at) : Infinity;
+      if (!Number.isFinite(age) || age < 0 || age > 10 * 60 * 1000) return reply('Sign in again to unlock owner recovery; authentication must be less than ten minutes old.', 401);
+      if (body.operation === 'managed-inspect') {
+        try {
+          const backup = await decryptBackup(body.envelope, managedKey);
+          return Response.json({ ok: true, backup }, { headers: { 'Cache-Control': 'no-store' } });
+        } catch { return reply('This backup could not be unlocked with the configured recovery key. No records changed.', 400); }
+      }
+    }
     const schema = await db.prepare('SELECT name FROM d1_migrations ORDER BY id').all<{ name: string }>();
     const schemaVersion = schema.results.map(row => row.name);
     const columnRows = await db.prepare(names.map(table => `SELECT '${table}' AS table_name,name,cid FROM pragma_table_info('${table}')`).join(' UNION ALL ')).all<{ table_name: string; name: string; cid: number }>();
@@ -33,12 +52,12 @@ export async function POST(request: Request) {
     const results = await db.batch([...names.map(table => db.prepare(`SELECT * FROM "${table}" ORDER BY ${TABLES[table as keyof typeof TABLES].map((key: string) => `"${key}"`).join(',')}`)), db.prepare('SELECT name,seq FROM sqlite_sequence')]);
     const tables: Record<string, TableData> = Object.fromEntries(names.map((table, index) => [table, { columns: columns[index], rows: results[index].results as Row[] }]));
     const audit = (operation: string, checksum: string, details: object, status = 'verified') => db.prepare('INSERT INTO erp_backup_operations(id,operation,actor_email,at,checksum,details_json,status) VALUES(?,?,?,?,?,?,?)').bind(crypto.randomUUID(), operation, actor.email, new Date().toISOString(), checksum, JSON.stringify(details), status);
-    if (body.operation === 'export') {
+    if (body.operation === 'export' || body.operation === 'managed-export') {
       const counters = results[names.length].results as { name: string; seq: number }[];
       const sequences = Object.fromEntries(SEQUENCE_TABLES.map((table: string) => [table, counters.find(row => row.name === table)?.seq || 0]));
       const backup = await makeBackup(tables, schemaVersion, 'production-d1', sequences);
       await audit('export', backup.checksum, { records: results.slice(0, names.length).reduce((count, result) => count + result.results.length, 0) }).run();
-      return Response.json({ ok: true, backup }, { headers: { 'Cache-Control': 'no-store' } });
+      return Response.json(body.operation === 'managed-export' ? { ok: true, envelope: await encryptBackup(backup, managedKey) } : { ok: true, backup }, { headers: { 'Cache-Control': 'no-store' } });
     }
     let backup: Backup;
     try { backup = await validateBackup(body.backup); } catch { return reply('Backup validation failed. No records changed.'); }

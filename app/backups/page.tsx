@@ -3,15 +3,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 import ArchiveBrowser from './ArchiveBrowser';
 import styles from './backups.module.css';
+import OwnerRecovery from './OwnerRecovery';
+import { backupRequest as call } from './api';
 import { encryptBackup, decryptBackup } from '../lib/backup-format.mjs';
 import { makeLocalRecovery, encryptLocalRecovery, decryptLocalRecovery } from '../lib/local-recovery.mjs';
 
 type Backup = { checksum: string; schemaVersion: string[]; tables: Record<string, { columns: string[]; rows: Record<string, string | number | null>[] }> };
 type Summary = { new: number; duplicate: number; changed: number; rejected: number; existing: number; canRestore: boolean; numberingCountersIncluded: boolean };
-async function call(body: object) {
-  const response = await fetch('/api/erp/backups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  const result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.message || 'Backup request failed.'); return result;
-}
 export default function BackupsPage() {
   const [passphrase, setPassphrase] = useState(''); const [backup, setBackup] = useState<Backup | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null); const [confirmation, setConfirmation] = useState('');
@@ -19,6 +17,8 @@ export default function BackupsPage() {
   const perform = async (action: () => Promise<void>) => { setBusy(true); setMessage('Working…'); try { await action(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'Backup operation failed.'); } finally { setBusy(false); } };
   return <main className={styles.page}>
     <Link href='/'>← Back to Home</Link><h1>Backup &amp; recovery</h1>
+    <OwnerRecovery onClearReview={() => { setBackup(null); setSummary(null); setConfirmation(''); }} onReview={async decoded => { setBackup(null); setSummary(null); setConfirmation(''); const result = await call({ operation: 'dry-run', backup: decoded }); setBackup(decoded); setSummary(result.summary); setMessage('Checksum and schema verified. Review the comparison.'); }}/>
+    <details><summary>Advanced recovery — manual files and offline tools</summary>
     <p>Download an encrypted system backup to this PC, then keep a second encrypted copy in your private Google Drive folder. Owner access to all three businesses is required.</p>
     <p>Includes orders, clients, products stored in shared collections, documents, payments, labels, settings and operational histories. Accounts, passwords, sessions, passkeys and connector secrets are excluded. Unsynced browser drafts must be saved separately.</p>
     <label>Backup passphrase (at least 16 characters)<input type='password' autoComplete='new-password' value={passphrase} onChange={event => setPassphrase(event.target.value)} style={{ display: 'block', width: '100%', margin: '8px 0' }}/></label>
@@ -52,7 +52,8 @@ export default function BackupsPage() {
         const result = await call({ operation: 'dry-run', backup: decoded }); setBackup(decoded); setSummary(result.summary); setMessage('Checksum and schema verified. Review the comparison.');
       });
     }}/></label>
-    {summary && <><p>New: {summary.new} · Duplicates: {summary.duplicate} · Changed: {summary.changed} · Rejected: {summary.rejected} · Existing: {summary.existing}</p>
+    </details>
+    {summary && <><h2>Recovery preview</h2><p>New: {summary.new} · Duplicates: {summary.duplicate} · Changed: {summary.changed} · Rejected: {summary.rejected} · Existing: {summary.existing}</p>
       {!summary.numberingCountersIncluded && <p>This older archive has no numbering counters. Numbers above the greatest surviving record cannot be recovered; use a newer backup for complete numbering recovery.</p>}
       {summary.canRestore ? <><p>Restore is available only into an empty business database. Sign in again first; your ERP session must be less than ten minutes old.</p>
         <label>Type RESTORE EMPTY SYSTEM<input value={confirmation} onChange={event => setConfirmation(event.target.value)}/></label>
