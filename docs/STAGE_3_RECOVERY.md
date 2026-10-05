@@ -45,6 +45,10 @@ Implementation status on 5 October 2026: the standalone PC runner produced a ver
 
 While `/backups` is already loaded, Download local recovery copy also works without Internet. It encrypts available operational localStorage caches and pending changes in a separate `.jinam-local-recovery` format and excludes credential keys. It does not contain a complete D1 database, unsaved component state or all browser storage. Local copies can be checked offline and cannot be passed to the D1 restore action. Fresh page loading while offline is not promised.
 
+## Search saved archives
+
+The Backup & recovery page provides read-only archive browsing. Enter the backup passphrase, select one or more encrypted `.seiko-backup` files (48 MB combined maximum), select a record type, and search any saved value. Expand a result to inspect its complete saved record and its source filename/snapshot date. Decryption and checksum validation happen locally; browsing makes no backup API request, works while the page is already open offline, and changes no live records. Wrong keys or invalid archives clear the prior selection and refuse browsing. Close archives removes the displayed decrypted data from application state. This does not automatically discover Drive files or copies on other devices, provide a replacement live database, or recover changes newer than a snapshot. Owners must download the encrypted files to the current device first. Results from multiple snapshots remain separate so older versions are not silently merged.
+
 ## Restore drill
 
 Run `node scripts/business-backup.mjs drill <private-config.json> <archive.seiko-backup> <new-local.sqlite>`. It refuses an existing target file and never connects a restore to production D1. It creates the committed schema, replays exact business records and histories in an isolated transaction and reinstalls audit triggers. The report records archive checksum, record count and integrity result. Keep this report with the archive manifest. After a future schema change, run a new drill before relying on older archives; migration compatibility must be reviewed rather than silently guessed.

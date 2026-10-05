@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import ArchiveBrowser from './ArchiveBrowser';
 import { encryptBackup, decryptBackup } from '../lib/backup-format.mjs';
 import { makeLocalRecovery, encryptLocalRecovery, decryptLocalRecovery } from '../lib/local-recovery.mjs';
 
@@ -35,6 +36,7 @@ export default function BackupsPage() {
       const anchor = document.createElement('a'); anchor.href = url; anchor.download = `jinam-local-${new Date().toISOString().replace(/[:.]/g, '-')}.jinam-local-recovery`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
       setMessage(`Encrypted local recovery download prepared: ${Object.keys(copy.entries).length} cached collections. No D1 request was made.`);
     })}>Download local recovery copy</button>
+    <ArchiveBrowser passphrase={passphrase}/>
     <h2>Validate a recovery copy</h2><p>Select an encrypted backup and enter its passphrase. Validation compares it with current storage and changes no business records.</p>
     <label>Encrypted backup file<input type='file' accept='.seiko-backup,.jinam-local-recovery' disabled={busy} onChange={event => {
       const file = event.target.files?.[0]; setBackup(null); setSummary(null); setConfirmation('');
