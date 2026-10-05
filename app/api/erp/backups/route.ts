@@ -45,9 +45,9 @@ export async function POST(request: Request) {
     }
     const schema = await db.prepare('SELECT name FROM d1_migrations ORDER BY id').all<{ name: string }>();
     const schemaVersion = schema.results.map(row => row.name);
-    // D1 permits fewer compound SELECT terms than desktop SQLite. Batch simple reads instead.
-    const columnRows = await db.batch(names.map(table => db.prepare(`SELECT name,cid FROM pragma_table_info('${table}') ORDER BY cid`)));
-    const columns = columnRows.map(result => (result.results as { name: string }[]).map(row => row.name));
+    // Scalar subqueries avoid compound SELECT limits without spending fourteen D1 queries.
+    const columnRows = await db.prepare(`SELECT ${names.map(table => `(SELECT json_group_array(name) FROM (SELECT name FROM pragma_table_info('${table}') ORDER BY cid)) AS "${table}"`).join(',')}`).first<Record<string, string>>();
+    const columns = names.map(table => JSON.parse(columnRows?.[table] || '[]') as string[]);
     if (columns.some(fields => !fields.length)) return reply('Database migrations are incomplete.', 503);
     // D1 batch reads are one transaction, so records and their histories describe one snapshot.
     const results = await db.batch([...names.map(table => db.prepare(`SELECT * FROM "${table}" ORDER BY ${TABLES[table as keyof typeof TABLES].map((key: string) => `"${key}"`).join(',')}`)), db.prepare('SELECT name,seq FROM sqlite_sequence')]);
