@@ -27,9 +27,9 @@ export async function POST(request: Request) {
     const managedKey = (env as unknown as { BACKUP_RECOVERY_KEY?: string }).BACKUP_RECOVERY_KEY?.trim();
     if (body.operation === 'status') {
       const copies = await db.prepare("SELECT at,details_json FROM erp_backup_operations WHERE operation IN('pc-copy-verified','drive-copy-verified') ORDER BY at DESC LIMIT 40").all<{ at: string; details_json: string }>();
-      const counts = await db.prepare(names.map(table => `SELECT '${table}' AS table_name,count(*) AS records FROM "${table}"`).join(' UNION ALL ')).all<{ table_name: string; records: number }>();
+      const counts = await db.prepare(`SELECT ${names.map(table => `(SELECT count(*) FROM "${table}") AS "${table}"`).join(',')}`).all<Record<string, number>>();
       const databaseBytes = (counts as unknown as { meta?: { size_after?: number } }).meta?.size_after ?? null;
-      return Response.json({ ok: true, managedRecoveryReady: !!managedKey && managedKey.length >= 16, records: counts.results.reduce((sum, row) => sum + row.records, 0), orders: counts.results.find(row => row.table_name === 'erp_orders')?.records || 0, databaseBytes, copies: copies.results.map(row => ({ ...JSON.parse(row.details_json), recordedAt: row.at })) }, { headers: { 'Cache-Control': 'no-store' } });
+      return Response.json({ ok: true, managedRecoveryReady: !!managedKey && managedKey.length >= 16, records: Object.values(counts.results[0]).reduce((sum, count) => sum + count, 0), orders: counts.results[0].erp_orders || 0, databaseBytes, copies: copies.results.map(row => ({ ...JSON.parse(row.details_json), recordedAt: row.at })) }, { headers: { 'Cache-Control': 'no-store' } });
     }
     if (body.operation?.startsWith('managed-')) {
       if (!managedKey || managedKey.length < 16) return reply('Owner recovery key is not configured. Existing backups remain protected.', 503);
@@ -45,8 +45,9 @@ export async function POST(request: Request) {
     }
     const schema = await db.prepare('SELECT name FROM d1_migrations ORDER BY id').all<{ name: string }>();
     const schemaVersion = schema.results.map(row => row.name);
-    const columnRows = await db.prepare(names.map(table => `SELECT '${table}' AS table_name,name,cid FROM pragma_table_info('${table}')`).join(' UNION ALL ')).all<{ table_name: string; name: string; cid: number }>();
-    const columns = names.map(table => columnRows.results.filter(row => row.table_name === table).sort((a, b) => a.cid - b.cid).map(row => row.name));
+    // D1 permits fewer compound SELECT terms than desktop SQLite. Batch simple reads instead.
+    const columnRows = await db.batch(names.map(table => db.prepare(`SELECT name,cid FROM pragma_table_info('${table}') ORDER BY cid`)));
+    const columns = columnRows.map(result => (result.results as { name: string }[]).map(row => row.name));
     if (columns.some(fields => !fields.length)) return reply('Database migrations are incomplete.', 503);
     // D1 batch reads are one transaction, so records and their histories describe one snapshot.
     const results = await db.batch([...names.map(table => db.prepare(`SELECT * FROM "${table}" ORDER BY ${TABLES[table as keyof typeof TABLES].map((key: string) => `"${key}"`).join(',')}`)), db.prepare('SELECT name,seq FROM sqlite_sequence')]);

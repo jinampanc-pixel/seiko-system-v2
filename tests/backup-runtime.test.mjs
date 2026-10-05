@@ -17,6 +17,7 @@ export function fixture(managedKey) {
   sqlite.exec('CREATE TABLE d1_migrations(id INTEGER PRIMARY KEY,name TEXT NOT NULL)');
   for (const file of files) sqlite.prepare('INSERT INTO d1_migrations(name) VALUES(?)').run(file);
   const db = { withSession() { return this; }, prepare(sql) {
+    if ((sql.match(/UNION ALL/g) || []).length >= 5) throw new Error('D1 compound SELECT limit');
     const statement = sqlite.prepare(sql); let args = [];
     return { bind(...values) { args = values; return this; }, async run() { return { meta: { changes: Number(statement.run(...args).changes) } }; }, async first() { return statement.get(...args); }, async all() { return { results: statement.all(...args).map(row => ({ ...row })) }; } };
   }, async batch(statements) {
