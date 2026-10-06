@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-html-link-for-pages -- Recovery must exit through a document load when the client router is unavailable. */
 import { useState } from 'react';
 import ArchiveBrowser from './ArchiveBrowser';
 import styles from './backups.module.css';
