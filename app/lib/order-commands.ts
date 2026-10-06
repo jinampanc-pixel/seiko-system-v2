@@ -13,9 +13,9 @@ export function requestOrders<T>(body: Record<string, unknown>): Promise<Result<
   const businessId = String(body.businessId);
   const run = async (): Promise<Result<T>> => {
     try {
-      const response = await fetch("/api/erp/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
-      if (response.redirected || response.status === 401) {
-        return { ok: false, code: "AUTH_REQUIRED", message: "Your sign-in session has expired. Sign in in another tab, then retry Save & Close here. Your changes remain open." };
+      const response = await fetch("/api/erp/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), cache: "no-store", redirect: "manual" });
+      if (response.type === "opaqueredirect" || response.redirected || response.status === 401 || (response.status >= 300 && response.status < 400)) {
+        return { ok: false, code: "AUTH_REQUIRED", message: "Your sign-in session has expired. Sign in in another tab, then retry the save here. Your changes remain open." };
       }
       let result: Result<T>;
       try { result = await response.json() as Result<T>; }

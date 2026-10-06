@@ -51,7 +51,7 @@ function openSeikoOrder(order: SeikoOrder) {
 }
 
 function openNewOrder() {
-  openSeikoModule("Orders", () => Array.from(document.querySelectorAll<HTMLButtonElement>(".ordersPage button")).find(button => button.textContent?.trim() === "+ New order")?.click());
+  window.dispatchEvent(new Event("seiko:new-order"));
 }
 
 function openBillingAction(action: "payment" | "invoice" | "quotation" | "challan") {
