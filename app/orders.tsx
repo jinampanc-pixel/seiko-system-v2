@@ -116,15 +116,15 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
         const top = Math.max(8, Math.min(window.innerHeight - panel.getBoundingClientRect().height - 8, anchor.bottom + 5));
         panel.style.top = `${top}px`; panel.style.maxHeight = `${window.innerHeight - top - 8}px`;
       }}><summary aria-label={`Actions for ${order.details.orderNo}`}>•••</summary><div className="seikoRowActionPanel" onClickCapture={event => { if ((event.target as Element).closest("button")) event.currentTarget.closest("details")!.open = false; }} style={{ position: "fixed", right: "auto", zIndex: 12000, boxSizing: "border-box", maxHeight: "calc(100dvh - 16px)", overflowY: "auto" }}>
-        <button disabled={busy} onClick={() => openWorkspace(order)}>Open workspace</button>
-        <button onClick={() => openOrderFinancialAction(order.orderId, "payment")}>Record payment</button>
+        <div className="orderMenuContext"><b>{order.details.orderNo}</b><span>{order.details.clientName}</span></div><p className="orderMenuGroupLabel">Order</p><button disabled={busy} onClick={() => openWorkspace(order)}>Open workspace</button>
+        <p className="orderMenuGroupLabel">Billing & documents</p><button onClick={() => openOrderFinancialAction(order.orderId, "payment")}>Record payment</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "payments")}>View payments / receipts</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "invoice")}>Create invoice</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "challan")}>Create delivery challan</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "quotation")}>Create quotation</button>
-        <button onClick={() => { setCurrent(structuredClone(order)); setSetupReturnView("center"); setView("setup"); }}>Edit setup</button>
+        <p className="orderMenuGroupLabel">Setup & labels</p><button onClick={() => { setCurrent(structuredClone(order)); setSetupReturnView("center"); setView("setup"); }}>Edit setup</button>
         <button onClick={() => { window.location.href = `/labels/create?business=${encodeURIComponent(businessId)}&order=${encodeURIComponent(order.orderId)}`; }}>Create labels</button>
-        <button disabled={busy} onClick={() => void archiveOrder(order)}>{order.archived ? "Restore order" : "Archive order"}</button>
+        <p className="orderMenuGroupLabel">Manage order</p><button disabled={busy} onClick={() => void archiveOrder(order)}>{order.archived ? "Restore order" : "Archive order"}</button>
         {membership?.role === "owner" && <button disabled={busy} className="dangerText" onClick={() => deleteOrder(order)}>Delete order</button>}
       </div></details>
     </article>) : <div className="orderEmpty"><b>{archivedOnly ? "No archived orders" : "No orders yet"}</b><p>Create the first order from the client’s actual requirements.</p></div>}</section>

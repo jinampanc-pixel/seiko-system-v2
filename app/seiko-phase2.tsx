@@ -142,7 +142,7 @@ export function SeikoPhase2() {
   if (!view || typeof document === "undefined") return null;
   const orders = readStore<SeikoOrder[]>(orderStoreKey(businessId), []);
   return createPortal(<section className="seikoPhase2Surface" aria-label={`SEIKO ${view}`}>
-    <header className="seikoPhase2Head"><div><button type="button" className="secondary" onClick={() => setView(null)}>← Back to Home</button><small>SEIKO</small><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
+    <header className="phase2BrandHeader"><img src="/brands/seiko-logo-transparent.png" alt="SEIKO Tailors"/><button type="button" className="menuToggle" aria-label="Open billing navigation" onClick={()=>{setView(null);document.querySelector<HTMLButtonElement>('.app .topbar .menuToggle[aria-expanded="false"]')?.click();}}><span/><span/><span/></button></header><header className="seikoPhase2Head"><div><button type="button" className="secondary" onClick={() => setView(null)}>← Back to Home</button><small>SEIKO</small><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
     {view === "clients" && <SeikoClientDirectory legacyRecords={clients}/>} {/* shared client directory */}
     {view === "products" && <ProductLibrary records={products} onChange={saveProducts}/>} {/* browser product library */}
     {view === "billing" && <SeikoBillingWorkspace key={billingRequestId} initialOrderId={billingOrderId} orders={orders} legacyDocuments={documents} legacyPayments={payments} initialAction={billingAction} onActionHandled={() => setBillingAction(null)}/>}

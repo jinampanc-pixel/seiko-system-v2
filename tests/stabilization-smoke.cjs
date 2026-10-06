@@ -97,6 +97,11 @@ function load(path, imports = {}) {
       await page.getByRole('button', { name: 'Open menu', exact: true }).click();
       await page.getByRole('navigation', { name: 'Modules' }).getByRole('button', { name: new RegExp(`${name}$`) }).click();
     };
+    if(process.argv.includes('--billing-production')){
+      const second=structuredClone(order);second.orderId='second-order';second.details.orderNo='SECOND-002';second.details.clientName='Other School';
+      await seed(second);await navigate('Orders');await page.locator('.orderRow').filter({hasText:'SECOND-002'}).waitFor();
+      await require('./billing-production-browser.cjs')({page,billing,sqlite,navigate,base});assert.deepEqual(errors,[]);return;
+    }
     await require('./order-creation-recovery-browser.cjs')({page, sqlite, base, navigate});
     await navigate('Orders');
     await page.getByRole('heading', { name: 'Orders', exact: true }).waitFor();
@@ -119,6 +124,7 @@ function load(path, imports = {}) {
     await page.getByText('ACTIVE ORDERS', { exact: true }).first().waitFor();
     if (process.argv.includes('--order-workflows')) await require('./order-workflows-browser.cjs')({ page, browser, sqlite, order, seed, navigate, base, ordersApi, session, errors });
     if (process.argv.includes('--order-workflows')) await require('./order-cache-browser.cjs')({ page, sqlite, navigate, ordersApi, base });
+    if (process.argv.includes('--order-workflows')) await require('./billing-production-browser.cjs')({page,billing,sqlite,navigate,base});
     assert.deepEqual(errors, []);
     console.log('PASS: Home → Orders → Billing → order payment → persisted receipt → Back/Home; no page errors.');
   } finally {

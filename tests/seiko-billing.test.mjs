@@ -200,3 +200,21 @@ test("Home exposes daily billing actions and the billing surface locks backgroun
   assert.match(home, /seiko:open-billing/); assert.match(phase2, /document\.body\.style\.overflow = "hidden"/); assert.match(polish, /\.seikoPhase2Surface \{ inset: 0 !important/);
 });
 
+
+test("zero invoices have no outstanding balance while cancellation and non-invoice statuses remain distinct",()=>{
+ const zero={...invoice(),lines:[{...invoice().lines[0],unitRate:0}]};
+ assert.equal(model.documentTotals(zero).total,0);assert.equal(model.invoiceOutstanding(zero,[]),0);
+ assert.equal(model.billingStatus({...zero,status:"cancelled"},[]),"cancelled");
+ assert.equal(model.billingStatus({...zero,kind:"quotation"},[]),"issued");
+ assert.equal(model.billingStatus({...zero,kind:"delivery_challan"},[]),"issued");
+});
+test("payroll credits require enabled completion and supported rates; viewing, starting and hourly work create none",()=>{
+ const production=load("../app/lib/production-domain.ts",{"./order-domain":{quantityForRecord:()=>0}});
+ const scan={id:"scan",businessId:"seiko",garmentId:"garment",workerId:"worker",operationId:"finish",action:"complete"};
+ assert.equal(production.payrollCredit(scan,{unit:"per_garment",amount:12.5},true),12.5);
+ assert.equal(production.payrollCredit(scan,{unit:"per_garment",amount:0},true),0);
+ assert.equal(production.payrollCredit(scan,{unit:"per_garment",amount:12.5},false),0);
+ assert.equal(production.payrollCredit({...scan,action:"start"},{unit:"per_garment",amount:12.5},true),0);
+ assert.equal(production.payrollCredit(scan,{unit:"per_hour",amount:12.5},true),0);
+ assert.equal(production.payrollCredit(scan,undefined,true),0);
+});

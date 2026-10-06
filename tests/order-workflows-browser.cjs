@@ -14,6 +14,8 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     if (!await target.locator('details').first().evaluate(node => node.open)) await summary.click();
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
     assert.equal(await target.locator('details').first().evaluate(node => node.open), true, `Menu opens for ${number}`);
+    assert.match(await target.locator('.orderMenuContext').innerText(),new RegExp(number));
+    assert.ok(await target.locator('.seikoRowActionPanel>button').evaluateAll(buttons=>buttons.every(button=>parseFloat(getComputedStyle(button).fontSize)>=14)), 'Order actions remain readable');
     const bounds = await target.locator('.seikoRowActionPanel').boundingBox(); const viewport = page.viewportSize();
     assert.ok(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height, `Menu fits viewport for ${number}`);
     await target.getByRole('button', { name, exact: true }).click();

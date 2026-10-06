@@ -3,12 +3,41 @@
 .seikoDailyActions p { margin: 3px 0 0; color: var(--muted, #64778a); font-size: 10px; }
 .seikoDailyActionGrid { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .seikoDailyActionGrid button { min-height: 38px; }
-.seikoPhase2Surface { inset: 0 !important; padding-top: 88px !important; overscroll-behavior: contain; }
+.seikoPhase2Surface { inset: 0 !important; padding-top: 0 !important; overscroll-behavior: contain; }
 .billingPaymentSetup { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; padding: 14px; border: 1px solid rgba(8,47,77,.12); border-radius: 10px; background: rgba(8,47,77,.025); }
 .billingPaymentSetup h3 { grid-column: 1 / -1; margin: 0; font-size: 13px; }
 .billingPaymentSetup .phase2Check { align-self: end; }
 .billingQrReady { display: block; margin-top: 6px; color: #48704b; font-size: 10px; }
 .billingLine.challanLine { grid-template-columns: 2fr 1fr .7fr; }
 @media (max-width: 760px) { .seikoDailyActions { align-items: stretch; flex-direction: column; } .seikoDailyActionGrid { justify-content: stretch; display: grid; grid-template-columns: 1fr 1fr; } .billingPaymentSetup { grid-template-columns: 1fr; } .billingPaymentSetup h3 { grid-column: auto; } }
-@media (max-width: 480px) { .seikoDailyActionGrid { grid-template-columns: 1fr; } .seikoPhase2Surface { padding-top: 72px !important; } }
+@media (max-width: 480px) { .seikoDailyActionGrid { grid-template-columns: 1fr; } .seikoPhase2Surface { padding-top: 0 !important; } }
 
+
+/* Billing uses the same brand, readable controls and page rhythm as Order Center. */
+.phase2BrandHeader{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;height:86px;margin:0 calc(-1 * clamp(18px,3vw,40px)) 24px;padding:8px 24px;background:var(--header-background,var(--paper));border-bottom:1px solid var(--line)}
+.phase2BrandHeader img{width:144px;height:68px;object-fit:contain}
+.seikoPhase2Head h1{font-family:var(--ui-font,Arial,sans-serif);font-size:28px;font-weight:750;margin-top:12px}
+.seikoPhase2Head .secondary{font-size:14px!important;min-height:44px!important}
+.seikoBillingWorkspace .phase2Actions button,.seikoBillingWorkspace .phase2Toolbar label,.seikoBillingWorkspace .phase2Toolbar input,.seikoBillingWorkspace .phase2Toolbar select{font-size:14px!important}
+.seikoBillingWorkspace .phase2Actions button{min-height:44px!important;background-color:var(--navy);color:var(--paper)}
+.seikoBillingWorkspace .phase2Actions button.secondary{background:var(--paper);color:var(--navy)}
+.seikoBillingWorkspace .phase2Table{overflow:visible}
+.seikoBillingWorkspace .phase2TableRow{font-size:14px;grid-template-columns:1.2fr 1.2fr .8fr .8fr 1.25fr}
+.seikoBillingWorkspace .phase2TableRow small{font-size:12px;line-height:1.5}
+.seikoBillingWorkspace .phase2TableHead{font-size:12px;grid-template-columns:1.2fr 1.2fr .8fr .8fr 1.25fr}
+.billingRowLink{padding:5px 0;text-decoration:underline;text-underline-offset:3px}
+.billingRowLink::after{content:none!important}
+.billingDocumentFilters{display:flex;flex-wrap:wrap;gap:8px}
+.billingDocumentFilters button{min-height:44px;font-size:14px}
+.billingStatusBadge{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:5px 9px;font-size:12px;font-weight:700;background:var(--pale);text-transform:capitalize}
+.billingStatus-paid{background:#e7f4ed;color:#1a6544;border-color:#b5d6c4}.billingStatus-part_paid{background:#fff4d9;color:#745317;border-color:#e5cf98}.billingStatus-cancelled{background:#faecea;color:#963c32;border-color:#e4b9b3}
+.billingRecoveryLink{font-size:14px;text-decoration:none;display:inline-flex;align-items:center;min-height:44px}
+.billingDocumentMenu{position:relative;flex:none}.billingDocumentMenu summary{list-style:none;cursor:pointer;min-width:44px;min-height:44px;border:1px solid var(--line);border-radius:8px;display:grid;place-items:center;font-size:16px}.billingDocumentMenu summary::-webkit-details-marker{display:none}
+.billingDocumentMenu>div{position:absolute;right:0;top:100%;z-index:10;display:grid;width:230px;max-width:calc(100vw - 32px);padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--paper);box-shadow:0 8px 28px #082f4d25}
+.billingDocumentMenu>div>b{padding:8px;font-size:13px}.billingDocumentMenu button{min-height:44px;text-align:left;border:0;border-radius:6px;padding:8px;background:transparent;color:var(--navy);font-size:14px}.billingDocumentMenu button:hover{background:var(--pale)}
+@media(max-width:900px){.seikoBillingWorkspace .phase2TableRow{grid-template-columns:1fr 1fr}.billingRowAction{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start}}
+@media(max-width:620px){.phase2BrandHeader{height:72px;margin-left:-12px;margin-right:-12px;padding:4px 16px}.phase2BrandHeader img{width:124px;height:60px}.seikoBillingWorkspace .phase2TableRow{grid-template-columns:1fr}.billingDocumentMenu>div{left:0;right:auto}.billingRowAction .primary{width:auto}.seikoBillingWorkspace .phase2Toolbar>label{width:100%}}
+
+.billingMetricScope{font-size:13px;line-height:1.5;color:var(--muted);margin:0}
+
+.seikoBillingWorkspace .billingDocumentFilters button.primary{background:var(--navy);color:var(--paper)}
