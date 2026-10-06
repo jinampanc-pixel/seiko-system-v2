@@ -57,7 +57,10 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     await page.unroute('**/api/erp/orders');
     await page.route('**/api/erp/orders', async (route, request) => {
       if (JSON.parse(request.postData()).operation === 'upsert') await route.fulfill({ status, contentType: 'text/html', body });
-      else await route.fallback();
+      else {
+        const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, {method:'POST',body:request.postData()}));
+        await route.fulfill({status:response.status,contentType:'application/json',body:await response.text()});
+      }
     });
     await action('SMOKE-001', 'Open workspace');
     await cell.fill('Unsaved failure fixture'); await cell.press('Tab');

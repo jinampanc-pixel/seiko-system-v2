@@ -69,7 +69,9 @@ export function generateOrderArtifacts(businessId: string, order: import("./orde
     try { saved = JSON.parse(localStorage.getItem(key) || "[]") as OrderGeneratedArtifacts[]; } catch { saved = []; }
     const previous = saved.find(item => item.orderId === order.orderId);
     artifacts.packages = artifacts.packages.map(item => ({ ...item, status: previous?.packages.find(old => old.id === item.id)?.status || item.status }));
-    localStorage.setItem(key, JSON.stringify([artifacts, ...saved.filter(item => item.orderId !== order.orderId)]));
+    // This is derived data. A failed cache write must not turn an acknowledged D1 save into a failure.
+    try { localStorage.setItem(key, JSON.stringify([artifacts, ...saved.filter(item => item.orderId !== order.orderId)])); }
+    catch { /* retain existing package state; identities can be regenerated from the order */ }
   }
   return artifacts;
 }

@@ -132,7 +132,7 @@ test("desktop navigation stays uncluttered and scanning is device aware", () => 
 
 test("order storage is partitioned by business", () => {
   assert.match(orderDomain, /`jinam:\$\{businessId\}:orders-v1`/);
-  assert.match(orders, /orderStoreKey\(businessId\)/);
+  assert.match(orders, /readOrderCache\(businessId\)/);
 });
 
 test("product artwork and cross-business manufacturing remain traceable", () => {
@@ -217,7 +217,7 @@ test("one garment supports multiple worker operation credits", () => {
 
 test("saving an order generates stable workflow identities without starting work", () => {
   assert.match(orders, /generateOrderArtifacts\(businessId, saved\)/);
-  assert.match(orders, /loaded\.forEach\(order => generateOrderArtifacts/);
+  assert.doesNotMatch(orders, /loaded\.forEach\(order => generateOrderArtifacts/);
   assert.match(productionDomain, /generated-order-artifacts-v1/);
   assert.match(productionDomain, /garment:\$\{orderId\}:\$\{recordId\}:\$\{productId\}:\$\{unit\}/);
   assert.match(productionDomain, /status: "planned"/);

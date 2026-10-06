@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { orderVersions, requestOrders } from "./lib/order-commands";
 import { useAccess } from "./access-control";
 import { normalizeProductMeasurements, type SeikoOrder } from "./lib/order-domain";
+import { readOrderCache, writeOrderCache } from "./lib/order-cache";
 
 type Envelope = {
   order: SeikoOrder;
@@ -19,10 +20,6 @@ const LOCAL_POLL_MS = 1200;
 const REMOTE_POLL_MS = 15000;
 const RETRY_BACKOFF_MS = 60_000;
 
-function orderKey(businessId: string) {
-  return `jinam:${businessId}:orders-v1`;
-}
-
 function conflictKey(businessId: string, orderId: string) {
   return `jinam:${businessId}:erp-conflict:${orderId}:${Date.now()}`;
 }
@@ -36,18 +33,12 @@ function hasActiveConflict(businessId: string, orderId: string) {
 }
 
 function readLocalOrders(businessId: string): SeikoOrder[] {
-  try {
-    const value = JSON.parse(localStorage.getItem(orderKey(businessId)) || "[]");
-    return Array.isArray(value) ? (value as SeikoOrder[]).map(normalizeProductMeasurements) : [];
-  } catch {
-    return [];
-  }
+  return readOrderCache(businessId).map(normalizeProductMeasurements);
 }
 
 function writeLocalOrders(businessId: string, orders: SeikoOrder[]) {
   const normalized = orders.map(normalizeProductMeasurements);
-  localStorage.setItem(orderKey(businessId), JSON.stringify(normalized));
-  window.dispatchEvent(new CustomEvent("seiko:orders-cache-updated", { detail: { businessId } }));
+  writeOrderCache(businessId, normalized);
 }
 
 const callOrders = requestOrders;

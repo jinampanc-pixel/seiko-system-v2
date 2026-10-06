@@ -59,6 +59,12 @@
 
 /* Order workspace: status/save are operational menu actions, not permanent header clutter. */
 .workspacePage .workspaceHeaderSecondaryAction{position:absolute!important;width:1px!important;height:1px!important;min-width:1px!important;min-height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;clip-path:inset(50%)!important;white-space:nowrap!important;opacity:0!important;pointer-events:none!important}
+.workspacePage .workspaceQuickSave{min-height:44px!important;min-width:64px!important;font-size:14px!important}
+@media(max-width:720px){
+  .workspacePage .orderActionMenu{position:fixed!important;left:12px!important;right:12px!important;bottom:12px!important;top:auto!important;width:auto!important;max-height:calc(100dvh - 24px)!important;overflow-y:auto!important;box-sizing:border-box!important}
+  .workspacePage .orderActionMenu>button{min-height:44px!important;font-size:14px!important}
+  .workspacePage .orderActionMenuButton{min-width:44px!important;min-height:44px!important}
+}
 .workspaceMenuOperational{display:grid!important;gap:5px!important;margin:-1px -1px 5px!important;padding:7px!important;border-bottom:1px solid var(--line)!important;background:color-mix(in srgb,var(--pale) 42%,var(--paper))!important}
 .workspaceMenuOperational label{display:grid!important;gap:3px!important}
 .workspaceMenuOperational label>span{font-size:8px!important;font-weight:900!important;letter-spacing:.035em!important;text-transform:uppercase!important;color:var(--muted)!important}

@@ -1,4 +1,5 @@
-import { normalizeProductMeasurements, orderStoreKey, type OrderStatus, type SeikoOrder } from "./order-domain";
+import { normalizeProductMeasurements, type OrderStatus, type SeikoOrder } from "./order-domain";
+import { readOrderCache, writeOrderCache } from "./order-cache";
 
 export type OrderEnvelope = { order: SeikoOrder; version: number; updatedAt: string; updatedBy: string };
 type Result<T> = { ok: true; data: T } | { ok: false; code: string; message: string; data?: unknown };
@@ -46,17 +47,27 @@ async function versionFor(businessId: string, orderId: string) {
 function accept(businessId: string, envelope: OrderEnvelope, removed = false) {
   const order = normalizeProductMeasurements(envelope.order);
   orderVersions(businessId).set(order.orderId, envelope.version);
-  const local = JSON.parse(localStorage.getItem(orderStoreKey(businessId)) || "[]") as SeikoOrder[];
+  const local = readOrderCache(businessId);
   const next = local.filter(item => item.orderId !== order.orderId);
   if (!removed) next.unshift(order);
-  localStorage.setItem(orderStoreKey(businessId), JSON.stringify(next));
+  writeOrderCache(businessId, next);
   window.dispatchEvent(new CustomEvent("seiko:order-command-saved", { detail: { businessId, envelope: { ...envelope, order }, removed } }));
-  window.dispatchEvent(new CustomEvent("seiko:orders-cache-updated", { detail: { businessId } }));
   return order;
 }
 
-export async function saveSharedOrder(businessId: string, order: SeikoOrder) {
-  const expectedVersion = await versionFor(businessId, order.orderId);
+export async function saveSharedOrder(businessId: string, order: SeikoOrder, baseUpdatedAt?: string) {
+  let expectedVersion: number | null;
+  if (baseUpdatedAt) {
+    // Polling may advance the version map while a workspace still contains an older draft.
+    // Match the revision the user opened, then use that version for the atomic server check.
+    const listed = await requestOrders<{ orders: OrderEnvelope[] }>({ operation: "list", businessId });
+    if (!listed.ok) throw new Error(listed.message);
+    const existing = listed.data.orders.find(item => item.order.orderId === order.orderId);
+    if (!existing || existing.order.updatedAt !== baseUpdatedAt) {
+      throw new Error("This order changed in another window or device. Your changes remain open. Reopen the latest order before saving to avoid overwriting newer records.");
+    }
+    expectedVersion = existing.version;
+  } else expectedVersion = await versionFor(businessId, order.orderId);
   const result = await requestOrders<OrderEnvelope>({ operation: "upsert", businessId, order: normalizeProductMeasurements(order), expectedVersion });
   if (!result.ok) throw new Error(result.message);
   return accept(businessId, result.data);

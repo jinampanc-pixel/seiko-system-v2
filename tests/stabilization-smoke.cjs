@@ -118,6 +118,7 @@ function load(path, imports = {}) {
     await navigate('(Home|Overview)');
     await page.getByText('ACTIVE ORDERS', { exact: true }).first().waitFor();
     if (process.argv.includes('--order-workflows')) await require('./order-workflows-browser.cjs')({ page, browser, sqlite, order, seed, navigate, base, ordersApi, session, errors });
+    if (process.argv.includes('--order-workflows')) await require('./order-cache-browser.cjs')({ page, sqlite, navigate, ordersApi, base });
     assert.deepEqual(errors, []);
     console.log('PASS: Home → Orders → Billing → order payment → persisted receipt → Back/Home; no page errors.');
   } finally {

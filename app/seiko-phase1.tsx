@@ -4,8 +4,9 @@ import "./seiko-billing-polish.css";
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { readOrderCache } from "./lib/order-cache";
 import { changeSharedOrder } from "./lib/order-commands";
-import { ORDER_STATUSES, orderStoreKey, type OrderStatus, type SeikoOrder } from "./lib/order-domain";
+import { ORDER_STATUSES, type OrderStatus, type SeikoOrder } from "./lib/order-domain";
 import { startDomEnhancement } from "./lib/dom-enhancement";
 
 type MetricKey = "active" | "completed" | "sync";
@@ -146,7 +147,7 @@ function SeikoDashboard() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [workMode, setWorkMode] = useState<MetricKey>("active");
   const [query, setQuery] = useState(""), [clientType, setClientType] = useState(""), [product, setProduct] = useState(""), [status, setStatus] = useState(""), [page, setPage] = useState(1);
-  useEffect(() => { const load=()=>{try{setOrders(JSON.parse(localStorage.getItem(orderStoreKey("seiko"))||"[]") as SeikoOrder[]);}catch{setOrders([]);}try{setScanQueue(JSON.parse(localStorage.getItem("jinam:seiko:scan-queue")||"[]") as Array<Record<string,unknown>>);}catch{setScanQueue([]);}};queueMicrotask(load);window.addEventListener("storage",load);window.addEventListener("seiko:orders-cache-updated",load as EventListener);const timer=window.setInterval(load,3000);return()=>{window.removeEventListener("storage",load);window.removeEventListener("seiko:orders-cache-updated",load as EventListener);window.clearInterval(timer);};},[]);
+  useEffect(() => { const load=()=>{try{setOrders(readOrderCache("seiko"));}catch{setOrders([]);}try{setScanQueue(JSON.parse(localStorage.getItem("jinam:seiko:scan-queue")||"[]") as Array<Record<string,unknown>>);}catch{setScanQueue([]);}};queueMicrotask(load);window.addEventListener("storage",load);window.addEventListener("seiko:orders-cache-updated",load as EventListener);const timer=window.setInterval(load,3000);return()=>{window.removeEventListener("storage",load);window.removeEventListener("seiko:orders-cache-updated",load as EventListener);window.clearInterval(timer);};},[]);
   useEffect(()=>{localStorage.setItem(HOME_KEY,JSON.stringify(config));document.querySelectorAll<HTMLButtonElement>(".overview .moduleGrid .moduleCard").forEach(card=>{const title=card.querySelector("h3")?.textContent?.trim();if(title==="Orders"){card.hidden=true;return;}if(title&&title in config.quickAccess)card.hidden=!config.quickAccess[title as QuickAccessKey];});},[config]);
   const activeOrders=useMemo(()=>orders.filter(order=>!order.archived&&!["Completed","Cancelled"].includes(order.status)),[orders]);
   const completedOrders=useMemo(()=>orders.filter(order=>!order.archived&&order.status==="Completed"),[orders]);

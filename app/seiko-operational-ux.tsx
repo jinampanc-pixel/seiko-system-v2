@@ -221,7 +221,6 @@ function enhanceWorkspace(page: HTMLElement) {
   /* A hover card is body-mounted. Remove it explicitly when the source Order Center unmounts so it can never leak into Workspace. */
   removeProductHover();
   page.querySelector<HTMLElement>(".workspaceStatusControl")?.classList.add("workspaceHeaderSecondaryAction");
-  page.querySelector<HTMLElement>(".workspaceQuickSave")?.classList.add("workspaceHeaderSecondaryAction");
   page.querySelector(".workspaceMenuOperational")?.remove();
 }
 
