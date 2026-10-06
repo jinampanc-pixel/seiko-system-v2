@@ -25,10 +25,11 @@ function loadOrders(businessId: string): SeikoOrder[] {
   try { return readOrderCache(businessId).map(order => ({ ...order, details: { ...order.details, attnRequired: order.details.attnRequired ?? false }, products: order.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [], specifications: product.specifications.map(spec => ({ ...spec, attachments: spec.attachments || [] })) })) })); } catch { return []; }
 }
 
-export function Orders({ businessId, canManageSuggestions = false, initialOrder = null, startNewOrder = false, onOpenLabelBatches }: { businessId: string; canManageSuggestions?: boolean; initialOrder?: SeikoOrder|null; startNewOrder?: boolean; onOpenLabelBatches?: (order: SeikoOrder) => void }) {
+export function Orders({ businessId, canManageSuggestions = false, initialOrder = null, startNewOrder = false, onHome, onOpenLabelBatches }: { businessId: string; canManageSuggestions?: boolean; initialOrder?: SeikoOrder|null; startNewOrder?: boolean; onHome?: () => void; onOpenLabelBatches?: (order: SeikoOrder) => void }) {
   const { membership } = useAccess();
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [saveNotice, setSaveNotice] = useState<{ message: string; sequence: number } | null>(null);
   const commandPending = useRef(false);
   const [orders, setOrders] = useState<SeikoOrder[]>(() => loadOrders(businessId));
   const draftKey = `jinam:${businessId}:order-setup-draft-v1`;
@@ -55,14 +56,14 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
     return () => window.removeEventListener("seiko:orders-cache-updated", reload);
   }, [businessId]);
   const changeSetup = (order: SeikoOrder) => {
-    setCurrent(order); setSetupErrors([]);
+    setCurrent(order); setSaveNotice(null); setSetupErrors([]);
     if (order.revisions.length) return;
     try { localStorage.setItem(draftKey, JSON.stringify(order)); }
     catch { setSaveError("This device could not keep a recovery draft. Keep this screen open and retry the save when connected."); }
   };
   const runCommand = async (action: () => Promise<void>) => {
     if (commandPending.current) return false;
-    commandPending.current = true; setBusy(true); setSaveError("");
+    commandPending.current = true; setBusy(true); setSaveError(""); setSaveNotice(null);
     try { await action(); return true; }
     catch (cause) { setSaveError((cause as Error).message); return false; }
     finally { commandPending.current = false; setBusy(false); }
@@ -71,6 +72,7 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
     const saved = await saveSharedOrder(businessId, saveRevision(order, reason), reason === "Order draft created" ? undefined : order.updatedAt);
     if (!order.revisions.length || reason === "Order draft created") localStorage.removeItem(draftKey);
     generateOrderArtifacts(businessId, saved); setOrders(loadOrders(businessId)); setCurrent(saved);
+    setSaveNotice({ message: `Order ${saved.details.orderNo} saved successfully to shared storage.`, sequence: Date.now() });
     if (close) { setQuery(""); setArchivedOnly(false); setView("center"); setCurrent(null); }
   });
   const changeStatus = (order: SeikoOrder, status: OrderStatus) => runCommand(async () => {
@@ -90,13 +92,14 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
       setOrders(loadOrders(businessId)); setView("center"); setCurrent(null);
     });
   };
-  const openWorkspace = (order: SeikoOrder) => { setCurrent(structuredClone(order)); setView("workspace"); };
+  const openWorkspace = (order: SeikoOrder) => { setSaveNotice(null); setCurrent(structuredClone(order)); setView("workspace"); };
   const visible = useMemo(() => orders.filter(order => order.archived === archivedOnly && `${order.details.orderNo} ${order.details.clientName} ${order.details.clientType} ${order.status}`.toLowerCase().includes(query.toLowerCase())), [archivedOnly, orders, query]);
 
-  if (view === "setup" && current) return <>{saveError && <p role="alert">{saveError}</p>}<OrderSetup businessId={businessId} order={current} returnView={setupReturnView} busy={busy} errors={setupErrors} suggestions={suggestions} canManageSuggestions={canManageSuggestions} onRemoveSuggestion={removeSuggestion} onChange={changeSetup} onCancel={() => setView(current.revisions.length ? setupReturnView : "center")} onContinue={async () => { const errors = validateOrder(current); setSetupErrors(errors); if (errors.length) return; learnSuggestion("clientTypes", current.details.clientType); current.products.forEach(product => learnSuggestion("products", product.name, current.details.clientType)); current.measurements.forEach(measurement => learnSuggestion("measurements", measurement.name, current.details.clientType)); const existingOrder = current.revisions.length > 0; if (await save(current, existingOrder ? "Order definition updated" : "Order draft created")) setView(existingOrder ? setupReturnView : "workspace"); }}/></>;
-  if (view === "workspace" && current) return <>{saveError && <p role="alert">{saveError}</p>}<OrderWorkspace businessId={businessId} canManageSuggestions={canManageSuggestions} order={current} busy={busy} owner={membership?.role === "owner"} onStatus={status => void changeStatus(current, status)} onOpenLabelBatches={()=>onOpenLabelBatches?.(current)} onBack={() => { void save(current, "Order saved", true); }} onChange={setCurrent} onEditSetup={() => { setSetupReturnView("workspace"); setView("setup"); }} onSave={close => { if (!close || window.confirm("Save and close this order? The changes will be saved to shared storage before returning to Orders.")) void save(current, "Order saved", close); }} onArchive={() => void archiveOrder(current)} onDelete={() => deleteOrder(current)} onClose={() => { if (confirm("Close without saving the latest changes? The last saved revision remains safe.")) { setView("center"); setCurrent(null); } }}/></>;
+  const saveConfirmation = saveNotice && <p key={saveNotice.sequence} className="orderSaveConfirmation" role="status" aria-live="polite">{saveNotice.message}</p>;
+  if (view === "setup" && current) return <>{saveConfirmation}{saveError && <p role="alert">{saveError}</p>}<OrderSetup businessId={businessId} order={current} returnView={setupReturnView} busy={busy} errors={setupErrors} suggestions={suggestions} canManageSuggestions={canManageSuggestions} onRemoveSuggestion={removeSuggestion} onChange={changeSetup} onCancel={() => setView(current.revisions.length ? setupReturnView : "center")} onContinue={async () => { const errors = validateOrder(current); setSetupErrors(errors); if (errors.length) return; learnSuggestion("clientTypes", current.details.clientType); current.products.forEach(product => learnSuggestion("products", product.name, current.details.clientType)); current.measurements.forEach(measurement => learnSuggestion("measurements", measurement.name, current.details.clientType)); const existingOrder = current.revisions.length > 0; if (await save(current, existingOrder ? "Order definition updated" : "Order draft created")) setView(existingOrder ? setupReturnView : "workspace"); }}/></>;
+  if (view === "workspace" && current) return <>{saveConfirmation}{saveError && <p role="alert">{saveError}</p>}<OrderWorkspace businessId={businessId} canManageSuggestions={canManageSuggestions} order={current} busy={busy} owner={membership?.role === "owner"} onStatus={status => void changeStatus(current, status)} onOpenLabelBatches={()=>onOpenLabelBatches?.(current)} onBack={() => { void save(current, "Order saved", true); }} onChange={order => { setSaveNotice(null); setCurrent(order); }} onEditSetup={() => { setSetupReturnView("workspace"); setView("setup"); }} onSave={close => { if (!close || window.confirm("Save and close this order? The changes will be saved to shared storage before returning to Orders.")) void save(current, "Order saved", close); }} onArchive={() => void archiveOrder(current)} onDelete={() => deleteOrder(current)} onClose={() => { if (confirm("Close without saving the latest changes? The last saved revision remains safe.")) { setView("center"); setCurrent(null); } }}/></>;
 
-  return <div className="page ordersPage">{orderCacheIsVolatile(businessId) && <p role="status">This browser cannot keep an offline order copy. Saved orders remain in shared storage; keep an internet connection to reopen them.</p>}{saveError && <p role="alert">{saveError}</p>}<section className="orderCenterHead"><div><p className="eyebrow">ORDER CENTER</p><h2>Orders</h2><p>Create, find and continue client orders.</p></div><button className="primary" onClick={() => { setSetupReturnView("center"); setCurrent(createOrder()); setView("setup"); }}>+ New order</button></section>
+  return <div className="page ordersPage">{onHome && <button type="button" className="orderCenterBackHome" onClick={onHome}>← Back to Home</button>}{saveConfirmation}{orderCacheIsVolatile(businessId) && <p role="status">This browser cannot keep an offline order copy. Saved orders remain in shared storage; keep an internet connection to reopen them.</p>}{saveError && <p role="alert">{saveError}</p>}<section className="orderCenterHead"><div><p className="eyebrow">ORDER CENTER</p><h2>Orders</h2><p>Create, find and continue client orders.</p></div><button className="primary" onClick={() => { setSetupReturnView("center"); setCurrent(createOrder()); setView("setup"); }}>+ New order</button></section>
     <div className="orderTools"><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search order, client, type or status"/><label><input type="checkbox" checked={archivedOnly} onChange={event => setArchivedOnly(event.target.checked)}/> Archived orders</label></div>
     <section className="orderList panel">{visible.length ? visible.map(order => <article className="orderRow" data-order-source="react" key={order.orderId}>
       <div className="orderCenterInfo"><b>{order.details.orderNo}</b><span>{order.details.clientName}</span><small>{order.details.clientType} · {order.records.length} person/record entries · {order.revisions.length} revisions</small></div>

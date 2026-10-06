@@ -59,8 +59,11 @@
 
 /* Order workspace: status/save are operational menu actions, not permanent header clutter. */
 .workspacePage .workspaceHeaderSecondaryAction{position:absolute!important;width:1px!important;height:1px!important;min-width:1px!important;min-height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;clip-path:inset(50%)!important;white-space:nowrap!important;opacity:0!important;pointer-events:none!important}
-.workspacePage .workspaceQuickSave{min-height:44px!important;min-width:64px!important;font-size:14px!important}
+.orderSaveConfirmation{position:sticky;top:8px;z-index:13001;margin:8px 16px;padding:12px 16px;border:1px solid #86bfa0;border-radius:8px;background:#eefaf2;color:#155d32;font-size:14px;line-height:1.5}
+.orderCenterBackHome{margin-bottom:16px!important;min-height:44px!important;font-size:14px!important}
+.workspacePage .workspaceQuickSave{display:none!important;min-height:44px!important;min-width:64px!important;font-size:14px!important}
 @media(max-width:720px){
+ .workspacePage .workspaceQuickSave{display:inline-flex!important}
   .workspacePage .orderActionMenu{position:fixed!important;left:12px!important;right:12px!important;bottom:12px!important;top:auto!important;width:auto!important;max-height:calc(100dvh - 24px)!important;overflow-y:auto!important;box-sizing:border-box!important}
   .workspacePage .orderActionMenu>button{min-height:44px!important;font-size:14px!important}
   .workspacePage .orderActionMenuButton{min-width:44px!important;min-height:44px!important}
@@ -141,6 +144,7 @@
   .orderCenterOperationalMeta{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 }
 @media(max-width:720px){
+ .workspacePage .workspaceQuickSave{display:inline-flex!important}
   .seikoOperationalDashboard .seikoDashboardMetrics{grid-template-columns:1fr!important}
   .seikoOperationalDashboard .seikoDashboardActivityFilters{grid-template-columns:1fr!important}
   .homeOrderOperationalRow{grid-template-columns:1fr!important}

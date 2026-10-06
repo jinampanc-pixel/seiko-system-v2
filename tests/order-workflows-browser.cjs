@@ -69,6 +69,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     await page.getByRole('button', { name: 'Save & close', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: message }).waitFor();
     assert.equal(await cell.inputValue(), 'Unsaved failure fixture');
+    assert.equal(await page.locator('.orderSaveConfirmation').count(), 0, 'Failed saves never show success');
     assert.equal(read(order.orderId).records[0].values['field:name'], 'Persisted through Save and Close');
     await page.getByRole('button', { name: 'More order actions', exact: true }).click();
     page.once('dialog', dialog => dialog.accept());
@@ -95,6 +96,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   page.once('dialog', dialog => dialog.accept()); await page.getByRole('button', { name: 'Save & close', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'Simulated shared save failure' }).waitFor();
   assert.equal(await cell.inputValue(), 'Unsaved failure fixture');
+    assert.equal(await page.locator('.orderSaveConfirmation').count(), 0, 'Failed saves never show success');
   assert.equal(read(order.orderId).records[0].values['field:name'], 'Persisted through Save and Close');
   await page.unroute('**/api/erp/orders');
   await page.route('**/api/erp/orders', async route => {
@@ -123,27 +125,27 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   assert.match(await receipt.locator('body').innerText(), /SMOKE-001/);
   assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM seiko_billing_payments WHERE json_extract(data,'$.orderId') = ?").get(order.orderId).n, 2);
   await page.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.getByRole('button', { name: '← Back to Home', exact: true }).click();
+  await page.getByLabel('SEIKO billing').getByRole('button', { name: '← Back to Home', exact: true }).click();
   await action('SECOND-002', 'Record payment');
   const otherPayment = page.getByRole('dialog', { name: 'Record payment · SECOND-002', exact: true });
   await otherPayment.getByLabel('Amount received ₹', { exact: true }).fill('15');
   await otherPayment.getByRole('button', { name: 'Save', exact: true }).click();
   await receipt.getByText('Against order', { exact: false }).first().waitFor();
   await page.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.getByRole('button', { name: '← Back to Home', exact: true }).click();
+  await page.getByLabel('SEIKO billing').getByRole('button', { name: '← Back to Home', exact: true }).click();
   await action('SMOKE-001', 'View payments / receipts');
   const history = page.getByRole('region', { name: 'Payment history' });
   await history.getByRole('button').first().waitFor();
   assert.match(await history.innerText(), /Smoke School/); assert.doesNotMatch(await history.innerText(), /Other School|SECOND-002/);
   assert.equal(await history.getByRole('button').count(), 2);
-  await page.getByRole('button', { name: '← Back to Home', exact: true }).click();
+  await page.getByLabel('SEIKO billing').getByRole('button', { name: '← Back to Home', exact: true }).click();
   for (const [name, title] of [['Create invoice', 'New invoice'], ['Create delivery challan', 'New delivery challan'], ['Create quotation', 'New quotation']]) {
     await action('SMOKE-001', name);
     const editor = page.getByRole('dialog', { name: title, exact: true });
     assert.equal(await editor.getByLabel('Bill source', { exact: true }).inputValue(), order.orderId);
     assert.equal(await editor.getByLabel('Client name *', { exact: true }).inputValue(), 'Smoke School');
     await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await page.getByRole('button', { name: '← Back to Home', exact: true }).click();
+    await page.getByLabel('SEIKO billing').getByRole('button', { name: '← Back to Home', exact: true }).click();
   }
   await page.route('**/labels/create?*', route => route.fulfill({ contentType: 'text/html', body: '<h1>Label route fixture</h1>' }));
   await action('SMOKE-001', 'Create labels');

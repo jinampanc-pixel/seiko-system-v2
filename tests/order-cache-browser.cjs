@@ -11,14 +11,29 @@ module.exports = async ({page, sqlite, navigate, ordersApi, base}) => {
   remote.records[0].values['field:name'] = 'Newer device records';
   const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, {method:'POST',body:JSON.stringify({operation:'upsert',businessId:'seiko',order:remote,expectedVersion:before.version})}));
   assert.equal(response.status, 200);
-  await page.getByRole('button',{name:'Save',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'Save',exact:true}).isVisible(), false);
+  await page.keyboard.press('Control+s');
   await page.getByRole('alert').filter({hasText:'changed in another window or device'}).waitFor();
   assert.equal(await cell.inputValue(), 'Older workspace draft');
   assert.equal(JSON.parse(sqlite.prepare('SELECT document_json FROM erp_orders WHERE id = ?').get('second-order').document_json).records[0].values['field:name'], 'Newer device records');
   await page.reload();
   await navigate('Orders');
   await row.waitFor();
-  await navigate('(Home|Overview)');
+  await row.locator('.orderCenterInfo').click();
+  await cell.fill('Saved using keyboard');
+  await page.keyboard.press('Control+s');
+  await page.getByRole('status').filter({hasText:'saved successfully to shared storage'}).waitFor();
+  assert.equal(JSON.parse(sqlite.prepare('SELECT document_json FROM erp_orders WHERE id = ?').get('second-order').document_json).records[0].values['field:name'], 'Saved using keyboard');
+  await cell.fill('Saved using menu'); await cell.press('Tab');
+  await page.getByRole('button',{name:'More order actions',exact:true}).click();
+  await page.getByRole('button',{name:'Save now',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'saved successfully to shared storage'}).waitFor();
+  assert.equal(JSON.parse(sqlite.prepare('SELECT document_json FROM erp_orders WHERE id = ?').get('second-order').document_json).records[0].values['field:name'], 'Saved using menu');
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button',{name:'Save & close',exact:true}).click();
+  await page.getByRole('button',{name:/Back to Home/,exact:true}).click();
+  await page.locator('.homeOrderOperationalRow').first().waitFor();
+  await navigate('Home');
   // Keep real browser storage; reject only the two writes that fail when its quota is exhausted.
   await page.evaluate(() => {
     localStorage.setItem('quota-test-recovery-draft', 'retain this draft');

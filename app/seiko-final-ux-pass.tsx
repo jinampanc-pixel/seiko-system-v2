@@ -423,7 +423,7 @@ function ensureSessionBack() {
   add(document.querySelector<HTMLElement>(".ordersPage .orderCenterHead"));
   add(document.querySelector<HTMLElement>(".labelLauncher .labelLauncherHead"));
 
-  document.querySelectorAll<HTMLButtonElement>(".contextBackButton").forEach(button => {
+  document.querySelectorAll<HTMLButtonElement>(".contextBackButton:not(.orderCenterBackHome)").forEach(button => {
     if (button.dataset.finalSessionBackReady) return;
     button.dataset.finalSessionBackReady = "true";
     button.addEventListener("click", event => {
