@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
 import ArchiveBrowser from './ArchiveBrowser';
 import styles from './backups.module.css';
 import OwnerRecovery from './OwnerRecovery';
@@ -16,7 +15,8 @@ export default function BackupsPage() {
   const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
   const perform = async (action: () => Promise<void>) => { setBusy(true); setMessage('Working…'); try { await action(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'Backup operation failed.'); } finally { setBusy(false); } };
   return <main className={styles.page}>
-    <Link href='/'>← Back to Home</Link><h1>Backup &amp; recovery</h1>
+    {/* Leave the standalone recovery page with a document navigation, including when the client router fails. */}
+    <a href='/'>← Back to Home</a><h1>Backup &amp; recovery</h1>
     <OwnerRecovery onClearReview={() => { setBackup(null); setSummary(null); setConfirmation(''); }} onReview={async decoded => { setBackup(null); setSummary(null); setConfirmation(''); const result = await call({ operation: 'dry-run', backup: decoded }); setBackup(decoded); setSummary(result.summary); setMessage('Checksum and schema verified. Review the comparison.'); }}/>
     <details><summary>Advanced recovery — manual files and offline tools</summary>
     <p>Download an encrypted system backup to this PC, then keep a second encrypted copy in your private Google Drive folder. Owner access to all three businesses is required.</p>

@@ -84,6 +84,16 @@ const { spawn } = require('node:child_process');
     await page.getByLabel('Archives to search').filter({ visible: true }).setInputFiles(file);
     await page.getByRole('status').filter({ hasText: 'verified archive(s) ready to search' }).waitFor();
     assert.deepEqual(errors, []);
+    let homeDocumentRequests = 0;
+    await page.route('http://127.0.0.1:5183/', async route => {
+      assert.equal(route.request().resourceType(), 'document'); homeDocumentRequests++;
+      await route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body><h1>Home</h1></body></html>' });
+    });
+    await page.getByRole('link', { name: '← Back to Home', exact: true }).click();
+    await page.waitForURL('http://127.0.0.1:5183/');
+    await page.getByRole('heading', { name: 'Home', exact: true }).waitFor();
+    assert.equal(homeDocumentRequests, 1, 'Back to Home must load the Home document');
+    assert.deepEqual(errors, []);
     console.log('PASS: encrypted D1 recovery, offline archive search/details/wrong-key refusal and encrypted caches/outbox recovery; no server requests or live changes during archive browsing.');
   } finally { await browser?.close(); server.kill(); source.sqlite.close(); empty.sqlite.close(); managed.sqlite.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
