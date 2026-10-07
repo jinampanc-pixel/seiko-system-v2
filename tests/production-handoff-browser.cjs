@@ -7,12 +7,13 @@ module.exports=async({page,seed,navigate,base,production})=>{
  const ui=page.locator('.productionWorkspace');
  await ui.getByRole('textbox',{name:'Find order, client or product',exact:true}).fill('Production school');await ui.getByText('PROD-5 · Production school 5',{exact:true}).waitFor();
  for(let id=1;id<=5;id++)await ui.getByRole("checkbox",{name:new RegExp(`PROD-${id} · Production school ${id}`)}).check();
- await ui.getByRole('spinbutton',{name:/^Include /}).nth(19).waitFor();assert.equal(await ui.getByRole('spinbutton',{name:/^Include /}).count(),20);
+ assert.equal(await ui.getByRole('spinbutton',{name:/^Include /}).count(),0,'Size rows stay hidden until a product is chosen');await ui.getByLabel('Product quantities',{exact:true}).selectOption('All products');await ui.getByRole('spinbutton',{name:/^Include /}).nth(19).waitFor();assert.equal(await ui.getByRole('spinbutton',{name:/^Include /}).count(),20);
  const partial=ui.getByRole('spinbutton',{name:'Include PROD-1 Collared T Shirt Length: 28',exact:true});await partial.fill('1');
  await ui.getByRole('button',{name:'Create handoff draft',exact:true}).click();
  await ui.getByLabel('Handoff name',{exact:true}).fill('Five schools combined');
- const included=ui.getByRole('spinbutton',{name:/^Handoff quantity/});assert.equal(await included.count(),20);
+ const included=ui.getByRole('spinbutton',{name:/^Handoff quantity/});assert.equal(await included.count(),10);assert.equal(await ui.getByRole('button',{name:/^Track Pant ·/}).count(),1);
  const two=ui.getByRole('spinbutton',{name:'Handoff quantity PROD-2 Collared T Shirt Length: 28',exact:true});await two.fill('1');
+ await ui.getByRole('button',{name:/^Track Pant ·/}).click();assert.equal(await ui.getByRole('spinbutton',{name:/^Handoff quantity/}).count(),10);await ui.getByRole('button',{name:/^Collared T Shirt ·/}).click();assert.equal(await two.inputValue(),'1');
  await ui.getByText('Optional cutting lays and fabric stacks',{exact:true}).click();await ui.getByRole('button',{name:'Add cutting lay',exact:true}).click();
  for(const [key,value] of Object.entries({pattern:'T28 standard',fabric:'Cotton jersey',width:'60 inches',stretch:'Low',grain:'Lengthwise',direction:'None',checks:'None'}))await ui.getByRole('textbox',{name:`Lay 1 ${key}`,exact:true}).fill(value);
  for(let id=1;id<=2;id++){await ui.getByRole('combobox',{name:`Lay PROD-${id} Collared T Shirt Length: 28`,exact:true}).selectOption('Lay 1');await ui.getByRole('textbox',{name:`Stack PROD-${id} Collared T Shirt Length: 28`,exact:true}).fill(id===1?'Blue stack':'Red stack');}
