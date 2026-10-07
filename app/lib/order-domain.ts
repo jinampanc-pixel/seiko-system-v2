@@ -15,13 +15,16 @@ export type OrderDetails = { orderNo: string; orderDate: string; deliveryDate: s
 export type OrderRevision = { revision: number; at: string; reason: string; recordCount: number };
 export type SeikoOrder = { orderId: string; status: OrderStatus; archived: boolean; details: OrderDetails; fields: OrderField[]; products: ProductPolicy[]; measurements: MeasurementPolicy[]; records: OrderRecord[]; revisions: OrderRevision[]; updatedAt: string; workspace?: { columnOrder?: string[]; hiddenColumns?: string[]; columnWidths?: Record<string, number>; columnAlignments?: Record<string, "left" | "center" | "right"> } };
 
+// Preset definitions must be safe during a Workers module cold start.
+// Order creation assigns fresh IDs when it copies these templates.
+function presetField(name: string): OrderField { return { id: `preset:${name}`, name, type: "text", options: [], required: false }; }
 export const CLIENT_TYPE_PRESETS: Record<string, OrderField[]> = {
-  "School / Institution": [field("Name"), field("Class / Section"), field("Roll number")],
-  "Corporate / Industrial": [field("Employee name"), field("Employee code"), field("Department"), field("Designation")],
-  "Healthcare Facility": [field("Staff name"), field("Employee code"), field("Department"), field("Designation")],
-  "Retail / Individual": [field("Customer name"), field("Reference number")],
-  "Dealer / Reseller": [field("Account / person"), field("Location")],
-  Custom: [field("Person / record name"), field("Group / department"), field("Reference / ID")],
+  "School / Institution": [presetField("Name"), presetField("Class / Section"), presetField("Roll number")],
+  "Corporate / Industrial": [presetField("Employee name"), presetField("Employee code"), presetField("Department"), presetField("Designation")],
+  "Healthcare Facility": [presetField("Staff name"), presetField("Employee code"), presetField("Department"), presetField("Designation")],
+  "Retail / Individual": [presetField("Customer name"), presetField("Reference number")],
+  "Dealer / Reseller": [presetField("Account / person"), presetField("Location")],
+  Custom: [presetField("Person / record name"), presetField("Group / department"), presetField("Reference / ID")],
 };
 
 export function field(name: string, required = false): OrderField { return { id: crypto.randomUUID(), name, type: "text", options: [], required }; }
