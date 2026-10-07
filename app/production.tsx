@@ -12,7 +12,7 @@ const defaultOperations:Operation[]=[
 const storageKey=(businessId:string)=>`jinam:${businessId}:production-policy-v1`;
 function load<T>(key:string,fallback:T):T{if(typeof window==="undefined")return fallback;try{return JSON.parse(localStorage.getItem(key)||"null")||fallback}catch{return fallback}}
 
-export function Production({businessId,canManage}:{businessId:string;canManage:boolean}){
+export function ProductionSetup({businessId,canManage}:{businessId:string;canManage:boolean}){
  const [initial]=useState(()=>load<{policy:Policy;operations:Operation[]}>(`${storageKey(businessId)}:setup`,{policy:load(storageKey(businessId),defaults),operations:load(`${storageKey(businessId)}:operations`,defaultOperations)}));
  const [policy,setPolicy]=useState<Policy>(initial.policy);
  const [operations,setOperations]=useState<Operation[]>(initial.operations);

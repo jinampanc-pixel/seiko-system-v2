@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { callSeiko } from "./lib/seiko-api";
 import { Orders } from "./orders";
 import { SavedLabelWorkspace } from "./saved-label-workspace";
-import { Production } from "./production";
+import { Production } from "./production-workspace";
 import { orderStoreKey, type SeikoOrder } from "./lib/order-domain";
 import { businessStorageKey, canAccess, deriveThemeFromLogo, normalizeMembership, THEME_PRESETS, themeVariables, type BusinessMembership, type BusinessTheme, type FoundationBootstrap, type Module } from "./lib/foundation";
 
@@ -42,6 +42,7 @@ const previewBusinesses: BusinessMembership[] = [
 export default function Home() {
   const [module, setModule] = useState<Module>("home");
   const [newOrderRequest, setNewOrderRequest] = useState(0);
+  const [productionOrderId,setProductionOrderId]=useState<string|undefined>();
   const [online, setOnline] = useState(true);
   const [pending, setPending] = useState(0);
   const [businesses, setBusinesses] = useState<BusinessMembership[]>(previewBusinesses);
@@ -49,6 +50,7 @@ export default function Home() {
   const [themeOverrides, setThemeOverrides] = useState<Record<string, BusinessTheme>>({});
   const [themeOpen, setThemeOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  useEffect(()=>{const open=(event:Event)=>{setProductionOrderId((event as CustomEvent<string>).detail);setModule("production");setNavOpen(false);};window.addEventListener("seiko:production-order",open);return()=>window.removeEventListener("seiko:production-order",open);},[]);
   const [labelOrder,setLabelOrder]=useState<SeikoOrder|null>(null);
   const [labelPurpose,setLabelPurpose]=useState<"production"|"packing"|"inventory"|null>(null);
   const [labelBatchOrder,setLabelBatchOrder]=useState<SeikoOrder|null>(null);
@@ -140,7 +142,7 @@ export default function Home() {
         {module === "labels" && canAccess(membership, "labels") && (labelOrder ? <SavedLabelWorkspace key={`${businessId}:${labelOrder.orderId}:${labelPurpose || "choose"}`} businessId={businessId} order={labelOrder} initialPurpose={labelPurpose} backLabel="← Back to Labels" onBack={() => { setLabelOrder(null); setLabelPurpose(null); }} canManageSizes={membership?.role === "owner" || membership?.role === "admin"}/> : <LabelLauncher businessId={businessId} focusedOrder={labelBatchOrder} onOpen={(order, purpose) => { setLabelBatchOrder(null); setLabelOrder(order); setLabelPurpose(purpose); }} onOpenOrders={() => { setLabelBatchOrder(null); setModule("orders"); }}/>)}
         {module === "scan" && canAccess(membership, "scan") && <Scanner businessId={businessId} queueKey={queueKey} onPending={setPending} />}
         {module === "trace" && canAccess(membership, "trace") && <Trace />}
-        {module === "production" && canAccess(membership, "production") && <Production key={businessId} businessId={businessId} canManage={membership?.role === "owner" || membership?.role === "admin"}/>}
+        {module === "production" && canAccess(membership, "production") && <Production key={`${businessId}:${productionOrderId||"all"}`} businessId={businessId} initialOrderId={productionOrderId} onHome={()=>setModule("home")} canManage={membership?.role === "owner" || membership?.role === "admin"}/>}
         {(["inventory", "sales", "delivery"] as Module[]).includes(module) && <section className="page"><div className="panel"><p className="eyebrow">{title(module).toUpperCase()}</p><h2>{title(module)}</h2><p>{module === "inventory" ? "Manage stock, materials and inventory label batches here." : "This module will be configured after the main navigation and home screen are finalised."}</p></div></section>}
       </main>
     </div>

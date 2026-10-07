@@ -44,9 +44,9 @@ function load(path, imports = {}) {
       revisions: [], updatedAt: '2026-10-03T00:00:00Z',
     };
     for (const file of fs.readdirSync('migrations').sort()) sqlite.exec(fs.readFileSync(`migrations/${file}`, 'utf8'));
-    const db = { withSession() { return this; }, prepare(sql) {
+    const db = { withSession() { return this; }, async batch(statements){sqlite.exec("BEGIN");try{const results=statements.map(stmt=>stmt.runSync());sqlite.exec("COMMIT");return results;}catch(error){sqlite.exec("ROLLBACK");throw error;}}, prepare(sql) {
       const stmt = sqlite.prepare(sql); let args = [];
-      return { bind(...values) { args = values; return this; }, async run() { return { meta: { changes: Number(stmt.run(...args).changes) } }; },
+      return { bind(...values) { args = values; return this; }, runSync() { return { meta: { changes: Number(stmt.run(...args).changes) } }; }, async run() { return this.runSync(); },
         async first() { return stmt.get(...args) || null; }, async all() { return { results: stmt.all(...args) }; } };
     } };
     const auth = { authenticateActor: async () => ({ userId: 'smoke-owner', email: 'smoke@example.invalid' }), authorizePermission: async () => ({ role: 'owner' }) };
@@ -79,8 +79,10 @@ function load(path, imports = {}) {
       const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
       await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
     });
+    const productionDomain=load('app/lib/production-handoffs.ts',{'./order-domain':domain,'./packing-label-model':load('app/lib/packing-label-model.ts',{'./order-domain':domain})});
+    const production=load('app/api/erp/production/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/production-handoffs':productionDomain});
     const labels = load('app/api/erp/labels/route.ts', { 'cloudflare:workers': { env: { DB: db } }, '../../../lib/server-erp-auth': auth });
-    for (const [path, api] of [['billing', billing], ['clients', clients], ['labels', labels]]) {
+    for (const [path, api] of [['billing', billing], ['clients', clients], ['labels', labels], ['production',production]]) {
       await page.route(`**/api/erp/${path}`, async route => {
         const response = await api.POST(new Request(`${base}/api/erp/${path}`, { method: 'POST', body: route.request().postData() }));
         await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
@@ -97,6 +99,7 @@ function load(path, imports = {}) {
       await page.getByRole('button', { name: 'Open menu', exact: true }).click();
       await page.getByRole('navigation', { name: 'Modules' }).getByRole('button', { name: new RegExp(`${name}$`) }).click();
     };
+    if(process.argv.includes('--production-handoffs')){await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--billing-production')){
       const second=structuredClone(order);second.orderId='second-order';second.details.orderNo='SECOND-002';second.details.clientName='Other School';
       await seed(second);await navigate('Orders');await page.locator('.orderRow').filter({hasText:'SECOND-002'}).waitFor();
@@ -125,6 +128,7 @@ function load(path, imports = {}) {
     if (process.argv.includes('--order-workflows')) await require('./order-workflows-browser.cjs')({ page, browser, sqlite, order, seed, navigate, base, ordersApi, session, errors });
     if (process.argv.includes('--order-workflows')) await require('./order-cache-browser.cjs')({ page, sqlite, navigate, ordersApi, base });
     if (process.argv.includes('--order-workflows')) await require('./billing-production-browser.cjs')({page,billing,sqlite,navigate,base});
+    if (process.argv.includes('--order-workflows')) await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});
     assert.deepEqual(errors, []);
     console.log('PASS: Home → Orders → Billing → order payment → persisted receipt → Back/Home; no page errors.');
   } finally {

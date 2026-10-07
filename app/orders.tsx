@@ -122,7 +122,7 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
         <button onClick={() => openOrderFinancialAction(order.orderId, "invoice")}>Create invoice</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "challan")}>Create delivery challan</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "quotation")}>Create quotation</button>
-        <p className="orderMenuGroupLabel">Setup & labels</p><button onClick={() => { setCurrent(structuredClone(order)); setSetupReturnView("center"); setView("setup"); }}>Edit setup</button>
+        {membership?.modules.includes("production")&&<button onClick={()=>window.dispatchEvent(new CustomEvent("seiko:production-order",{detail:order.orderId}))}>Production handoff</button>}<p className="orderMenuGroupLabel">Setup & labels</p><button onClick={() => { setCurrent(structuredClone(order)); setSetupReturnView("center"); setView("setup"); }}>Edit setup</button>
         <button onClick={() => { window.location.href = `/labels/create?business=${encodeURIComponent(businessId)}&order=${encodeURIComponent(order.orderId)}`; }}>Create labels</button>
         <p className="orderMenuGroupLabel">Manage order</p><button disabled={busy} onClick={() => void archiveOrder(order)}>{order.archived ? "Restore order" : "Archive order"}</button>
         {membership?.role === "owner" && <button disabled={busy} className="dangerText" onClick={() => deleteOrder(order)}>Delete order</button>}

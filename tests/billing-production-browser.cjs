@@ -53,6 +53,8 @@ module.exports=async({page,billing,navigate,base})=>{
  }
  await surface.getByRole('button',{name:'Open billing navigation',exact:true}).click();
  await page.getByRole('navigation',{name:'Modules'}).getByRole('button',{name:/Production$/}).click();
+ await page.getByRole('heading',{name:'Production handoffs',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Planning preferences',exact:true}).click();
  await page.getByRole('heading',{name:'Production setup',exact:true}).waitFor();
  const payroll=page.getByLabel('Calculate payroll credits',{exact:true});
  await payroll.uncheck();
@@ -65,7 +67,7 @@ module.exports=async({page,billing,navigate,base})=>{
  await page.getByRole('button',{name:'Save setup',exact:true}).click();
  await page.getByText('Setup saved in this browser.',{exact:true}).waitFor();
  await page.setViewportSize({width:1365,height:900});await capture('production-desktop');
- await navigate('Home');await navigate('Production');
+ await navigate('Home');await navigate('Production');await page.getByRole('button',{name:'Planning preferences',exact:true}).click();
  assert.equal(await rate.inputValue(),'0','Zero rate survives reopening');
  await rate.fill('12.50');
  await page.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key.endsWith('production-policy-v1:setup'))throw new DOMException('Quota exhausted','QuotaExceededError');return original.call(this,key,value);};});
