@@ -4,7 +4,7 @@ import { completedQuantity, productionDemand, reserveMembers, validateRelease, t
 
 const collection = 'production-handoffs-v1';
 const reply = (message:string,status=400) => Response.json({ok:false,message},{status,headers:{'Cache-Control':'no-store'}});
-type Body = { businessId?:string; operation?:string; expectedVersion?:number; handoff?:ProductionHandoff; id?:string; reason?:string; event?:{allocationKey:string;operation:string;quantity:number;rejects:number;extras:number;reason:string} };
+type Body = { orderIds?:string[]; search?:string; status?:string; deliveryFrom?:string; deliveryTo?:string; page?:number; handoffPage?:number; handoffSearch?:string; handoffStatus?:string; businessId?:string; operation?:string; expectedVersion?:number; handoff?:ProductionHandoff; id?:string; reason?:string; event?:{allocationKey:string;operation:string;quantity:number;rejects:number;extras:number;reason:string} };
 export async function POST(request:Request) {
   if (request.headers.get('origin') && request.headers.get('origin') !== new URL(request.url).origin) return reply('Invalid request origin.',403);
   try {
@@ -19,13 +19,40 @@ export async function POST(request:Request) {
     if (!business || !['seiko','meth','veyn-health'].includes(business)) return reply('Select a valid business.');
     if (!await authorizePermission(actor,business,'production.view') || !await authorizePermission(actor,business,'orders.view')) return reply('You cannot view production for this business.',403);
     const db=env.DB?.withSession('first-primary'); if(!db)return reply('Shared production storage is unavailable.',503);
-    const records=await db.prepare('SELECT id,document_json,version FROM jinam_shared_records WHERE scope=? AND collection=? ORDER BY created_at,id').bind(business,collection).all<{id:string;document_json:string;version:number}>();
-    const stored=records.results.find(row=>row.id==='ledger');
-    const ledger:ProductionLedger={handoffs:records.results.filter(row=>row.id!=='ledger').map(row=>JSON.parse(row.document_json))};
+    const stored=await db.prepare("SELECT version FROM jinam_shared_records WHERE scope=? AND collection=? AND id='ledger'").bind(business,collection).first<{version:number}>();
     const version=stored?.version||0;
-    const result=await db.prepare("SELECT document_json,version FROM erp_orders WHERE business_id=? AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL").bind(business).all<{document_json:string;version:number}>();
+    const requested=body.orderIds??[];
+    if(!Array.isArray(requested)||requested.length>25||requested.some(id=>typeof id!=='string'||id.length>100))return reply('Select at most 25 orders for one handoff.');
+    const ids=[...new Set([...requested,...(body.handoff?.allocations||[]).map(row=>row.orderId)])];
+    const targetId=body.id||body.handoff?.id;
+    const targetRecord=targetId?await db.prepare("SELECT document_json FROM jinam_shared_records WHERE scope=? AND collection=? AND id=? AND id!='ledger'").bind(business,collection,targetId).first<{document_json:string}>():null;
+    if(targetRecord)for(const row of (JSON.parse(targetRecord.document_json) as ProductionHandoff).allocations)if(!ids.includes(row.orderId))ids.push(row.orderId);
+    if(ids.length>25)return reply('Select at most 25 source orders.');
+    const placeholders=ids.map(()=>'?').join(',');
+    const result=ids.length?await db.prepare(`SELECT document_json,version FROM erp_orders WHERE business_id=? AND id IN (${placeholders}) AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL`).bind(business,...ids).all<{document_json:string;version:number}>():{results:[]};
     const orders:ProductionOrder[]=result.results.map(row=>({order:JSON.parse(row.document_json),version:row.version}));
-    if(body.operation==='list')return Response.json({ok:true,ledger,version,orders},{headers:{'Cache-Control':'no-store'}});
+    // Only reservations touching selected orders and the open handoff are transferred.
+    const relevant=ids.length?` OR EXISTS(SELECT 1 FROM json_each(document_json,'$.allocations') a WHERE json_extract(a.value,'$.orderId') IN (${placeholders}))`:'';
+    const records=await db.prepare(`SELECT id,document_json FROM jinam_shared_records WHERE scope=? AND collection=? AND id!='ledger' AND (id=?${relevant}) ORDER BY created_at,id`).bind(business,collection,targetId||'',...ids).all<{id:string;document_json:string}>();
+    const ledger:ProductionLedger={handoffs:records.results.map(row=>{const item:ProductionHandoff=JSON.parse(row.document_json);return item.id===targetId?item:{...item,allocations:item.allocations.filter(allocation=>ids.includes(allocation.orderId)),events:[],history:[],lays:[]};})};
+    if(body.operation==='list'){
+      const page=Math.max(1,Math.min(100000,Math.trunc(Number(body.page)||1))),handoffPage=Math.max(1,Math.min(100000,Math.trunc(Number(body.handoffPage)||1)));
+      const search=String(body.search||'').trim().toLowerCase().slice(0,120);
+      let where="business_id=? AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL";
+      const args:unknown[]=[business];
+      if(body.status&&body.status!=='All'&&body.status!=='Open'){where+=' AND status=?';args.push(body.status);}else if(body.status!=='All')where+=" AND status NOT IN ('Cancelled','Completed')";
+      if(search){where+=" AND (instr(lower(order_no),?)>0 OR instr(lower(json_extract(document_json,'$.details.clientName')),?)>0 OR EXISTS(SELECT 1 FROM json_each(document_json,'$.products') p WHERE instr(lower(json_extract(p.value,'$.name')),?)>0))";args.push(search,search,search);}
+      for(const [value,operator] of [[body.deliveryFrom,'>='],[body.deliveryTo,'<=']])if(value){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value)))return reply('Choose a valid delivery date.');where+=` AND json_extract(document_json,'$.details.deliveryDate')${operator}?`;args.push(value);}
+      const total=await db.prepare(`SELECT COUNT(*) AS total FROM erp_orders WHERE ${where}`).bind(...args).first<{total:number}>();
+      const choices=await db.prepare(`SELECT id AS orderId,order_no AS orderNo,status,json_extract(document_json,'$.details.clientName') AS client,json_extract(document_json,'$.details.deliveryDate') AS deliveryDate FROM erp_orders WHERE ${where} ORDER BY updated_at DESC,id DESC LIMIT 25 OFFSET ?`).bind(...args,(page-1)*25).all();
+      const hs=String(body.handoffSearch||'').trim().toLowerCase().slice(0,120);
+      let hw="scope=? AND collection=? AND id!='ledger'";const ha:unknown[]=[business,collection];
+      if(body.handoffStatus==='History')hw+=" AND json_extract(document_json,'$.status') IN ('Closed','Cancelled')";else if(body.handoffStatus!=='All')hw+=" AND json_extract(document_json,'$.status') NOT IN ('Closed','Cancelled')";
+      if(hs){hw+=" AND (instr(lower(json_extract(document_json,'$.name')),?)>0 OR instr(lower(json_extract(document_json,'$.number')),?)>0)";ha.push(hs,hs);}
+      const ht=await db.prepare(`SELECT COUNT(*) AS total FROM jinam_shared_records WHERE ${hw}`).bind(...ha).first<{total:number}>();
+      const handoffs=await db.prepare(`SELECT id,json_extract(document_json,'$.number') AS number,json_extract(document_json,'$.name') AS name,json_extract(document_json,'$.status') AS status,json_extract(document_json,'$.purpose') AS purpose FROM jinam_shared_records WHERE ${hw} ORDER BY created_at DESC,id DESC LIMIT 25 OFFSET ?`).bind(...ha,(handoffPage-1)*25).all();
+      return Response.json({ok:true,ledger,version,orders,choices:choices.results,total:total?.total||0,page,handoffs:handoffs.results,handoffTotal:ht?.total||0,handoffPage},{headers:{'Cache-Control':'no-store'}});
+    }
     if(!await authorizePermission(actor,business,'production.manage'))return reply('You cannot change production for this business.',403);
     if(body.expectedVersion!==version)return reply('Production changed on another device. Your open edits remain; refresh and review before retrying.',409);
     const now=new Date().toISOString();let target:ProductionHandoff|undefined;
@@ -46,7 +73,7 @@ export async function POST(request:Request) {
       }
       const layIds=new Set<string>();
       for(const lay of input.lays){if(typeof lay.id!=='string'||!lay.id||layIds.has(lay.id)||['pattern','fabric','width','stretch','grain','direction','checks'].some(key=>typeof lay[key as keyof typeof lay]!=='string')||typeof lay.confirmed!=='boolean')return reply('Invalid cutting lay.');layIds.add(lay.id);}
-      target={id:input.id,number:previous?.number||`PH-${String(ledger.handoffs.length+1).padStart(5,'0')}`,name:input.name.trim(),status:'Draft',purpose:input.purpose,reason:input.reason,allocations,lays:input.lays,events:[],createdAt:previous?.createdAt||now,history:[...(previous?.history||[]),{at:now,actor:actor.email,action:'Draft saved'}]};
+      target={id:input.id,number:previous?.number||`PH-${String((await db.prepare("SELECT COUNT(*) AS total FROM jinam_shared_records WHERE scope=? AND collection=? AND id!='ledger'").bind(business,collection).first<{total:number}>())!.total+1).padStart(5,'0')}`,name:input.name.trim(),status:'Draft',purpose:input.purpose,reason:input.reason,allocations,lays:input.lays,events:[],createdAt:previous?.createdAt||now,history:[...(previous?.history||[]),{at:now,actor:actor.email,action:'Draft saved'}]};
       if(previous)ledger.handoffs=ledger.handoffs.map(item=>item.id===target!.id?target!:item);else ledger.handoffs.push(target);
     }else{
       target=ledger.handoffs.find(item=>item.id===body.id);if(!target)return reply('Handoff not found.',404);

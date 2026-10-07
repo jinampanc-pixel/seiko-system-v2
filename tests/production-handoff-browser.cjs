@@ -2,11 +2,12 @@ const assert=require('node:assert/strict');
 module.exports=async({page,seed,navigate,base,production})=>{
  const fixture=id=>({orderId:`production-order-${id}`,status:'Active',archived:false,details:{orderNo:`PROD-${id}`,clientName:`Production school ${id}`,contactNumber:'9999999999',orderDate:'2026-10-07',deliveryDate:'2026-10-20',clientType:'School / Institution',billTo:'',shipTo:'',contactPerson:'',attnRequired:false,remarks:''},fields:[],products:[{id:'shirt',name:'Collared T Shirt',sizeHeader:'Size',quantityMode:'same_for_all',defaultQuantity:2,orderTotal:0,quantityGroupRules:[],specifications:[{id:'colour',name:'Colour',role:'colour',mode:'same_for_all',defaultValue:id%2?'Blue':'Red',required:true,groupRules:[],attachments:[]}]},{id:'track',name:'Track Pant',sizeHeader:'Size',quantityMode:'same_for_all',defaultQuantity:1,orderTotal:0,quantityGroupRules:[],specifications:[]}],measurements:[{id:'length',name:'Length',type:'number',appliesTo:['shirt'],requiredMode:'Always'},{id:'waist',name:'Waist',type:'number',appliesTo:['shirt'],requiredMode:'Optional'},{id:'track-length',name:'Length',type:'number',appliesTo:['track'],requiredMode:'Always'}],records:[{recordId:'one',personId:'one',values:{'measurement:length:product:shirt':28,'measurement:track-length:product:track':30}},{recordId:'two',personId:'two',values:{'measurement:length:product:shirt':28,'measurement:waist:product:shirt':36,'measurement:track-length:product:track':32}},{recordId:'held',personId:'held',held:true,values:{'measurement:length:product:shirt':28}}],updatedAt:'2026-10-07T00:00:00Z',revisions:[]});
  for(let id=1;id<=5;id++)await seed(fixture(id));
+ for(let id=100;id<1105;id++){const bulk=fixture(id);bulk.details.clientName=`Scale school ${id}`;bulk.products.forEach(product=>product.name='Scale product');await seed(bulk);}
  await navigate('Home');await navigate('Production');await page.getByRole('heading',{name:'Production handoffs',exact:true}).waitFor();
  const ui=page.locator('.productionWorkspace');
- await ui.getByText('PROD-5 · Production school 5',{exact:true}).waitFor();
+ await ui.getByRole('textbox',{name:'Find order, client or product',exact:true}).fill('Production school');await ui.getByText('PROD-5 · Production school 5',{exact:true}).waitFor();
  for(let id=1;id<=5;id++)await ui.getByRole("checkbox",{name:new RegExp(`PROD-${id} · Production school ${id}`)}).check();
- assert.equal(await ui.getByRole('spinbutton',{name:/^Include /}).count(),20);
+ await ui.getByRole('spinbutton',{name:/^Include /}).nth(19).waitFor();assert.equal(await ui.getByRole('spinbutton',{name:/^Include /}).count(),20);
  const partial=ui.getByRole('spinbutton',{name:'Include PROD-1 Collared T Shirt Length: 28',exact:true});await partial.fill('1');
  await ui.getByRole('button',{name:'Create handoff draft',exact:true}).click();
  await ui.getByLabel('Handoff name',{exact:true}).fill('Five schools combined');
@@ -30,8 +31,14 @@ module.exports=async({page,seed,navigate,base,production})=>{
  assert.equal(await ui.getByRole('button',{name:'Cancel unused handoff',exact:true}).count(),0);
  for(const size of [{width:390,height:844},{width:360,height:640}]){await page.setViewportSize(size);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Production does not overflow mobile');}
  await ui.getByRole('button',{name:'← Handoffs',exact:true}).click();await ui.getByText('PH-00001 · Five schools combined',{exact:true}).waitFor();
+ await ui.getByRole('textbox',{name:'Find order, client or product',exact:true}).fill('Scale school');await ui.getByText('PROD-1104 · Scale school 1104',{exact:true}).waitFor();
+ await ui.getByRole('checkbox',{name:'PROD-1104 · Scale school 1104',exact:true}).check();
+ await ui.getByRole('button',{name:'Next orders',exact:true}).click();await ui.getByText(/1005 matching orders · Page 2/).waitFor();
+ assert.equal(await ui.getByRole('button',{name:'Remove selected PROD-1104 · Scale school 1104',exact:true}).count(),1,'Selection survives server page change');
+ await ui.getByRole('textbox',{name:'Find order, client or product',exact:true}).fill('Production school 1');await ui.getByText('PROD-1 · Production school 1',{exact:true}).waitFor();
+ assert.equal(await ui.getByRole('button',{name:'Remove selected PROD-1104 · Scale school 1104',exact:true}).count(),1,'Selection survives search change');
  await navigate('Home');await navigate('Production');await ui.getByText('PH-00001 · Five schools combined',{exact:true}).click();await ui.getByText('In progress',{exact:false}).first().waitFor();
- const response=await production.POST(new Request(`${base}/api/erp/production`,{method:'POST',body:JSON.stringify({businessId:'seiko',operation:'list'})}));const stored=await response.json();assert.equal(stored.ledger.handoffs[0].events.length,1);assert.equal(stored.ledger.handoffs[0].allocations.reduce((n,row)=>n+row.quantity,0),28);
+ const response=await production.POST(new Request(`${base}/api/erp/production`,{method:'POST',body:JSON.stringify({businessId:'seiko',operation:'list',orderIds:['production-order-1','production-order-2','production-order-3','production-order-4','production-order-5']})}));const overview=await response.json();const detail=await production.POST(new Request(`${base}/api/erp/production`,{method:'POST',body:JSON.stringify({businessId:'seiko',operation:'list',id:overview.handoffs[0].id})}));const stored=await detail.json();assert.equal(stored.ledger.handoffs[0].events.length,1);assert.equal(stored.ledger.handoffs[0].allocations.reduce((n,row)=>n+row.quantity,0),28);
  await page.setViewportSize({width:1365,height:900});await navigate('Home');
  console.log('PASS: five-order partial handoff, colours and waist variants, shared save failure retention, release, combined quantities, allocations, bundles, print/PDF, actual work, mobile and reopen.');
 };
