@@ -47,3 +47,11 @@ Verification includes 1,006 orders in SQLite, summary payload bounds, non-overla
 The draft allocation editor shows one product at a time with product quantity totals. Switching products preserves all allocations and edits. Quantity tables and the on-screen team-sheet preview have bounded scroll areas; printed/PDF sheets remain complete and unbounded. Opening saved instructions loads their own source orders independently of the selection tray.
 
 Before creating a draft, selected-order quantities show product totals first. Size rows load into the visible review table only after choosing a product (or explicitly All products), with 25 size/order rows per page. Changing that view does not remove other products or reset entered quantities.
+
+## Simple team reports
+
+Every sheet now prints the associated order numbers, clients and piece totals from the handoff snapshot. Combined sheets explicitly show the number of orders and clients and list every source order; bundle tickets also retain their own identity. Cutting sheets use two-column product tables with sizes and quantities, without a fabric/stack split column or lay-planning instructions. Relevant pattern/attribute differences remain identified beside the size to avoid ambiguous cutting variants. Short reports use only their required space on A4 rather than forced product pages; longer reports continue naturally.
+
+Normal draft review shows product totals and the sheet. Per-size corrections and optional combined-cutting planning sit in a closed advanced section. They remain available when needed and keep existing release safeguards. Draft names default to the included client names. Browser/PDF verification includes a single client with four products and 24 size rows fitting on one A4 page, plus a combined five-order report listing all clients and preserving all quantities.
+
+Print pagination uses the full available A4 height and two flowing cutting columns, avoiding grid row gaps between differently sized product tables. Short tables stay together; oversized tables may continue with repeated table headings. There is no half-page target or fixed report height. The goal is fewer readable pages, retaining every order identity and quantity.
