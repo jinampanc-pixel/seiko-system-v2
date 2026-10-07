@@ -55,3 +55,9 @@ Every sheet now prints the associated order numbers, clients and piece totals fr
 Normal draft review shows product totals and the sheet. Per-size corrections and optional combined-cutting planning sit in a closed advanced section. They remain available when needed and keep existing release safeguards. Draft names default to the included client names. Browser/PDF verification includes a single client with four products and 24 size rows fitting on one A4 page, plus a combined five-order report listing all clients and preserving all quantities.
 
 Print pagination uses the full available A4 height and two flowing cutting columns, avoiding grid row gaps between differently sized product tables. Short tables stay together; oversized tables may continue with repeated table headings. There is no half-page target or fixed report height. The goal is fewer readable pages, retaining every order identity and quantity.
+
+## Simplified production sheet
+
+Preparing work now shows one editable product/specifications/quantity sheet, with order and client identities. Zero excludes a line when saved. Technical Review/source/allocation controls and the duplicate on-screen draft preview are removed. Optional planning opens separately; issued quantity safeguards and fixed snapshots remain server-authoritative. Incomplete demand is excluded when creating a sheet, matching the displayed zero.
+
+Save sheet confirms successful shared persistence. Issue to production remains optional for tracking/reserving work and is not required to print. The PDF uses Production sheet, with an explicit optional Preview — not issued marking; cancelled sheets remain clearly marked. Unset pattern/attribute values no longer print blank labels. Browser checks cover direct quantity editing, save failure retention, multiple-order identities, optional planning, preview marking, mobile widths and A4 output.

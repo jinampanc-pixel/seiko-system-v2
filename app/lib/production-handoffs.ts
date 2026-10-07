@@ -38,7 +38,7 @@ export function productionDemand(orders: ProductionOrder[]): ProductionDemand[] 
           return { name: spec.name, role:spec.role, value: text(value) };
         });
         const variant = values.filter(item => item.value).map(item => `${item.name}: ${item.value}`).join(' / ') || (measurements.length ? 'Measurements not entered' : 'No measurements required');
-        const cuttingSignature=specs.filter(item=>item.role==='pattern'||item.role==='attribute').map(item=>`${item.name}: ${item.value}`).sort().join(' / ');
+        const cuttingSignature=specs.filter(item=>(item.role==='pattern'||item.role==='attribute')&&item.value).map(item=>`${item.name}: ${item.value}`).sort().join(' / ');
         const specifications = specs.filter(item => item.value).map(item => `${item.name}: ${item.value}`).join(' · ');
         // Product IDs and order IDs keep allocations separate even when cutting descriptions match.
         const key = productionKey([order.orderId, product.id, variant, specifications, unresolved]);
