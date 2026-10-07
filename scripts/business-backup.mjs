@@ -67,7 +67,7 @@ export async function diskBackup(config, run = spawnSync) {
     const schemaVersion = db.prepare('SELECT name FROM d1_migrations ORDER BY id').all().map(row => row.name);
     const backup = await makeBackup(readBusinessDatabase(db), schemaVersion, 'production-d1', readSequences(db));
     const drill = restoreDrill(backup, ':memory:');
-    const envelope = await encryptBackup(backup, passphrase);
+    const envelope = await encryptBackup(backup, passphrase, { compress: true });
     // Authenticate the exact encrypted bytes before calling this copy successful.
     const encoded = JSON.stringify(envelope); const decoded = await decryptBackup(JSON.parse(encoded), passphrase);
     if (decoded.checksum !== backup.checksum) throw new Error('Encrypted backup verification failed.');

@@ -71,24 +71,48 @@ async function keyFor(password, salt) {
   const material = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, material, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
 }
-export async function encryptBackup(backup, password) {
+export async function encryptBackup(backup, password, options) {
   await validateBackup(backup);
-  return encryptPayload(backup, password, 'seiko-encrypted-backup', 'SEIKO-BACKUP-1');
+  return encryptPayload(backup, password, 'seiko-encrypted-backup', 'SEIKO-BACKUP-1', options);
 }
-export async function encryptPayload(payload, password, format, marker) {
+const MAX_COMPRESSED_PAYLOAD = 64 * 1024 * 1024;
+async function transformBytes(bytes, stream) {
+  const reader = new Blob([bytes]).stream().pipeThrough(stream).getReader();
+  const chunks = []; let length = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read(); if (done) break;
+      length += value.byteLength;
+      if (length > MAX_COMPRESSED_PAYLOAD) { await reader.cancel(); throw new Error('Backup payload exceeds the supported size.'); }
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  const output = new Uint8Array(length); let offset = 0;
+  for (const chunk of chunks) { output.set(chunk, offset); offset += chunk.byteLength; }
+  return output;
+}
+export async function encryptPayload(payload, password, format, marker, { compress = false } = {}) {
   const salt = crypto.getRandomValues(new Uint8Array(16)); const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: encoder.encode(marker) }, await keyFor(password, salt), encoder.encode(JSON.stringify(payload)));
-  return { format, version: 1, cipher: 'AES-256-GCM', kdf: 'PBKDF2-SHA256', iterations: 100000, salt: base64(salt), iv: base64(iv), ciphertext: base64(new Uint8Array(encrypted)) };
+  let bytes = encoder.encode(JSON.stringify(payload));
+  if (compress) {
+    if (bytes.byteLength > MAX_COMPRESSED_PAYLOAD) throw new Error('Backup payload exceeds the supported size.');
+    bytes = await transformBytes(bytes, new CompressionStream('gzip'));
+  }
+  const authenticatedMarker = compress ? `${marker}:2:gzip` : marker;
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: encoder.encode(authenticatedMarker) }, await keyFor(password, salt), bytes);
+  return { format, version: compress ? 2 : 1, ...(compress ? { compression: 'gzip' } : {}), cipher: 'AES-256-GCM', kdf: 'PBKDF2-SHA256', iterations: 100000, salt: base64(salt), iv: base64(iv), ciphertext: base64(new Uint8Array(encrypted)) };
 }
 export async function decryptBackup(envelope, password) {
   return validateBackup(await decryptPayload(envelope, password, 'seiko-encrypted-backup', 'SEIKO-BACKUP-1'));
 }
 export async function decryptPayload(envelope, password, format, marker) {
-  if (!envelope || envelope.format !== format || envelope.version !== 1 || envelope.cipher !== 'AES-256-GCM' || envelope.kdf !== 'PBKDF2-SHA256' || envelope.iterations !== 100000) throw new Error('Unsupported encrypted backup.');
+  if (!envelope || envelope.format !== format || ![1, 2].includes(envelope.version) || (envelope.version === 2 && envelope.compression !== 'gzip') || (envelope.version === 1 && envelope.compression !== undefined) || envelope.cipher !== 'AES-256-GCM' || envelope.kdf !== 'PBKDF2-SHA256' || envelope.iterations !== 100000) throw new Error('Unsupported encrypted backup.');
   try {
     const salt = unbase64(envelope.salt); const iv = unbase64(envelope.iv);
     if (salt.length !== 16 || iv.length !== 12) throw new Error('Invalid encryption metadata.');
-    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData: encoder.encode(marker) }, await keyFor(password, salt), unbase64(envelope.ciphertext));
-    return JSON.parse(new TextDecoder().decode(decrypted));
+    const authenticatedMarker = envelope.version === 2 ? `${marker}:2:gzip` : marker;
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData: encoder.encode(authenticatedMarker) }, await keyFor(password, salt), unbase64(envelope.ciphertext));
+    const bytes = envelope.version === 2 ? await transformBytes(new Uint8Array(decrypted), new DecompressionStream('gzip')) : decrypted;
+    return JSON.parse(new TextDecoder().decode(bytes));
   } catch { throw new Error('Backup is damaged or the passphrase is incorrect.'); }
 }
