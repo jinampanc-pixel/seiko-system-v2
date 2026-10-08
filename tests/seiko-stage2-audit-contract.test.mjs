@@ -52,7 +52,8 @@ test("Home metrics switch one configurable operational list and status changes d
   assert.match(home, /homeOrderStatus/);
   assert.match(home, /homeOrderOpen/);
   assert.match(home, /SCAN SYNC QUEUE/);
-  assert.match(home, /setInterval\(load,3000\)/);
+  assert.match(home, /addEventListener\("seiko:orders-cache-updated",load/);
+  assert.match(home, /addEventListener\("seiko:scan-queue-updated",load/);
   assert.match(home, /All client types/);
   assert.match(home, /All products/);
   assert.match(home, /Clear filters/);

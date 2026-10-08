@@ -58,6 +58,10 @@ test('order commands enforce versions, business scope, owner deletion, financial
     const call = async body => { const response = await api.POST(new Request('https://test.invalid/api/erp/orders', { method: 'POST', body: JSON.stringify({ businessId: 'seiko', ...body }) })); return { status: response.status, ...await response.json() }; };
     const order = { orderId: 'test-order', details: { orderNo: 'TEST-001' }, status: 'Active', archived: false };
     assert.equal((await call({ operation: 'upsert', order })).status, 200);
+    assert.deepEqual((await call({ operation: 'versions' })).data.versions, [[order.orderId, 1]]);
+    role = null;
+    assert.equal((await call({ operation: 'versions' })).status, 403);
+    role = 'owner';
     assert.equal((await call({ operation: 'archive', orderId: order.orderId, archived: true, expectedVersion: 1 })).data.version, 2);
     assert.equal((await call({ operation: 'upsert', order, expectedVersion: 1 })).code, 'VERSION_CONFLICT');
     assert.equal((await call({ operation: 'status', orderId: order.orderId, status: 'Completed', expectedVersion: 2 })).data.version, 3);

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { orderVersions, requestOrders } from "./lib/order-commands";
 import { useAccess } from "./access-control";
 import { normalizeProductMeasurements, type SeikoOrder } from "./lib/order-domain";
-import { readOrderCache, writeOrderCache } from "./lib/order-cache";
+import { readOrderCache, writeOrderCache, orderCacheIsVolatile } from "./lib/order-cache";
 
 type Envelope = {
   order: SeikoOrder;
@@ -16,7 +16,7 @@ type Envelope = {
 type ApiSuccess<T> = { ok: true; data: T };
 type ApiFailure = { ok: false; code: string; message: string; data?: unknown };
 
-const LOCAL_POLL_MS = 1200;
+const LOCAL_POLL_MS = 60_000;
 const REMOTE_POLL_MS = 15000;
 const RETRY_BACKOFF_MS = 60_000;
 
@@ -73,6 +73,7 @@ export function ErpOrderSync() {
     let retryAfter = 0;
     let localTimer = 0;
     let remoteTimer = 0;
+    let localSnapshot: string | null | undefined;
     const versions = orderVersions(activeBusiness);
     const lastSynced = new Map<string, string>();
     let commandEpoch = 0;
@@ -185,6 +186,10 @@ export function ErpOrderSync() {
 
     const pushLocalChanges = async () => {
       if (!ready || syncing) return;
+      let snapshot: string | null = null;
+      try { snapshot = localStorage.getItem(`jinam:${activeBusiness}:orders-v1`); } catch { /* Use the in-memory safety copy. */ }
+      if (snapshot === localSnapshot && !orderCacheIsVolatile(activeBusiness)) return;
+      localSnapshot = snapshot;
       const local = readLocalOrders(activeBusiness);
       const changed = local.filter(order => !hasActiveConflict(activeBusiness, order.orderId) && lastSynced.get(order.orderId) !== stable(order));
       if (!changed.length) return;
@@ -211,8 +216,11 @@ export function ErpOrderSync() {
           preserveConflict(order, result);
           lastSynced.set(order.orderId, stable(order));
         } else if (["AUTH_REQUIRED", "FORBIDDEN", "ERP_DB_NOT_CONFIGURED"].includes(result.code)) {
+          localSnapshot = undefined;
           backOff();
           break;
+        } else {
+          localSnapshot = undefined; // Keep failed/offline writes eligible for retry.
         }
       }
 
@@ -230,7 +238,14 @@ export function ErpOrderSync() {
 
     const pullRemoteChanges = async () => {
       const epoch = commandEpoch;
-      if (!ready || syncing) return;
+      if (!ready || syncing || document.visibilityState === "hidden") return;
+      const revisions = await callOrders<{ versions: Array<[string, number]> }>({ operation: "versions", businessId: activeBusiness });
+        if (cancelled || epoch !== commandEpoch || !ready || syncing) return;
+      if (!revisions.ok) {
+        if (["AUTH_REQUIRED", "FORBIDDEN", "ERP_DB_NOT_CONFIGURED"].includes(revisions.code)) backOff();
+        return;
+      }
+      if (revisions.ok && revisions.data.versions.length === versions.size && revisions.data.versions.every(([id, version]) => versions.get(id) === version)) return;
       const local = readLocalOrders(activeBusiness);
       const dirty = local.some(order => !hasActiveConflict(activeBusiness, order.orderId) && lastSynced.get(order.orderId) !== stable(order));
       if (dirty && (canCreate || canEdit)) return;
@@ -252,6 +267,14 @@ export function ErpOrderSync() {
       if (!ready && !syncing && Date.now() >= retryAfter) void initialize();
     };
 
+    const changed = () => { queueMicrotask(() => { if (!cancelled) { retry(); void pushLocalChanges(); } }); };
+    const storageChanged = (event: StorageEvent) => { if (!event.key || event.key === `jinam:${activeBusiness}:orders-v1`) changed(); };
+    const visible = () => { if (document.visibilityState !== "hidden") { changed(); void pullRemoteChanges(); } };
+    window.addEventListener("seiko:orders-cache-updated", changed);
+    window.addEventListener("storage", storageChanged);
+    window.addEventListener("online", visible);
+    document.addEventListener("visibilitychange", visible);
+
     void initialize();
     localTimer = window.setInterval(() => {
       retry();
@@ -262,6 +285,10 @@ export function ErpOrderSync() {
     return () => {
       cancelled = true;
       window.removeEventListener("seiko:order-command-saved", commandSaved);
+      window.removeEventListener("seiko:orders-cache-updated", changed);
+      window.removeEventListener("storage", storageChanged);
+      window.removeEventListener("online", visible);
+      document.removeEventListener("visibilitychange", visible);
       window.clearInterval(localTimer);
       window.clearInterval(remoteTimer);
     };

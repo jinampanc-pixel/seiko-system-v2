@@ -12,7 +12,7 @@ type OrderLike = {
 };
 
 type RequestBody = {
-  operation?: "list" | "upsert" | "import-local" | "audit" | "status" | "archive" | "delete";
+  operation?: "list" | "versions" | "upsert" | "import-local" | "audit" | "status" | "archive" | "delete";
   businessId?: string;
   order?: OrderLike;
   orders?: OrderLike[];
@@ -73,6 +73,11 @@ export async function POST(request: Request) {
     if (operation === "list") {
       if (!await authorizePermission(actor, businessId, "orders.view")) return forbidden();
       return await listOrders(db, businessId);
+    }
+    if (operation === "versions") {
+      if (!await authorizePermission(actor, businessId, "orders.view")) return forbidden();
+      const result = await db.prepare("SELECT id, version FROM erp_orders WHERE business_id = ? AND json_extract(document_json, '$.deletedAt') IS NULL").bind(businessId).all<{ id: string; version: number }>();
+      return Response.json({ ok: true, data: { versions: (result.results || []).map(row => [row.id, row.version]) } });
     }
     if (operation === "import-local") {
       if (!await authorizePermission(actor, businessId, "orders.create")) return forbidden();

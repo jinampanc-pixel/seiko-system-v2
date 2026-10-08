@@ -1,5 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$NodePath, [Parameter(Mandatory=$true)][string]$ConfigPath)
 $ErrorActionPreference = 'Stop'
+$env:UV_THREADPOOL_SIZE = '1'
+$env:NODE_OPTIONS = '--max-old-space-size=768'
 $privateConfig = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
 $logPath = Join-Path $privateConfig.directory 'pc-job.log'
 try {

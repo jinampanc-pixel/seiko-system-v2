@@ -124,7 +124,7 @@ export default function Home() {
         if (!result.ok) remaining.push(item);
       }
       if (!cancelled) {
-        localStorage.setItem(queueKey, JSON.stringify(remaining));
+        localStorage.setItem(queueKey, JSON.stringify(remaining)); window.dispatchEvent(new Event("seiko:scan-queue-updated"));
         setPending(remaining.length);
       }
     };
@@ -281,7 +281,7 @@ function Scanner({ businessId, queueKey, onPending }: { businessId: string; queu
     } else {
       const queue = JSON.parse(localStorage.getItem(queueKey) || "[]");
       queue.push({ ...event, toState: operation });
-      localStorage.setItem(queueKey, JSON.stringify(queue));
+      localStorage.setItem(queueKey, JSON.stringify(queue)); window.dispatchEvent(new Event("seiko:scan-queue-updated"));
       onPending(queue.length);
     }
     if (navigator.vibrate) navigator.vibrate(result?.ok ? 70 : [80, 60, 80]);

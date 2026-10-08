@@ -39,7 +39,7 @@ export async function authorizeDriveBackup(configFile, clientFile, { request = f
   url.search = new URLSearchParams({ client_id: client.client_id, redirect_uri: redirect, response_type: 'code', scope: 'https://www.googleapis.com/auth/drive.file', access_type: 'offline', prompt: 'consent', state, code_challenge: challenge, code_challenge_method: 'S256' }).toString();
   try {
     const code = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Authorization timed out. No existing backup was changed.')), 10 * 60 * 1000);
+      const timer = setTimeout(() => reject(new Error('Authorization timed out. Start a fresh setup; do not reload an expired callback. Existing backups are unchanged.')), 60 * 60 * 1000);
       queueMicrotask(() => { Promise.resolve(onAuthorize(url.toString())).catch(error => { clearTimeout(timer); reject(error); }); });
       server.on('request', (request, response) => {
         const received = new URL(request.url, redirect);

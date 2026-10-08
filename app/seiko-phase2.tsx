@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SeikoBillingWorkspace } from "./seiko-billing-workspace";
 import { SeikoClientDirectory } from "./seiko-client-directory";
@@ -29,7 +29,7 @@ function readStore<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try { return JSON.parse(localStorage.getItem(key) || "null") ?? fallback; } catch { return fallback; }
 }
-function writeStore<T>(key: string, value: T) { localStorage.setItem(key, JSON.stringify(value)); }
+function writeStore<T>(key: string, value: T) { const encoded = JSON.stringify(value); if (localStorage.getItem(key) !== encoded) localStorage.setItem(key, encoded); }
 
 export function SeikoPhase2() {
   const businessId = "seiko";
@@ -42,14 +42,20 @@ export function SeikoPhase2() {
   const [documents, setDocuments] = useState<SeikoCommercialDocument[]>([]);
   const [payments, setPayments] = useState<SeikoPaymentRecord[]>([]);
   const [templates, setTemplates] = useState<SeikoTemplateSet>(DEFAULT_SEIKO_TEMPLATES);
+  const learnedOrders = useRef<string | null>(null);
 
   const load = () => {
-    const orders = readStore<SeikoOrder[]>(orderStoreKey(businessId), []);
+    const orderSnapshot = localStorage.getItem(orderStoreKey(businessId)) || "[]";
     const currentClients = readStore<ClientLibraryRecord[]>(libraryStoreKey(businessId, "clients"), []);
     const currentProducts = readStore<ProductLibraryRecord[]>(libraryStoreKey(businessId, "products"), []);
-    const learned = learnLibrariesFromOrders(orders, currentClients, currentProducts);
-    writeStore(libraryStoreKey(businessId, "clients"), learned.clients);
-    writeStore(libraryStoreKey(businessId, "products"), learned.products);
+    const learned = orderSnapshot !== learnedOrders.current
+      ? learnLibrariesFromOrders(readStore<SeikoOrder[]>(orderStoreKey(businessId), []), currentClients, currentProducts)
+      : { clients: currentClients, products: currentProducts };
+    if (orderSnapshot !== learnedOrders.current) {
+      learnedOrders.current = orderSnapshot;
+      writeStore(libraryStoreKey(businessId, "clients"), learned.clients);
+      writeStore(libraryStoreKey(businessId, "products"), learned.products);
+    }
     setClients(learned.clients);
     setProducts(learned.products);
     setDocuments(readStore<SeikoCommercialDocument[]>(billingStoreKey(businessId), []));
@@ -77,8 +83,9 @@ export function SeikoPhase2() {
     queueMicrotask(load);
     const onStorage = () => load();
     window.addEventListener("storage", onStorage);
-    const timer = window.setInterval(load, 5000);
-    return () => { window.removeEventListener("storage", onStorage); window.clearInterval(timer); };
+    window.addEventListener("seiko:orders-cache-updated", onStorage);
+    window.addEventListener("focus", onStorage);
+    return () => { window.removeEventListener("storage", onStorage); window.removeEventListener("seiko:orders-cache-updated", onStorage); window.removeEventListener("focus", onStorage); };
   }, []);
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
+import { withBackupLock } from './backup-lock.mjs';
 import { TABLES, SEQUENCE_TABLES, canonical, makeBackup, encryptBackup, decryptBackup, summarizeRestore } from '../app/lib/backup-format.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -50,6 +51,11 @@ export function restoreDrill(backup, destination) {
   } finally { db.close(); }
 }
 export async function diskBackup(config, run = spawnSync) {
+  if (!path.isAbsolute(config.directory) || !path.isAbsolute(config.keyFile)) throw new Error('Use absolute private backup and key paths.');
+  if (!fs.existsSync(config.directory)) throw new Error('Backup destination is unavailable; nothing was exported.');
+  return withBackupLock(config.directory, () => exportDiskBackup(config, run));
+}
+async function exportDiskBackup(config, run) {
   if (!path.isAbsolute(config.directory) || !path.isAbsolute(config.keyFile)) throw new Error('Use absolute private backup and key paths.');
   if (!fs.existsSync(config.directory)) throw new Error('Backup destination is unavailable; nothing was exported.');
   const passphrase = fs.readFileSync(config.keyFile, 'utf8').trim();
