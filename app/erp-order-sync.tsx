@@ -105,7 +105,8 @@ export function ErpOrderSync() {
     const backOff = () => { ready = false; retryAfter = Date.now() + RETRY_BACKOFF_MS; };
 
     const applyServer = (envelopes: Envelope[]) => {
-      const normalizedEnvelopes = envelopes.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
+      const normalizedEnvelopes = envelopes.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }))
+        .sort((left, right) => timestamp(right.updatedAt) - timestamp(left.updatedAt));
       const orders = normalizedEnvelopes.map(item => item.order);
       cacheNeedsRefresh = false;
       versions.clear();

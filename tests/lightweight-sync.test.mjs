@@ -63,3 +63,29 @@ test('backup lock excludes concurrent exports, releases on failure and recovers 
     assert.equal(await withBackupLock(directory, async () => 'recovered', { isAlive: () => false }), 'recovered');
   } finally { for (const file of fs.readdirSync(directory)) fs.unlinkSync(path.join(directory, file)); fs.rmdirSync(directory); }
 });
+
+test('keyset loading preserves newest-first display order across batches', async () => {
+  const exports = {}; let local = []; const requests = []; let cleanup;
+  const events = new EventTarget();
+  const window = { addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events), dispatchEvent: events.dispatchEvent.bind(events), setInterval: () => 1, clearInterval() {} };
+  const document = { visibilityState: 'visible', addEventListener() {}, removeEventListener() {} };
+  class DetailEvent extends Event { constructor(name, options) { super(name); this.detail = options.detail; } }
+  const imports = {
+    react: { useEffect: effect => { cleanup = effect(); } },
+    './access-control': { useAccess: () => ({ businessId: 'seiko', membership: { modules: ['orders'] }, can: permission => permission === 'orders.view' }) },
+    './lib/order-domain': { normalizeProductMeasurements: order => order },
+    './lib/order-cache': { readOrderCache: () => local, orderCacheIsVolatile: () => false, writeOrderCache: (_business, orders) => { local = orders; } },
+    './lib/order-commands': { orderVersions: () => new Map(), requestOrders: async body => {
+      requests.push(body);
+      const orderId = body.afterId ? 'z-newest' : 'a-oldest';
+      const updatedAt = body.afterId ? '2026-10-08T10:00:00Z' : '2026-10-07T10:00:00Z';
+      return { ok: true, data: { orders: [{ order: { orderId, updatedAt, records: [] }, version: 1, updatedAt }], nextCursor: body.afterId ? null : 'a-oldest' } };
+    } },
+  };
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync('app/erp-order-sync.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports, require: name => imports[name], window, document, localStorage: { getItem: () => null }, queueMicrotask, CustomEvent: DetailEvent, Date });
+  exports.ErpOrderSync();
+  for (let i = 0; i < 12; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(Array.from(local, order => order.orderId), ['z-newest', 'a-oldest']);
+  assert.equal(requests.length, 2); assert.equal(requests[1].afterId, 'a-oldest');
+  cleanup();
+});
