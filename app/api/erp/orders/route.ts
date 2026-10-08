@@ -21,6 +21,9 @@ type RequestBody = {
   status?: string;
   archived?: boolean;
   confirmOrderNo?: string;
+  orderIds?: string[];
+  limit?: number;
+  afterId?: string;
 };
 
 type OrderEnvelope = {
@@ -72,7 +75,10 @@ export async function POST(request: Request) {
 
     if (operation === "list") {
       if (!await authorizePermission(actor, businessId, "orders.view")) return forbidden();
-      return await listOrders(db, businessId);
+      if (body.orderIds !== undefined && (!Array.isArray(body.orderIds) || body.orderIds.length > 25 || body.orderIds.some(id => typeof id !== "string" || !id || id.length > 200))) return error("INVALID_ORDER_IDS", "Select up to 25 orders.", 400);
+      if (body.limit !== undefined && (!Number.isInteger(body.limit) || body.limit < 1 || body.limit > 25)) return error("INVALID_PAGE", "Choose a page size from 1 to 25.", 400);
+      if (body.afterId !== undefined && (typeof body.afterId !== "string" || body.afterId.length > 200 || body.limit === undefined)) return error("INVALID_PAGE", "Choose a valid order page.", 400);
+      return await listOrders(db, businessId, body);
     }
     if (operation === "versions") {
       if (!await authorizePermission(actor, businessId, "orders.view")) return forbidden();
@@ -107,16 +113,23 @@ export async function POST(request: Request) {
   }
 }
 
-async function listOrders(db: OrderDb, businessId: string) {
+async function listOrders(db: OrderDb, businessId: string, query: RequestBody) {
+  if (query.orderIds?.length === 0) return Response.json({ ok: true, data: { orders: [] } });
+  const targeted = query.orderIds !== undefined;
+  const paged = !targeted && query.limit !== undefined;
+  const clause = targeted ? ` AND id IN (${query.orderIds!.map(() => "?").join(",")})` : paged ? " AND id > ?" : "";
+  const parameters = targeted ? [businessId, ...query.orderIds!] : paged ? [businessId, query.afterId || "", query.limit! + 1] : [businessId];
   const result = await db.prepare(
-    `SELECT document_json, version, updated_at, updated_by_email
+    `SELECT id, document_json, version, updated_at, updated_by_email
        FROM erp_orders
-      WHERE business_id = ? AND json_extract(document_json, '$.deletedAt') IS NULL
-      ORDER BY updated_at DESC`,
-  ).bind(businessId).all<{ document_json: string; version: number; updated_at: string; updated_by_email: string }>();
+      WHERE business_id = ? AND json_extract(document_json, '$.deletedAt') IS NULL${clause}
+      ORDER BY ${paged ? "id ASC LIMIT ?" : "updated_at DESC"}`,
+  ).bind(...parameters).all<{ id: string; document_json: string; version: number; updated_at: string; updated_by_email: string }>();
 
   const orders: OrderEnvelope[] = [];
-  for (const row of result.results || []) {
+  const rows = result.results || [];
+  const page = paged ? rows.slice(0, query.limit) : rows;
+  for (const row of page) {
     try {
       orders.push({
         order: JSON.parse(row.document_json) as OrderLike,
@@ -128,7 +141,7 @@ async function listOrders(db: OrderDb, businessId: string) {
       // A malformed row is skipped instead of making the entire ERP unusable.
     }
   }
-  return Response.json({ ok: true, data: { orders } });
+  return Response.json({ ok: true, data: { orders, ...(paged ? { nextCursor: rows.length > query.limit! ? page.at(-1)!.id : null } : {}) } });
 }
 
 async function upsertOrder(

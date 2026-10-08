@@ -146,3 +146,49 @@ test('a newer poll version cannot authorize overwriting an older workspace revis
   await assert.rejects(commands.saveSharedOrder('seiko', {orderId:'one',records:[]}, 'older-workspace-revision'), /changed in another window or device/);
   assert.equal(operations.join(','), 'list');
 });
+
+test('1,000 orders: bounded pages, targeted reads and permission boundaries retain every record', async t => {
+  const sqlite = new DatabaseSync(':memory:');
+  try {
+    sqlite.exec(fs.readFileSync('drizzle/0001_erp_foundation.sql', 'utf8'));
+    const db = { withSession() { return this; }, prepare(sql) {
+      const statement = sqlite.prepare(sql); let args = [];
+      return { bind(...values) { args = values; return this; }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } };
+    } };
+    let allowed = true;
+    const api = load('app/api/erp/orders/route.ts', {
+      'cloudflare:workers': { env: { DB: db } }, '../../../lib/order-statuses': load('app/lib/order-statuses.ts'),
+      '../../../lib/server-erp-auth': { authenticateActor: async () => ({ userId: 'fixture', email: 'fixture@example.invalid' }), authorizePermission: async () => allowed ? { role: 'owner' } : null },
+    });
+    const insert = sqlite.prepare('INSERT INTO erp_orders VALUES(?,?,?,?,?,?,1,?,?,?,?,?,?)');
+    sqlite.exec('BEGIN');
+    for (let i = 0; i < 1000; i++) {
+      const id = `order-${String(i).padStart(4, '0')}`;
+      const order = { orderId: id, details: { orderNo: id }, records: Array.from({ length: 100 }, (_, n) => ({ recordId: `${id}-${n}`, values: { name: `Synthetic ${n}` } })) };
+      insert.run(id, 'seiko', id, 'Active', 0, JSON.stringify(order), 'now', 'fixture', 'fixture@example.invalid', 'now', 'fixture', 'fixture@example.invalid');
+    }
+    insert.run('other-business', 'meth', 'other', 'Active', 0, '{}', 'now', 'fixture', 'fixture@example.invalid', 'now', 'fixture', 'fixture@example.invalid');
+    sqlite.exec('COMMIT');
+    const call = async body => {
+      const response = await api.POST(new Request('https://test.invalid/api/erp/orders', { method: 'POST', body: JSON.stringify({ operation: 'list', businessId: 'seiko', ...body }) }));
+      const text = await response.text(); return { status: response.status, bytes: Buffer.byteLength(text), ...JSON.parse(text) };
+    };
+    const started = performance.now(); const ids = []; let afterId; let maxBytes = 0; let pages = 0;
+    do {
+      const result = await call({ limit: 25, ...(afterId ? { afterId } : {}) });
+      assert.equal(result.status, 200); assert.ok(result.data.orders.length <= 25);
+      maxBytes = Math.max(maxBytes, result.bytes); pages++;
+      for (const item of result.data.orders) { ids.push(item.order.orderId); assert.equal(item.order.records.length, 100); }
+      afterId = result.data.nextCursor;
+    } while (afterId);
+    assert.equal(ids.length, 1000); assert.equal(new Set(ids).size, 1000); assert.equal(pages, 40);
+    const single = await call({ orderIds: ['order-0999'] });
+    assert.equal(single.data.orders.length, 1); assert.equal(single.data.orders[0].order.orderId, 'order-0999');
+    assert.ok(single.bytes < maxBytes / 20);
+    assert.equal((await call({ orderIds: ['other-business'] })).data.orders.length, 0);
+    assert.equal((await call({ orderIds: [] })).data.orders.length, 0);
+    for (const invalid of [{ limit: 0 }, { limit: 26 }, { limit: '25' }, { afterId: 'x' }, { orderIds: 'x' }, { orderIds: Array(26).fill('x') }]) assert.equal((await call(invalid)).status, 400);
+    allowed = false; assert.equal((await call({ orderIds: ['order-0999'] })).status, 403);
+    t.diagnostic(`Local SQLite: 1,000 orders / 100,000 records in ${pages} pages; largest response ${maxBytes} bytes; single-order response ${single.bytes} bytes; ${Math.round(performance.now() - started)} ms. Not a Cloudflare latency measurement.`);
+  } finally { sqlite.close(); }
+});

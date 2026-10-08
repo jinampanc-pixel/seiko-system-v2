@@ -37,7 +37,7 @@ export function requestOrders<T>(body: Record<string, unknown>): Promise<Result<
 async function versionFor(businessId: string, orderId: string) {
   const known = orderVersions(businessId);
   if (!known.has(orderId)) {
-    const result = await requestOrders<{ orders: OrderEnvelope[] }>({ operation: "list", businessId });
+    const result = await requestOrders<{ orders: OrderEnvelope[] }>({ operation: "list", businessId, orderIds: [orderId] });
     if (!result.ok) throw new Error(result.message);
     for (const item of result.data.orders) known.set(item.order.orderId, item.version);
   }
@@ -60,7 +60,7 @@ export async function saveSharedOrder(businessId: string, order: SeikoOrder, bas
   if (baseUpdatedAt) {
     // Polling may advance the version map while a workspace still contains an older draft.
     // Match the revision the user opened, then use that version for the atomic server check.
-    const listed = await requestOrders<{ orders: OrderEnvelope[] }>({ operation: "list", businessId });
+    const listed = await requestOrders<{ orders: OrderEnvelope[] }>({ operation: "list", businessId, orderIds: [order.orderId] });
     if (!listed.ok) throw new Error(listed.message);
     const existing = listed.data.orders.find(item => item.order.orderId === order.orderId);
     if (!existing || existing.order.updatedAt !== baseUpdatedAt) {

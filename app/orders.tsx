@@ -45,6 +45,17 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
   const [current, setCurrent] = useState<SeikoOrder | null>(() => initialOrder ? { ...initialOrder, products: initialOrder.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [] })) } : startNewOrder ? createOrder() : null);
   const [query, setQuery] = useState("");
   const [archivedOnly, setArchivedOnly] = useState(false);
+  const [centerPage, setCenterPage] = useState(1);
+  const [centerFilters, setCenterFilters] = useState({ status: "", clientType: "", product: "", delivery: "all" });
+  useEffect(() => {
+    const changed = (event: Event) => {
+      const next = (event as CustomEvent<typeof centerFilters>).detail;
+      setCenterFilters(current => JSON.stringify(current) === JSON.stringify(next) ? current : next);
+      setCenterPage(1);
+    };
+    window.addEventListener("seiko:order-center-filters", changed);
+    return () => window.removeEventListener("seiko:order-center-filters", changed);
+  }, []);
   const [setupErrors, setSetupErrors] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<OrderSuggestions>(() => loadSuggestions(businessId));
   const updateSuggestions = (change: (current: OrderSuggestions) => OrderSuggestions) => setSuggestions(current => { const next = change(current); localStorage.setItem(suggestionStoreKey(businessId), JSON.stringify(next)); return next; });
@@ -93,14 +104,30 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
     });
   };
   const openWorkspace = (order: SeikoOrder) => { setSaveNotice(null); setCurrent(structuredClone(order)); setView("workspace"); };
-  const visible = useMemo(() => orders.filter(order => order.archived === archivedOnly && `${order.details.orderNo} ${order.details.clientName} ${order.details.clientType} ${order.status}`.toLowerCase().includes(query.toLowerCase())), [archivedOnly, orders, query]);
+  const searchEntries = useMemo(() => orders.map(order => ({ order, text: JSON.stringify([order.details, order.status, order.products, order.records]).toLowerCase() })), [orders]);
+  const filtered = useMemo(() => searchEntries.filter(({ order, text }) => {
+    if (order.archived !== archivedOnly || !text.includes(query.trim().toLowerCase())) return false;
+    if (centerFilters.status && order.status !== centerFilters.status) return false;
+    if (centerFilters.clientType && order.details.clientType !== centerFilters.clientType) return false;
+    if (centerFilters.product && !order.products.some(product => product.name === centerFilters.product)) return false;
+    if (centerFilters.delivery !== "all") {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const days = Math.ceil((new Date(`${order.details.deliveryDate}T00:00:00`).getTime() - today.getTime()) / 86400000);
+      const due = !order.details.deliveryDate ? "none" : days < 0 ? "overdue" : days <= 7 ? "due7" : "later";
+      if (due !== centerFilters.delivery) return false;
+    }
+    return true;
+  }).map(entry => entry.order), [archivedOnly, centerFilters, searchEntries, query]);
+  const centerPageCount = Math.max(1, Math.ceil(filtered.length / 10));
+  const safeCenterPage = Math.min(centerPage, centerPageCount);
+  const visible = filtered.slice((safeCenterPage - 1) * 10, safeCenterPage * 10);
 
   const saveConfirmation = saveNotice && <p key={saveNotice.sequence} className="orderSaveConfirmation" role="status" aria-live="polite">{saveNotice.message}</p>;
   if (view === "setup" && current) return <>{saveConfirmation}{saveError && <p role="alert">{saveError}</p>}<OrderSetup businessId={businessId} order={current} returnView={setupReturnView} busy={busy} errors={setupErrors} suggestions={suggestions} canManageSuggestions={canManageSuggestions} onRemoveSuggestion={removeSuggestion} onChange={changeSetup} onCancel={() => setView(current.revisions.length ? setupReturnView : "center")} onContinue={async () => { const errors = validateOrder(current); setSetupErrors(errors); if (errors.length) return; learnSuggestion("clientTypes", current.details.clientType); current.products.forEach(product => learnSuggestion("products", product.name, current.details.clientType)); current.measurements.forEach(measurement => learnSuggestion("measurements", measurement.name, current.details.clientType)); const existingOrder = current.revisions.length > 0; if (await save(current, existingOrder ? "Order definition updated" : "Order draft created")) setView(existingOrder ? setupReturnView : "workspace"); }}/></>;
   if (view === "workspace" && current) return <>{saveConfirmation}{saveError && <p role="alert">{saveError}</p>}<OrderWorkspace businessId={businessId} canManageSuggestions={canManageSuggestions} order={current} busy={busy} owner={membership?.role === "owner"} onStatus={status => void changeStatus(current, status)} onOpenLabelBatches={()=>onOpenLabelBatches?.(current)} onBack={() => { void save(current, "Order saved", true); }} onChange={order => { setSaveNotice(null); setCurrent(order); }} onEditSetup={() => { setSetupReturnView("workspace"); setView("setup"); }} onSave={close => { if (!close || window.confirm("Save and close this order? The changes will be saved to shared storage before returning to Orders.")) void save(current, "Order saved", close); }} onArchive={() => void archiveOrder(current)} onDelete={() => deleteOrder(current)} onClose={() => { if (confirm("Close without saving the latest changes? The last saved revision remains safe.")) { setView("center"); setCurrent(null); } }}/></>;
 
   return <div className="page ordersPage">{onHome && <button type="button" className="orderCenterBackHome" onClick={onHome}>← Back to Home</button>}{saveConfirmation}{orderCacheIsVolatile(businessId) && <p role="status">This browser cannot keep an offline order copy. Saved orders remain in shared storage; keep an internet connection to reopen them.</p>}{saveError && <p role="alert">{saveError}</p>}<section className="orderCenterHead"><div><p className="eyebrow">ORDER CENTER</p><h2>Orders</h2><p>Create, find and continue client orders.</p></div><button className="primary" onClick={() => { setSetupReturnView("center"); setCurrent(createOrder()); setView("setup"); }}>+ New order</button></section>
-    <div className="orderTools"><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search order, client, type or status"/><label><input type="checkbox" checked={archivedOnly} onChange={event => setArchivedOnly(event.target.checked)}/> Archived orders</label></div>
+    <div className="orderTools"><input value={query} onChange={event => { setQuery(event.target.value); setCenterPage(1); }} placeholder="Search order, client, type or status"/><label><input type="checkbox" checked={archivedOnly} onChange={event => { setArchivedOnly(event.target.checked); setCenterPage(1); }}/> Archived orders</label></div>
     <section className="orderList panel">{visible.length ? visible.map(order => <article className="orderRow" data-order-source="react" key={order.orderId}>
       <div className="orderCenterInfo"><b>{order.details.orderNo}</b><span>{order.details.clientName}</span><small>{order.details.clientType} · {order.records.length} person/record entries · {order.revisions.length} revisions</small></div>
       <label className="orderListStatus orderCenterInlineStatus"><span className="srOnly">Status for {order.details.orderNo}</span><select aria-label={`Status for ${order.details.orderNo}`} disabled={busy} className={`status-${order.status.toLowerCase().replace(" ", "-")}`} value={order.status} onChange={event => void changeStatus(order, event.target.value as OrderStatus)}>{ORDER_STATUSES.map(status => <option key={status}>{status}</option>)}</select></label>
@@ -128,6 +155,7 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
         {membership?.role === "owner" && <button disabled={busy} className="dangerText" onClick={() => deleteOrder(order)}>Delete order</button>}
       </div></details>
     </article>) : <div className="orderEmpty"><b>{archivedOnly ? "No archived orders" : "No orders yet"}</b><p>Create the first order from the client’s actual requirements.</p></div>}</section>
+    <nav className="workspacePager" aria-label="Order pages"><span>{filtered.length} matching orders</span><button disabled={safeCenterPage <= 1} onClick={() => setCenterPage(safeCenterPage - 1)}>Previous</button><span>Page {safeCenterPage} of {centerPageCount}</span><button disabled={safeCenterPage >= centerPageCount} onClick={() => setCenterPage(safeCenterPage + 1)}>Next</button></nav>
   </div>;
 }
 

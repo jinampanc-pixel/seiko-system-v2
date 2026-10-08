@@ -87,7 +87,21 @@ export function ErpOrderSync() {
     };
     window.addEventListener("seiko:order-command-saved", commandSaved);
 
-    const list = async () => callOrders<{ orders: Envelope[] }>({ operation: "list", businessId: activeBusiness });
+    const list = async (): Promise<ApiSuccess<{ orders: Envelope[] }> | ApiFailure> => {
+      const orders: Envelope[] = [];
+      let afterId: string | undefined;
+      do {
+        const page = await callOrders<{ orders: Envelope[]; nextCursor?: string | null }>({ operation: "list", businessId: activeBusiness, limit: 25, ...(afterId ? { afterId } : {}) });
+        if (!page.ok) return page;
+        if (cancelled) return { ok: false, code: "CANCELLED", message: "Order loading stopped." };
+        orders.push(...page.data.orders);
+        const next = page.data.nextCursor;
+        if (!next) break;
+        if (next === afterId) return { ok: false, code: "INVALID_RESPONSE", message: "Order loading did not advance. Retry loading orders." };
+        afterId = next;
+      } while (!cancelled);
+      return { ok: true, data: { orders } };
+    };
     const backOff = () => { ready = false; retryAfter = Date.now() + RETRY_BACKOFF_MS; };
 
     const applyServer = (envelopes: Envelope[]) => {
@@ -255,8 +269,25 @@ export function ErpOrderSync() {
       if (dirty && (canCreate || canEdit)) return;
 
       syncing = true;
-      const remote = await list();
-      if (remote.ok && epoch === commandEpoch) {
+      const localById = new Map(local.map(order => [order.orderId, order]));
+      const needed = revisions.data.versions.filter(([id, version]) => !localById.has(id) || versions.get(id) !== version || hasActiveConflict(activeBusiness, id)).map(([id]) => id);
+      const neededIds = new Set(needed);
+      const fetched = new Map<string, Envelope>();
+      let failure: ApiFailure | undefined;
+      for (let offset = 0; offset < needed.length; offset += 25) {
+        const result = await callOrders<{ orders: Envelope[] }>({ operation: "list", businessId: activeBusiness, orderIds: needed.slice(offset, offset + 25) });
+        if (!result.ok) { failure = result; break; }
+        if (cancelled || epoch !== commandEpoch) break;
+        for (const item of result.data.orders) fetched.set(item.order.orderId, item);
+      }
+      // Only accept the complete refresh; a failed batch must not remove cached orders.
+      const remote: ApiSuccess<{ orders: Envelope[] }> | ApiFailure = failure || { ok: true, data: { orders: revisions.data.versions.flatMap(([id, version]) => {
+        const item = fetched.get(id);
+        if (item) return [item];
+        const order = localById.get(id);
+        return neededIds.has(id) || !order ? [] : [{ order, version, updatedAt: order.updatedAt, updatedBy: "" }];
+      }) } };
+      if (remote.ok && !cancelled && epoch === commandEpoch) {
         const normalizedRemote = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
         const remoteFingerprint = JSON.stringify(normalizedRemote.map(item => [item.order.orderId, item.version]));
         const localFingerprint = JSON.stringify([...versions.entries()]);

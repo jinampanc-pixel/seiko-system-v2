@@ -44,6 +44,9 @@ jobs:
       - name: Navigation and payment smoke
         run: npm run test:smoke
 
+      - name: Large order browser regression
+        run: node tests/stabilization-smoke.cjs --large-orders
+
   backup-information:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

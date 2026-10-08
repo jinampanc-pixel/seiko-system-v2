@@ -1,5 +1,6 @@
 "use client";
 import { writeLabelStorage } from "./lib/label-storage";
+import { readOrderCache, orderCacheIsVolatile } from "./lib/order-cache";
 
 import { useEffect } from "react";
 import { startDomEnhancement } from "./lib/dom-enhancement";
@@ -16,7 +17,20 @@ function currentBusiness() { return localStorage.getItem("jinam:selected-busines
 function labelTaskKey() { return `jinam:${currentBusiness()}:labels:tasks-v1`; }
 function pdfRecordKey() { return `jinam:${currentBusiness()}:labels:pdf-records-v1`; }
 function archiveViewKey() { return `jinam:${currentBusiness()}:labels:archive-view`; }
-function ordersForBusiness(): SeikoOrder[] { try { return JSON.parse(localStorage.getItem(`jinam:${currentBusiness()}:orders-v1`) || "[]") as SeikoOrder[]; } catch { return []; } }
+let cachedBusiness = "";
+let cachedRaw: string | null | undefined;
+let cachedOrders: SeikoOrder[] = [];
+function ordersForBusiness(): SeikoOrder[] {
+  const business = currentBusiness();
+  if (orderCacheIsVolatile(business)) return readOrderCache(business);
+  try {
+    const raw = localStorage.getItem(`jinam:${business}:orders-v1`);
+    if (business !== cachedBusiness || raw !== cachedRaw) {
+      cachedOrders = readOrderCache(business); cachedBusiness = business; cachedRaw = raw;
+    }
+    return cachedOrders;
+  } catch { return readOrderCache(business); }
+}
 function labelTasks(): SavedLabelTask[] { try { return JSON.parse(localStorage.getItem(labelTaskKey()) || "[]") as SavedLabelTask[]; } catch { return []; } }
 function pdfRecords(): PdfRecord[] { try { return JSON.parse(localStorage.getItem(pdfRecordKey()) || "[]") as PdfRecord[]; } catch { return []; } }
 function saveLabelTasks(tasks: SavedLabelTask[]) { writeLabelStorage(labelTaskKey(), JSON.stringify(tasks)); }
@@ -27,7 +41,7 @@ function dueState(order: SeikoOrder) { if (!order.details.deliveryDate) return "
 function activeFilterCount() { return [filterState.status,filterState.clientType,filterState.product,filterState.delivery!=="all"?filterState.delivery:""].filter(Boolean).length; }
 function matchingProducts(orders: SeikoOrder[]) { const scope=filterState.clientType?orders.filter(order=>order.details.clientType===filterState.clientType):orders;return[...new Set(scope.flatMap(order=>order.products.map(product=>product.name.trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})); }
 function syncProductSelect(page: HTMLElement) { const select=page.querySelector<HTMLSelectElement>(".orderAdvancedFilter.product select");if(!select)return;const orders=ordersForBusiness().filter(order=>!order.archived);const products=matchingProducts(orders);const previous=products.includes(filterState.product)?filterState.product:"";filterState.product=previous;select.replaceChildren();option(select,"",filterState.clientType?"All products for this client type":"All products");products.forEach(value=>option(select,value,value));select.value=previous; }
-function applyOrderFilters(page: HTMLElement) { const orders=ordersForBusiness();const byNumber=new Map(orders.map(order=>[order.details.orderNo,order]));page.querySelectorAll<HTMLElement>(".orderList .orderRow").forEach(row=>{const order=byNumber.get(orderNumberFromRow(row));if(!order)return;const matches=(!filterState.status||order.status===filterState.status)&&(!filterState.clientType||order.details.clientType===filterState.clientType)&&(!filterState.product||order.products.some(product=>product.name===filterState.product))&&(filterState.delivery==="all"||dueState(order)===filterState.delivery);row.hidden=!matches;});const shown=page.querySelectorAll(".orderList .orderRow:not([hidden])").length;const count=page.querySelector<HTMLElement>(".orderAdvancedFilterCount");if(count)count.textContent=`${shown} shown`;const active=page.querySelector<HTMLElement>(".orderFilterActiveCount");const total=activeFilterCount();if(active){active.textContent=total?String(total):"";active.hidden=total===0;}page.querySelector<HTMLElement>(".orderFilterToggle")?.classList.toggle("active",total>0); }
+function applyOrderFilters(page: HTMLElement) { const signature=JSON.stringify(filterState);if(page.dataset.orderFilterSignature!==signature){page.dataset.orderFilterSignature=signature;window.dispatchEvent(new CustomEvent("seiko:order-center-filters",{detail:{...filterState}}));} const orders=ordersForBusiness();const byNumber=new Map(orders.map(order=>[order.details.orderNo,order]));page.querySelectorAll<HTMLElement>(".orderList .orderRow").forEach(row=>{const order=byNumber.get(orderNumberFromRow(row));if(!order)return;const matches=(!filterState.status||order.status===filterState.status)&&(!filterState.clientType||order.details.clientType===filterState.clientType)&&(!filterState.product||order.products.some(product=>product.name===filterState.product))&&(filterState.delivery==="all"||dueState(order)===filterState.delivery);row.hidden=!matches;});const shown=page.querySelectorAll(".orderList .orderRow:not([hidden])").length;const count=page.querySelector<HTMLElement>(".orderAdvancedFilterCount");if(count)count.textContent=`${shown} shown`;const active=page.querySelector<HTMLElement>(".orderFilterActiveCount");const total=activeFilterCount();if(active){active.textContent=total?String(total):"";active.hidden=total===0;}page.querySelector<HTMLElement>(".orderFilterToggle")?.classList.toggle("active",total>0); }
 function ensureOrderFilters(page: HTMLElement) {
   if(page.dataset.orderFilterSession!=="ready"){resetFilterState();page.dataset.orderFilterSession="ready";}
   if(page.querySelector(".orderAdvancedFilters")){syncProductSelect(page);applyOrderFilters(page);return;}

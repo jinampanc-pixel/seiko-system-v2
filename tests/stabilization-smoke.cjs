@@ -58,6 +58,18 @@ function load(path, imports = {}) {
       assert.equal(response.status, 200, await response.text());
     };
     await seed(order);
+    if (process.argv.includes('--large-orders')) {
+      for (let i = 1; i <= 1000; i++) {
+        const value = structuredClone(order);
+        value.orderId = `scale-${String(i).padStart(4, '0')}`;
+        value.details.orderNo = `SCALE-${String(i).padStart(4, '0')}`;
+        value.details.clientName = `Synthetic client ${i}`;
+        if (i === 1000) value.status = 'Production';
+        value.records = Array.from({ length: 100 }, (_, n) => ({ ...structuredClone(order.records[0]), recordId: `person-${n}`, personId: `person-${n}` }));
+        value.records[0].values['field:name'] = `Unique-person-${i}`;
+        await seed(value);
+      }
+    }
     const billing = load('app/api/erp/billing/route.ts', {
       'cloudflare:workers': { env: { DB: db } }, '../../../lib/seiko-billing': load('app/lib/seiko-billing.ts'),
       '../../../lib/server-erp-auth': auth,
@@ -100,6 +112,30 @@ function load(path, imports = {}) {
       await page.getByRole('button', { name: 'Open menu', exact: true }).click();
       await page.getByRole('navigation', { name: 'Modules' }).getByRole('button', { name: new RegExp(`${name}$`) }).click();
     };
+    if (process.argv.includes('--large-orders')) {
+      const started = Date.now();
+      await navigate('Orders');
+      await page.getByPlaceholder('Search order, client, type or status').fill('SCALE-1000');
+      await page.locator('.orderRow').filter({ hasText: 'SCALE-1000' }).waitFor({ timeout: 30000 });
+      assert.equal(await page.locator('.orderRow').count(), 1);
+      await page.getByPlaceholder('Search order, client, type or status').fill('Unique-person-1000');
+      await page.locator('.orderRow').filter({ hasText: 'SCALE-1000' }).waitFor();
+      assert.equal(await page.locator('.orderRow').count(), 1);
+      await page.getByPlaceholder('Search order, client, type or status').fill('');
+      await page.waitForFunction(() => document.querySelectorAll('.orderRow').length === 10);
+      await page.getByRole('button', { name: 'Open order filters', exact: true }).click();
+      await page.locator('.orderAdvancedFilter.status select').selectOption('Production');
+      await page.waitForFunction(() => document.querySelectorAll('.orderRow').length === 1);
+      await page.locator('.orderRow').filter({ hasText: 'SCALE-1000' }).waitFor();
+      await page.getByRole('button', { name: 'Clear all', exact: true }).click();
+      await page.waitForFunction(() => document.querySelectorAll('.orderRow').length === 10);
+      await page.getByRole('button', { name: 'Next', exact: true }).click();
+      assert.equal(await page.locator('.orderRow').count(), 10);
+      if (process.env.SEIKO_SCALE_SCREENSHOT) await page.screenshot({ path: process.env.SEIKO_SCALE_SCREENSHOT, fullPage: false });
+      assert.deepEqual(errors, []);
+      console.log(`PASS: 1,001 synthetic orders / 100,001 records; last-order search, bounded 10-row rendering and page navigation (${Date.now() - started} ms, local Chrome).`);
+      return;
+    }
     if(process.argv.includes('--production-handoffs')){await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--billing-production')){
       const second=structuredClone(order);second.orderId='second-order';second.details.orderNo='SECOND-002';second.details.clientName='Other School';

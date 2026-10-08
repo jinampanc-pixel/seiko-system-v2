@@ -16,6 +16,6 @@ On October 8 a fresh encrypted PC archive and direct Google Drive copy were veri
 
 ## Limits
 
-The initial order load and refresh after changes still load complete orders. This change does not establish a performance guarantee for thousands of large orders. Host-wide CPU, memory, disk health and Chrome resource use have not been measured reliably from the development session.
+The subsequent large-order change batches initial loading, fetches only affected orders during refresh/save checks, and bounds Order Center rendering to 10 rows. See [large-order verification](LARGE_ORDER_PERFORMANCE_2026-10-08.md) for the tested 1,000-order / 100,000-record scenario and its limits. Complete orders are still retained in session memory. Host-wide CPU, memory and disk health have not been measured reliably from the development session.
 
 The independent cloud-only workflow remains disabled until dedicated export access and encrypted repository secrets are configured and a complete cloud run is verified. A Mac requires its own configured local backup job. Signing in alone does not configure device backups.
