@@ -89,6 +89,7 @@ function load(path, imports = {}) {
       });
     }
     await page.addInitScript(value => {
+      if (window.top !== window || localStorage.getItem('jinam:seiko:orders-v1') !== null) return;
       localStorage.setItem('jinam:selected-business', 'seiko');
       localStorage.setItem('jinam:seiko:orders-v1', JSON.stringify([value]));
     }, order);

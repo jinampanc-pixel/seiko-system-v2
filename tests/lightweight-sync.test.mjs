@@ -41,6 +41,10 @@ test('idle sync avoids order parsing and full downloads, preserves event saves a
   assert.equal(remote[0].records[0].value, 'edited'); assert.equal(version, 2);
   document.visibilityState = 'visible'; remote[0].records.push({ value: 'other device' }); version++; timers.get(15000)(); await flush();
   assert.equal(local[0].records.length, 2);
+  const listsBeforeLoss = calls.filter(value => value === 'list').length;
+  local = []; storage.set(key, '[]'); events.dispatchEvent(new Event('seiko:orders-cache-updated')); await flush();
+  assert.equal(local[0].records.length, 2, 'Missing cached orders recover without a server version change');
+  assert.equal(calls.filter(value => value === 'list').length, listsBeforeLoss + 1);
   cleanups.forEach(cleanup => cleanup()); assert.equal(timers.size, 0);
 });
 

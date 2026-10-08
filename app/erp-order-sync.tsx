@@ -74,6 +74,7 @@ export function ErpOrderSync() {
     let localTimer = 0;
     let remoteTimer = 0;
     let localSnapshot: string | null | undefined;
+    let cacheNeedsRefresh = false;
     const versions = orderVersions(activeBusiness);
     const lastSynced = new Map<string, string>();
     let commandEpoch = 0;
@@ -92,6 +93,7 @@ export function ErpOrderSync() {
     const applyServer = (envelopes: Envelope[]) => {
       const normalizedEnvelopes = envelopes.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
       const orders = normalizedEnvelopes.map(item => item.order);
+      cacheNeedsRefresh = false;
       versions.clear();
       lastSynced.clear();
       for (const item of normalizedEnvelopes) {
@@ -192,7 +194,9 @@ export function ErpOrderSync() {
       localSnapshot = snapshot;
       const local = readLocalOrders(activeBusiness);
       const changed = local.filter(order => !hasActiveConflict(activeBusiness, order.orderId) && lastSynced.get(order.orderId) !== stable(order));
-      if (!changed.length) return;
+      const cachedIds = new Set(local.map(order => order.orderId));
+      cacheNeedsRefresh = [...versions.keys()].some(id => !cachedIds.has(id));
+      if (!changed.length) { if (cacheNeedsRefresh) void pullRemoteChanges(); return; }
 
       syncing = true;
       let localChangedByServer = false;
@@ -240,12 +244,12 @@ export function ErpOrderSync() {
       const epoch = commandEpoch;
       if (!ready || syncing || document.visibilityState === "hidden") return;
       const revisions = await callOrders<{ versions: Array<[string, number]> }>({ operation: "versions", businessId: activeBusiness });
-        if (cancelled || epoch !== commandEpoch || !ready || syncing) return;
+      if (cancelled || epoch !== commandEpoch || !ready || syncing) return;
       if (!revisions.ok) {
         if (["AUTH_REQUIRED", "FORBIDDEN", "ERP_DB_NOT_CONFIGURED"].includes(revisions.code)) backOff();
         return;
       }
-      if (revisions.ok && revisions.data.versions.length === versions.size && revisions.data.versions.every(([id, version]) => versions.get(id) === version)) return;
+      if (!cacheNeedsRefresh && revisions.data.versions.length === versions.size && revisions.data.versions.every(([id, version]) => versions.get(id) === version)) return;
       const local = readLocalOrders(activeBusiness);
       const dirty = local.some(order => !hasActiveConflict(activeBusiness, order.orderId) && lastSynced.get(order.orderId) !== stable(order));
       if (dirty && (canCreate || canEdit)) return;
@@ -256,7 +260,7 @@ export function ErpOrderSync() {
         const normalizedRemote = remote.data.orders.map(item => ({ ...item, order: normalizeProductMeasurements(item.order) }));
         const remoteFingerprint = JSON.stringify(normalizedRemote.map(item => [item.order.orderId, item.version]));
         const localFingerprint = JSON.stringify([...versions.entries()]);
-        if (remoteFingerprint !== localFingerprint || local.some(order => hasActiveConflict(activeBusiness, order.orderId))) applyServer(normalizedRemote);
+        if (cacheNeedsRefresh || remoteFingerprint !== localFingerprint || local.some(order => hasActiveConflict(activeBusiness, order.orderId))) applyServer(normalizedRemote);
       } else if (!remote.ok && ["AUTH_REQUIRED", "FORBIDDEN", "ERP_DB_NOT_CONFIGURED"].includes(remote.code)) {
         backOff();
       }
