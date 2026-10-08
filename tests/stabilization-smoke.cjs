@@ -114,6 +114,30 @@ function load(path, imports = {}) {
     };
     if (process.argv.includes('--large-orders')) {
       const started = Date.now();
+      const home = page.locator('.seikoOperationalDashboard');
+      const list = home.getByRole('region', {name: 'Home orders', exact:true});
+      await list.locator('.homeOrderOpen').first().waitFor();
+      await page.waitForFunction(()=>document.querySelector('.homeOrderScroll .homeOrderOpen')?.textContent.includes('SCALE-1000'));
+      assert.match(await list.locator('.homeOrderOpen').first().innerText(), /SCALE-1000/);
+      assert.equal(await home.getByRole('button',{name:'Next',exact:true}).count(),0);
+      await home.getByLabel('Visible rows').selectOption('5');
+      assert.ok(await list.locator('article').count()<=9);
+      await list.evaluate(node=>node.scrollTop=node.scrollHeight);
+      await list.locator('.homeOrderOpen').filter({hasText:'SMOKE-001'}).waitFor();
+      await home.getByLabel('Search Home orders').fill('Unique-person-1000');
+      await home.getByRole('button',{name:'Search',exact:true}).click();
+      await page.waitForFunction(()=>document.querySelectorAll('.homeOrderScroll article').length===1);
+      assert.match(await list.innerText(),/SCALE-1000/);
+      await home.getByLabel('Search Home orders').fill('no-such-order-parameter');
+      await list.getByText('No orders match your search or filters.').waitFor();
+      await home.getByLabel('Search Home orders').fill('');
+      await page.setViewportSize({width:390,height:844});
+      await page.waitForFunction(()=>document.querySelector('.homeOrderScroll article')?.getBoundingClientRect().height===216);
+      assert.ok(await list.locator('article').count()<=9);
+      if(process.env.SEIKO_HOME_SCREENSHOT){await home.locator('.homeOrderSearch').scrollIntoViewIfNeeded();await page.screenshot({path:process.env.SEIKO_HOME_SCREENSHOT,fullPage:false});}
+      await page.setViewportSize({width:1280,height:900});
+      await home.getByLabel('Visible rows').selectOption('10');
+
       await navigate('Orders');
       await page.getByPlaceholder('Search order, client, type or status').fill('SCALE-1000');
       await page.locator('.orderRow').filter({ hasText: 'SCALE-1000' }).waitFor({ timeout: 30000 });

@@ -51,7 +51,7 @@ test("Order Center status remains visible beside the contextual menu", () => {
 });
 
 test("Home Clear filters resets all active order-filter state", () => {
-  assert.match(home, /const clearFilters=\(\)=>\{setQuery\(""\);setStatus\(""\);setClientType\(""\);setProduct\(""\);setPage\(1\);\};/);
+  assert.match(home, /const clearFilters=\(\)=>\{setQuery\(""\);setStatus\(""\);setClientType\(""\);setProduct\(""\);\};/);
   assert.match(home, /aria-label="Clear all order filters" onClick=\{clearFilters\}>Clear filters/);
 });
 
