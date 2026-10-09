@@ -120,12 +120,17 @@ function load(path, imports = {}) {
       await page.waitForFunction(()=>document.querySelector('.homeOrderScroll .homeOrderOpen')?.textContent.includes('SCALE-1000'));
       assert.match(await list.locator('.homeOrderOpen').first().innerText(), /SCALE-1000/);
       assert.equal(await home.getByRole('button',{name:'Next',exact:true}).count(),0);
+      assert.equal(await home.getByLabel('Search Home orders').count(),0);
+      assert.equal(await home.getByLabel('Visible rows').count(),0);
+      await home.getByRole('button',{name:'Filter orders',exact:true}).click();
       await home.getByLabel('Visible rows').selectOption('5');
+      await home.getByRole('button',{name:'Filter orders',exact:true}).click();
       assert.ok(await list.locator('article').count()<=9);
       await list.evaluate(node=>node.scrollTop=node.scrollHeight);
       await list.locator('.homeOrderOpen').filter({hasText:'SMOKE-001'}).waitFor();
+      await home.getByRole('button',{name:'Search orders',exact:true}).click();
       await home.getByLabel('Search Home orders').fill('Unique-person-1000');
-      await home.getByRole('button',{name:'Search',exact:true}).click();
+      await home.getByRole('button',{name:'Submit order search',exact:true}).click();
       await page.waitForFunction(()=>document.querySelectorAll('.homeOrderScroll article').length===1);
       assert.match(await list.innerText(),/SCALE-1000/);
       await home.getByLabel('Search Home orders').fill('no-such-order-parameter');
@@ -136,6 +141,7 @@ function load(path, imports = {}) {
       assert.ok(await list.locator('article').count()<=9);
       if(process.env.SEIKO_HOME_SCREENSHOT){await home.locator('.homeOrderSearch').scrollIntoViewIfNeeded();await page.screenshot({path:process.env.SEIKO_HOME_SCREENSHOT,fullPage:false});}
       await page.setViewportSize({width:1280,height:900});
+      await home.getByRole('button',{name:'Filter orders',exact:true}).click();
       await home.getByLabel('Visible rows').selectOption('10');
 
       await navigate('Orders');
