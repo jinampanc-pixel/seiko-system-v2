@@ -8,6 +8,7 @@ module.exports=async({page,billing,navigate,base})=>{
   return result.documents.find(item=>item.id===id);
  };
  const invoice=await create('ux-invoice-positive','invoice',125);
+ for(let index=0;index<8;index++)await create('ux-scroll-'+index,'invoice',10);
  const zero=await create('ux-invoice-zero','invoice',0);
  const quotation=await create('ux-quotation','quotation',50);const challan=await create('ux-challan','delivery_challan',0);
  await navigate('Billing');
@@ -46,7 +47,18 @@ module.exports=async({page,billing,navigate,base})=>{
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   const box=await row(invoice.number).locator('.billingDocumentMenu>div').boundingBox();
   assert.ok(box&&box.x>=0&&box.y>=0&&box.x+box.width<=size.width&&box.y+box.height<=size.height,`Document menu stays inside viewport: ${JSON.stringify({box,size})}`);
+  await page.keyboard.press('Escape');
+  assert.equal(await row(invoice.number).locator('.billingDocumentMenu').evaluate(node=>node.open),false,'Escape dismisses document menu');
+  await row(invoice.number).getByLabel(`Actions for ${invoice.number}`,{exact:true}).click();
+  await row(invoice.number).locator('span').filter({hasText:'Other School'}).first().click();
+  assert.equal(await row(invoice.number).locator('.billingDocumentMenu').evaluate(node=>node.open),false,'Outside click dismisses document menu');
+  await row(invoice.number).getByLabel(`Actions for ${invoice.number}`,{exact:true}).click();
+  await surface.evaluate(node=>{node.scrollTop=node.scrollTop>0?0:20;});
+  await page.waitForFunction(()=>!document.querySelector('.billingDocumentMenu[open]')); 
+  assert.equal(await row(invoice.number).locator('.billingDocumentMenu').evaluate(node=>node.open),false,'Page scroll dismisses document menu');
   if(size.width===1365||size.width===390)await capture('billing-'+size.width);
+  await row(invoice.number).getByLabel(`Actions for ${invoice.number}`,{exact:true}).click();
+  await row(invoice.number).locator('.billingDocumentMenu>div').waitFor({state:'visible'});
   await row(invoice.number).getByRole('button',{name:'Open / print document',exact:true}).click();
   await page.getByRole('dialog',{name:invoice.number,exact:true}).waitFor();
   await page.getByRole('button',{name:'Close',exact:true}).click();

@@ -18,13 +18,28 @@
 .phase2BrandHeader img{width:144px;height:68px;object-fit:contain}
 .seikoPhase2Head h1{font-family:var(--ui-font,Arial,sans-serif);font-size:28px;font-weight:750;margin-top:12px}
 .seikoPhase2Head .secondary{font-size:14px!important;min-height:44px!important}
+.seikoBillingWorkspace{gap:10px}
+.seikoPhase2Surface[aria-label="SEIKO billing"] .phase2BrandHeader{margin-bottom:12px}
+.seikoPhase2Surface[aria-label="SEIKO billing"] .seikoPhase2Head{margin-bottom:12px}
+.seikoPhase2Surface[aria-label="SEIKO billing"] .seikoPhase2Head>div{column-gap:12px;row-gap:4px}
+.seikoPhase2Surface[aria-label="SEIKO billing"] .seikoPhase2Head h1{width:100%;margin:0}
+.billingViewActions{width:100%;margin:0;justify-content:flex-start}
+.billingViewActions>button:last-child{margin-left:auto}
+.seikoBillingWorkspace .phase2Toolbar{padding:12px;gap:12px}
+.seikoBillingWorkspace .phase2Toolbar>label:first-child{flex:1;min-width:180px}
+.seikoBillingWorkspace .phase2Toolbar>label:nth-child(2){flex:1;min-width:180px;max-width:290px}
+.seikoBillingWorkspace>p[role="status"]{margin:0;font-size:12px;color:var(--muted)}
+.seikoBillingWorkspace .phase2Metrics{gap:8px}
+.seikoBillingWorkspace .phase2Metrics article{padding:12px 14px;border-radius:10px}
+.seikoBillingWorkspace .phase2Metrics small{font-size:11px;letter-spacing:.04em}
+.seikoBillingWorkspace .phase2Metrics strong{font-size:23px;margin-top:6px;font-variant-numeric:tabular-nums}
 .seikoBillingWorkspace .phase2Actions button,.seikoBillingWorkspace .phase2Toolbar label,.seikoBillingWorkspace .phase2Toolbar input,.seikoBillingWorkspace .phase2Toolbar select{font-size:14px!important}
 .seikoBillingWorkspace .phase2Actions button{min-height:44px!important;background-color:var(--navy);color:var(--paper)}
 .seikoBillingWorkspace .phase2Actions button.secondary{background:var(--paper);color:var(--navy)}
 .seikoBillingWorkspace .phase2Table{overflow:visible}
-.seikoBillingWorkspace .phase2TableRow{font-size:14px;grid-template-columns:1.2fr 1.2fr .8fr .8fr 1.25fr}
+.seikoBillingWorkspace .phase2TableRow{font-size:14px;grid-template-columns:1.1fr 1.2fr .9fr .7fr 1.65fr}
 .seikoBillingWorkspace .phase2TableRow small{font-size:12px;line-height:1.5}
-.seikoBillingWorkspace .phase2TableHead{font-size:12px;grid-template-columns:1.2fr 1.2fr .8fr .8fr 1.25fr}
+.seikoBillingWorkspace .phase2TableHead{font-size:12px;grid-template-columns:1.1fr 1.2fr .9fr .7fr 1.65fr}
 .billingRowLink{padding:5px 0;text-decoration:underline;text-underline-offset:3px}
 .billingRowLink::after{content:none!important}
 .billingDocumentFilters{display:flex;flex-wrap:wrap;gap:8px}
@@ -41,3 +56,14 @@
 .billingMetricScope{font-size:13px;line-height:1.5;color:var(--muted);margin:0}
 
 .seikoBillingWorkspace .billingDocumentFilters button.primary{background:var(--navy);color:var(--paper)}
+
+.seikoBillingWorkspace .phase2TableRow{align-items:center;padding:10px 14px;min-height:68px}
+.seikoBillingWorkspace .phase2TableRow>span:nth-child(2){font-weight:600}
+.seikoBillingWorkspace .phase2TableRow small{font-weight:400}
+.seikoBillingWorkspace .phase2TableRow>span:nth-child(3),.billingRowAction>b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.billingRowAction{justify-content:flex-end}
+.billingRowAction>b{margin-right:auto}
+.billingMetricScope summary{cursor:pointer;width:fit-content;font-size:12px}
+.billingMetricScope p{margin:6px 0}
+@media(max-width:900px){.seikoBillingWorkspace .phase2Toolbar .phase2Actions{width:100%;margin:0}.seikoBillingWorkspace .phase2TableRow{grid-template-columns:1fr 1fr}.billingRowAction{grid-column:1 / -1}.seikoBillingWorkspace .phase2Metrics strong{font-size:21px}}
+@media(max-width:620px){.seikoPhase2Surface[aria-label="SEIKO billing"] .seikoPhase2Head h1{font-size:25px}.seikoBillingWorkspace .phase2Metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}.seikoBillingWorkspace .phase2Metrics article:last-child{grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between}.billingViewActions>button:last-child{margin-left:0}.seikoBillingWorkspace .phase2Toolbar>label{min-width:0;max-width:none;flex-basis:100%}.seikoBillingWorkspace .phase2TableRow{grid-template-columns:1fr 1fr;gap:8px}.billingRowAction{width:100%;gap:8px;flex-direction:row!important}.billingRowAction .primary{width:auto!important}.seikoBillingWorkspace .phase2TableRow>span:nth-child(3){white-space:normal}}
