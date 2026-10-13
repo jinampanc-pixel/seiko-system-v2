@@ -218,3 +218,24 @@ test("payroll credits require enabled completion and supported rates; viewing, s
  assert.equal(production.payrollCredit(scan,{unit:"per_hour",amount:12.5},true),0);
  assert.equal(production.payrollCredit(scan,undefined,true),0);
 });
+
+test('order-filtered billing list returns only its documents and payments and rejects invalid filters', async () => {
+  const sqlite = new DatabaseSync(':memory:');
+  try {
+    const db = { withSession() { return this; }, prepare(sql) { const stmt=sqlite.prepare(sql); let args=[]; return {bind(...values){args=values;return this;},async run(){return {meta:{changes:Number(stmt.run(...args).changes)}};},async first(){return stmt.get(...args)||null;},async all(){return {results:stmt.all(...args)};}};}};
+    const api=load('../app/api/erp/billing/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/seiko-billing':model,'../../../lib/server-erp-auth':{authenticateActor:async()=>({email:'owner'}),authorizePermission:async()=>true}});
+    const call=body=>api.POST(new Request('https://test.invalid/api/erp/billing',{method:'POST',body:JSON.stringify(body)}));
+    await call({operation:'list'});
+    for (const id of ['one','two']) {
+      const doc={...invoice(`invoice-${id}`),orderId:id};
+      sqlite.prepare('INSERT INTO seiko_billing_documents(id,data,total_paise,created_by) VALUES(?,?,?,?)').run(doc.id,JSON.stringify(doc),25000,'owner');
+      const pay={...payment(`payment-${id}`,50),invoiceId:doc.id,orderId:id};
+      sqlite.prepare('INSERT INTO seiko_billing_payments(id,invoice_id,amount_paise,data,created_by) VALUES(?,?,?,?,?)').run(pay.id,doc.id,5000,JSON.stringify(pay),'owner');
+    }
+    const result=await (await call({operation:'list',orderId:'one'})).json();
+    assert.equal(result.documents.length,1); assert.equal(result.documents[0].orderId,'one');
+    assert.equal(result.payments.length,1); assert.equal(result.payments[0].orderId,'one');
+    assert.equal((await (await call({operation:'list',orderId:"' OR 1=1 --"})).json()).documents.length,0);
+    assert.equal((await call({operation:'list',orderId:12})).status,400);
+  } finally {sqlite.close();}
+});

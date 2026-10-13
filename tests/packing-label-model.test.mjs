@@ -12,6 +12,7 @@ function load(path, imports = {}) {
 }
 const domain = load("../app/lib/order-domain.ts", { "./order-statuses": load("../app/lib/order-statuses.ts") });
 const model = load("../app/lib/packing-label-model.ts", { "./order-domain": domain });
+const handover = load("../app/lib/order-handover.ts", { "./order-domain": domain, "./packing-label-model": model, "./seiko-billing": load("../app/lib/seiko-billing.ts") });
 const fixture = JSON.parse(fs.readFileSync(new URL("./fixtures/packing-quantity-regression.json", import.meta.url)));
 export const order = {
   orderId: "quantity-regression", status: "Active", archived: false,
@@ -21,6 +22,35 @@ export const order = {
   records: fixture.quantities.map((row, index) => ({ recordId: `person-${index}`, personId: `P-${index}`, values: Object.fromEntries([["field:name", `Person ${index + 1}`], ...fixture.products.map((id, i) => [`product:${id}:qty`, row[i]])]) })),
   revisions: [], updatedAt: "",
 };
+test("handover contains all 390 records and canonical product totals without measurements by default", () => {
+  const copy = structuredClone(order);
+  copy.measurements = [{ id: "length", name: "Secret measurement", appliesTo: ["Pant"], type: "number" }];
+  copy.records[0].values["measurement:length:product:Pant"] = 44;
+  const options = handover.defaultHandoverOptions(copy);
+  const report = handover.handoverModel(copy, options);
+  assert.equal(report.rows.length, 390);
+  assert.equal(report.totals.join(), "383,298,87,267,249,247");
+  assert.equal((handover.handoverHtml(copy, options).match(/data-record-id=/g) || []).length, 390);
+  assert.doesNotMatch(handover.handoverHtml(copy, options), /Secret measurement/);
+  assert.match(handover.handoverHtml(copy, { ...options, sizes: true }), /Secret measurement: 44/);
+});
+test("handover selection excludes held rows, never assigns order-wide totals to a student, and escapes content", () => {
+  const copy = structuredClone(order); copy.records = copy.records.slice(0, 3); copy.records[1].held = true;
+  copy.details.clientName = '<script>alert(1)</script>'; copy.products[0].quantityMode = "order_total"; copy.products[0].orderTotal = 300;
+  const options = { ...handover.defaultHandoverOptions(copy), productIds: ["Pant"] };
+  const report = handover.handoverModel(copy, options);
+  assert.equal(report.rows.length, 2); assert.equal(report.totals[0], 0); assert.equal(report.unallocated[0].quantity, 300);
+  const html = handover.handoverHtml(copy, options);
+  assert.doesNotMatch(html, /<script>/); assert.match(html, /&lt;script&gt;/); assert.match(html, /not allocated to students/);
+});
+test("financial reference only accepts a non-cancelled document belonging to this order", () => {
+  const doc = { orderId: order.orderId, status: "issued", number: "INV-TEST", kind: "invoice", issueDate: "2026-10-13", taxMode: "non_gst", taxTreatment: "intra_state", lines: [{ description: "Shirt", quantity: 2, unitRate: 50, taxRate: 0 }] };
+  const options = { ...handover.defaultHandoverOptions(order), financialDocument: doc };
+  assert.match(handover.handoverHtml(order, options), /Document total: ₹100.00/);
+  assert.match(handover.handoverHtml(order, options), /not allocated to individual students/);
+  assert.doesNotMatch(handover.handoverHtml(order, { ...options, financialDocument: { ...doc, orderId: "another" } }), /INV-TEST/);
+  assert.doesNotMatch(handover.handoverHtml(order, { ...options, financialDocument: { ...doc, status: "cancelled" } }), /INV-TEST/);
+});
 test("390-record regression: totals are pieces, AND eligibility is 63 people", () => {
   const quantities = model.packingQuantities(order);
   assert.equal(quantities.size, 390);

@@ -1,0 +1,40 @@
+import { groupRuleMatches, normalizeProductMeasurements, type SeikoOrder } from "./order-domain";
+import { packingQuantities } from "./packing-label-model";
+import { documentTotals, formatInr, type SeikoCommercialDocument } from "./seiko-billing";
+
+export type HandoverOptions = { fieldIds: string[]; productIds: string[]; sizes: boolean; specifications: boolean; checks: boolean; orderDetails: boolean; orientation: "portrait" | "landscape"; financialDocument?: SeikoCommercialDocument };
+export function defaultHandoverOptions(order: SeikoOrder): HandoverOptions {
+  return { fieldIds: order.fields.filter(field => /name|class|section|roll|reference|employee code/i.test(field.name)).map(field => field.id), productIds: order.products.filter(product => product.name.trim()).map(product => product.id), sizes: false, specifications: false, checks: true, orderDetails: false, orientation: "portrait" };
+}
+export function handoverModel(source: SeikoOrder, options: HandoverOptions) {
+  const order = normalizeProductMeasurements(source);
+  const products = order.products.filter(product => options.productIds.includes(product.id) && product.name.trim());
+  const fields = order.fields.filter(field => options.fieldIds.includes(field.id));
+  const quantities = packingQuantities(order);
+  const rows = order.records.filter(record => !record.held).map(record => {
+    const values = products.map(product => {
+      // An order-wide total has no student allocation; never attribute it to the first student.
+      const quantity = product.quantityMode === "order_total" ? 0 : quantities.get(record.recordId)?.[product.id] || 0;
+      const details: string[] = [];
+      if (quantity && options.sizes) for (const measurement of order.measurements.filter(item => item.appliesTo[0] === product.id)) {
+        const value = record.values[`measurement:${measurement.id}:product:${product.id}`];
+        if (value != null && String(value).trim()) details.push(`${measurement.name}: ${value}`);
+      }
+      if (quantity && options.specifications) for (const spec of product.specifications) {
+        const value = spec.mode === "per_person" ? record.values[`spec:${spec.id}`] : spec.mode === "default_with_exceptions" ? record.values[`spec:${spec.id}:override`] || spec.defaultValue : spec.mode === "by_group" ? spec.groupRules.find(rule => groupRuleMatches(rule.match, String(record.values[`field:${spec.groupFieldId}`] ?? "")))?.value || spec.defaultValue : spec.defaultValue;
+        if (value != null && String(value).trim()) details.push(`${spec.name}: ${value}`);
+      }
+      return { quantity, details };
+    });
+    return { recordId: record.recordId, personId: record.personId, fields: fields.map(field => String(record.values[`field:${field.id}`] ?? "")), values, total: values.reduce((sum, value) => sum + value.quantity, 0) };
+  });
+  return { fields, products, rows, totals: products.map((_, index) => rows.reduce((sum, row) => sum + row.values[index].quantity, 0)), heldCount: order.records.filter(record => record.held).length, unallocated: products.filter(product => product.quantityMode === "order_total").map(product => ({ name: product.name, quantity: product.orderTotal })) };
+}
+const escape = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!));
+export function handoverHtml(order: SeikoOrder, options: HandoverOptions) {
+  const model = handoverModel(order, options);
+  const doc = options.financialDocument?.orderId === order.orderId && options.financialDocument.status !== "cancelled" ? options.financialDocument : undefined;
+  const clientDetails = options.orderDetails ? `<p>Order date: ${escape(order.details.orderDate)} | Client type: ${escape(order.details.clientType)}<br>Contact: ${escape(order.details.contactPerson)} ${escape(order.details.contactNumber)}<br>Delivery address: ${escape(order.details.shipTo)}<br>Billing address: ${escape(order.details.billTo)}<br>Remarks: ${escape(order.details.remarks)}</p>` : "";
+  const financial = doc ? `<section><h2>Financial reference - ${escape(doc.number)} (${escape(doc.kind.replaceAll("_", " "))})</h2><p>Issued ${escape(doc.issueDate)}. Document amounts are not allocated to individual students. This list is not an invoice.</p><table><thead><tr><th>Description</th><th>Qty</th><th>Rate</th><th>Tax %</th></tr></thead><tbody>${doc.lines.map(line => `<tr><td>${escape(line.description)}</td><td>${escape(line.quantity)}</td><td>${escape(formatInr(line.unitRate))}</td><td>${doc.taxMode === "gst" ? escape(line.taxRate) : "-"}</td></tr>`).join("")}</tbody></table><p>Subtotal: ${escape(formatInr(documentTotals(doc).subtotal))} | Tax: ${escape(formatInr(documentTotals(doc).tax))} | Document total: ${escape(formatInr(documentTotals(doc).total))}</p></section>` : "";
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escape(order.details.orderNo)} - Student handover list</title><style>@page{size:A4 ${options.orientation};margin:10mm}*{box-sizing:border-box}body{font:11px Arial,sans-serif;color:#15374d;margin:0}h1{font-size:19px;margin:0 0 5px}h2{font-size:13px}p{margin:5px 0 9px;line-height:1.4}table{width:100%;border-collapse:collapse;margin:8px 0}th,td{border:1px solid #b7c5ce;padding:4px 6px;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#edf3f6}thead{display:table-header-group}tr{break-inside:avoid}small{display:block;font-size:9px;line-height:1.3;white-space:normal}.number{text-align:center;white-space:nowrap}.signatures{display:flex;justify-content:space-between;gap:20px;margin-top:25px;break-inside:avoid}section{margin-top:16px}footer{margin-top:10px;font-size:9px}</style></head><body><h1>Student handover list</h1><b>${escape(order.details.clientName)} | Order ${escape(order.details.orderNo)}</b><p>Delivery date: ${escape(order.details.deliveryDate || "________________")} | ${model.rows.length} students / records<br>Checklist based on order quantities. Verify actual handover manually; printing does not mark items delivered.</p>${clientDetails}<table><thead><tr><th colspan="${2 + Math.max(1, model.fields.length) + model.products.length + (options.checks ? 1 : 0)}">${escape(order.details.clientName)} | Order ${escape(order.details.orderNo)}</th></tr><tr><th>#</th>${model.fields.length ? model.fields.map(field => `<th>${escape(field.name)}</th>`).join("") : "<th>Person ID</th>"}${model.products.map(product => `<th>${escape(product.name)}<small>Qty${options.sizes ? " / sizes" : ""}${options.specifications ? " / specifications" : ""}</small></th>`).join("")}<th>Total</th>${options.checks ? "<th>Checked</th>" : ""}</tr></thead><tbody>${model.rows.map((row, index) => `<tr data-record-id="${escape(row.recordId)}"><td class="number">${index + 1}</td>${model.fields.length ? row.fields.map(value => `<td>${escape(value || "-")}</td>`).join("") : `<td>${escape(row.personId)}</td>`}${row.values.map(value => `<td class="number">${value.quantity || "-"}${value.details.map(detail => `<small>${escape(detail)}</small>`).join("")}</td>`).join("")}<td class="number">${row.total || "-"}</td>${options.checks ? "<td></td>" : ""}</tr>`).join("")}<tr><th colspan="${1 + Math.max(1, model.fields.length)}">TOTAL QUANTITY</th>${model.totals.map(total => `<th class="number">${total}</th>`).join("")}<th class="number">${model.totals.reduce((sum, total) => sum + total, 0)}</th>${options.checks ? "<th></th>" : ""}</tr></tbody></table>${model.heldCount ? `<p>${model.heldCount} held records excluded.</p>` : ""}${model.unallocated.length ? `<p>Order-wide quantities (not allocated to students): ${model.unallocated.map(item => `${escape(item.name)}: ${escape(item.quantity)}`).join("; ")}. These are excluded from student totals.</p>` : ""}${financial}<div class="signatures"><span>Handed over by: __________________</span><span>Received by / school stamp: __________________</span></div><p>Date: __________________</p><footer>SEIKO | Order snapshot: ${escape(order.updatedAt)} | Product selection: ${model.products.map(product => escape(product.name)).join(", ")}</footer></body></html>`;
+}

@@ -192,6 +192,7 @@ function load(path, imports = {}) {
     assert.equal(await surface.count(), 0);
     await navigate('(Home|Overview)');
     await page.getByText('ACTIVE ORDERS', { exact: true }).first().waitFor();
+    if (process.argv.includes('--handover')) await require('./order-handover-browser.cjs')({page,sqlite,order,seed,navigate});
     if (process.argv.includes('--order-workflows')) await require('./order-workflows-browser.cjs')({ page, browser, sqlite, order, seed, navigate, base, ordersApi, session, errors });
     if (process.argv.includes('--order-workflows')) await require('./order-cache-browser.cjs')({ page, sqlite, navigate, ordersApi, base });
     if (process.argv.includes('--order-workflows')) await require('./billing-production-browser.cjs')({page,billing,sqlite,navigate,base});

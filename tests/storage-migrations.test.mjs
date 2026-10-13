@@ -46,13 +46,14 @@ test('release requires successful CI for the latest main revision and refuses fa
   assert.throws(() => releaseState('current', 'newer', [success]), /latest/);
   assert.throws(() => releaseState('current', 'current', [success, { ...success, id: 2, conclusion: 'failure' }]), /failed/);
 });
-test('committed baseline reproduces every runtime-created schema object and adopts existing data', () => {
+test('committed baseline and migrations reproduce every runtime-created schema object and adopt existing data', () => {
   const db = new DatabaseSync(':memory:');
   try {
     db.exec(baseline);
     db.exec("INSERT INTO seiko_clients VALUES ('fixture-client','fixture','123','',0,'{}','owner','owner')");
     db.exec(baseline);
     assert.equal(db.prepare('SELECT count(*) AS n FROM seiko_clients').get().n, 1);
+    for (const file of fs.readdirSync('migrations').filter(file => file.endsWith('.sql') && !file.startsWith('0001_')).sort()) db.exec(fs.readFileSync(`migrations/${file}`, 'utf8'));
     const objects = new Set(db.prepare('SELECT name FROM sqlite_schema').all().map(row => row.name));
     let found = 0;
     for (const file of fs.readdirSync('app', { recursive: true }).filter(file => /\.tsx?$/.test(file))) {

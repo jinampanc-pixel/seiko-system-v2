@@ -26,10 +26,11 @@ export async function POST(request: Request) {
   const reader = request.body?.getReader();
   const chunks: Uint8Array[] = []; let size = 0;
   if (reader) { for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.byteLength; if (size > 256 * 1024) { await reader.cancel(); return reply("Document is too large.", 413); } chunks.push(part.value); } }
-  let body: { operation?: string; document?: SeikoCommercialDocument; payment?: SeikoPaymentRecord };
+  let body: { operation?: string; orderId?: string; document?: SeikoCommercialDocument; payment?: SeikoPaymentRecord };
   try { const bytes = new Uint8Array(size); let offset = 0; for (const part of chunks) { bytes.set(part, offset); offset += part.length; } body = JSON.parse(new TextDecoder().decode(bytes)); }
   catch { return reply("Invalid request."); }
   if (!body || typeof body !== "object") return reply("Invalid request.");
+  if (body.orderId !== undefined && (typeof body.orderId !== "string" || !body.orderId.trim() || body.orderId.length > 200)) return reply("Invalid order filter.");
   const canManage = Boolean(await authorizePermission(actor, "seiko", "billing.invoices.manage"));
   if (body.operation !== "list" && !canManage) return reply("You cannot change SEIKO billing.", 403);
   if (!env.DB) return reply("Billing database is not configured.", 503);
@@ -39,6 +40,8 @@ export async function POST(request: Request) {
     await db.prepare(`CREATE TABLE IF NOT EXISTS seiko_billing_payments (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, invoice_id TEXT NOT NULL, amount_paise INTEGER NOT NULL, data TEXT NOT NULL, created_by TEXT NOT NULL)`).run();
     await db.prepare(`CREATE TABLE IF NOT EXISTS seiko_clients (id TEXT PRIMARY KEY, name_key TEXT NOT NULL, phone_key TEXT NOT NULL, email_key TEXT NOT NULL, archived INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL, created_by TEXT NOT NULL, updated_by TEXT NOT NULL)`).run();
     await db.prepare(`CREATE INDEX IF NOT EXISTS seiko_billing_payment_invoice ON seiko_billing_payments(invoice_id)`).run();
+    await db.prepare(`CREATE INDEX IF NOT EXISTS seiko_billing_document_order ON seiko_billing_documents(json_extract(data, '$.orderId'))`).run();
+    await db.prepare(`CREATE INDEX IF NOT EXISTS seiko_billing_payment_order ON seiko_billing_payments(json_extract(data, '$.orderId'))`).run();
     if (body.operation === "create") {
       const draft = body.document;
       if (!draft || typeof draft.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(draft.id)) return reply("Invalid document ID.");
@@ -105,8 +108,11 @@ export async function POST(request: Request) {
       if (!recorded) return reply("Payment exceeds the current outstanding balance. Refresh and check the amount.", 409);
       }
     } else if (body.operation !== "list") return reply("Unknown billing operation.");
-    const docs = await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents ORDER BY sequence DESC").all<DocumentRow>();
-    const payments = await db.prepare("SELECT sequence,id,data FROM seiko_billing_payments ORDER BY sequence DESC").all<PaymentRow>();
+    const orderFilter = body.operation === "list" ? body.orderId : undefined;
+    const docsQuery = db.prepare(`SELECT sequence,id,data,cancelled FROM seiko_billing_documents${orderFilter ? " WHERE json_extract(data, '$.orderId') = ?" : ""} ORDER BY sequence DESC`);
+    const paymentsQuery = db.prepare(`SELECT sequence,id,data FROM seiko_billing_payments${orderFilter ? " WHERE json_extract(data, '$.orderId') = ?" : ""} ORDER BY sequence DESC`);
+    const docs = await (orderFilter ? docsQuery.bind(orderFilter) : docsQuery).all<DocumentRow>();
+    const payments = await (orderFilter ? paymentsQuery.bind(orderFilter) : paymentsQuery).all<PaymentRow>();
     return Response.json({ ok: true, documents: docs.results.map(documentFromRow), payments: allocateOrderPayments(docs.results.map(documentFromRow), payments.results.map(paymentFromRow)), canManage }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return reply("Billing could not be saved or loaded. Your form is still available; retry when connected.", 503);
