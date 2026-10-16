@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LabelDesigner } from "../../label-designer";
 import { PackingPersonLabelDesigner } from "../../packing-person-label-designer";
-import { orderStoreKey, type SeikoOrder } from "../../lib/order-domain";
+import { useCachedOrders } from "../../lib/use-cached-orders";
 import { businessStorageKey, THEME_PRESETS, themeVariables, type BusinessTheme } from "../../lib/foundation";
 
 type LabelBehavior = "production" | "packing" | "inventory";
@@ -155,20 +155,21 @@ export default function CreateLabelsPage() {
   const [purposeId, setPurposeId] = useState("production");
   const [representationId, setRepresentationId] = useState("production-item");
   const [orderId, setOrderId] = useState("");
-  const [orders, setOrders] = useState<SeikoOrder[]>([]);
+  const orders = useCachedOrders(businessId).filter(order => !order.archived);
   const [started, setStarted] = useState(false);
   const [manage, setManage] = useState<"purpose" | "representation" | null>(null);
   const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const business = params.get("business") || localStorage.getItem("jinam:selected-business") || "seiko";
+    let savedBusiness: string | null = null;
+    try { savedBusiness = localStorage.getItem("jinam:selected-business"); } catch { /* Shared orders work without browser storage. */ }
+    const business = params.get("business") || savedBusiness || "seiko";
     const requestedPurpose = params.get("purpose") || "production";
     const requestedOrder = params.get("order") || "";
     const fallbackTheme = defaultThemeFor(business);
     setBusinessId(business); setOrderId(requestedOrder);
     try { const savedTheme = localStorage.getItem(businessStorageKey(business, "theme-v2")); setTheme(savedTheme ? JSON.parse(savedTheme) as BusinessTheme : fallbackTheme); } catch { setTheme(fallbackTheme); }
-    try { const saved = JSON.parse(localStorage.getItem(orderStoreKey(business)) || "[]") as SeikoOrder[]; setOrders(saved.filter(order => !order.archived)); } catch { setOrders([]); }
     loadSharedConfiguration(business).then(({ config: loaded, canManage: owner }) => {
       setConfig(loaded); setCanManage(owner);
       const requested = loaded.purposes.find(item => item.id === requestedPurpose && item.enabled) || loaded.purposes.find(item => item.behavior === requestedPurpose && item.enabled) || loaded.purposes.find(item => item.enabled) || loaded.purposes[0];

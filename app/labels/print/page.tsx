@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LabelDesigner } from "../../label-designer";
 import { PackingPersonLabelDesigner } from "../../packing-person-label-designer";
-import { orderStoreKey, type SeikoOrder } from "../../lib/order-domain";
+import { useCachedOrders } from "../../lib/use-cached-orders";
 
 type LabelPurpose = "production" | "packing" | "inventory";
 type SourceMode = "person_product" | "person" | "group" | "product" | "order";
@@ -26,7 +26,8 @@ function openTaskKey(business: string) { return `jinam:${business}:labels:open-t
 export default function SavedLabelPrintPage() {
   const [business, setBusiness] = useState("seiko");
   const [task, setTask] = useState<SavedLabelTask | null>(null);
-  const [order, setOrder] = useState<SeikoOrder | null>(null);
+  const orders = useCachedOrders(business);
+  const order = task ? orders.find(item => item.orderId === task.orderId) || null : null;
   const [ready, setReady] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [labelCount, setLabelCount] = useState<number | null>(null);
@@ -40,13 +41,11 @@ export default function SavedLabelPrintPage() {
     try {
       const tasks = JSON.parse(localStorage.getItem(taskKey(businessId)) || "[]") as SavedLabelTask[];
       const selectedTask = tasks.find(item => item.id === taskId) || null;
-      const orders = JSON.parse(localStorage.getItem(orderStoreKey(businessId)) || "[]") as SeikoOrder[];
-      const selectedOrder = selectedTask ? orders.find(item => item.orderId === selectedTask.orderId) || null : null;
-      if (!selectedTask || !selectedOrder) { setReady(true); return; }
+      if (!selectedTask) { setReady(true); return; }
       sessionStorage.removeItem(`jinam:${businessId}:labels:open-task-action`);
       sessionStorage.removeItem(`jinam:${businessId}:labels:open-task-direct-action`);
       sessionStorage.setItem(openTaskKey(businessId), selectedTask.id);
-      setTask(selectedTask); setOrder(selectedOrder); setReady(true);
+      setTask(selectedTask); setReady(true);
     } catch { setReady(true); }
   }, []);
 

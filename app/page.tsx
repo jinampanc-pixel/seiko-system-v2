@@ -7,7 +7,8 @@ import { callSeiko } from "./lib/seiko-api";
 import { Orders } from "./orders";
 import { SavedLabelWorkspace } from "./saved-label-workspace";
 import { Production } from "./production-workspace";
-import { orderStoreKey, type SeikoOrder } from "./lib/order-domain";
+import { type SeikoOrder } from "./lib/order-domain";
+import { useCachedOrders } from "./lib/use-cached-orders";
 import { businessStorageKey, canAccess, deriveThemeFromLogo, normalizeMembership, THEME_PRESETS, themeVariables, type BusinessMembership, type BusinessTheme, type FoundationBootstrap, type Module } from "./lib/foundation";
 
 type LabelMode = "INFO" | "BARCODE" | "QR" | "INFO_BARCODE" | "INFO_QR";
@@ -180,7 +181,7 @@ export function LabelLauncher({businessId,focusedOrder,onOpen,onOpenOrders}:{bus
   const [batchFilter,setBatchFilter]=useState<"all"|SavedLabelBatch["purpose"]>("all");
   const [sourceView,setSourceView]=useState<"orders"|"products">("orders");
   const [createPurpose,setCreatePurpose]=useState<SavedLabelBatch["purpose"]>("production");
-  const orders=useMemo(()=>{if(typeof window==="undefined")return[];try{return JSON.parse(localStorage.getItem(orderStoreKey(businessId))||"[]") as SeikoOrder[]}catch{return[]}},[businessId]);
+  const orders=useCachedOrders(businessId);
   const batches=useMemo(()=>{if(typeof window==="undefined")return[];try{return JSON.parse(localStorage.getItem(`jinam:${businessId}:labels:tasks-v1`)||"[]") as SavedLabelBatch[]}catch{return[]}},[businessId]);
   const visible=orders.filter(order=>!order.archived&&(!focusedOrder||order.orderId===focusedOrder.orderId)&&`${order.details.orderNo} ${order.details.clientName} ${order.details.clientType} ${order.status}`.toLowerCase().includes(query.toLowerCase()));
   const allowedPurposes=focusedOrder?([['production','Production'],['packing','Packing']] as const):([['production','Production'],['packing','Packing'],['inventory','Inventory']] as const);

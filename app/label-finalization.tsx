@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { readOrderCache } from "./lib/order-cache";
 
 type OrderSummary = {
   orderId?: string;
@@ -24,8 +25,7 @@ function setNativeSelectValue(select: HTMLSelectElement, value: string) {
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
 function orderData(businessId: string): OrderSummary[] {
-  try { return (JSON.parse(localStorage.getItem(`jinam:${businessId}:orders-v1`) || "[]") as OrderSummary[]).filter(order => !order.archived); }
-  catch { return []; }
+  return readOrderCache(businessId).filter(order => !order.archived);
 }
 function savedTasks(businessId: string): SavedLabelTask[] {
   try { return JSON.parse(localStorage.getItem(`jinam:${businessId}:labels:tasks-v1`) || "[]") as SavedLabelTask[]; }
@@ -36,15 +36,14 @@ function enhanceOrderSearch() {
   if (!select || select.dataset.searchReady) return;
   select.dataset.searchReady = "true";
   select.classList.add("labelOrderNativeSelect");
-  const orders = orderData(activeBusiness());
-  const byId = new Map(orders.map(order => [String(order.orderId || ""), order]));
   const wrapper = document.createElement("div"); wrapper.className = "labelOrderSearch";
   const input = document.createElement("input"); input.type = "search"; input.autocomplete = "off"; input.placeholder = "Search order, client, Attn or phone"; input.setAttribute("aria-label", "Search orders by order number, client, attention name or phone number");
   const results = document.createElement("div"); results.className = "labelOrderSearchResults"; results.hidden = true;
   wrapper.append(input, results); select.insertAdjacentElement("afterend", wrapper);
   const labelFor = (order: OrderSummary | undefined, fallback = "") => order ? `${order.details?.orderNo || "Order"} — ${order.details?.clientName || "Unnamed client"}` : fallback;
-  const syncFromSelect = () => { const option = select.options[select.selectedIndex]; input.value = select.value ? labelFor(byId.get(select.value), option?.textContent || "") : ""; };
+  const syncFromSelect = () => { const option = select.options[select.selectedIndex]; input.value = select.value ? labelFor(orderData(activeBusiness()).find(order => order.orderId === select.value), option?.textContent || "") : ""; };
   const render = (query: string) => {
+    const orders = orderData(activeBusiness());
     const term = query.trim().toLowerCase();
     const matches = orders.filter(order => { const d = order.details || {}; return !term || [d.orderNo, d.clientName, d.contactPerson, d.contactNumber].filter(Boolean).join(" ").toLowerCase().includes(term); }).slice(0, 12);
     results.replaceChildren();
