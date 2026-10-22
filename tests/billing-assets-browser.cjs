@@ -15,6 +15,8 @@ module.exports=async({page,navigate,sqlite,base})=>{
  await settings.getByLabel('Account number',{exact:true}).fill('1234567890');
  await settings.getByLabel('IFSC',{exact:true}).fill('TEST0000001');
  await settings.getByLabel('UPI ID',{exact:true}).fill('sample@upi');
+ await settings.getByLabel('Business logo',{exact:true}).setInputFiles('public/brands/seiko-logo-transparent.png');
+ await settings.getByAltText('Business logo preview',{exact:true}).waitFor();
  const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=500;c.height=160;const x=c.getContext('2d');x.font='italic 48px cursive';x.fillText('Sample Signature',20,100);return c.toDataURL('image/png').split(',')[1];});
  const upload={name:'signature.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')};
  await settings.getByRole('button',{name:'+ Signatory',exact:true}).click();
@@ -26,10 +28,13 @@ module.exports=async({page,navigate,sqlite,base})=>{
  const jpeg=await page.evaluate(async src=>{const i=new Image();i.src=src;await i.decode();const c=document.createElement('canvas');c.width=i.width;c.height=i.height;c.getContext('2d').drawImage(i,0,0);return c.toDataURL('image/jpeg',.95).split(',')[1];},qrSource);
  await settings.getByLabel('Payment QR image',{exact:true}).setInputFiles({name:'QR.jpeg',mimeType:'image/jpeg',buffer:Buffer.from(jpeg,'base64')});
  await settings.getByAltText('Payment QR image preview',{exact:true}).waitFor();
+ assert.equal(await settings.locator('[role=alert]').count(),0);
  await settings.getByRole('button',{name:'Save settings',exact:true}).click();await settings.waitFor({state:'detached'});
  await systemSettings.getByRole('button',{name:'Close settings',exact:true}).click();await navigate('Billing');
  const stored=JSON.parse(sqlite.prepare("SELECT value_json FROM erp_preferences WHERE key='billing.profile.v1'").get().value_json);
- assert.equal(stored.signatories[0].name,'Sample Signatory');assert.match(stored.signatories[0].signature,/data:image\/png/);
+ assert.match(stored.supplier.logo,/^\/api\/erp\/billing-profile\?asset=/);
+ assert.ok(sqlite.prepare("SELECT COUNT(*) AS n FROM erp_preferences WHERE key LIKE 'billing.asset.%'").get().n>=3);
+ assert.equal(stored.signatories[0].name,'Sample Signatory');assert.match(stored.signatories[0].signature,/^\/api\/erp\/billing-profile\?asset=/);
  await surface.locator('.billingCreateMenu > summary').click();
  await surface.getByRole('button',{name:'+ Invoice',exact:true}).click();
  const form=page.getByRole('dialog',{name:'New invoice',exact:true});
@@ -56,9 +61,39 @@ module.exports=async({page,navigate,sqlite,base})=>{
  {const qr=await frame.getByAltText('UPI payment QR').boundingBox();assert.ok(qr&&Math.abs(qr.width-qr.height)<1);}
  const document=JSON.parse(sqlite.prepare('SELECT data FROM seiko_billing_documents ORDER BY sequence DESC LIMIT 1').get().data);
  assert.equal(document.clientContactPerson,'Sample contact');assert.equal(document.signatory.name,'Sample Signatory');
+ await preview.getByRole('button',{name:'Amend document',exact:true}).click();
+ const amendment=page.getByRole('dialog',{name:'Amend invoice',exact:true});
+ const notes='Package contents updated: 2 shirts, 2 pants, 1 T-shirt and 1 track pant.';
+ await amendment.getByLabel('Business phone',{exact:true}).fill('1111111111');
+ await amendment.getByRole('button',{name:'Use saved business & payment details',exact:true}).click();
+ assert.equal(await amendment.getByLabel('Business phone',{exact:true}).inputValue(),'9999999999');
+ await amendment.getByLabel('Include bank details',{exact:true}).check();
+ await amendment.getByLabel('Include UPI',{exact:true}).check();
+ await amendment.getByLabel('Include payment QR scanner',{exact:true}).check();
+ await amendment.getByLabel('Notes / payment terms',{exact:true}).fill(notes);
+ const failAmend=route=>route.request().postDataJSON().operation==='amend'?route.fulfill({status:503,json:{ok:false,message:'Synthetic amendment failure'}}):route.fallback();
+ await page.route('**/api/erp/billing',failAmend);
+ await amendment.getByRole('button',{name:'Save',exact:true}).click();
+ await amendment.getByRole('alert').filter({hasText:'Synthetic amendment failure'}).waitFor();
+ assert.equal(await amendment.getByLabel('Notes / payment terms',{exact:true}).inputValue(),notes);
+ await page.unroute('**/api/erp/billing',failAmend);
+
+ await amendment.getByRole('button',{name:'Save',exact:true}).click();
+ await amendment.waitFor({state:'detached'});
+ await frame.getByText(notes,{exact:true}).waitFor();
+ const amended=JSON.parse(sqlite.prepare('SELECT data FROM seiko_billing_documents WHERE id=?').get(document.id).data);
+ assert.equal(amended.notes,notes);assert.equal(amended.revision,1);
+ // A fresh server revision must be fetched by Updated invoice, even if no receipt is open.
+ amended.notes='Newer invoice notes from shared storage.';amended.revision=2;
+ sqlite.prepare('UPDATE seiko_billing_documents SET data=? WHERE id=?').run(JSON.stringify(amended),document.id);
+ await preview.getByRole('button',{name:'Updated invoice',exact:true}).click();
+ await frame.getByText(amended.notes,{exact:true}).waitFor();
+ if(process.env.BILLING_ASSET_SCREENSHOTS)await preview.screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/invoice-amendment-fixed.png'});
+
  if(process.env.BILLING_ASSET_SCREENSHOTS){
   fs.mkdirSync(process.env.BILLING_ASSET_SCREENSHOTS,{recursive:true});
-  const html=await page.locator('iframe[title="Billing print preview"]').getAttribute('srcdoc');
+  let html=await page.locator('iframe[title="Billing print preview"]').getAttribute('srcdoc');
+  html=html.replace(/\/api\/erp\/billing-profile\?asset=([a-f0-9-]{36})/g,(_url,id)=>JSON.parse(sqlite.prepare("SELECT value_json FROM erp_preferences WHERE key=?").get('billing.asset.'+id).value_json).image);
   const printContext=await page.context().browser().newContext();const sheet=await printContext.newPage();await sheet.setViewportSize({width:1000,height:1400});
   await sheet.setContent(html.replaceAll('src="/brands/','src="'+base+'/brands/'),{waitUntil:'networkidle'});
   await sheet.locator('body').screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/billing-template-app-preview.png'});

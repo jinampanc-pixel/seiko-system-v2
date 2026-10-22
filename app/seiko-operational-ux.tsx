@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { readOrderCache } from "./lib/order-cache";
 import { startDomEnhancement } from "./lib/dom-enhancement";
 import { groupRuleMatches, quantityForRecord, type SeikoOrder } from "./lib/order-domain";
 
@@ -17,11 +18,7 @@ function currentBusiness() {
 }
 
 function readOrders(): SeikoOrder[] {
-  try {
-    return JSON.parse(localStorage.getItem(`jinam:${currentBusiness()}:orders-v1`) || "[]") as SeikoOrder[];
-  } catch {
-    return [];
-  }
+  return readOrderCache(currentBusiness());
 }
 
 function readSavedLabelTasks(): SavedLabelTask[] {

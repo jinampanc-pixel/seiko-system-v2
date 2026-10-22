@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { DatabaseSync } from 'node:sqlite';
 function load(path,imports={}) {
- const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:n=>imports[n],Request,Response,URL,TextDecoder,Uint8Array,crypto});return exports;
+ const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:n=>imports[n],Request,Response,URL,TextDecoder,Uint8Array,crypto,atob,btoa});return exports;
 }
 const profiles=load('app/lib/billing-profile.ts');
 const model=load('app/lib/seiko-billing.ts');
@@ -18,7 +18,7 @@ function fixture(){
  const imports={'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/billing-profile':profiles,'../../../lib/seiko-billing':model};
  const api=load('app/api/erp/billing-profile/route.ts',imports), billing=load('app/api/erp/billing/route.ts',imports);
  const call=(body,route=api)=>route.POST(new Request('https://test.invalid/api/erp/billing-profile',{method:'POST',headers:{origin:'https://test.invalid'},body:JSON.stringify(body)}));
- return {sql,call,billing,actor:(r,e)=>{role=r;email=e;},grant:(...v)=>{grants=v;}};
+ return {sql,call,billing,profileApi:api,actor:(r,e)=>{role=r;email=e;},grant:(...v)=>{grants=v;}};
 }
 test('profile ownership, delegated access, version conflicts and audit history are enforced server-side',async()=>{
  const f=fixture();try{
@@ -90,3 +90,15 @@ test('invoice print uses cream theme, precise payment labels, due date and optio
  assert.ok(profiles.validateBillingProfile({...profiles.emptyBillingProfile(),supplier:{...profiles.emptyBillingProfile().supplier,paymentQr:'data:image/svg+xml;base64,AAAA'}}));
 });
 
+
+test('large billing assets are immutable shared references, permission checked and renderable',async()=>{
+ const f=fixture();try{
+  const image='data:image/png;base64,'+'A'.repeat(400_000);
+  const uploaded=await (await f.call({operation:'upload',image})).json();assert.equal(uploaded.ok,true);assert.match(uploaded.url,/asset=/);
+  const result=await f.profileApi.GET(new Request('https://test.invalid'+uploaded.url));assert.equal(result.status,200);assert.equal((await result.arrayBuffer()).byteLength,300_000);
+  const profile=profiles.emptyBillingProfile();profile.supplier.logo=uploaded.url;assert.equal(profiles.validateBillingProfile(profile),'');
+  const saved=await (await f.call({operation:'save',profile,version:0})).json();assert.equal(saved.ok,true);assert.equal(saved.profile.supplier.logo,uploaded.url);
+  f.actor('clerk','clerk@example.com');assert.equal((await f.call({operation:'upload',image})).status,403);
+  assert.equal((await f.profileApi.GET(new Request('https://test.invalid/api/erp/billing-profile?asset=invalid'))).status,400);
+ }finally{f.sql.close();}
+});

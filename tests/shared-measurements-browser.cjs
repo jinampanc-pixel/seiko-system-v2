@@ -4,8 +4,9 @@ module.exports=async({page,sqlite,seed,navigate,order})=>{
  const fixture=structuredClone(order);fixture.orderId='shared-measurement-order';fixture.details.orderNo='SHARED-001';fixture.details.clientName='Shared Measurement School';
  const first=fixture.products[0];fixture.products=['Pant','Dress','Track pant'].map((name,i)=>({...structuredClone(first),id:'shared-product-'+i,name,specifications:[],quantityMode:'same_for_all',defaultQuantity:1}));
  fixture.measurements=[{id:'shared-waist',name:'Waist',type:'number',appliesTo:['shared-product-0'],requiredMode:'Optional'}];fixture.records=[{recordId:'shared-person',personId:'S-001',values:{'measurement:shared-waist:product:shared-product-0':30}}];fixture.revisions=[{revision:1,at:'2026-10-22',reason:'Fixture',recordCount:1}];await seed(fixture);
+ await page.addInitScript(()=>{const set=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='jinam:seiko:orders-v1')throw new DOMException('Storage full','QuotaExceededError');return set.call(this,key,value);};});
  await page.reload();await navigate('Orders');
- const row=page.locator('.orderRow').filter({hasText:'SHARED-001'});await row.locator('.orderCenterInfo').click();await page.locator('.orderSetup').waitFor();
+ const row=page.locator('.orderRow').filter({hasText:'SHARED-001'});await row.locator('.orderCenterOperationalMeta').waitFor();assert.equal(await row.locator('.openOrderButton').isVisible(),false);assert.equal(await page.evaluate(()=>localStorage.getItem('jinam:seiko:orders-v1').includes('shared-measurement-order')),false);await row.locator('.orderCenterInfo').click();await page.locator('.orderSetup').waitFor();
  assert.equal(await page.locator('.workspacePage').count(),0);
  const measurement=page.locator('.productMeasurementRow').first();await measurement.locator('.measurementProductLinks summary').click();
  await measurement.getByRole('checkbox',{name:'Use Waist for Dress',exact:true}).check();

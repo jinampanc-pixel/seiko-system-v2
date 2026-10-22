@@ -13,7 +13,7 @@ function load(path, imports = {}) {
   }).outputText, { exports, require: name => {
     assert.ok(imports[name], `Unexpected import: ${name}`);
     return imports[name];
-  }, crypto, Response, Request, URL, TextDecoder, TextEncoder, Uint8Array });
+  }, crypto, Response, Request, URL, TextDecoder, TextEncoder, Uint8Array, atob, btoa, ReadableStream });
   return exports;
 }
 
@@ -78,6 +78,7 @@ function load(path, imports = {}) {
       '../../../lib/server-erp-auth': auth,
     });
     const billingProfile = load('app/api/erp/billing-profile/route.ts', { 'cloudflare:workers': { env: { DB: db } }, '../../../lib/billing-profile': load('app/lib/billing-profile.ts'), '../../../lib/server-erp-auth': auth });
+    const artwork=load('app/api/erp/artwork/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth});
     const clients = load('app/api/erp/clients/route.ts', {
       'cloudflare:workers': { env: { DB: db } }, '../../../lib/seiko-clients': load('app/lib/seiko-clients.ts'),
       '../../../lib/server-erp-auth': auth,
@@ -98,6 +99,15 @@ function load(path, imports = {}) {
     const productionDomain=load('app/lib/production-handoffs.ts',{'./order-domain':domain,'./packing-label-model':load('app/lib/packing-label-model.ts',{'./order-domain':domain})});
     const production=load('app/api/erp/production/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/production-handoffs':productionDomain});
     const labels = load('app/api/erp/labels/route.ts', { 'cloudflare:workers': { env: { DB: db } }, '../../../lib/server-erp-auth': auth });
+    await page.route('**/api/erp/artwork?*',async route=>{
+      const request=new Request(route.request().url(),{method:route.request().method(),headers:route.request().headers(),...(route.request().method()==='POST'?{body:route.request().postDataBuffer()}: {})});
+      const response=await (request.method==='POST'?artwork.POST(request):artwork.GET(request));
+      await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});
+    });
+    await page.route('**/api/erp/billing-profile?asset=*',async route=>{
+      const response=await billingProfile.GET(new Request(route.request().url()));
+      await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});
+    });
     for (const [path, api] of [['billing-profile', billingProfile], ['billing', billing], ['clients', clients], ['labels', labels], ['production',production]]) {
       await page.route(`**/api/erp/${path}`, async route => {
         const response = await api.POST(new Request(`${base}/api/erp/${path}`, { method: 'POST', body: route.request().postData() }));
@@ -172,6 +182,7 @@ function load(path, imports = {}) {
     }
     if(process.argv.includes('--production-handoffs')){await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--shared-measurements')){await require('./shared-measurements-browser.cjs')({page,sqlite,seed,navigate,order,base});assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--artwork')){await require('./artwork-browser.cjs')({page,seed,navigate,order,sqlite,domain});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--billing-assets')){await require('./billing-assets-browser.cjs')({page,billing,sqlite,navigate,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--billing-production')){
       const second=structuredClone(order);second.orderId='second-order';second.details.orderNo='SECOND-002';second.details.clientName='Other School';

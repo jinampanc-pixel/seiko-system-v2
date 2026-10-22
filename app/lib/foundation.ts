@@ -1,3 +1,4 @@
+import { decodeBrowserImage } from "./browser-image";
 import { permissionsForRole, type Permission } from "./access-control";
 
 export const MODULES = ["home", "orders", "labels", "scan", "trace", "production", "inventory", "sales", "billing", "delivery", "admin"] as const;
@@ -95,12 +96,12 @@ export function themeVariables(theme: BusinessTheme = THEME_PRESETS.jinam): Reco
 }
 
 export async function deriveThemeFromLogo(file: File, name: string): Promise<BusinessTheme> {
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await decodeBrowserImage(file);
   const canvas = document.createElement("canvas");
   canvas.width = 96; canvas.height = 96;
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) throw new Error("Logo colour analysis is unavailable in this browser.");
-  context.drawImage(bitmap, 0, 0, 96, 96); bitmap.close();
+  context.drawImage(bitmap, 0, 0, 96, 96); if("close" in bitmap)bitmap.close();
   const pixels = context.getImageData(0, 0, 96, 96).data;
   const colours = new Map<string, number>();
   for (let index = 0; index < pixels.length; index += 16) {

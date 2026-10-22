@@ -4,7 +4,7 @@ export type BillingCopies = "customer" | "supplier" | "both" | "separate";
 const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]!));
 const money = (v: number) => formatInr(v);
 const date = (v?: string) => v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00`).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }) : esc(v);
-const image = (v?: string) => v && (/^data:image\/(png|jpeg|webp);base64,/i.test(v) || /^https:\/\//i.test(v)) ? esc(v) : "";
+const image = (v?: string) => v && (/^data:image\/(png|jpeg|webp);base64,/i.test(v) || /^\/api\/erp\/billing-profile\?asset=[a-f0-9-]{36}$/.test(v) || /^https:\/\//i.test(v)) ? esc(v) : "";
 
 export function billingPrintHtml(doc: SeikoCommercialDocument, payments: SeikoPaymentRecord[], copies: BillingCopies, receipt?: SeikoPaymentRecord) {
   if (receipt?.appearance) doc = { ...doc, ...receipt.appearance };

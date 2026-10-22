@@ -76,7 +76,7 @@ test("roles are presets while explicit membership grants stay customizable", () 
 test("business themes support presets, manual editing and local logo analysis", () => {
   assert.match(foundation, /THEME_PRESETS/);
   assert.match(foundation, /deriveThemeFromLogo/);
-  assert.match(foundation, /createImageBitmap/);
+  assert.match(foundation, /decodeBrowserImage/);
   assert.match(page, /Automatically derive from company logo/);
   assert.match(page, /businessId === "seiko" \? "theme-v3" : "theme-v2"/);
   assert.match(page, /canAccess\(membership, "admin"\)/);
@@ -138,7 +138,7 @@ test("order storage is partitioned by business", () => {
 test("product artwork and cross-business manufacturing remain traceable", () => {
   assert.match(orders, /jinam-artwork-v1/);
   assert.match(orders, /image\/png,image\/jpeg,image\/webp,image\/svg\+xml,application\/pdf/);
-  assert.match(orders, /storageKey = `\$\{businessId\}:\$\{orderId\}:\$\{productId\}:\$\{specificationId\}:\$\{id\}`/);
+  assert.match(orders, /storageKey:result\.storageKey/);
   assert.match(orderDomain, /type ManufacturingLink/);
   assert.match(orderDomain, /manufacturerBusinessId: string/);
   assert.match(orderDomain, /sourceBusinessId: string/);

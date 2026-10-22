@@ -16,7 +16,7 @@ export const emptyBillingProfile = (): BillingProfile => ({
   quotationTerms: "",
 });
 export function validBillingImage(value?: string) {
-  return !value || (value.length <= 220_000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value));
+  return !value || /^\/api\/erp\/billing-profile\?asset=[a-f0-9-]{36}$/.test(value) || (value.length <= 220_000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value));
 }
 export function validateBillingProfile(value: BillingProfile): string {
   if (!value || !value.supplier || typeof value.supplier.name !== "string" || !value.supplier.name.trim()) return "Enter the business name.";
@@ -27,8 +27,8 @@ export function validateBillingProfile(value: BillingProfile): string {
   if (value.signatoryEmails && (!Array.isArray(value.signatoryEmails) || value.signatoryEmails.length > 30 || value.signatoryEmails.some(v => typeof v !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)))) return "Enter valid signatory-user email addresses.";
   if (Object.values(value.supplier).some(v => typeof v !== "string" && typeof v !== "boolean")) return "Invalid business details.";
   if (Object.entries(value.supplier).some(([k,v]) => typeof v === "string" && !["paymentQr","logo"].includes(k) && v.length > 4000)) return "Business details are too long.";
-  if (!validBillingImage(value.supplier.logo)) return "Upload a valid logo under 160 KB.";
-  if (!validBillingImage(value.supplier.paymentQr)) return "Upload a PNG, JPEG or WebP QR image under 160 KB.";
+  if (!validBillingImage(value.supplier.logo)) return "Upload a valid business logo.";
+  if (!validBillingImage(value.supplier.paymentQr)) return "Upload a valid payment QR image.";
   if (new Set(value.signatories.map(s => s.id)).size !== value.signatories.length) return "Signatory IDs must be unique.";
   for (const s of value.signatories) {
     if (!s || !/^[a-zA-Z0-9-]{8,80}$/.test(s.id) || typeof s.name !== "string" || !s.name.trim() || s.name.length > 150 || typeof s.designation !== "string" || s.designation.length > 150 || !validBillingImage(s.signature) || !validBillingImage(s.stamp)) return "Each signatory needs a name and valid signature/stamp images.";

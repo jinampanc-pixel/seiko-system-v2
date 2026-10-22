@@ -11,6 +11,7 @@ export async function POST(request: Request) {
   const businessId = body.businessId?.trim() || "";
   const key = body.key?.trim() || "";
   if (!BUSINESS_ID.test(businessId) || !KEY.test(key)) return err("INVALID_REQUEST", "Business and preference key are required.", 400);
+  if(key.startsWith("billing.asset.")||key.startsWith("order.asset."))return err("RESERVED_KEY","Use the dedicated asset service.",403);
   const actor = await authenticateActor(request);
   if (!actor) return err("AUTH_REQUIRED", "Sign in is required.", 401);
   const membership = await authorizeBusiness(actor, businessId, body.operation === "set" ? "admin" : "read");
