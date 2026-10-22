@@ -27,11 +27,12 @@ export async function POST(request: Request) {
   const reader = request.body?.getReader();
   const chunks: Uint8Array[] = []; let size = 0;
   if (reader) { for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.byteLength; if (size > 1024 * 1024) { await reader.cancel(); return reply("Document is too large.", 413); } chunks.push(part.value); } }
-  let body: { operation?: string; orderId?: string; document?: SeikoCommercialDocument; payment?: SeikoPaymentRecord };
+  let body: { operation?: string; orderId?: string; taxMode?: "gst" | "non_gst"; document?: SeikoCommercialDocument; payment?: SeikoPaymentRecord };
   try { const bytes = new Uint8Array(size); let offset = 0; for (const part of chunks) { bytes.set(part, offset); offset += part.length; } body = JSON.parse(new TextDecoder().decode(bytes)); }
   catch { return reply("Invalid request."); }
   if (!body || typeof body !== "object") return reply("Invalid request.");
   if (body.orderId !== undefined && (typeof body.orderId !== "string" || !body.orderId.trim() || body.orderId.length > 200)) return reply("Invalid order filter.");
+  if (body.taxMode !== undefined && !["gst", "non_gst"].includes(body.taxMode)) return reply("Choose a valid tax register.");
   const membership = await authorizePermission(actor, "seiko", "billing.invoices.manage");
   const canManage = Boolean(membership);
   if (body.operation !== "list" && !canManage) return reply("You cannot change SEIKO billing.", 403);
@@ -135,11 +136,14 @@ export async function POST(request: Request) {
       }
     } else if (body.operation !== "list") return reply("Unknown billing operation.");
     const orderFilter = body.operation === "list" ? body.orderId : undefined;
-    const docsQuery = db.prepare(`SELECT sequence,id,data,cancelled FROM seiko_billing_documents${orderFilter ? " WHERE json_extract(data, '$.orderId') = ?" : ""} ORDER BY sequence DESC`);
+    const taxFilter = body.operation === "list" ? body.taxMode : undefined;
+    const documentConditions = [orderFilter ? "json_extract(data, '$.orderId') = ?" : "", taxFilter ? "json_extract(data, '$.taxMode') = ?" : ""].filter(Boolean);
+    const docsQuery = db.prepare(`SELECT sequence,id,data,cancelled FROM seiko_billing_documents${documentConditions.length ? " WHERE " + documentConditions.join(" AND ") : ""} ORDER BY sequence DESC`);
     const paymentsQuery = db.prepare(`SELECT sequence,id,data FROM seiko_billing_payments${orderFilter ? " WHERE json_extract(data, '$.orderId') = ?" : ""} ORDER BY sequence DESC`);
-    const docs = await (orderFilter ? docsQuery.bind(orderFilter) : docsQuery).all<DocumentRow>();
+    const docs = await docsQuery.bind(...[orderFilter, taxFilter].filter(Boolean)).all<DocumentRow>();
     const payments = await (orderFilter ? paymentsQuery.bind(orderFilter) : paymentsQuery).all<PaymentRow>();
-    return Response.json({ ok: true, documents: docs.results.map(documentFromRow), payments: allocateOrderPayments(docs.results.map(documentFromRow), payments.results.map(paymentFromRow)), canManage }, { headers: { "Cache-Control": "no-store" } });
+    const allocationDocs = taxFilter ? await (orderFilter ? db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE json_extract(data, '$.orderId') = ?").bind(orderFilter) : db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents")).all<DocumentRow>() : docs;
+    return Response.json({ ok: true, documents: docs.results.map(documentFromRow), payments: allocateOrderPayments(allocationDocs.results.map(documentFromRow), payments.results.map(paymentFromRow)), canManage }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return reply("Billing could not be saved or loaded. Your form is still available; retry when connected.", 503);
   }

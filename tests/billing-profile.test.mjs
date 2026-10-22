@@ -50,6 +50,19 @@ test('billing clerks cannot forge payment accounts, GST details or signatory ima
   assert.equal(JSON.parse(f.sql.prepare('SELECT data FROM seiko_billing_documents WHERE id=?').get(document.id).data).supplier.accountNumber,saved.supplier.accountNumber);
  }finally{f.sql.close();}
 });
+test('GST and non-GST have separate stored registers and API views without renumbering',async()=>{
+ const f=fixture();try{
+  const base={kind:'invoice',orderId:'',orderNo:'',clientName:'School',clientPhone:'1234567890',clientAddress:'Vyara',issueDate:'2026-10-22',taxTreatment:'intra_state',lines:[{id:'line',description:'Uniforms',quantity:1,unit:'pc',unitRate:100,taxRate:5,hsnSac:'6203'}],notes:'',supplier:{name:'SEIKO',address:'Vyara',gstin:'24TESTGST'}};
+  for(const taxMode of ['gst','non_gst'])assert.equal((await f.call({operation:'create',document:{...base,id:'register-'+taxMode.replace('_','-'),taxMode}},f.billing)).status,200);
+  for(const taxMode of ['gst','non_gst']){
+   const response=await (await f.call({operation:'list',taxMode},f.billing)).json();assert.equal(response.documents.length,1);assert.equal(response.documents[0].taxMode,taxMode);
+   const view=taxMode==='gst'?'seiko_billing_gst_documents':'seiko_billing_non_gst_documents';assert.equal(f.sql.prepare(`SELECT id FROM ${view}`).get().id,'register-'+taxMode.replace('_','-'));
+  }
+  const all=await (await f.call({operation:'list'},f.billing)).json();assert.equal(all.documents.length,2);assert.equal(new Set(all.documents.map(d=>d.number)).size,2);
+  assert.equal((await f.call({operation:'list',taxMode:'bad'},f.billing)).status,400);
+ }finally{f.sql.close();}
+});
+
 test('invoice print uses cream theme, precise payment labels, due date and optional saved signature',()=>{
  const image='data:image/png;base64,AAAA';const d={id:'test-invoice',kind:'invoice',number:'INV-1',clientName:'School',clientContactPerson:'Person <One>',issueDate:'2026-10-22',dueDate:'2026-11-01',taxMode:'non_gst',taxTreatment:'intra_state',lines:[],supplier:{name:'SEIKO Tailors',phone:'1234567890',bank:'',showBank:true,accountName:'SEIKO',accountNumber:'123',ifsc:'BANK001',showUpi:true,upi:'test@upi',showQr:true,paymentQr:image},signatory:{id:'sign-001',name:'Authorised Person',designation:'Owner',signature:image,stamp:image},showSignature:true,showStamp:true,showSigningDate:true,signingDate:'2026-10-22',showTerms:true,terms:'Payment due as stated.'};
  const html=print.billingPrintHtml(d,[],'customer');assert.match(html,/#fbf5ed/);assert.match(html,/Attn: Person &lt;One&gt;/);assert.match(html,/Payment due/);assert.match(html,/01 Nov 2026/);assert.match(html,/For bank transfer/);assert.match(html,/For UPI payment/);assert.match(html,/UPI ID: test@upi/);assert.match(html,/object-fit:contain/);assert.match(html,/Phone: 1234567890/);assert.match(html,/alt="Authorised signature"/);assert.match(html,/Authorised Person/);assert.match(html,/Payment due as stated/);

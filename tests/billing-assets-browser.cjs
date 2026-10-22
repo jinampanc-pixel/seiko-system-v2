@@ -56,6 +56,15 @@ module.exports=async({page,navigate,sqlite,base})=>{
   await printContext.close();
  }
  await preview.getByRole('button',{name:'Close',exact:true}).click();
+ const sequence=sqlite.prepare('SELECT sequence FROM seiko_billing_documents WHERE id=?').get(document.id).sequence;
+ const number='INV-'+document.issueDate.slice(0,4)+'-'+String(sequence).padStart(5,'0');
+ const documentLink=surface.getByRole('button',{name:`Open ${number} for ${document.clientName}`,exact:true});
+ assert.equal(await documentLink.count(),1);
+ await surface.getByRole('button',{name:'GST documents',exact:true}).click();assert.equal(await documentLink.count(),0);
+ await surface.getByRole('button',{name:'+ Invoice',exact:true}).click();assert.equal(await form.getByLabel('Document tax mode',{exact:true}).inputValue(),'gst');
+ await form.getByRole('button',{name:'Cancel',exact:true}).click();
+ await surface.getByRole('button',{name:'Non-GST documents',exact:true}).click();assert.equal(await documentLink.count(),1);
+ if(process.env.BILLING_ASSET_SCREENSHOTS)await surface.screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/billing-registers-app-preview.png'});
  await surface.getByRole('button',{name:'Billing settings & assets',exact:true}).click();
  assert.equal(await settings.getByLabel('Signatory name',{exact:true}).inputValue(),'Sample Signatory');
  await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
