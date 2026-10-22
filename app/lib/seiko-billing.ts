@@ -24,6 +24,15 @@ export type SeikoCommercialDocument = {
   clientEmail?: string;
   issueDate: string;
   dueDate?: string;
+  dueOnReceipt?: boolean;
+  terms?: string;
+  showTerms?: boolean;
+  signatory?: { id: string; name: string; designation: string; signature?: string; stamp?: string };
+  showSignature?: boolean;
+  showStamp?: boolean;
+  showSigningDate?: boolean;
+  signingDate?: string;
+  showSignatory?: boolean;
   reference?: string;
   taxMode: SeikoTaxMode;
   taxTreatment: "intra_state" | "inter_state";
@@ -49,10 +58,12 @@ export type SeikoCommercialDocument = {
   supplier?: {
     name: string; address: string; phone: string; gstin: string; bank: string;
     upi?: string; paymentQr?: string; showBank?: boolean; showUpi?: boolean; showQr?: boolean;
+    accountName?: string; bankName?: string; accountNumber?: string; ifsc?: string; logo?: string;
   };
 };
 
 export type SeikoPaymentRecord = {
+  appearance?: Pick<SeikoCommercialDocument, "supplier" | "signatory" | "showSignatory" | "showSignature" | "showStamp" | "showSigningDate" | "signingDate">;
   orderNo?: string;
   clientName?: string;
   clientPhone?: string;
@@ -164,6 +175,11 @@ export function validateBillingDocument(document: SeikoCommercialDocument): stri
   if (!document.supplier?.name?.trim()) return "Supplier name is required.";
   if (!validBillingDate(document.issueDate)) return "Choose a valid invoice date.";
   if (document.dueDate && (!validBillingDate(document.dueDate) || document.dueDate < document.issueDate)) return "Due date must be on or after the invoice date.";
+  if (document.kind === "invoice" && document.dueOnReceipt === false && !document.dueDate) return "Choose a payment due date or due on receipt.";
+  if (document.showSigningDate && (!document.signingDate || !validBillingDate(document.signingDate))) return "Choose a valid signing date.";
+  if (document.showSignature && !document.signatory?.signature) return "Choose a saved signatory with a signature image.";
+  if (document.showStamp && !document.signatory?.stamp) return "Choose a saved signatory with a stamp image.";
+  if (document.terms && (typeof document.terms !== "string" || document.terms.length > 8000)) return "Terms must be under 8,000 characters.";
   if (!["gst", "non_gst"].includes(document.taxMode) || !["intra_state", "inter_state"].includes(document.taxTreatment)) return "Choose a valid tax treatment.";
   if (document.taxMode === "gst" && (!document.supplier.address?.trim() || !document.supplier.gstin?.trim())) return "GST documents require the supplier address and GSTIN.";
   if (document.taxMode === "gst" && !document.clientAddress?.trim()) return "GST documents require the recipient billing address.";
@@ -203,6 +219,5 @@ export function unappliedOrderPayment(payment: SeikoPaymentRecord) {
   return payment.invoiceId ? 0 : Math.max(0, roundMoney(payment.amount - (payment.allocations || []).reduce((sum,a) => sum + a.amount, 0)));
 }
 export function orderReceiptDocument(payment: SeikoPaymentRecord): SeikoCommercialDocument {
-  return { id: "receipt:" + payment.id, kind: "payment_receipt", number: payment.receiptNumber, orderId: payment.orderId, orderNo: payment.orderNo || payment.orderId, clientName: payment.clientName || "Order payment", clientPhone: payment.clientPhone || "", issueDate: payment.date, taxMode: "non_gst", taxTreatment: "intra_state", lines: [], notes: "", status: "issued", createdAt: payment.createdAt, updatedAt: payment.createdAt };
+  return { ...payment.appearance, id: "receipt:" + payment.id, kind: "payment_receipt", number: payment.receiptNumber, orderId: payment.orderId, orderNo: payment.orderNo || payment.orderId, clientName: payment.clientName || "Order payment", clientPhone: payment.clientPhone || "", issueDate: payment.date, taxMode: "non_gst", taxTreatment: "intra_state", lines: [], notes: "", status: "issued", createdAt: payment.createdAt, updatedAt: payment.createdAt };
 }
-

@@ -8,10 +8,11 @@ import { DatabaseSync } from "node:sqlite";
 function load(path, imports = {}) {
   const exports = {};
   const code = ts.transpileModule(fs.readFileSync(new URL(path, import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-  vm.runInNewContext(code, { exports, require: name => imports[name], crypto, Response, Request, URL, TextDecoder, Uint8Array });
+  vm.runInNewContext(code, { exports, require: name => name.endsWith("/billing-profile") ? profile : imports[name], crypto, Response, Request, URL, TextDecoder, Uint8Array });
   return exports;
 }
 const model = load("../app/lib/seiko-billing.ts");
+const profile = load("../app/lib/billing-profile.ts");
 const printing = load("../app/lib/seiko-billing-print.ts", { "./seiko-billing": model });
 const invoice = (id = "invoice-test-001") => ({ id, kind: "invoice", clientName: "Test Client", clientPhone: "1234567890", supplier: { name: "SEIKO", address: "", phone: "", bank: "", gstin: "" }, orderId: "", orderNo: "", issueDate: "2026-09-26", taxMode: "non_gst", taxTreatment: "intra_state", lines: [{ id: "line", description: "Vest", quantity: 2, unit: "pc", unitRate: 125, taxRate: 0 }], notes: "", status: "issued" });
 const payment = (id, amount) => ({ id, invoiceId: "invoice-test-001", amount, date: "2026-09-26", mode: "UPI", reference: "test", notes: "" });
@@ -102,7 +103,7 @@ test("database persists invoices and idempotent payments, rejecting overpayment 
     return { bind(...values) { args = values; return this; }, async run() { return { meta: { changes: Number(statement.run(...args).changes) } }; }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } };
   } };
   let authenticated = true, manage = true;
-  const route = load("../app/api/erp/billing/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-billing": model, "../../../lib/server-erp-auth": { authenticateActor: async () => authenticated ? { email: "test@example.invalid" } : null, authorizePermission: async (_, __, permission) => permission === "financials.view" || manage } });
+  const route = load("../app/api/erp/billing/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-billing": model, "../../../lib/server-erp-auth": { authenticateActor: async () => authenticated ? { email: "test@example.invalid" } : null, authorizePermission: async (_, __, permission) => (permission === "financials.view" || manage) ? { role: "owner" } : null } });
   const call = async body => route.POST(new Request("https://test.invalid/api/erp/billing", { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json", origin: "https://test.invalid" } }));
   try {
     let result = await (await call({ operation: "create", document: invoice() })).json();
@@ -130,7 +131,7 @@ test("order advances create receipts before invoices and allocate once across mu
   sqlite.prepare("INSERT INTO erp_orders VALUES(?,?,?,?)").run("order-advance", "seiko", "Active", JSON.stringify({ details: { orderNo: "ORD-01", clientName: "Advance Client", contactNumber: "1234567890" } }));
   const db = { withSession() { return this; }, prepare(sql) { let args = []; const statement = sqlite.prepare(sql); return { bind(...values) { args = values; return this; }, async run() { return { meta: { changes: Number(statement.run(...args).changes) } }; }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } }; } };
   let manage = true;
-  const route = load("../app/api/erp/billing/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-billing": model, "../../../lib/server-erp-auth": { authenticateActor: async () => ({ email: "test@example.invalid" }), authorizePermission: async (_, __, permission) => permission === "financials.view" || manage } });
+  const route = load("../app/api/erp/billing/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-billing": model, "../../../lib/server-erp-auth": { authenticateActor: async () => ({ email: "test@example.invalid" }), authorizePermission: async (_, __, permission) => (permission === "financials.view" || manage) ? { role: "owner" } : null } });
   const call = body => route.POST(new Request("https://test.invalid/api/erp/billing", { method: "POST", body: JSON.stringify(body) }));
   const advance = { ...payment("order-payment-01", 300), invoiceId: "", orderId: "order-advance", clientName: "Spoofed name", allocations: [{ invoiceId: "wrong", amount: 999 }] };
   try {
@@ -178,7 +179,7 @@ test("shared client directory saves typed clients, merges duplicate phones and e
   const db = { withSession() { return this; }, prepare(sql) { let args = []; const statement = sqlite.prepare(sql); return { bind(...values) { args = values; return this; }, async run() { return { meta: { changes: Number(statement.run(...args).changes) } }; }, async first() { return statement.get(...args) || null; }, async all() { return { results: statement.all(...args) }; } }; } };
   let authenticated = true, manage = true;
   const clients = load("../app/lib/seiko-clients.ts");
-  const route = load("../app/api/erp/clients/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-clients": clients, "../../../lib/server-erp-auth": { authenticateActor: async () => authenticated ? { email: "test@example.invalid" } : null, authorizePermission: async (_, __, permission) => permission === "financials.view" || manage } });
+  const route = load("../app/api/erp/clients/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-clients": clients, "../../../lib/server-erp-auth": { authenticateActor: async () => authenticated ? { email: "test@example.invalid" } : null, authorizePermission: async (_, __, permission) => (permission === "financials.view" || manage) ? { role: "owner" } : null } });
   const call = body => route.POST(new Request("https://test.invalid/api/erp/clients", { method: "POST", body: JSON.stringify(body) }));
   const base = { id: "client-test-001", name: "A S School", type: "School / Institution", contactPerson: "Principal", phone: "99999 99999", email: "OFFICE@EXAMPLE.INVALID", billingAddress: "Main Road", deliveryAddress: "Campus", gstin: "gst123", archived: false, sourceOrderIds: [], createdAt: "", updatedAt: "" };
   try {

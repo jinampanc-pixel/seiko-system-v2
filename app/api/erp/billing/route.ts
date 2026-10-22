@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
 import { allocateOrderPayments, documentTotals, roundMoney, validBillingDate, validateBillingDocument, type SeikoCommercialDocument, type SeikoPaymentRecord } from "../../../lib/seiko-billing";
+import { profileSnapshotAllowed, validBillingImage, type BillingProfile } from "../../../lib/billing-profile";
 
 type DocumentRow = { sequence: number; id: string; data: string; cancelled: number };
 type PaymentRow = { sequence: number; id: string; data: string };
@@ -25,17 +26,30 @@ export async function POST(request: Request) {
   // Bound the streamed body before decoding it, including requests without Content-Length.
   const reader = request.body?.getReader();
   const chunks: Uint8Array[] = []; let size = 0;
-  if (reader) { for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.byteLength; if (size > 256 * 1024) { await reader.cancel(); return reply("Document is too large.", 413); } chunks.push(part.value); } }
+  if (reader) { for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.byteLength; if (size > 1024 * 1024) { await reader.cancel(); return reply("Document is too large.", 413); } chunks.push(part.value); } }
   let body: { operation?: string; orderId?: string; document?: SeikoCommercialDocument; payment?: SeikoPaymentRecord };
   try { const bytes = new Uint8Array(size); let offset = 0; for (const part of chunks) { bytes.set(part, offset); offset += part.length; } body = JSON.parse(new TextDecoder().decode(bytes)); }
   catch { return reply("Invalid request."); }
   if (!body || typeof body !== "object") return reply("Invalid request.");
   if (body.orderId !== undefined && (typeof body.orderId !== "string" || !body.orderId.trim() || body.orderId.length > 200)) return reply("Invalid order filter.");
-  const canManage = Boolean(await authorizePermission(actor, "seiko", "billing.invoices.manage"));
+  const membership = await authorizePermission(actor, "seiko", "billing.invoices.manage");
+  const canManage = Boolean(membership);
   if (body.operation !== "list" && !canManage) return reply("You cannot change SEIKO billing.", 403);
   if (!env.DB) return reply("Billing database is not configured.", 503);
   const db = env.DB.withSession("first-primary");
   try {
+    await db.prepare("CREATE TABLE IF NOT EXISTS erp_preferences (business_id TEXT NOT NULL,key TEXT NOT NULL,value_json TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,updated_by_user_id TEXT NOT NULL,updated_by_email TEXT NOT NULL, UNIQUE(business_id,key))").run();
+    const profileRow = await db.prepare("SELECT value_json AS data FROM erp_preferences WHERE business_id='seiko' AND key='billing.profile.v1'").first<{data:string}>();
+    const profile: BillingProfile | null = profileRow ? JSON.parse(profileRow.data) : null;
+    const canConfigure = membership?.role === "owner" || Boolean(profile?.managerEmails.includes(actor.email.toLowerCase()));
+    const snapshotError = (doc: SeikoCommercialDocument, original?: SeikoCommercialDocument) => {
+      if (!validBillingImage(doc.supplier?.paymentQr) || !validBillingImage(doc.supplier?.logo) || !validBillingImage(doc.signatory?.signature) || !validBillingImage(doc.signatory?.stamp)) return "Use valid uploaded PNG, JPEG or WebP images.";
+      if (!canConfigure && !profileSnapshotAllowed(doc, profile, original)) return "Select saved business/payment details and an authorised signatory. Only a billing-settings manager can edit them.";
+      if (doc.signatory && JSON.stringify(doc.signatory)!==JSON.stringify(original?.signatory) && !canConfigure && !profile?.signatoryEmails?.includes(actor.email.toLowerCase())) return "The owner must authorise access to saved signatures and stamps.";
+      if (!canConfigure && !profile?.signatoryEmails?.includes(actor.email.toLowerCase()) && ((doc.showSignature && !original?.showSignature) || (doc.showStamp && !original?.showStamp))) return "The owner must authorise use of saved signatures and stamps.";
+      if (membership?.role !== "owner" && doc.supplier?.gstin !== original?.supplier?.gstin && doc.supplier?.gstin !== profile?.supplier.gstin) return "Only the owner can amend supplier GST details.";
+      return "";
+    };
     await db.prepare(`CREATE TABLE IF NOT EXISTS seiko_billing_documents (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, data TEXT NOT NULL, total_paise INTEGER NOT NULL, cancelled INTEGER NOT NULL DEFAULT 0, created_by TEXT NOT NULL)`).run();
     await db.prepare(`CREATE TABLE IF NOT EXISTS seiko_billing_payments (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, invoice_id TEXT NOT NULL, amount_paise INTEGER NOT NULL, data TEXT NOT NULL, created_by TEXT NOT NULL)`).run();
     await db.prepare(`CREATE TABLE IF NOT EXISTS seiko_clients (id TEXT PRIMARY KEY, name_key TEXT NOT NULL, phone_key TEXT NOT NULL, email_key TEXT NOT NULL, archived INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL, created_by TEXT NOT NULL, updated_by TEXT NOT NULL)`).run();
@@ -53,8 +67,9 @@ export async function POST(request: Request) {
         const client = JSON.parse(row.data) as { id:string; type:string; name:string; contactPerson:string; phone:string; email:string; billingAddress:string; gstin:string };
         clientSnapshot = { clientId: client.id, clientType: client.type, clientName: client.name, clientContactPerson: client.contactPerson, clientPhone: client.phone, clientEmail: client.email, clientAddress: client.billingAddress, clientGstin: client.gstin };
       }
-      const saved = { ...draft, ...clientSnapshot, number: "", status: "issued", createdAt: now, updatedAt: now };
+      const saved: SeikoCommercialDocument = { ...draft, ...clientSnapshot, number: "", status: "issued", createdAt: now, updatedAt: now };
       const problem = validateBillingDocument(saved); if (problem) return reply(problem);
+      const snapshotProblem = snapshotError(saved); if (snapshotProblem) return reply(snapshotProblem,403);
       await db.prepare(`INSERT INTO seiko_billing_documents(id,data,total_paise,created_by)
         SELECT ?,?,?,? ${saved.orderId ? "WHERE EXISTS (SELECT 1 FROM erp_orders WHERE id = ? AND business_id = 'seiko' AND json_extract(document_json, '$.deletedAt') IS NULL)" : ""}
         ON CONFLICT(id) DO NOTHING`).bind(draft.id, JSON.stringify(saved), Math.round(documentTotals(draft).total * 100), actor.email, ...(saved.orderId ? [saved.orderId] : [])).run();
@@ -68,8 +83,9 @@ export async function POST(request: Request) {
       if (draft.orderId !== original.orderId) return reply("The source order cannot be changed during amendment.");
       if (draft.kind !== original.kind) return reply("The document type cannot be changed.");
       const now = new Date().toISOString();
-      const saved = { ...draft, id: original.id, number: "", status: "issued", createdAt: original.createdAt, updatedAt: now, revision: (original.revision || 0) + 1, amendedAt: now, amendedBy: actor.email };
+      const saved: SeikoCommercialDocument = { ...draft, id: original.id, number: "", status: "issued", createdAt: original.createdAt, updatedAt: now, revision: (original.revision || 0) + 1, amendedAt: now, amendedBy: actor.email };
       const problem = validateBillingDocument(saved); if (problem) return reply(problem);
+      const snapshotProblem = snapshotError(saved, original); if (snapshotProblem) return reply(snapshotProblem,403);
       const paid = await db.prepare("SELECT COALESCE(SUM(amount_paise),0) AS total FROM seiko_billing_payments WHERE invoice_id = ?").bind(draft.id).first<{ total: number }>();
       const totalPaise = Math.round(documentTotals(saved).total * 100);
       if (saved.kind === "invoice" && totalPaise < Number(paid?.total || 0)) return reply("The amended invoice total cannot be lower than payments already received.", 409);
@@ -80,6 +96,15 @@ export async function POST(request: Request) {
       const payment = body.payment;
       if (!payment || typeof payment.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(payment.id) || typeof payment.invoiceId !== "string") return reply("Invalid payment.");
       if (!Number.isFinite(payment.amount) || payment.amount <= 0 || payment.amount > 1_000_000_000 || roundMoney(payment.amount) !== payment.amount || !validBillingDate(payment.date) || !payment.mode?.trim()) return reply("Enter a positive amount with at most two decimal places, a valid date and payment mode.");
+      if (payment.appearance) {
+        // Appearance is a snapshot only; it must not override receipt/invoice financial fields.
+        const { supplier, signatory, showSignatory, showSignature, showStamp, showSigningDate, signingDate } = payment.appearance;
+        payment.appearance = { supplier, signatory, showSignatory, showSignature, showStamp, showSigningDate, signingDate };
+        const error = snapshotError(payment.appearance as SeikoCommercialDocument);
+        if (error) return reply(error,403);
+        if (showSigningDate && (!signingDate || !validBillingDate(signingDate))) return reply("Choose a valid signing date.");
+        if ((showSignature && !signatory?.signature) || (showStamp && !signatory?.stamp)) return reply("Choose a saved signatory with the selected assets.");
+      }
       // A receipt belongs either to a verified order or to a standalone invoice.
       if (!payment.invoiceId) {
         if (typeof payment.orderId !== "string" || !payment.orderId) return reply("Choose an order for this payment.");
@@ -88,6 +113,7 @@ export async function POST(request: Request) {
         if (orderRow.status === "Cancelled") return reply("Cannot receive payment for a cancelled order.");
         const order = JSON.parse(orderRow.document_json) as { details: { orderNo?: string; clientName?: string; contactNumber?: string } };
         const saved: SeikoPaymentRecord = { id: payment.id, invoiceId: "", orderId: payment.orderId, orderNo: order.details.orderNo || "", clientName: order.details.clientName || "", clientPhone: order.details.contactNumber || "", receiptNumber: "", amount: payment.amount, date: payment.date, mode: payment.mode.trim(), reference: String(payment.reference || ""), notes: String(payment.notes || ""), createdAt: new Date().toISOString() };
+        saved.appearance = payment.appearance;
         await db.prepare("INSERT INTO seiko_billing_payments(id,invoice_id,amount_paise,data,created_by) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM erp_orders WHERE id = ? AND business_id = 'seiko' AND json_extract(document_json, '$.deletedAt') IS NULL) ON CONFLICT(id) DO NOTHING").bind(saved.id, "", Math.round(saved.amount * 100), JSON.stringify(saved), actor.email, saved.orderId).run();
         const recorded = await db.prepare("SELECT data FROM seiko_billing_payments WHERE id = ?").bind(saved.id).first<{ data: string }>();
         const original = recorded && JSON.parse(recorded.data) as SeikoPaymentRecord;
@@ -118,4 +144,3 @@ export async function POST(request: Request) {
     return reply("Billing could not be saved or loaded. Your form is still available; retry when connected.", 503);
   }
 }
-
