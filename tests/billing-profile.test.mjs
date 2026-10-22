@@ -102,3 +102,14 @@ test('large billing assets are immutable shared references, permission checked a
   assert.equal((await f.profileApi.GET(new Request('https://test.invalid/api/erp/billing-profile?asset=invalid'))).status,400);
  }finally{f.sql.close();}
 });
+
+test('signatory layouts reject out-of-bounds and non-finite placements',()=>{
+ const profile=profiles.emptyBillingProfile();
+ const box={x:5,y:10,width:40,height:30};
+ profile.signatories=[{id:'signatory-layout',name:'Owner',designation:'Proprietor',layout:{signature:{...box},stamp:{...box},name:{...box}}}];
+ assert.equal(profiles.validateBillingProfile(profile),'');
+ for(const invalid of [{...box,x:-1},{...box,x:90},{...box,width:NaN},{...box,height:Infinity}]){
+  profile.signatories[0].layout.signature=invalid;
+  assert.match(profiles.validateBillingProfile(profile),/arrangement area/);
+ }
+});

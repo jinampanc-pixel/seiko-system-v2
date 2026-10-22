@@ -1,5 +1,7 @@
 export type SeikoTaxMode = "gst" | "non_gst";
 export type SeikoDocumentKind = "quotation" | "delivery_challan" | "invoice" | "payment_receipt";
+export type SignatoryPlacement = { x: number; y: number; width: number; height: number };
+export type SignatoryLayout = Record<"signature" | "stamp" | "name", SignatoryPlacement>;
 
 export type SeikoBillingLine = {
   id: string;
@@ -29,7 +31,7 @@ export type SeikoCommercialDocument = {
   deletedAt?: string;
   terms?: string;
   showTerms?: boolean;
-  signatory?: { id: string; name: string; designation: string; signature?: string; stamp?: string };
+  signatory?: { id: string; name: string; designation: string; signature?: string; stamp?: string; layout?: SignatoryLayout };
   showSignature?: boolean;
   showStamp?: boolean;
   showSigningDate?: boolean;

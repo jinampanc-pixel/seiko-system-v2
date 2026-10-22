@@ -29,12 +29,24 @@ module.exports=async({page,navigate,sqlite,base})=>{
  await settings.getByLabel('Payment QR image',{exact:true}).setInputFiles({name:'QR.jpeg',mimeType:'image/jpeg',buffer:Buffer.from(jpeg,'base64')});
  await settings.getByAltText('Payment QR image preview',{exact:true}).waitFor();
  assert.equal(await settings.locator('[role=alert]').count(),0);
+  const stage=settings.getByLabel('Signatory layout preview',{exact:true});
+ const signatureHandle=settings.getByRole('button',{name:'Position signature',exact:true});
+ await signatureHandle.focus();
+ const before=await signatureHandle.boundingBox();assert.ok(before);
+ await signatureHandle.press('ArrowRight');await signatureHandle.press('ArrowDown');
+ const after=await signatureHandle.boundingBox();assert.ok(after.x>before.x&&after.y>before.y);
+ const dragBox=await signatureHandle.boundingBox();
+ await page.mouse.move(dragBox.x+dragBox.width/2,dragBox.y+dragBox.height/2);await page.mouse.down();await page.mouse.move(dragBox.x+dragBox.width/2+24,dragBox.y+dragBox.height/2+12,{steps:8});await page.mouse.up();
+ const dragged=await signatureHandle.boundingBox();assert.ok(dragged.x>after.x+15&&dragged.y>after.y+5);
+ const stageBox=await stage.boundingBox();assert.ok(dragged.x>=stageBox.x&&dragged.x+dragged.width<=stageBox.x+stageBox.width+1);
+ if(process.env.BILLING_ASSET_SCREENSHOTS)await settings.screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/signatory-layout-settings.png'});
  await settings.getByRole('button',{name:'Save settings',exact:true}).click();await settings.waitFor({state:'detached'});
  await systemSettings.getByRole('button',{name:'Close settings',exact:true}).click();await navigate('Billing');
  const stored=JSON.parse(sqlite.prepare("SELECT value_json FROM erp_preferences WHERE key='billing.profile.v1'").get().value_json);
  assert.equal(stored.supplier.showQr,true);
  assert.match(stored.supplier.logo,/^\/api\/erp\/billing-profile\?asset=/);
  assert.ok(sqlite.prepare("SELECT COUNT(*) AS n FROM erp_preferences WHERE key LIKE 'billing.asset.%'").get().n>=3);
+ assert.ok(stored.signatories[0].layout.signature.x>6);assert.ok(stored.signatories[0].layout.signature.y>21);
  assert.equal(stored.signatories[0].name,'Sample Signatory');assert.match(stored.signatories[0].signature,/^\/api\/erp\/billing-profile\?asset=/);
  await surface.locator('.billingCreateMenu > summary').click();
  await surface.getByRole('button',{name:'+ Invoice',exact:true}).click();
@@ -59,8 +71,9 @@ module.exports=async({page,navigate,sqlite,base})=>{
  await frame.getByText('Sample Signatory',{exact:true}).waitFor();
  assert.match(await frame.locator('body').innerText(),/Payment due[\s\S]*31 Jan 2027/);
  assert.equal(await frame.getByAltText('Authorised signature').count(),1);
- {const qr=await frame.getByAltText('UPI payment QR').boundingBox();assert.ok(qr&&Math.abs(qr.width-qr.height)<1);}
+  {const qrImage=frame.getByAltText('UPI payment QR');const qr=await qrImage.boundingBox();const upi=await frame.getByText('UPI ID: sample@upi',{exact:true}).boundingBox();assert.ok(qr&&upi&&Math.abs(qr.width-qr.height)<1&&qr.y>=upi.y+upi.height&&Math.abs(qr.x-upi.x)<2);assert.equal(await qrImage.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');assert.equal(await qrImage.evaluate(el=>getComputedStyle(el).padding),'0px');}
  const document=JSON.parse(sqlite.prepare('SELECT data FROM seiko_billing_documents ORDER BY sequence DESC LIMIT 1').get().data);
+ assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
  assert.equal(document.clientContactPerson,'Sample contact');assert.equal(document.signatory.name,'Sample Signatory');
  await preview.getByRole('button',{name:'Amend document',exact:true}).click();
  const amendment=page.getByRole('dialog',{name:'Amend invoice',exact:true});
@@ -83,6 +96,7 @@ module.exports=async({page,navigate,sqlite,base})=>{
  await amendment.waitFor({state:'detached'});
  await frame.getByText(notes,{exact:true}).waitFor();
  const amended=JSON.parse(sqlite.prepare('SELECT data FROM seiko_billing_documents WHERE id=?').get(document.id).data);
+ assert.equal(await frame.locator('.arrangedSignatory').count(),1);
  assert.equal(amended.notes,notes);assert.equal(amended.revision,1);
  assert.equal(await frame.getByText(/Amended.*Revision/).count(),0);
  assert.equal(await frame.locator('.ackLine').count(),2);

@@ -32,6 +32,10 @@ export function validateBillingProfile(value: BillingProfile): string {
   if (new Set(value.signatories.map(s => s.id)).size !== value.signatories.length) return "Signatory IDs must be unique.";
   for (const s of value.signatories) {
     if (!s || !/^[a-zA-Z0-9-]{8,80}$/.test(s.id) || typeof s.name !== "string" || !s.name.trim() || s.name.length > 150 || typeof s.designation !== "string" || s.designation.length > 150 || !validBillingImage(s.signature) || !validBillingImage(s.stamp)) return "Each signatory needs a name and valid signature/stamp images.";
+    if (s.layout && (["signature","stamp","name"] as const).some(key => {
+      const p=s.layout![key];
+      return !p || ![p.x,p.y,p.width,p.height].every(Number.isFinite) || p.x<0 || p.y<0 || p.width<1 || p.height<1 || p.x+p.width>100.001 || p.y+p.height>100.001;
+    })) return "Keep the signature, stamp and name inside the arrangement area.";
   }
   return "";
 }
