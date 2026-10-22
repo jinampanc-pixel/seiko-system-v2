@@ -30,3 +30,4 @@ body[data-seiko-palette="true"] :is(.workspaceTable td,.orderRow,.phase2TableRow
 /* Hidden native text controls must not enlarge the setup page. */
 .orderSetup input.adaptiveNativeInput{left:0!important;top:0!important;min-width:0!important;max-width:1px!important;min-height:0!important;padding:0!important;border:0!important;clip-path:inset(50%)}
 body[data-seiko-palette="true"] .membershipLoginStatusDot,body[data-seiko-palette="true"] .membershipLoginStatus.ready .membershipLoginStatusDot{background:var(--gold)!important;box-shadow:0 0 0 4px #c3a06c20!important}
+body[data-seiko-palette="true"] :is(.seikoDashboardActivity,.seikoMetricCard,.seikoDailyActions,.seikoHomeOptionGrid label,.seikoAccessSettings,.moduleCard,.moduleMenu,.seikoDashboardActivityRow,.phase2LibraryRow){background:var(--paper)!important;color:var(--navy)!important;border-color:var(--gold)!important}
