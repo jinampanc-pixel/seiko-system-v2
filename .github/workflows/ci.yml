@@ -39,7 +39,7 @@ jobs:
         run: npm run test:render
 
       - name: Install smoke browser
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       - name: Navigation and payment smoke
         run: npm run test:smoke
