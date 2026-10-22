@@ -69,6 +69,9 @@ function load(path, imports = {}) {
         value.records[0].values['field:name'] = `Unique-person-${i}`;
         await seed(value);
       }
+      // Make the newest fixture deterministic even when several inserts share a millisecond.
+      const newest = new Date(Date.now() + 1000).toISOString();
+      sqlite.prepare("UPDATE erp_orders SET updated_at = ?, document_json = json_set(document_json, '$.updatedAt', ?) WHERE id = ?").run(newest, newest, 'scale-1000');
     }
     const billing = load('app/api/erp/billing/route.ts', {
       'cloudflare:workers': { env: { DB: db } }, '../../../lib/seiko-billing': load('app/lib/seiko-billing.ts'), '../../../lib/billing-profile': load('app/lib/billing-profile.ts'),
