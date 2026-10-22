@@ -13,11 +13,12 @@ const print=load('app/lib/seiko-billing-print.ts',{'./seiko-billing':model});
 function fixture(){
  const sql=new DatabaseSync(':memory:');for(const file of fs.readdirSync('migrations').sort())sql.exec(fs.readFileSync('migrations/'+file,'utf8'));let role='owner',email='owner@example.com';
  const db={withSession(){return this;},async batch(stmts){sql.exec('BEGIN');try{const result=stmts.map(s=>s.runSync());sql.exec('COMMIT');return result;}catch(e){sql.exec('ROLLBACK');throw e;}},prepare(query){const stmt=sql.prepare(query);let args=[];return {bind(...v){args=v;return this;},runSync(){return {meta:{changes:Number(stmt.run(...args).changes)}};},async run(){return this.runSync();},async first(){return stmt.get(...args)||null;},async all(){return {results:stmt.all(...args)};}};}};
- const auth={authenticateActor:async()=>({email,userId:email}),authorizePermission:async()=>({role})};
+ let grants=[];
+ const auth={authenticateActor:async()=>({email,userId:email}),authorizePermission:async(_actor,_business,permission)=>permission.startsWith('billing.documents.')&&role!=='owner'&&!grants.includes(permission)?null:({role})};
  const imports={'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/billing-profile':profiles,'../../../lib/seiko-billing':model};
  const api=load('app/api/erp/billing-profile/route.ts',imports), billing=load('app/api/erp/billing/route.ts',imports);
  const call=(body,route=api)=>route.POST(new Request('https://test.invalid/api/erp/billing-profile',{method:'POST',headers:{origin:'https://test.invalid'},body:JSON.stringify(body)}));
- return {sql,call,billing,actor:(r,e)=>{role=r;email=e;}};
+ return {sql,call,billing,actor:(r,e)=>{role=r;email=e;},grant:(...v)=>{grants=v;}};
 }
 test('profile ownership, delegated access, version conflicts and audit history are enforced server-side',async()=>{
  const f=fixture();try{
@@ -60,6 +61,24 @@ test('GST and non-GST have separate stored registers and API views without renum
   }
   const all=await (await f.call({operation:'list'},f.billing)).json();assert.equal(all.documents.length,2);assert.equal(new Set(all.documents.map(d=>d.number)).size,2);
   assert.equal((await f.call({operation:'list',taxMode:'bad'},f.billing)).status,400);
+ }finally{f.sql.close();}
+});
+
+test('document archive and recoverable deletion enforce delegated permissions, payment protection and audit history',async()=>{
+ const f=fixture();try{
+  const document={id:'lifecycle-invoice',kind:'invoice',orderId:'',orderNo:'',clientName:'School',clientPhone:'1234567890',issueDate:'2026-10-22',taxMode:'non_gst',taxTreatment:'intra_state',lines:[{id:'line',description:'Uniforms',quantity:1,unit:'pc',unitRate:100,taxRate:0}],notes:'',supplier:{name:'SEIKO'}};
+  let result=await (await f.call({operation:'create',document},f.billing)).json();const number=result.documents[0].number;
+  f.actor('operations','staff@example.com');assert.equal((await f.call({operation:'archive',id:document.id},f.billing)).status,403);
+  f.grant('billing.documents.archive');assert.equal((await f.call({operation:'archive',id:document.id},f.billing)).status,200);
+  result=await (await f.call({operation:'list'},f.billing)).json();assert.ok(result.documents[0].archivedAt);assert.equal(result.canArchive,true);assert.equal(result.canDelete,false);
+  assert.equal((await f.call({operation:'delete',id:document.id},f.billing)).status,403);
+  f.grant('billing.documents.delete');assert.equal((await f.call({operation:'delete',id:document.id},f.billing)).status,200);
+  result=await (await f.call({operation:'recover',id:document.id},f.billing)).json();assert.equal(result.documents[0].number,number);assert.equal(result.documents[0].deletedAt,undefined);assert.ok(result.documents[0].archivedAt);
+  f.actor('owner','owner@example.com');assert.equal((await f.call({operation:'restore',id:document.id},f.billing)).status,200);
+  assert.equal((await f.call({operation:'payment',payment:{id:'lifecycle-payment',invoiceId:document.id,amount:25,date:'2026-10-22',mode:'Cash'}},f.billing)).status,200);
+  assert.equal((await f.call({operation:'delete',id:document.id},f.billing)).status,409);
+  assert.equal((await f.call({operation:'archive',id:document.id},f.billing)).status,200);
+  assert.equal(f.sql.prepare("SELECT count(*) n FROM erp_audit_events WHERE entity_type='billing-document'").get().n,5);
  }finally{f.sql.close();}
 });
 

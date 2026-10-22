@@ -65,7 +65,7 @@ export function SeikoMethSync() {
         const settings = menu.querySelector(".moduleMenuSettings");
         if (settings) menu.insertBefore(button, settings); else menu.appendChild(button);
       }
-      const settingsPanel = document.querySelector<HTMLElement>(".themePanel");
+      const settingsPanel = document.querySelector<HTMLElement>(".themePanel .settingsAppearanceModule");
       if (settingsPanel && !settingsPanel.querySelector('[data-seiko-legal-profile="true"]')) {
         const card = document.createElement("section");
         card.className = "seikoAccessSettings";

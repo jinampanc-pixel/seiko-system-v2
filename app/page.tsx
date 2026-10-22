@@ -3,6 +3,9 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
+import { useAccess } from "./access-control";
+import { BillingProfileEditor, requestBillingProfile, type ProfileState } from "./billing-profile-editor";
 import { callSeiko } from "./lib/seiko-api";
 import { Orders } from "./orders";
 import { SavedLabelWorkspace } from "./saved-label-workspace";
@@ -41,6 +44,7 @@ const previewBusinesses: BusinessMembership[] = [
 ];
 
 export default function Home() {
+  const {can:canPermission}=useAccess();
   const [module, setModule] = useState<Module>("home");
   const [newOrderRequest, setNewOrderRequest] = useState(0);
   const [productionOrderId,setProductionOrderId]=useState<string|undefined>();
@@ -51,6 +55,7 @@ export default function Home() {
   const [themeOverrides, setThemeOverrides] = useState<Record<string, BusinessTheme>>({});
   const [themeOpen, setThemeOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  useEffect(()=>{const open=()=>{setThemeOpen(true);setNavOpen(false);};window.addEventListener("jinam:open-settings",open);return()=>window.removeEventListener("jinam:open-settings",open);},[]);
   useEffect(()=>{const open=(event:Event)=>{setProductionOrderId((event as CustomEvent<string>).detail);setModule("production");setNavOpen(false);};window.addEventListener("seiko:production-order",open);return()=>window.removeEventListener("seiko:production-order",open);},[]);
   const [labelOrder,setLabelOrder]=useState<SeikoOrder|null>(null);
   const [labelPurpose,setLabelPurpose]=useState<"production"|"packing"|"inventory"|null>(null);
@@ -135,8 +140,8 @@ export default function Home() {
 
   return <div className="app" style={themeVariables(activeTheme) as CSSProperties}>
     <div className="surface">
-      <header className="topbar"><label className="compactBusinessPicker"><span className={`businessMark logo-${businessId}`}>{membership?.logoUrl ? <img src={membership.logoUrl} alt=""/> : <b>{membership?.businessName?.slice(0, 1) || "J"}</b>}</span>{membership?.logoUrl && <span className={`businessWordmark logo-${businessId}`}><img src={membership.logoUrl} alt={`${membership.businessName} logo`}/></span>}<span className="srOnly">Active business</span><select aria-label="Active business" value={businessId} onChange={event => switchBusiness(event.target.value)}>{businesses.map(item => <option key={item.businessId} value={item.businessId}>{item.businessName}</option>)}</select></label><div className="topbarEnd">{pending > 0 && <div className="topActions"><span className="queue">{pending} waiting to sync</span></div>}<button className={`menuToggle ${navOpen ? "active" : ""}`} onClick={() => setNavOpen(open => !open)} aria-label={navOpen ? "Close menu" : "Open menu"} aria-expanded={navOpen}><span></span><span></span><span></span></button></div>{navOpen && <><button className="menuBackdrop" aria-label="Close menu" onClick={() => setNavOpen(false)}/><nav className="moduleMenu" aria-label="Modules"><div className="moduleMenuHead"><b>Menu</b><button onClick={() => setNavOpen(false)} aria-label="Close menu">×</button></div><Nav icon="⌂" label="Home" active={module === "home"} onClick={() => { setNewOrderRequest(0); setModule("home"); setNavOpen(false); }}/>{canAccess(membership, "orders") && <Nav icon="≡" label="Orders" active={module === "orders"} onClick={() => { setNewOrderRequest(0); setModule("orders"); setNavOpen(false); }}/>} {canAccess(membership, "labels") && <Nav icon="▤" label="Labels" active={module === "labels"} onClick={() => { setModule("labels"); setNavOpen(false); }}/>} {canAccess(membership, "scan") && <Nav icon="⌗" label="Scan" active={module === "scan"} onClick={() => { setModule("scan"); setNavOpen(false); }}/>} {canAccess(membership, "trace") && <Nav icon="◎" label="Trace" active={module === "trace"} onClick={() => { setModule("trace"); setNavOpen(false); }}/>} {(["production", "inventory", "sales", "delivery"] as Module[]).filter(item => canAccess(membership, item)).map(item => <Nav key={item} icon="•" label={title(item)} active={module === item} onClick={() => { setModule(item); setNavOpen(false); }}/>) }{canAccess(membership, "admin") && <div className="moduleMenuSettings"><Nav icon="⚙" label="Settings" active={themeOpen} onClick={() => { setThemeOpen(true); setNavOpen(false); }}/></div>}</nav></>}</header>
-      {themeOpen && <ThemeCustomizer key={businessId} businessName={membership?.businessName || "Business"} theme={activeTheme} onSave={saveTheme} onClose={() => setThemeOpen(false)} />}
+      <header className="topbar"><label className="compactBusinessPicker"><span className={`businessMark logo-${businessId}`}>{membership?.logoUrl ? <img src={membership.logoUrl} alt=""/> : <b>{membership?.businessName?.slice(0, 1) || "J"}</b>}</span>{membership?.logoUrl && <span className={`businessWordmark logo-${businessId}`}><img src={membership.logoUrl} alt={`${membership.businessName} logo`}/></span>}<span className="srOnly">Active business</span><select aria-label="Active business" value={businessId} onChange={event => switchBusiness(event.target.value)}>{businesses.map(item => <option key={item.businessId} value={item.businessId}>{item.businessName}</option>)}</select></label><div className="topbarEnd">{pending > 0 && <div className="topActions"><span className="queue">{pending} waiting to sync</span></div>}<button className={`menuToggle ${navOpen ? "active" : ""}`} onClick={() => setNavOpen(open => !open)} aria-label={navOpen ? "Close menu" : "Open menu"} aria-expanded={navOpen}><span></span><span></span><span></span></button></div>{navOpen && <><button className="menuBackdrop" aria-label="Close menu" onClick={() => setNavOpen(false)}/><nav className="moduleMenu" aria-label="Modules"><div className="moduleMenuHead"><b>Menu</b><button onClick={() => setNavOpen(false)} aria-label="Close menu">×</button></div><Nav icon="⌂" label="Home" active={module === "home"} onClick={() => { setNewOrderRequest(0); setModule("home"); setNavOpen(false); }}/>{canAccess(membership, "orders") && <Nav icon="≡" label="Orders" active={module === "orders"} onClick={() => { setNewOrderRequest(0); setModule("orders"); setNavOpen(false); }}/>} {canAccess(membership, "labels") && <Nav icon="▤" label="Labels" active={module === "labels"} onClick={() => { setModule("labels"); setNavOpen(false); }}/>} {canAccess(membership, "scan") && <Nav icon="⌗" label="Scan" active={module === "scan"} onClick={() => { setModule("scan"); setNavOpen(false); }}/>} {canAccess(membership, "trace") && <Nav icon="◎" label="Trace" active={module === "trace"} onClick={() => { setModule("trace"); setNavOpen(false); }}/>} {(["production", "inventory", "sales", "delivery"] as Module[]).filter(item => canAccess(membership, item)).map(item => <Nav key={item} icon="•" label={title(item)} active={module === item} onClick={() => { setModule(item); setNavOpen(false); }}/>) }{(canAccess(membership, "admin")||canPermission("financials.view")) && <div className="moduleMenuSettings"><Nav icon="⚙" label="Settings" active={themeOpen} onClick={() => window.dispatchEvent(new CustomEvent("jinam:open-settings"))}/></div>}</nav></>}</header>
+      {themeOpen && createPortal(<ThemeCustomizer key={businessId} businessName={membership?.businessName || "Business"} theme={activeTheme} onSave={saveTheme} onClose={() => setThemeOpen(false)} />,document.body)}
       <main>
         {module === "home" && <Overview membership={membership} onOpen={next => { setNewOrderRequest(0); setModule(next); }} />}
         {module === "orders" && canAccess(membership, "orders") && <Orders key={`${businessId}:${labelOrder?.orderId || "center"}:${newOrderRequest}`} onHome={() => { setNewOrderRequest(0); setLabelOrder(null); setModule("home"); setNavOpen(false); }} startNewOrder={newOrderRequest > 0} businessId={businessId} initialOrder={labelOrder} canManageSuggestions={membership?.role === "owner" || membership?.role === "admin"} onOpenLabelBatches={order => { setLabelOrder(null); setLabelPurpose(null); setLabelBatchOrder(order); setModule("labels"); }}/>}
@@ -364,9 +369,11 @@ function Timeline({ title, text, time, active = false }: { title: string; text: 
 function pretty(v: string) { return ({ name: "Name", group: "Class / group", product: "Product", size: "Size", qty: "Quantity" } as Record<string,string>)[v] || v; }
 
 function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessName: string; theme: BusinessTheme; onSave: (theme: BusinessTheme) => void; onClose: () => void }) {
-  const { membership } = useAccess();
+  const { membership, businessId, can } = useAccess();
+  const [billingProfile,setBillingProfile]=useState<ProfileState|null>(null);
+  const [settingsError,setSettingsError]=useState("");
   const [draft, setDraft] = useState(theme);
-  const [section, setSection] = useState<"appearance" | "users">("appearance");
+  const [section, setSection] = useState<"appearance" | "users" | "billing">("appearance");
   const [message, setMessage] = useState("Choose a preset, edit colours, or analyse a logo.");
   const colourFields: Array<[keyof BusinessTheme, string]> = [["primary", "Primary"], ["primaryAlt", "Secondary"], ["accent", "Accent"], ["background", "Background"], ["surface", "Surface"], ["ink", "Text"]];
 
@@ -383,12 +390,13 @@ function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessNam
     window.setTimeout(() => window.dispatchEvent(new CustomEvent("jinam:open-access")), 0);
   };
 
-  return <div className="themeScrim" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className="themePanel" role="dialog" aria-modal="true" aria-labelledby="theme-title">
+  return <div className="themeScrim" style={themeVariables(theme) as CSSProperties} role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className="themePanel" role="dialog" aria-modal="true" aria-labelledby="theme-title">
     <div className="themeHead"><div><p className="eyebrow">SYSTEM SETTINGS</p><h2 id="theme-title">Settings · {businessName}</h2><p className="settingsIntro">Manage appearance, users and access from one settings area.</p></div><button onClick={onClose} aria-label="Close settings">×</button></div>
     <nav className="settingsModuleNav" aria-label="Settings modules">
       {membership?.role === "owner" && <a href="/backups">Backup &amp; recovery</a>}
       <button type="button" className={section === "appearance" ? "active" : ""} onClick={() => setSection("appearance")}><small>1</small><span>Appearance</span></button>
-      <button type="button" className={section === "users" ? "active" : ""} onClick={() => setSection("users")}><small>2</small><span>Users & access</span></button>
+      {can("users.manage")&&<button type="button" className={section === "users" ? "active" : ""} onClick={() => setSection("users")}><span>Users & access</span></button>}
+      {businessId==="seiko"&&can("financials.view")&&<button type="button" className={section === "billing" ? "active" : ""} onClick={()=>setSection("billing")}>Billing & assets</button>}
     </nav>
     {section === "appearance" ? <div className="settingsAppearanceModule">
       <h3 className="settingsSectionTitle">Appearance</h3>
@@ -399,9 +407,9 @@ function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessNam
       <label className="themeField"><span>Heading style</span><select value={draft.headingFont} onChange={event => setDraft(current => ({ ...current, headingFont: event.target.value as BusinessTheme["headingFont"] }))}><option value="serif">Editorial serif</option><option value="sans">Modern sans serif</option></select></label>
       <div className="themePreview" style={themeVariables(draft) as CSSProperties}><span>Live mood preview</span><b>{businessName}</b><button type="button">Primary action</button></div>
       <div className="themeActions"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" onClick={() => { onSave({ ...draft, name: `${businessName} custom` }); onClose(); }}>Save theme</button></div>
-    </div> : <section className="settingsUsersModule">
+    </div> : section==="billing" ? <section className="settingsUsersModule"><h3>Billing & assets</h3><p>Business and GST details, bank transfer, UPI QR, signatories and document terms.</p><button type="button" className="secondary" onClick={()=>void requestBillingProfile({operation:"get"}).then(setBillingProfile).catch(e=>setSettingsError(e.message))}>Billing settings & assets</button>{settingsError&&<p role="alert">{settingsError}</p>}</section> : <section className="settingsUsersModule">
       <p className="eyebrow">USERS & ACCESS</p><h3>Users, roles and permissions</h3><p>Open the secure access manager to add users, assign roles and control which operational modules each person can use.</p><button type="button" className="primary" onClick={openAccess}>Open users & access</button>
     </section>}
-  </section></div>;
+  </section>{billingProfile&&<BillingProfileEditor state={billingProfile} onClose={()=>setBillingProfile(null)} onSaved={()=>setBillingProfile(null)}/>}</div>;
 }
 

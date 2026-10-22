@@ -132,7 +132,7 @@ export function AccessProvider({ children }: { children: ReactNode }) {
 
   return <AccessContext.Provider value={value}>
     <SharedLabelStorage business={value.businessId} enabled={can("labels.view")}>{children}</SharedLabelStorage>
-    {menuHost && createPortal(<><button type="button" className="nav accessMenuEntry" onClick={() => setPanelOpen(true)}><span>◉</span><small>{can("users.manage") ? "Users & access" : "My access"}</small></button><button type="button" className="nav accessMenuEntry" onClick={() => void logoutSession()}><span>↪</span><small>Sign out</small></button></>, menuHost)}
+    {menuHost && createPortal(<>{!can("users.manage")&&<button type="button" className="nav accessMenuEntry" onClick={() => setPanelOpen(true)}><span>◉</span><small>My access</small></button>}<button type="button" className="nav accessMenuEntry" onClick={() => void logoutSession()}><span>↪</span><small>Sign out</small></button></>, menuHost)}
     {panelOpen && <AccessPanel onClose={() => setPanelOpen(false)}/>} 
   </AccessContext.Provider>;
 }

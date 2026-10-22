@@ -14,13 +14,20 @@ export function BillingImageUpload({label,value,onChange}:{label:string;value?:s
     setError("");if(!file)return;
     if(!["image/png","image/jpeg","image/webp"].includes(file.type)||file.size>5*1024*1024){setError("Choose a PNG, JPEG or WebP image up to 5 MB.");return;}
     try {
-      const bitmap=await createImageBitmap(file);const canvas=document.createElement("canvas");
+      let bitmap: ImageBitmap | HTMLImageElement;
+      try { bitmap=await createImageBitmap(file); }
+      catch {
+        // Some JPEG encodings fail ImageBitmap while the browser image decoder supports them.
+        const data=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file);});
+        bitmap=await new Promise<HTMLImageElement>((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error("decode"));img.src=data;});
+      }
+      const canvas=document.createElement("canvas");
       const scale=Math.min(1,1000/Math.max(bitmap.width,bitmap.height));canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
-      canvas.getContext("2d")!.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+      const context=canvas.getContext("2d");if(!context)throw new Error("canvas");context.drawImage(bitmap,0,0,canvas.width,canvas.height);if("close" in bitmap)bitmap.close();
       // PNG preserves transparency for signatures and avoids JPEG artefacts on QR modules.
       const image=canvas.toDataURL("image/png");if(image.length>220_000){setError("This image is too detailed. Crop the asset and upload a simpler image under 160 KB.");return;}
       onChange(image);
-    }catch{setError("The image could not be read.");}
+    }catch{setError("This file could not be decoded. Open it and save a fresh PNG or JPEG, then upload it again.");}
   }
   return <div className="billingAsset"><label>{label}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>void upload(e.target.files?.[0])}/></label>{value&&<><img src={value} alt={`${label} preview`}/><button type="button" className="secondary" onClick={()=>onChange("")}>Remove {label.toLowerCase()}</button></>}{error&&<p role="alert">{error}</p>}</div>;
 }

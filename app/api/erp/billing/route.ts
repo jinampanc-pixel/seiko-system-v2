@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const reader = request.body?.getReader();
   const chunks: Uint8Array[] = []; let size = 0;
   if (reader) { for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.byteLength; if (size > 1024 * 1024) { await reader.cancel(); return reply("Document is too large.", 413); } chunks.push(part.value); } }
-  let body: { operation?: string; orderId?: string; taxMode?: "gst" | "non_gst"; document?: SeikoCommercialDocument; payment?: SeikoPaymentRecord };
+  let body: { operation?: string; id?: string; orderId?: string; taxMode?: "gst" | "non_gst"; document?: SeikoCommercialDocument; payment?: SeikoPaymentRecord };
   try { const bytes = new Uint8Array(size); let offset = 0; for (const part of chunks) { bytes.set(part, offset); offset += part.length; } body = JSON.parse(new TextDecoder().decode(bytes)); }
   catch { return reply("Invalid request."); }
   if (!body || typeof body !== "object") return reply("Invalid request.");
@@ -35,7 +35,10 @@ export async function POST(request: Request) {
   if (body.taxMode !== undefined && !["gst", "non_gst"].includes(body.taxMode)) return reply("Choose a valid tax register.");
   const membership = await authorizePermission(actor, "seiko", "billing.invoices.manage");
   const canManage = Boolean(membership);
-  if (body.operation !== "list" && !canManage) return reply("You cannot change SEIKO billing.", 403);
+  const canArchive=Boolean(await authorizePermission(actor,"seiko","billing.documents.archive"));
+  const canDelete=Boolean(await authorizePermission(actor,"seiko","billing.documents.delete"));
+  const lifecycle=["archive","restore","delete","recover"].includes(body.operation||"");
+  if (lifecycle ? (["archive","restore"].includes(body.operation!) ? !canArchive : !canDelete) : body.operation !== "list" && !canManage) return reply("You do not have permission for this billing action.", 403);
   if (!env.DB) return reply("Billing database is not configured.", 503);
   const db = env.DB.withSession("first-primary");
   try {
@@ -57,7 +60,26 @@ export async function POST(request: Request) {
     await db.prepare(`CREATE INDEX IF NOT EXISTS seiko_billing_payment_invoice ON seiko_billing_payments(invoice_id)`).run();
     await db.prepare(`CREATE INDEX IF NOT EXISTS seiko_billing_document_order ON seiko_billing_documents(json_extract(data, '$.orderId'))`).run();
     await db.prepare(`CREATE INDEX IF NOT EXISTS seiko_billing_payment_order ON seiko_billing_payments(json_extract(data, '$.orderId'))`).run();
-    if (body.operation === "create") {
+    if (lifecycle) {
+      if(typeof body.id!=="string"||!body.id||body.id.length>200)return reply("Choose a document.");
+      const row=await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE id=?").bind(body.id).first<DocumentRow>();
+      if(!row)return reply("Document not found.",404);
+      const original=JSON.parse(row.data) as SeikoCommercialDocument;
+      if(body.operation==="recover" ? !original.deletedAt : Boolean(original.deletedAt))return reply("Refresh the document list before continuing.",409);
+      if(body.operation==="delete"){
+        if(row.cancelled)return reply("Cancelled documents can be archived; their cancellation history must be preserved.",409);
+        const linked=await db.prepare("SELECT id FROM seiko_billing_payments WHERE invoice_id=? OR (?='invoice' AND json_extract(data,'$.orderId')=? AND ?<>'') LIMIT 1").bind(row.id,original.kind,original.orderId||"",original.orderId||"").first();
+        if(linked)return reply("This document is linked to payments or an order advance. Archive it to preserve its financial history.",409);
+      }
+      const now=new Date().toISOString();
+      const saved={...original,updatedAt:now,archivedAt:body.operation==="archive"?now:body.operation==="restore"?undefined:original.archivedAt,deletedAt:body.operation==="delete"?now:undefined};
+      const json=JSON.stringify(saved), cancelled=body.operation==="delete"?1:body.operation==="recover"?0:row.cancelled;
+      const updated=await db.batch([
+        db.prepare("UPDATE seiko_billing_documents SET data=?,cancelled=? WHERE id=? AND data=? AND (?<>'delete' OR NOT EXISTS(SELECT 1 FROM seiko_billing_payments WHERE invoice_id=? OR (?='invoice' AND json_extract(data,'$.orderId')=? AND ?<>'')))").bind(json,cancelled,row.id,row.data,body.operation,row.id,original.kind,original.orderId||"",original.orderId||""),
+        db.prepare("INSERT INTO erp_audit_events(id,business_id,entity_type,entity_id,action,version,actor_user_id,actor_email,at,snapshot_json) SELECT ?,'seiko','billing-document',?,?,1,?,?,?,? WHERE EXISTS(SELECT 1 FROM seiko_billing_documents WHERE id=? AND data=?)").bind(crypto.randomUUID(),row.id,body.operation,actor.userId,actor.email,now,JSON.stringify({before:original,after:saved}),row.id,json),
+      ]);
+      if(!updated[0].meta.changes)return reply("Document or payments changed. Refresh before trying again.",409);
+    } else if (body.operation === "create") {
       const draft = body.document;
       if (!draft || typeof draft.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(draft.id)) return reply("Invalid document ID.");
       const now = new Date().toISOString();
@@ -68,7 +90,7 @@ export async function POST(request: Request) {
         const client = JSON.parse(row.data) as { id:string; type:string; name:string; contactPerson:string; phone:string; email:string; billingAddress:string; gstin:string };
         clientSnapshot = { clientId: client.id, clientType: client.type, clientName: client.name, clientContactPerson: client.contactPerson, clientPhone: client.phone, clientEmail: client.email, clientAddress: client.billingAddress, clientGstin: client.gstin };
       }
-      const saved: SeikoCommercialDocument = { ...draft, ...clientSnapshot, number: "", status: "issued", createdAt: now, updatedAt: now };
+      const saved: SeikoCommercialDocument = { ...draft, ...clientSnapshot, archivedAt:undefined,deletedAt:undefined, number: "", status: "issued", createdAt: now, updatedAt: now };
       const problem = validateBillingDocument(saved); if (problem) return reply(problem);
       const snapshotProblem = snapshotError(saved); if (snapshotProblem) return reply(snapshotProblem,403);
       await db.prepare(`INSERT INTO seiko_billing_documents(id,data,total_paise,created_by)
@@ -84,7 +106,7 @@ export async function POST(request: Request) {
       if (draft.orderId !== original.orderId) return reply("The source order cannot be changed during amendment.");
       if (draft.kind !== original.kind) return reply("The document type cannot be changed.");
       const now = new Date().toISOString();
-      const saved: SeikoCommercialDocument = { ...draft, id: original.id, number: "", status: "issued", createdAt: original.createdAt, updatedAt: now, revision: (original.revision || 0) + 1, amendedAt: now, amendedBy: actor.email };
+      const saved: SeikoCommercialDocument = { ...draft, archivedAt:original.archivedAt,deletedAt:original.deletedAt, id: original.id, number: "", status: "issued", createdAt: original.createdAt, updatedAt: now, revision: (original.revision || 0) + 1, amendedAt: now, amendedBy: actor.email };
       const problem = validateBillingDocument(saved); if (problem) return reply(problem);
       const snapshotProblem = snapshotError(saved, original); if (snapshotProblem) return reply(snapshotProblem,403);
       const paid = await db.prepare("SELECT COALESCE(SUM(amount_paise),0) AS total FROM seiko_billing_payments WHERE invoice_id = ?").bind(draft.id).first<{ total: number }>();
@@ -143,7 +165,7 @@ export async function POST(request: Request) {
     const docs = await docsQuery.bind(...[orderFilter, taxFilter].filter(Boolean)).all<DocumentRow>();
     const payments = await (orderFilter ? paymentsQuery.bind(orderFilter) : paymentsQuery).all<PaymentRow>();
     const allocationDocs = taxFilter ? await (orderFilter ? db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE json_extract(data, '$.orderId') = ?").bind(orderFilter) : db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents")).all<DocumentRow>() : docs;
-    return Response.json({ ok: true, documents: docs.results.map(documentFromRow), payments: allocateOrderPayments(allocationDocs.results.map(documentFromRow), payments.results.map(paymentFromRow)), canManage }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ ok: true, documents: docs.results.map(documentFromRow), payments: allocateOrderPayments(allocationDocs.results.map(documentFromRow), payments.results.map(paymentFromRow)), canManage,canArchive,canDelete }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return reply("Billing could not be saved or loaded. Your form is still available; retry when connected.", 503);
   }

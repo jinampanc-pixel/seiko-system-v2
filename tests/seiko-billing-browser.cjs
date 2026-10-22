@@ -35,6 +35,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   await page.getByRole('button',{name:'Payments & receipts',exact:true}).click();
   assert.match(await page.getByRole('region',{name:'Payment history'}).innerText(),/School test/);
   await page.getByRole('button',{name:'Invoices & documents',exact:true}).click();
+ await page.locator('.billingCreateMenu > summary').click();
   await page.getByRole('button',{name:'+ Invoice',exact:true}).click();
   let form = page.getByRole('dialog',{name:'New invoice',exact:true});
   await form.getByRole('button',{name:'+ Create client here',exact:true}).click();
@@ -67,6 +68,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   await page.reload(); await page.screenshot({path:'outputs/billing-list.png',fullPage:true}); await page.getByRole('button',{name:/Open INV-\d{4}-00001 for Standalone customer/}).click();
   assert.match(await preview.locator('body').innerText(),/₹150.00/);
   await page.getByRole('button',{name:'Close',exact:true}).click();
+ await page.locator('.billingCreateMenu > summary').click();
   await page.getByRole('button',{name:'+ Invoice',exact:true}).click();
   form=page.getByRole('dialog',{name:'New invoice',exact:true});
   await form.getByLabel('Bill source').selectOption('order-test');
@@ -77,6 +79,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   assert.match(await preview.locator('body').innerText(),/ORDER-TEST/);
   assert.match(await preview.locator('body').innerText(),/₹90.00/);
   await page.getByRole('button',{name:'Close',exact:true}).click();
+ await page.locator('.billingCreateMenu > summary').click();
   await page.getByRole('button',{name:'+ Challan',exact:true}).click();
   form=page.getByRole('dialog',{name:'New delivery challan',exact:true});
   await form.getByLabel('Bill source').selectOption('order-test');
@@ -87,6 +90,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   await page.screenshot({path:'outputs/challan-preview.png',fullPage:true});
   await page.getByRole('button',{name:'Close',exact:true}).click();
   await page.setViewportSize({width:390,height:844});
+ await page.locator('.billingCreateMenu > summary').click();
   await page.getByRole('button',{name:'+ Invoice',exact:true}).click();
   await page.screenshot({path:'outputs/billing-mobile.png',fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);

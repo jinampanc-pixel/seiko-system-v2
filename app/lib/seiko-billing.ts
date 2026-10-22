@@ -25,6 +25,8 @@ export type SeikoCommercialDocument = {
   issueDate: string;
   dueDate?: string;
   dueOnReceipt?: boolean;
+  archivedAt?: string;
+  deletedAt?: string;
   terms?: string;
   showTerms?: boolean;
   signatory?: { id: string; name: string; designation: string; signature?: string; stamp?: string };

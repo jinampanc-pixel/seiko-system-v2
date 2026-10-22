@@ -55,6 +55,41 @@
 
 .billingMetricScope{font-size:13px;line-height:1.5;color:var(--muted);margin:0}
 
+/* Quiet work surface: document branding belongs to the printed document. */
+.seikoPhase2Surface[aria-label="SEIKO billing"]{background:#f6f7f9}
+.seikoBillingWorkspace{--navy:#173c5e;--paper:#fff;--line:#dce2e7;--pale:#f2f4f6;color:#203448}
+.billingViewActions{border-bottom:1px solid #dce2e7;padding-bottom:12px;gap:8px}
+.seikoBillingWorkspace .billingViewActions>button[aria-pressed]{background:transparent!important;color:#526171!important;border:0!important;border-radius:0!important;border-bottom:2px solid transparent!important}
+.seikoBillingWorkspace .billingViewActions>button[aria-pressed="true"]{color:#173c5e!important;border-bottom-color:#173c5e!important}
+.billingSettingsLink{margin-left:auto!important;min-height:38px;padding:6px 12px;background:#fff;color:#173c5e;border:1px solid #dce2e7;border-radius:6px}
+.seikoBillingWorkspace .billingViewActions>.billingSettingsLink{background:#fff!important;color:#173c5e!important;margin-left:0!important}.billingViewActions>button:nth-child(3){margin-left:auto}
+.seikoBillingWorkspace .phase2Toolbar{border:0;border-radius:0;background:transparent;padding:0;align-items:end}
+.seikoBillingWorkspace .phase2Toolbar .phase2Actions button{border-radius:6px;min-height:40px!important}
+.seikoBillingWorkspace .phase2Toolbar .phase2Actions .secondary{border-color:transparent;background:transparent}
+.billingListControls{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.billingFilters,.billingCreateMenu{position:relative;flex:none}
+.billingFilters>summary,.billingCreateMenu>summary{list-style:none;display:flex;align-items:center;justify-content:center;min-height:42px;padding:8px 14px;border:1px solid #dce2e7;border-radius:6px;cursor:pointer;background:#fff;color:#173c5e;font-size:14px;font-weight:600}
+.billingFilters>summary::-webkit-details-marker,.billingCreateMenu>summary::-webkit-details-marker{display:none}
+.billingCreateMenu>summary{background:#173c5e;color:#fff;border-color:#173c5e}
+.billingCreateMenu>div,.billingFilterPanel{position:absolute;top:calc(100% + 6px);right:0;z-index:12;display:grid;gap:14px;width:330px;max-width:calc(100vw - 32px);padding:16px;border:1px solid #dce2e7;border-radius:8px;background:#fff;box-shadow:0 8px 24px #173c5e1a}
+.billingCreateMenu>div{width:210px;gap:4px;padding:8px}
+.billingFilterPanel>label{display:grid;gap:5px;font-size:12px;color:#526171}.billingFilterPanel select{width:100%;min-height:40px;border:1px solid #dce2e7;border-radius:6px;padding:8px;background:#fff;color:#203448}
+.billingFilterDot{width:7px;height:7px;border-radius:50%;background:#173c5e;margin-left:5px}
+.seikoBillingWorkspace .phase2Toolbar .billingCreateMenu button{width:100%;text-align:left;background:#fff;color:#173c5e;border:0;min-height:40px}
+@media(max-width:620px){.billingFilterPanel{right:0;width:300px}.billingListControls{grid-template-columns:1fr!important}.billingViewActions>button{font-size:12px!important}.billingSettingsLink{margin-left:auto!important}}
+.billingListControls label{display:grid;gap:5px;font-size:12px;color:#526171;min-width:160px}
+.billingListControls select{min-height:40px;border:1px solid #dce2e7;border-radius:6px;padding:7px 30px 7px 10px;background:#fff;color:#203448;font:inherit}
+.billingDocumentFilters{gap:0;width:fit-content;border:1px solid #dce2e7;border-radius:6px;overflow:hidden}
+.billingDocumentFilters button{min-height:38px;border:0;border-radius:0;font-size:13px;background:#fff;color:#526171;padding:8px 16px}
+.seikoBillingWorkspace .billingDocumentFilters button.primary{background:#e9eef3;color:#173c5e;box-shadow:inset 0 -2px #173c5e}
+.billingMetricScope{padding:9px 0}.billingMetricScope summary{cursor:pointer;color:#526171}.billingMetricScope .phase2Metrics{margin-top:10px}
+.seikoBillingWorkspace .billingStatusBadge{background:#f2f4f6;color:#3b4c5c;border-color:#dce2e7;font-weight:500}
+.themeScrim{z-index:1800!important}.themeScrim>.themePanel{height:min(900px,calc(100dvh - 32px))!important}
+.themePanel .settingsModuleNav{display:flex!important;max-width:none!important;flex-wrap:wrap!important;gap:8px!important}
+.themePanel .settingsModuleNav>*{min-height:40px;padding:8px 12px;border:1px solid #dce2e7;border-radius:6px;background:#fff;color:#173c5e;text-decoration:none}
+.themePanel .settingsModuleNav>.active{background:#e9eef3}.themePanel .settingsModuleNav small{display:none}
+@media(max-width:620px){.billingListControls{display:grid;grid-template-columns:1fr 1fr}.billingListControls label{min-width:0}.billingSettingsLink{margin-left:0!important}.billingViewActions{flex-wrap:wrap}}
+
 .seikoBillingWorkspace .billingDocumentFilters button.primary{background:var(--navy);color:var(--paper)}
 
 .seikoBillingWorkspace .phase2TableRow{align-items:center;padding:10px 14px;min-height:68px}
@@ -69,3 +104,7 @@
 @media(max-width:620px){.seikoPhase2Surface[aria-label="SEIKO billing"] .seikoPhase2Head h1{font-size:25px}.seikoBillingWorkspace .phase2Metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}.seikoBillingWorkspace .phase2Metrics article:last-child{grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between}.billingViewActions>button:last-child{margin-left:0}.seikoBillingWorkspace .phase2Toolbar>label{min-width:0;max-width:none;flex-basis:100%}.seikoBillingWorkspace .phase2TableRow{grid-template-columns:1fr 1fr;gap:8px}.billingRowAction{width:100%;gap:8px;flex-direction:row!important}.billingRowAction .primary{width:auto!important}.seikoBillingWorkspace .phase2TableRow>span:nth-child(3){white-space:normal}}
 
 .billingAsset{display:grid;gap:8px;min-width:0}.billingAsset img,.billingAssetPreview{max-width:160px;max-height:110px;object-fit:contain;background:#fbf5ed;padding:8px;border:1px solid #d8d2c8}.billingSignatory{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;border:1px solid #d8d2c8;padding:16px}.billingPaymentSetup fieldset{border:0;padding:0;display:grid;gap:8px}.billingFull>fieldset{min-width:0}.billingFormBody>fieldset{border:0;display:contents}
+.themeScrim .themePanel .settingsModuleNav{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(145px,1fr))!important;max-width:none!important;gap:8px!important}
+.themeScrim .themePanel .settingsModuleNav>*{display:flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:0!important;min-height:44px!important;padding:10px!important;font-size:13px!important;gap:0!important;white-space:normal!important;text-align:center!important}
+.themeScrim .themePanel .settingsModuleNav button small{display:none!important}.themeScrim .themePanel .settingsModuleNav button span{font-size:13px!important}
+@media(max-width:620px){.themeScrim .themePanel .settingsModuleNav{grid-template-columns:1fr 1fr!important}.themeScrim .themePanel .settingsUsersModule{padding:14px!important;min-height:0!important}}

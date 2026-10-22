@@ -33,22 +33,8 @@ function syncWorkspacePagers() {
   });
 }
 
-function enhanceSettings() {
-  document.querySelectorAll<HTMLElement>(".themePanel").forEach(panel => {
-    const users = Array.from(panel.querySelectorAll<HTMLButtonElement>(".settingsModuleNav button"))
-      .find(button => /Users\s*&\s*access/i.test(button.textContent || ""));
-    const label = users?.querySelector<HTMLElement>("span");
-    if (label && label.textContent !== "Access & management") label.textContent = "Access & management";
-
-    const usersModule = panel.querySelector<HTMLElement>(".settingsUsersModule");
-    const action = usersModule?.querySelector<HTMLButtonElement>(".primary");
-    if (action && action.textContent !== "Open access manager") action.textContent = "Open access manager";
-  });
-}
-
 function enhance() {
   syncWorkspacePagers();
-  enhanceSettings();
 }
 
 export function SeikoInterfaceFixes() {
@@ -60,15 +46,6 @@ export function SeikoInterfaceFixes() {
     const clickCapture = (event: MouseEvent) => {
       const target = event.target as Element | null;
       if (!target) return;
-
-      const accessButton = target.closest<HTMLButtonElement>(".themePanel .settingsUsersModule .primary");
-      if (accessButton) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        window.dispatchEvent(new CustomEvent("jinam:open-access"));
-        return;
-      }
 
       if (target.closest(".workspacePagerTop button")) {
         window.setTimeout(controller.schedule, 0);

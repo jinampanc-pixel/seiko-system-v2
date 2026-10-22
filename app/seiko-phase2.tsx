@@ -64,6 +64,10 @@ export function SeikoPhase2() {
   };
 
   useEffect(() => {
+    const close=()=>setView(null);window.addEventListener("jinam:open-settings",close);return()=>window.removeEventListener("jinam:open-settings",close);
+  },[]);
+
+  useEffect(() => {
     const openBilling = (event: Event) => {
       const detail = (event as CustomEvent<{ action?: "payment" | "payments" | "invoice" | "quotation" | "challan"; orderId?: string }>).detail;
       setBillingOrderId(detail?.orderId || ""); setBillingRequestId(value => value + 1); setBillingAction(detail?.action || null); setView("billing");
@@ -130,15 +134,7 @@ export function SeikoPhase2() {
 
       document.querySelectorAll<HTMLElement>(".orderSetup .attnToggle").forEach(toggle => { toggle.style.display = "none"; });
 
-      const settingsPanel = document.querySelector<HTMLElement>(".themePanel");
-      if (settingsPanel && !settingsPanel.querySelector('[data-phase2-template-card="true"]')) {
-        const card = document.createElement("section");
-        card.dataset.phase2TemplateCard = "true";
-        card.className = "seikoAccessSettings phase2TemplateCard";
-        card.innerHTML = '<div><b>Document templates</b><p>Manage SEIKO quotation, challan, invoice and receipt structure.</p></div><button type="button" class="secondary">Open templates</button>';
-        card.querySelector("button")?.addEventListener("click", () => setView("templates"));
-        settingsPanel.querySelector(".seikoAccessSettings")?.insertAdjacentElement("afterend", card);
-      }
+
     });
     return () => controller.stop();
   }, [clients, products]);
@@ -149,7 +145,7 @@ export function SeikoPhase2() {
   if (!view || typeof document === "undefined") return null;
   const orders = readStore<SeikoOrder[]>(orderStoreKey(businessId), []);
   return createPortal(<section className="seikoPhase2Surface" aria-label={`SEIKO ${view}`}>
-    <header className="phase2BrandHeader"><img src="/brands/seiko-logo-transparent.png" alt="SEIKO Tailors"/><button type="button" className="menuToggle" aria-label="Open billing navigation" onClick={()=>{setView(null);document.querySelector<HTMLButtonElement>('.app .topbar .menuToggle[aria-expanded="false"]')?.click();}}><span/><span/><span/></button></header><header className="seikoPhase2Head"><div><button type="button" className="secondary" onClick={() => setView(null)}>← Back to Home</button><small>SEIKO</small><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
+    <header className="phase2BrandHeader"><img src="/brands/seiko-logo-transparent.png" alt="SEIKO Tailors"/><button type="button" className="menuToggle" aria-label="Open billing navigation" onClick={()=>{setView(null);document.querySelector<HTMLButtonElement>('.app .topbar .menuToggle[aria-expanded="false"]')?.click();}}><span/><span/><span/></button></header><header className="seikoPhase2Head"><div><button type="button" className="secondary" onClick={() => setView(null)}>← Back to Home</button><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
     {view === "clients" && <SeikoClientDirectory legacyRecords={clients}/>} {/* shared client directory */}
     {view === "products" && <ProductLibrary records={products} onChange={saveProducts}/>} {/* browser product library */}
     {view === "billing" && <SeikoBillingWorkspace key={billingRequestId} initialOrderId={billingOrderId} orders={orders} legacyDocuments={documents} legacyPayments={payments} initialAction={billingAction} onActionHandled={() => setBillingAction(null)}/>}
