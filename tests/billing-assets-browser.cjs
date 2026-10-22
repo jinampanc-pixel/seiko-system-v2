@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-module.exports=async({page,navigate,sqlite,base})=>{
+module.exports=async({page,navigate,sqlite,base,printing})=>{
  await navigate('Billing');
  const surface=page.getByRole('region',{name:'SEIKO billing',exact:true});
  await surface.getByRole('button',{name:'Settings',exact:true}).click();
@@ -79,9 +79,20 @@ module.exports=async({page,navigate,sqlite,base})=>{
  const bankHeading=await frame.getByText('For bank transfer',{exact:true}).boundingBox();const upiHeading=await frame.getByText('For UPI payment',{exact:true}).boundingBox();const signingHeading=await frame.getByText('For SEIKO Tailors',{exact:true}).boundingBox();assert.ok(Math.abs(bankHeading.y-upiHeading.y)<2&&Math.abs(bankHeading.y-signingHeading.y)<2);
  assert.match(await frame.locator('body').innerText(),/Payment due[\s\S]*31 Jan 2027/);
  assert.equal(await frame.getByAltText('Authorised signature').count(),1);
-  {const qrImage=frame.getByAltText('UPI payment QR');const qr=await qrImage.boundingBox();const upi=await frame.getByText('UPI ID: sample@upi',{exact:true}).boundingBox();assert.ok(qr&&upi&&Math.abs(qr.width-qr.height)<1&&qr.y>=upi.y+upi.height&&Math.abs(qr.x-upi.x)<2);assert.equal(await qrImage.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');assert.equal(await qrImage.evaluate(el=>getComputedStyle(el).padding),'0px');}
+  {const qrImage=frame.getByAltText('UPI payment QR');const qr=await qrImage.boundingBox();const upi=await frame.getByText('UPI ID: sample@upi',{exact:true}).boundingBox();assert.ok(qr&&upi&&Math.abs(qr.width-qr.height)<1&&qr.y>=upi.y+upi.height&&Math.abs((qr.x+qr.width/2)-(upi.x+upi.width/2))<2);assert.equal(await qrImage.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');assert.equal(await qrImage.evaluate(el=>getComputedStyle(el).padding),'0px');}
  const document=JSON.parse(sqlite.prepare('SELECT data FROM seiko_billing_documents ORDER BY sequence DESC LIMIT 1').get().data);
- assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
+  // A realistic short invoice, payment history, QR, stamp and signature must fit two copies on one A4.
+ const short={...document,showTerms:false,clientContactPerson:'Sample Contact Full Name',clientAddress:'Sample School; Taluka: Sample District: Example',clientPhone:'9999999999',notes:'Package price per student includes 3 pairs total: 2 formal pairs and 1 sports pair. 110 students; 330 pairs total.',showStamp:true,signatory:{...document.signatory,stamp:stored.supplier.logo},lines:[{id:'lower',description:'Uniform package - Classes BV to 4 (2 formal pairs + 1 sports pair)',quantity:49,unit:'student',unitRate:900,taxRate:0},{id:'upper',description:'Uniform package - Classes 5 to 8 (2 formal pairs + 1 sports pair)',quantity:61,unit:'student',unitRate:1050,taxRate:0}]};
+ let twoHtml=printing.billingPrintHtml(short,[{id:'fit-payment',invoiceId:short.id,receiptNumber:'RCP-FIT',date:'2026-10-22',amount:30000,mode:'Cash'}],'both');
+ twoHtml=twoHtml.replace(/\/api\/erp\/billing-profile\?asset=([a-f0-9-]{36})/g,(_url,id)=>JSON.parse(sqlite.prepare("SELECT value_json FROM erp_preferences WHERE key=?").get('billing.asset.'+id).value_json).image);
+ const fitContext=await page.context().browser().newContext();const sheet=await fitContext.newPage();await sheet.setContent(twoHtml,{waitUntil:'load'});await sheet.evaluate(`(${printing.fitBillingCopies.toString()})({contentDocument:document},'both')`);
+ assert.equal(await sheet.locator('body').getAttribute('class'),'both');
+ const fit=await sheet.locator('.copy').evaluateAll(es=>es.map(e=>({height:e.getBoundingClientRect().height,overflow:e.scrollHeight-e.clientHeight,footerBottom:e.querySelector('footer').getBoundingClientRect().bottom,bottom:e.getBoundingClientRect().bottom})));
+ assert.equal(fit.length,2);for(const copy of fit){assert.ok(copy.height<=562&&copy.overflow<=2&&copy.footerBottom<=copy.bottom+1,JSON.stringify(copy));}
+ const pdf=await sheet.pdf({format:'A4',printBackground:true,margin:{top:0,bottom:0,left:0,right:0}});assert.equal((pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)||[]).length,1,'two copies export on exactly one A4 page');
+ if(process.env.BILLING_ASSET_SCREENSHOTS){await sheet.locator('body').screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/two-copies-one-a4.png'});}
+ short.lines=Array.from({length:60},(_,i)=>({...short.lines[0],id:'long-'+i}));await sheet.setContent(printing.billingPrintHtml(short,[],'both'));await sheet.evaluate(`(${printing.fitBillingCopies.toString()})({contentDocument:document},'both')`);assert.equal(await sheet.locator('body').getAttribute('class'),'separate','long invoices retain safe page fallback');await fitContext.close();
+assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
  assert.equal(document.clientContactPerson,'Sample contact');assert.equal(document.signatory.name,'Sample Signatory');
  await preview.getByRole('button',{name:'Amend document',exact:true}).click();
  const amendment=page.getByRole('dialog',{name:'Amend invoice',exact:true});
