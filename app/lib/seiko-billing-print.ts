@@ -32,7 +32,13 @@ export function billingPrintHtml(doc: SeikoCommercialDocument, payments: SeikoPa
   const historyRows = payments.filter(p => paymentAppliedToInvoice(p,doc.id)>0).map(p => `<div><span>${date(p.date)} &middot; ${esc(p.receiptNumber)} &middot; ${esc(p.mode)}</span><b>${money(paymentAppliedToInvoice(p,doc.id))}</b></div>`).join("");
   const history = !receipt && doc.kind === "invoice" && historyRows ? `<section class="history"><b>Payments received</b>${historyRows}</section>` : "";
   const qr = image(supplier?.paymentQr);
-  const bank = supplier?.accountNumber ? [["accountName","Account name",supplier.accountName],["bankName","Bank",supplier.bankName],["accountNumber","Account number",supplier.accountNumber],["ifsc","IFSC",supplier.ifsc]].map(([key,label,value])=>detail(key!,label!,value)).join("") : supplier?.bank ? `<p>${esc(supplier.bank)}</p>` : "";
+  const legacyBank = (supplier?.bank||"").split(/\r?\n/).filter(Boolean).map(line=>{
+    const match=/^\s*(A\/c\s*(?:No\.?|Number)|Account number|A\/c\s*Name|Account name|IFSC(?:\s*Code)?|Bank(?:\s*name)?)\s*:\s*(.+)$/i.exec(line);
+    if(!match)return `<p>${esc(line)}</p>`;
+    const label=match[1].toLowerCase(),key=label.startsWith("ifsc")?"ifsc":label.startsWith("bank")?"bankName":label.includes("name")?"accountName":"accountNumber";
+    return detail(key,({ifsc:"IFSC",bankName:"Bank",accountName:"Account name",accountNumber:"Account number"})[key],match[2]);
+  }).join("");
+  const bank = supplier?.accountNumber ? [["accountName","Account name",supplier.accountName],["bankName","Bank",supplier.bankName],["accountNumber","Account number",supplier.accountNumber],["ifsc","IFSC",supplier.ifsc]].map(([key,label,value])=>detail(key!,label!,value)).join("") : legacyBank;
   const payInfo = !challan && ((supplier?.showBank && bank)||(supplier?.showUpi && supplier.upi)||(supplier?.showQr && qr)) ? `<section class="payment">${supplier?.showBank&&bank?`<div class="bankTransfer"><b>For bank transfer</b>${bank}</div>`:""}${(supplier?.showUpi&&supplier.upi)||(supplier?.showQr&&qr)?`<div class="upiPayment"><b>For UPI payment</b>${supplier?.showUpi&&supplier.upi?`${detail("upi","UPI ID",supplier.upi)}`:""}${supplier?.showQr&&qr?`<figure><img src="${qr}" alt="UPI payment QR"><figcaption>Scan to pay via UPI</figcaption></figure>`:""}</div>`:""}</section>` : "";
   const sign = doc.signatory, signature = image(sign?.signature), stamp = image(sign?.stamp);
   const arranged = sign?.layout && (["signature","stamp","name"] as const).every(key => {

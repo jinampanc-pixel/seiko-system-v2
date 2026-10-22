@@ -127,3 +127,9 @@ test('printed detail labels can be renamed or hidden without hiding values',asyn
   profile.printPreferences.fieldLabels.phone.showLabel='yes';assert.match(profiles.validateBillingProfile(profile),/document labels/);
  }finally{f.sql.close();}
 });
+
+test('label preferences apply to legacy multiline bank details',()=>{
+ const d={id:'legacy-labels',number:'INV',kind:'invoice',issueDate:'2026-10-22',taxMode:'non_gst',lines:[{description:'Uniform',quantity:1,unitRate:100,taxRate:0}],supplier:{name:'SEIKO',showBank:true,bank:'A/c No.: 123456\nIFSC Code: TEST0001\nA/c Name: Merchant'}};
+ const html=print.billingPrintHtml(d,[],'customer',undefined,{fieldLabels:{accountNumber:{showLabel:false,label:'Account number'},ifsc:{showLabel:true,label:'Bank code'}}});
+ assert.match(html,/<p>123456<\/p>/);assert.match(html,/Bank code: TEST0001/);assert.match(html,/Account name: Merchant/);assert.doesNotMatch(html,/A\/c No\.:/);
+});
