@@ -4,6 +4,8 @@ module.exports = async ({page, sqlite, navigate, ordersApi, base}) => {
   await navigate('Orders');
   const row = page.locator('.orderRow').filter({hasText:'SECOND-002'});
   await row.locator('.orderCenterInfo').click();
+  await page.locator('.orderSetup').waitFor();
+  await page.getByRole('button', { name: 'Open workspace', exact: true }).click();
   const cell = page.locator('td[data-column-id="field:name"] input').first();
   await cell.fill('Older workspace draft'); await cell.press('Tab');
   const before = sqlite.prepare('SELECT document_json, version FROM erp_orders WHERE id = ?').get('second-order');
@@ -20,6 +22,8 @@ module.exports = async ({page, sqlite, navigate, ordersApi, base}) => {
   await navigate('Orders');
   await row.waitFor();
   await row.locator('.orderCenterInfo').click();
+  await page.locator('.orderSetup').waitFor();
+  await page.getByRole('button', { name: 'Open workspace', exact: true }).click();
   await cell.fill('Saved using keyboard');
   await page.keyboard.press('Control+s');
   await page.getByRole('status').filter({hasText:'saved successfully to shared storage'}).waitFor();
@@ -47,6 +51,8 @@ module.exports = async ({page, sqlite, navigate, ordersApi, base}) => {
   });
   await navigate('Orders');
   await row.locator('.orderCenterInfo').click();
+  await page.locator('.orderSetup').waitFor();
+  await page.getByRole('button', { name: 'Open workspace', exact: true }).click();
   for (const size of [{width:390,height:844}, {width:360,height:640}]) {
     await page.setViewportSize(size);
     const save = page.getByRole('button', {name:'Save',exact:true});
@@ -69,6 +75,8 @@ module.exports = async ({page, sqlite, navigate, ordersApi, base}) => {
   assert.equal(saved.records[0].values['field:name'], 'Saved despite full device cache');
   assert.equal(await page.evaluate(() => localStorage.getItem('quota-test-recovery-draft')), 'retain this draft');
   await row.locator('.orderCenterInfo').click();
+  await page.locator('.orderSetup').waitFor();
+  await page.getByRole('button', { name: 'Open workspace', exact: true }).click();
   assert.equal(await cell.inputValue(), 'Saved despite full device cache');
   await page.setViewportSize({width:1365,height:900});
   console.log('PASS: stale workspace cannot overwrite newer device records; full cache cannot crash Orders or fail a confirmed server save; mobile Save/menu fit; drafts retained.');

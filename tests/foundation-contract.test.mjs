@@ -78,7 +78,7 @@ test("business themes support presets, manual editing and local logo analysis", 
   assert.match(foundation, /deriveThemeFromLogo/);
   assert.match(foundation, /createImageBitmap/);
   assert.match(page, /Automatically derive from company logo/);
-  assert.match(page, /businessStorageKey\(businessId, "theme-v2"\)/);
+  assert.match(page, /businessId === "seiko" \? "theme-v3" : "theme-v2"/);
   assert.match(page, /canAccess\(membership, "admin"\)/);
 });
 

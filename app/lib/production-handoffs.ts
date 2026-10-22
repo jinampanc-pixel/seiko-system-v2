@@ -24,7 +24,7 @@ export function productionDemand(orders: ProductionOrder[]): ProductionDemand[] 
     const order = normalizeProductMeasurements(raw), quantities = packingQuantities(order);
     const records = order.records.filter(record => !record.held);
     for (const product of order.products.filter(item => item.name.trim())) {
-      const measurements = order.measurements.filter(item => item.appliesTo[0] === product.id && item.name.trim());
+      const measurements = order.measurements.filter(item => item.appliesTo.includes(product.id) && item.name.trim());
       const rows = product.quantityMode === 'order_total' ? [{ recordId: 'order-total', personId: '', values: {} as Record<string,string|number> }] : records;
       rows.forEach((record, index) => {
         const blankRecord = !Object.keys(record.values).some(key => /^(measurement:|spec:)/.test(key) && text(record.values[key]));

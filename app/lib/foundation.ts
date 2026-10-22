@@ -73,7 +73,7 @@ export function businessStorageKey(businessId: string, suffix: string): string {
 }
 
 export const THEME_PRESETS: Record<string, BusinessTheme> = {
-  seiko: { name: "Seiko Tailors master", primary: "#103860", primaryAlt: "#104068", accent: "#d0b080", background: "#f5f1eb", surface: "#fffaf4", ink: "#102d49", muted: "#667787", headingFont: "serif" },
+  seiko: { name: "SEIKO cream navy gold", primary: "#173c5e", primaryAlt: "#173c5e", accent: "#c3a06c", background: "#fbf5ed", surface: "#fbf5ed", ink: "#173c5e", muted: "#173c5e", headingFont: "sans" },
   // VÉYN is deliberately red-led. Green is reserved for secondary positive/status emphasis.
   veyn: { name: "Veyn Health master", primary: "#a50000", primaryAlt: "#bc1111", accent: "#4f744b", background: "#f8f5f2", surface: "#fffdfb", ink: "#321818", muted: "#756968", headingFont: "serif" },
   meth: { name: "MeTh master", primary: "#422629", primaryAlt: "#603437", accent: "#c02020", background: "#f7f4f4", surface: "#ffffff", ink: "#331416", muted: "#786365", headingFont: "sans" },

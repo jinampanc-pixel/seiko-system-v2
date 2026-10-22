@@ -108,6 +108,7 @@ module.exports=async({page,navigate,sqlite,base})=>{
  const box=await editor.getByRole('checkbox',{name:'Active access',exact:true}).boundingBox();assert.ok(box&&box.width<=20&&box.height<=20);
  assert.equal(await editor.getByRole('checkbox',{name:'Archive billing documents',exact:true}).count(),1);
  assert.equal(await editor.getByRole('checkbox',{name:'Delete billing documents',exact:true}).count(),1);
+ for(const width of [360,390,768]){await page.setViewportSize({width,height:640});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'access editor fits '+width);const footer=await editor.getByRole('button',{name:'Save changes',exact:true}).boundingBox();assert.ok(footer&&footer.x>=0&&footer.x+footer.width<=width&&footer.y+footer.height<=640,'access save visible');if(process.env.BILLING_ASSET_SCREENSHOTS)await page.screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/mobile-access-'+width+'.png'});}
  await editor.getByRole('button',{name:'Close user editor',exact:true}).click();await access.getByRole('button',{name:'Close',exact:true}).click();
  console.log('PASS: shared settings save/reopen, signature and QR uploads, due dates, invoice snapshots, themed print and mobile settings.');
 };

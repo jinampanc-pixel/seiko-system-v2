@@ -170,7 +170,7 @@ function baseRows(order: SeikoOrder): BaseRow[] {
       .map(measurement => ({
         key: `measurement:${measurement.id}:product:${product.id}`,
         label: measurement.name,
-        value: String(record.values[`measurement:${measurement.id}:product:${product.id}`] ?? "").trim(),
+        value: String((measurement.shared ? record.values[`measurement:${measurement.id}:shared`] : undefined) ?? record.values[`measurement:${measurement.id}:product:${product.id}`] ?? "").trim(),
       }));
     const preferredSize = measurementValues.find(item => /size/i.test(item.label) && item.value) || measurementValues.find(item => item.value);
     const personName = firstPersonValue(order, record.values, record.personId);

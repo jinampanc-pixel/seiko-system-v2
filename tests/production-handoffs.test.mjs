@@ -13,6 +13,11 @@ export function makeOrder(id='one',colour='Blue'){
 }
 const allocation=row=>({...row,lay:'',stack:''});
 function handoff(rows,id='h1'){return {id,number:id,name:'Combined handoff',status:'Draft',purpose:'normal',reason:'',allocations:rows.map(allocation),lays:[],events:[],history:[],createdAt:'2026-10-07'};}
+
+test('shared body measurements appear on every linked product in production',()=>{
+ const order=makeOrder();order.products=['pant','dress','track'].map(id=>({...order.products[0],id,name:id}));order.measurements=[{id:'waist',name:'Waist',type:'number',shared:true,appliesTo:['pant','dress','track'],requiredMode:'Optional'}];order.records=[{recordId:'one',personId:'one',values:{'measurement:waist:shared':34}}];
+ const demand=domain.productionDemand([{order,version:1}]);assert.equal(demand.length,3);assert.ok(demand.every(row=>row.variant.includes('Waist: 34')&&!row.unresolved));assert.equal(demand.reduce((n,row)=>n+row.quantity,0),6);
+});
 test('production combines matching sizes across orders while preserving colours, waists and exact order quantities',()=>{
  const orders=[{order:makeOrder(),version:1},{order:makeOrder('two','Red'),version:3}];const demand=domain.productionDemand(orders);
  assert.equal(demand.length,4);assert.equal(demand.reduce((n,r)=>n+r.quantity,0),8);assert.equal(demand.filter(r=>r.unresolved).length,0);

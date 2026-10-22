@@ -52,6 +52,7 @@ export default function Home() {
   const [pending, setPending] = useState(0);
   const [businesses, setBusinesses] = useState<BusinessMembership[]>(previewBusinesses);
   const [businessId, setBusinessId] = useState(previewBusinesses[0].businessId);
+  useEffect(()=>{if(businessId==="seiko")document.body.dataset.seikoPalette="true";else delete document.body.dataset.seikoPalette;return()=>{delete document.body.dataset.seikoPalette;};},[businessId]);
   const [themeOverrides, setThemeOverrides] = useState<Record<string, BusinessTheme>>({});
   const [themeOpen, setThemeOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -70,7 +71,7 @@ export default function Home() {
     window.addEventListener("seiko:new-order", create);
     return () => window.removeEventListener("seiko:new-order", create);
   }, [membership]);
-  const activeTheme = themeOverrides[businessId] || membership?.theme || THEME_PRESETS.jinam;
+  const activeTheme = themeOverrides[businessId] || (businessId === "seiko" ? THEME_PRESETS.seiko : membership?.theme || THEME_PRESETS.jinam);
   const queueKey = businessStorageKey(businessId, "scan-queue");
 
   useEffect(() => {
@@ -91,7 +92,7 @@ export default function Home() {
   }, [businessId, queueKey]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(businessStorageKey(businessId, "theme-v2"));
+    const saved = localStorage.getItem(businessStorageKey(businessId, businessId === "seiko" ? "theme-v3" : "theme-v2"));
     if (!saved) return;
     try {
       const theme = JSON.parse(saved) as BusinessTheme;
@@ -107,7 +108,7 @@ export default function Home() {
 
   const saveTheme = (theme: BusinessTheme) => {
     setThemeOverrides(current => ({ ...current, [businessId]: theme }));
-    localStorage.setItem(businessStorageKey(businessId, "theme-v2"), JSON.stringify(theme));
+    localStorage.setItem(businessStorageKey(businessId, businessId === "seiko" ? "theme-v3" : "theme-v2"), JSON.stringify(theme));
   };
 
   useEffect(() => {

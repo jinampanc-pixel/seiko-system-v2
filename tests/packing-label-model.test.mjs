@@ -14,6 +14,24 @@ const domain = load("../app/lib/order-domain.ts", { "./order-statuses": load("..
 const model = load("../app/lib/packing-label-model.ts", { "./order-domain": domain });
 const handover = load("../app/lib/order-handover.ts", { "./order-domain": domain, "./packing-label-model": model, "./seiko-billing": load("../app/lib/seiko-billing.ts") });
 const fixture = JSON.parse(fs.readFileSync(new URL("./fixtures/packing-quantity-regression.json", import.meta.url)));
+test("shared waist is entered once, mirrored to associated products and preserved in handover",()=>{
+ const products=['pant','dress','track'].map(id=>({...domain.blankProduct(),id,name:id}));
+ const input={orderId:'shared',status:'Active',archived:false,details:{clientName:'School',contactNumber:'123'},fields:[],products,measurements:[{id:'waist',name:'Waist',type:'number',appliesTo:['pant','dress','track'],shared:true,requiredMode:'Optional'}],records:[{recordId:'one',personId:'one',values:{'measurement:waist:shared':32}}],revisions:[]};
+ const normalized=domain.normalizeProductMeasurements(input);
+ assert.equal(normalized.measurements.length,1);assert.equal(normalized.measurements[0].appliesTo.length,3);
+ assert.equal(domain.workspaceColumns(normalized).filter(c=>c.id.startsWith('measurement:')).length,1);
+ for(const id of ['pant','dress','track'])assert.equal(normalized.records[0].values[`measurement:waist:product:${id}`],32);
+ const next=domain.normalizeProductMeasurements({...normalized,records:[{...normalized.records[0],values:{...normalized.records[0].values,'measurement:waist:shared':34}}]});
+ for(const id of ['pant','dress','track'])assert.equal(next.records[0].values[`measurement:waist:product:${id}`],34);
+ assert.equal(input.records[0].values['measurement:waist:product:pant'],undefined);
+ const report=handover.handoverModel(next,{...handover.defaultHandoverOptions(next),sizes:true});
+ assert.ok(report.rows[0].values.every(v=>v.details.includes('Waist: 34')));
+ const conflict=domain.sharedMeasurementValues(input,{'measurement:waist:product:pant':30,'measurement:waist:product:dress':34});
+ assert.equal(conflict['measurement:waist:shared'],undefined);assert.equal(conflict['measurement:waist:product:dress'],34);
+ const seeded=domain.sharedMeasurementValues(input,{'measurement:waist:product:pant':30});assert.equal(seeded['measurement:waist:shared'],'30');assert.equal(seeded['measurement:waist:product:track'],'30');
+ const targeted=domain.normalizeProductMeasurements({...input,products:products.slice(0,2),measurements:[...input.measurements,{id:'pant-size',name:'Size',appliesTo:['pant']},{id:'dress-size',name:'Size',appliesTo:['dress']}],records:[{recordId:'boy',personId:'boy',values:{'measurement:waist:shared':30,'measurement:pant-size:product:pant':28}},{recordId:'girl',personId:'girl',values:{'measurement:waist:shared':30,'measurement:dress-size:product:dress':28}}]});
+ const quantities=model.packingQuantities(targeted);assert.equal(quantities.get('boy').dress,0);assert.equal(quantities.get('girl').pant,0);
+});
 export const order = {
   orderId: "quantity-regression", status: "Active", archived: false,
   details: { orderNo: "test", clientName: "Packing regression", clientType: "School / Institution" },

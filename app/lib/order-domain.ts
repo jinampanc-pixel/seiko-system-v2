@@ -8,8 +8,8 @@ export type ArtworkAttachment = { id: string; name: string; mimeType: string; si
 export type ManufacturingLink = { manufacturerBusinessId: string; sourceBusinessId: string; sourceOrderId: string; sourceProductId: string };
 export type SpecificationPolicy = { id: string; name: string; role: "colour" | "pattern" | "attribute" | "asset"; mode: ValueMode; defaultValue: string; groupFieldId?: string; groupRules: Array<{ match: string; value: string }>; required: boolean; attachments: ArtworkAttachment[] };
 export type ProductPolicy = { id: string; name: string; sizeHeader: string; quantityMode: QuantityMode; defaultQuantity: number; orderTotal: number; quantityGroupFieldId?: string; quantityGroupRules: Array<{ match: string; quantity: number }>; specifications: SpecificationPolicy[]; manufacturingLink?: ManufacturingLink };
-/** A measurement is product-owned. `appliesTo` is retained for document compatibility but normalized to zero or one product id. */
-export type MeasurementPolicy = { id: string; name: string; type: "number" | "text"; appliesTo: string[]; requiredMode: "Optional" | "When present" | "Always" };
+/** Shared body measurements may apply to several products; legacy product measurements remain independent. */
+export type MeasurementPolicy = { id: string; name: string; type: "number" | "text"; appliesTo: string[]; shared?: boolean; requiredMode: "Optional" | "When present" | "Always" };
 export type OrderRecord = { recordId: string; personId: string; values: Record<string, string | number>; held?: boolean };
 export type OrderDetails = { orderNo: string; orderDate: string; deliveryDate: string; clientName: string; clientType: string; contactPerson: string; attnRequired: boolean; contactNumber: string; shipTo: string; billTo: string; remarks: string };
 export type OrderRevision = { revision: number; at: string; reason: string; recordCount: number };
@@ -37,8 +37,8 @@ export function productionLinkStoreKey(manufacturerBusinessId: string) { return 
 export type WorkspaceColumn = { id: string; label: string; required: boolean; groupId: string; groupLabel: string };
 
 /**
- * Product ownership invariant for measurements.
- * Older orders could link one measurement definition to several products. Split those
+ * Preserve explicitly shared measurements and mirror their entered value for downstream consumers.
+ * Older orders could link one non-shared measurement definition to several products. Split those
  * definitions deterministically and move any already-entered workspace values to the
  * new product-specific keys. This is safe to run repeatedly.
  */
@@ -48,7 +48,7 @@ export function normalizeProductMeasurements(order: SeikoOrder): SeikoOrder {
 
   for (const measurement of order.measurements || []) {
     const productIds = [...new Set((measurement.appliesTo || []).filter(id => order.products.some(product => product.id === id)))];
-    if (productIds.length <= 1) {
+    if (measurement.shared || productIds.length <= 1) {
       measurements.push({ ...measurement, appliesTo: productIds });
       continue;
     }
@@ -63,7 +63,7 @@ export function normalizeProductMeasurements(order: SeikoOrder): SeikoOrder {
     }
   }
 
-  if (!migrations.length) return { ...order, measurements };
+  if (!migrations.length && !measurements.some(item=>item.shared)) return { ...order, measurements };
 
   const records = order.records.map(record => {
     let values = record.values;
@@ -73,15 +73,32 @@ export function normalizeProductMeasurements(order: SeikoOrder): SeikoOrder {
       values[migration.newKey] = values[migration.oldKey];
       delete values[migration.oldKey];
     }
+    values=sharedMeasurementValues({...order,measurements},values);
     return values === record.values ? record : { ...record, values };
   });
 
   return { ...order, measurements, records };
 }
 
+/** Keep canonical shared values and per-product compatibility keys in sync without discarding conflicts. */
+export function sharedMeasurementValues(order: Pick<SeikoOrder,"measurements">, source: OrderRecord["values"]): OrderRecord["values"] {
+  let values=source;
+  const set=(key:string,value:string|number)=>{if(values[key]===value)return;if(values===source)values={...source};values[key]=value;};
+  for(const measurement of order.measurements.filter(item=>item.shared&&item.appliesTo.length)){
+    const key=`measurement:${measurement.id}:shared`, aliases=measurement.appliesTo.map(id=>`measurement:${measurement.id}:product:${id}`);
+    if(!(key in values)){
+      const entered=[...new Set(aliases.map(id=>values[id]).filter(v=>v!==undefined&&String(v).trim()!=="").map(String))];
+      if(entered.length===1)set(key,entered[0]);
+    }
+    if(key in values)for(const alias of aliases)set(alias,values[key]);
+  }
+  return values;
+}
+
 export function workspaceColumns(order: SeikoOrder): WorkspaceColumn[] {
   const normalized = normalizeProductMeasurements(order);
   const columns: WorkspaceColumn[] = normalized.fields.map(item => ({ id: `field:${item.id}`, label: item.name, required: item.required, groupId: "record", groupLabel: "Person / record" }));
+  for(const measurement of normalized.measurements.filter(item=>item.shared&&item.appliesTo.length&&item.name.trim()))columns.push({id:`measurement:${measurement.id}:shared`,label:measurement.name,required:measurement.requiredMode!=="Optional",groupId:"shared-measurements",groupLabel:"Shared measurements"});
   for (const product of normalized.products) {
     if (!product.name.trim()) continue;
     const group = { groupId: `product:${product.id}`, groupLabel: product.name };
@@ -91,7 +108,7 @@ export function workspaceColumns(order: SeikoOrder): WorkspaceColumn[] {
       if (spec.mode === "per_person") columns.push({ id: `spec:${spec.id}`, label: spec.name, required: spec.required, ...group });
       if (spec.mode === "default_with_exceptions") columns.push({ id: `spec:${spec.id}:override`, label: `${spec.name} override`, required: false, ...group });
     }
-    for (const measurement of normalized.measurements.filter(item => item.appliesTo[0] === product.id && item.name.trim())) {
+    for (const measurement of normalized.measurements.filter(item => !item.shared && item.appliesTo.includes(product.id) && item.name.trim())) {
       columns.push({
         id: `measurement:${measurement.id}:product:${product.id}`,
         label: measurement.name,
@@ -148,6 +165,7 @@ export function quantityForRecord(product: ProductPolicy, record: OrderRecord, f
 export function readinessIssues(order: SeikoOrder): string[] {
   const normalized = normalizeProductMeasurements(order);
   const issues = validateOrder(normalized);
+  for(const m of normalized.measurements.filter(item=>item.shared))if(normalized.records.some(r=>!(`measurement:${m.id}:shared` in r.values)&&new Set(m.appliesTo.map(id=>r.values[`measurement:${m.id}:product:${id}`]).filter(v=>v!==undefined&&String(v).trim()!=="").map(String)).size>1))issues.push(`Existing ${m.name} values differ between products. Enter a common value in Shared measurements to resolve them.`);
   if (!normalized.records.length) issues.push("No person / record entries yet. You can still save this order.");
   if (!normalized.products.some(product => product.name.trim())) issues.push("No products defined yet. Add them now or later.");
   for (const product of normalized.products) {

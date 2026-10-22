@@ -41,6 +41,7 @@ import "../../app/seiko-interface-fixes.css";
 import "../../app/packing-workspace-audit.css";
 import "../../app/packing-workflow-final.css";
 import "../../app/seiko-stable.css";
+import "../../app/seiko-brand-theme.css";
 import { createRoot } from "react-dom/client";
 import { AccessProvider } from "../../app/access-control";
 import { BusinessApplicationRouter } from "../../app/business-application-router";

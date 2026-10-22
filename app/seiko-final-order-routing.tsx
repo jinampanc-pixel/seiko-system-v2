@@ -40,7 +40,11 @@ function waitFor<T extends Element>(find: () => T | null, action: (node: T) => v
 
 function openWorkspace(orderNo: string) {
   clickOrdersModule();
-  waitFor(() => orderRow(orderNo), row => row.querySelector<HTMLButtonElement>(".openOrderButton")?.click());
+  waitFor(() => orderRow(orderNo), row => {
+    const workspace = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Open workspace");
+    if (workspace) workspace.click();
+    else row.querySelector<HTMLButtonElement>(".openOrderButton")?.click();
+  });
 }
 
 function openSetup(orderNo: string) {

@@ -16,7 +16,7 @@ export function handoverModel(source: SeikoOrder, options: HandoverOptions) {
       // An order-wide total has no student allocation; never attribute it to the first student.
       const quantity = product.quantityMode === "order_total" ? 0 : quantities.get(record.recordId)?.[product.id] || 0;
       const details: string[] = [];
-      if (quantity && options.sizes) for (const measurement of order.measurements.filter(item => item.appliesTo[0] === product.id)) {
+      if (quantity && options.sizes) for (const measurement of order.measurements.filter(item => item.appliesTo.includes(product.id))) {
         const value = record.values[`measurement:${measurement.id}:product:${product.id}`];
         if (value != null && String(value).trim()) details.push(`${measurement.name}: ${value}`);
       }

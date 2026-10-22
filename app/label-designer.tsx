@@ -1,4 +1,5 @@
 "use client";
+import { sharedMeasurementValues } from "./lib/order-domain";
 import { writeLabelStorage, removeLabelStorage } from "./lib/label-storage";
 /* eslint-disable @typescript-eslint/no-unused-vars -- old cutting-template readers remain during local data migration */
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
@@ -608,12 +609,14 @@ function labelFieldOptions(order?: SeikoOrder | null): LabelFieldOption[] {
     return [...values, ...values.map(option => ({ key: `field_name:${option.key}`, label: `Field name · ${option.label.replace(/ \(resolved\)$/, "")}` }))];
 }
 function normalizedMeasurementValues(order: SeikoOrder, values: Record<string, string | number>) {
+    values=sharedMeasurementValues(order,values);
     const measurementColumns = workspaceColumns(order).filter(column => column.id.startsWith("measurement:"));
     const normalized: Record<string, string> = {};
     for (const column of measurementColumns) {
         const exact = values[column.id];
         if (hasLabelValue(exact)) normalized[column.id] = String(exact);
     }
+    for(const measurement of order.measurements.filter(m=>m.shared))for(const productId of measurement.appliesTo){const key=`measurement:${measurement.id}:product:${productId}`;if(hasLabelValue(values[key]))normalized[key]=String(values[key]);}
     // Legacy unscoped measurement values are migrated only when there is one unambiguous target.
     for (const [key, value] of Object.entries(values)) {
         if (!key.startsWith("measurement:") || key.includes(":product:") || !hasLabelValue(value)) continue;

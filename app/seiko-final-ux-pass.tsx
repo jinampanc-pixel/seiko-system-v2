@@ -448,7 +448,7 @@ function orderRow(orderNo: string) {
 function openOrderChoice(orderNo: string, action: "setup" | "workspace" | "labels") {
   clickModule("Orders");
   waitFor(() => orderRow(orderNo), row => {
-    if (action === "workspace") { row.querySelector<HTMLButtonElement>(".openOrderButton")?.click(); return; }
+    if (action === "workspace") { const workspace=Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(button=>button.textContent?.trim()==="Open workspace"); if(workspace)workspace.click();else row.querySelector<HTMLButtonElement>(".openOrderButton")?.click(); return; }
     const menu = row.querySelector<HTMLDetailsElement>(".seikoRowActionMenu");
     if (menu) menu.open = true;
     window.setTimeout(() => {
