@@ -84,7 +84,7 @@ test('document archive and recoverable deletion enforce delegated permissions, p
 
 test('invoice print uses cream theme, precise payment labels, due date and optional saved signature',()=>{
  const image='data:image/png;base64,AAAA';const d={id:'test-invoice',kind:'invoice',number:'INV-1',clientName:'School',clientContactPerson:'Person <One>',issueDate:'2026-10-22',dueDate:'2026-11-01',taxMode:'non_gst',taxTreatment:'intra_state',lines:[],supplier:{name:'SEIKO Tailors',phone:'1234567890',bank:'',showBank:true,accountName:'SEIKO',accountNumber:'123',ifsc:'BANK001',showUpi:true,upi:'test@upi',showQr:true,paymentQr:image},signatory:{id:'sign-001',name:'Authorised Person',designation:'Owner',signature:image,stamp:image},showSignature:true,showStamp:true,showSigningDate:true,signingDate:'2026-10-22',showTerms:true,terms:'Payment due as stated.'};
- const html=print.billingPrintHtml(d,[],'customer');assert.match(html,/#fbf5ed/);assert.match(html,/Attn: Person &lt;One&gt;/);assert.match(html,/Payment due/);assert.match(html,/01 Nov 2026/);assert.match(html,/For bank transfer/);assert.match(html,/For UPI payment/);assert.match(html,/UPI ID: test@upi/);assert.match(html,/object-fit:contain/);assert.match(html,/Phone: 1234567890/);assert.match(html,/alt="Authorised signature"/);assert.match(html,/Authorised Person/);assert.match(html,/Payment due as stated/);
+ const html=print.billingPrintHtml(d,[],'customer');assert.match(html,/#fbf5ed/);assert.match(html,/Contact person: Person &lt;One&gt;/);assert.match(html,/Payment due/);assert.match(html,/01 Nov 2026/);assert.match(html,/For bank transfer/);assert.match(html,/For UPI payment/);assert.match(html,/UPI ID: test@upi/);assert.match(html,/object-fit:contain/);assert.match(html,/Phone: 1234567890/);assert.match(html,/alt="Authorised signature"/);assert.match(html,/Authorised Person/);assert.match(html,/Payment due as stated/);
  const hidden=print.billingPrintHtml({...d,showSignatory:false,showTerms:false},[],'customer');assert.doesNotMatch(hidden,/alt="Authorised signature"|Authorised Person|Payment due as stated/);
  assert.match(print.billingPrintHtml({...d,dueOnReceipt:true},[],'customer'),/Due on receipt/);
  assert.ok(profiles.validateBillingProfile({...profiles.emptyBillingProfile(),supplier:{...profiles.emptyBillingProfile().supplier,paymentQr:'data:image/svg+xml;base64,AAAA'}}));
@@ -112,4 +112,18 @@ test('signatory layouts reject out-of-bounds and non-finite placements',()=>{
   profile.signatories[0].layout.signature=invalid;
   assert.match(profiles.validateBillingProfile(profile),/arrangement area/);
  }
+});
+
+
+test('printed detail labels can be renamed or hidden without hiding values',async()=>{
+ const f=fixture();try{
+  const profile=profiles.emptyBillingProfile();profile.printPreferences={fieldLabels:{contact:{label:'Contact person',showLabel:true},address:{label:'Address',showLabel:true},phone:{label:'Phone',showLabel:false},upi:{label:'Pay via UPI',showLabel:true}}};
+  assert.equal((await f.call({operation:'save',profile,version:0})).status,200);
+  const saved=await(await f.call({operation:'get'})).json();assert.deepEqual(saved.profile.printPreferences,profile.printPreferences);
+  const d={id:'labels-invoice',number:'INV-LABELS',kind:'invoice',clientName:'School',clientContactPerson:'Person',clientAddress:'Test village',clientPhone:'9999999999',issueDate:'2026-10-22',supplier:{name:'SEIKO',showUpi:true,upi:'sample@upi'},taxMode:'non_gst',lines:[{description:'Uniform',quantity:1,unitRate:100,taxRate:0}],notes:''};
+  const html=print.billingPrintHtml(d,[],'customer',undefined,saved.profile.printPreferences);
+  assert.match(html,/Contact person: Person/);assert.match(html,/Address: Test village/);assert.match(html,/9999999999/);assert.doesNotMatch(html,/Phone:|Attn:/);assert.match(html,/Pay via UPI: sample@upi/);
+  profile.printPreferences.fieldLabels.contact.label='<script>';assert.match(print.billingPrintHtml(d,[],'customer',undefined,profile.printPreferences),/&lt;script&gt;: Person/);
+  profile.printPreferences.fieldLabels.phone.showLabel='yes';assert.match(profiles.validateBillingProfile(profile),/document labels/);
+ }finally{f.sql.close();}
 });

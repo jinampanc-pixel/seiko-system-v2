@@ -81,7 +81,7 @@ test("delivery documents support non-GST quantity-only, valued and statutory GST
   assert.match(challan, /Delivery Challan/); assert.match(challan, /<th>Qty<\/th><th>Unit<\/th>/);
   assert.doesNotMatch(challan, /<th>Rate<\/th>|<th>Amount<\/th>|Sub Total|Balance Due|Bank A 123|seiko@upi|₹/);
   const invoiceHtml = printing.billingPrintHtml({ ...bill, kind: "invoice", number: "INV-2026-00002" }, [], "customer");
-  assert.match(invoiceHtml, /Bank A 123/); assert.match(invoiceHtml, /seiko@upi/); assert.match(invoiceHtml, /Scan to pay/); assert.match(invoiceHtml, /#153e63/);
+  assert.match(invoiceHtml, /Bank A 123/); assert.match(invoiceHtml, /seiko@upi/); assert.match(invoiceHtml, /Scan to pay/); assert.match(invoiceHtml, /#173c5e/);
   assert.match(challan, /Recipient Copy/); assert.match(printing.billingPrintHtml(bill, [], "supplier"), /Office Copy/);
   assert.match(printing.billingPrintHtml({ ...bill, showMonetaryValues: true }, [], "customer"), /Delivery Challan/);
   const gst = { ...bill, taxMode: "gst", placeOfSupply: "Maharashtra 27", supplier: { ...bill.supplier, address: "Mumbai", gstin: "27ABCDE1234F1Z5" }, clientAddress: "Pune", lines: bill.lines.map(line => ({ ...line, hsnSac: "6203", taxRate: 5 })) };

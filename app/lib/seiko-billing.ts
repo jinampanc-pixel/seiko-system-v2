@@ -2,6 +2,7 @@ export type SeikoTaxMode = "gst" | "non_gst";
 export type SeikoDocumentKind = "quotation" | "delivery_challan" | "invoice" | "payment_receipt";
 export type SignatoryPlacement = { x: number; y: number; width: number; height: number };
 export type SignatoryLayout = Record<"signature" | "stamp" | "name", SignatoryPlacement>;
+export type BillingPrintPreferences = { fieldLabels?: Record<string, { label: string; showLabel: boolean }> };
 
 export type SeikoBillingLine = {
   id: string;

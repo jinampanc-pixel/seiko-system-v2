@@ -29,7 +29,11 @@ module.exports=async({page,navigate,sqlite,base})=>{
  await settings.getByLabel('Payment QR image',{exact:true}).setInputFiles({name:'QR.jpeg',mimeType:'image/jpeg',buffer:Buffer.from(jpeg,'base64')});
  await settings.getByAltText('Payment QR image preview',{exact:true}).waitFor();
  assert.equal(await settings.locator('[role=alert]').count(),0);
-  const stage=settings.getByLabel('Signatory layout preview',{exact:true});
+  await settings.getByText('Document detail labels',{exact:true}).click();
+ await settings.getByLabel('Show Address label',{exact:true}).check();
+ await settings.getByLabel('Show Phone label',{exact:true}).uncheck();
+ await settings.getByLabel('Contact person printed label',{exact:true}).fill('School contact');
+ const stage=settings.getByLabel('Signatory layout preview',{exact:true});
  const signatureHandle=settings.getByRole('button',{name:'Position signature',exact:true});
  await signatureHandle.focus();
  const before=await signatureHandle.boundingBox();assert.ok(before);
@@ -69,6 +73,10 @@ module.exports=async({page,navigate,sqlite,base})=>{
  await preview.getByRole('combobox',{name:'Print copies',exact:true}).selectOption('customer');
  const frame=page.frameLocator('iframe[title="Billing print preview"]');
  await frame.getByText('Sample Signatory',{exact:true}).waitFor();
+ assert.match(await frame.locator('body').innerText(),/School contact: Sample contact/);
+ assert.match(await frame.locator('body').innerText(),/Address: Test address/);
+ assert.doesNotMatch(await frame.locator('body').innerText(),/Phone:/);
+ const bankHeading=await frame.getByText('For bank transfer',{exact:true}).boundingBox();const upiHeading=await frame.getByText('For UPI payment',{exact:true}).boundingBox();const signingHeading=await frame.getByText('For SEIKO Tailors',{exact:true}).boundingBox();assert.ok(Math.abs(bankHeading.y-upiHeading.y)<2&&Math.abs(bankHeading.y-signingHeading.y)<2);
  assert.match(await frame.locator('body').innerText(),/Payment due[\s\S]*31 Jan 2027/);
  assert.equal(await frame.getByAltText('Authorised signature').count(),1);
   {const qrImage=frame.getByAltText('UPI payment QR');const qr=await qrImage.boundingBox();const upi=await frame.getByText('UPI ID: sample@upi',{exact:true}).boundingBox();assert.ok(qr&&upi&&Math.abs(qr.width-qr.height)<1&&qr.y>=upi.y+upi.height&&Math.abs(qr.x-upi.x)<2);assert.equal(await qrImage.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');assert.equal(await qrImage.evaluate(el=>getComputedStyle(el).padding),'0px');}

@@ -1,6 +1,7 @@
 "use client";
 import { prepareBillingImage } from "./lib/browser-image";
 import { useState } from "react";
+import { BillingPrintPreferencesEditor } from "./billing-print-preferences-editor";
 import { SignatoryLayoutEditor } from "./signatory-layout-editor";
 import { emptyBillingProfile, type BillingProfile } from "./lib/billing-profile";
 
@@ -8,7 +9,7 @@ export type ProfileState = { profile: BillingProfile; version: number; canManage
 export const newProfileState = (): ProfileState => ({ profile: emptyBillingProfile(), version: 0, canManage: false, isOwner: false });
 export async function requestBillingProfile(body: object): Promise<ProfileState> {
   const response=await fetch("/api/erp/billing-profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-  const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.message||"Billing settings unavailable.");return result;
+  const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.message||"Billing settings unavailable.");if("operation" in body&&body.operation==="save")window.dispatchEvent(new Event("seiko:billing-profile-updated"));return result;
 }
 export function BillingImageUpload({label,value,onChange,onBusyChange}:{label:string;value?:string;onChange:(value:string)=>void;onBusyChange?:(busy:boolean)=>void}) {
   const [error,setError]=useState("");const [uploading,setUploading]=useState(false);
@@ -41,7 +42,7 @@ export function BillingProfileEditor({state,onClose,onSaved}:{state:ProfileState
     <h3 className="billingFull">For bank transfer</h3>{([['Account name','accountName'],['Bank name','bankName'],['Account number','accountNumber'],['IFSC','ifsc']] as const).map(([label,key])=><Input key={key} label={label} value={draft.supplier[key]||""} onChange={v=>supplier(key,v)}/>)}
     <h3 className="billingFull">For UPI payment</h3><Input label="UPI ID" value={draft.supplier.upi||""} onChange={v=>supplier("upi",v)}/><BillingImageUpload onBusyChange={assetBusy} label="Payment QR image" value={draft.supplier.paymentQr} onChange={v=>supplier("paymentQr",v)}/>
     <h3 className="billingFull">Saved signatories</h3>{draft.signatories.map((s,i)=><fieldset className="billingFull billingSignatory" key={s.id}><legend>{s.name||`Signatory ${i+1}`}</legend><Input label="Signatory name" value={s.name} onChange={v=>setDraft({...draft,signatories:draft.signatories.map(x=>x.id===s.id?{...x,name:v}:x)})}/><Input label="Designation" value={s.designation} onChange={v=>setDraft({...draft,signatories:draft.signatories.map(x=>x.id===s.id?{...x,designation:v}:x)})}/>{(['signature','stamp'] as const).map(key=><BillingImageUpload key={key} onBusyChange={assetBusy} label={key==='signature'?'Signature image':'Stamp image'} value={s[key]} onChange={v=>setDraft(current=>({...current,signatories:current.signatories.map(x=>x.id===s.id?{...x,[key]:v}:x)}))}/>)}<SignatoryLayoutEditor signatory={s} onChange={layout=>setDraft(current=>({...current,signatories:current.signatories.map(x=>x.id===s.id?{...x,layout}:x)}))}/><button type="button" className="secondary" onClick={()=>setDraft({...draft,signatories:draft.signatories.filter(x=>x.id!==s.id)})}>Remove signatory</button></fieldset>)}<button type="button" className="secondary" disabled={draft.signatories.length>=10} onClick={()=>setDraft({...draft,signatories:[...draft.signatories,{id:crypto.randomUUID(),name:"",designation:"",signature:"",stamp:""}]})}>+ Signatory</button>
-    <label>Default payment period (days; 0 = due on receipt)<input type="number" min="0" max="365" value={draft.dueDays} onChange={e=>setDraft({...draft,dueDays:Number(e.target.value)})}/></label>
+    <BillingPrintPreferencesEditor value={draft.printPreferences} onChange={printPreferences=>setDraft(current=>({...current,printPreferences}))}/><label>Default payment period (days; 0 = due on receipt)<input type="number" min="0" max="365" value={draft.dueDays} onChange={e=>setDraft({...draft,dueDays:Number(e.target.value)})}/></label>
     <label className="billingFull">Invoice terms<textarea rows={5} value={draft.invoiceTerms} onChange={e=>setDraft({...draft,invoiceTerms:e.target.value})}/></label><label className="billingFull">Quotation terms<textarea rows={5} value={draft.quotationTerms} onChange={e=>setDraft({...draft,quotationTerms:e.target.value})}/></label>
     {state.isOwner&&<label className="billingFull">Billing-settings managers (email addresses, one per line)<textarea value={managerText} onChange={e=>setManagerText(e.target.value)}/><small>Existing SEIKO members with financial-view access only. Managers may maintain payment assets and signatories; only the owner can change supplier GSTIN or this access list.</small></label>}
     {state.isOwner&&<label className="billingFull">Additional users allowed to use saved signatures and stamps<textarea value={signerText} onChange={e=>setSignerText(e.target.value)}/><small>One existing member email per line. Owner and billing-settings managers already have access.</small></label>}

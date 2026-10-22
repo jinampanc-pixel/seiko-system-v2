@@ -1,4 +1,4 @@
-import type { SeikoCommercialDocument } from "./seiko-billing";
+import type { BillingPrintPreferences, SeikoCommercialDocument } from "./seiko-billing";
 
 export type BillingProfile = {
   supplier: NonNullable<SeikoCommercialDocument["supplier"]>;
@@ -8,6 +8,7 @@ export type BillingProfile = {
   invoiceTerms: string;
   quotationTerms: string;
   dueDays: number;
+  printPreferences?: BillingPrintPreferences;
 };
 export const emptyBillingProfile = (): BillingProfile => ({
   supplier: { name: "SEIKO Tailors", address: "", phone: "", gstin: "", bank: "", accountName: "", bankName: "", accountNumber: "", ifsc: "", upi: "", paymentQr: "", showBank: false, showUpi: false, showQr: false },
@@ -22,6 +23,7 @@ export function validateBillingProfile(value: BillingProfile): string {
   if (!value || !value.supplier || typeof value.supplier.name !== "string" || !value.supplier.name.trim()) return "Enter the business name.";
   if (!Array.isArray(value.signatories) || value.signatories.length > 10 || !Array.isArray(value.managerEmails) || value.managerEmails.length > 30) return "Too many signatories or managers.";
   if (!Number.isInteger(value.dueDays) || value.dueDays < 0 || value.dueDays > 365) return "Payment period must be 0 to 365 days.";
+  if (value.printPreferences?.fieldLabels && (Object.keys(value.printPreferences.fieldLabels).length>30 || Object.entries(value.printPreferences.fieldLabels).some(([key,v])=>!/^\w{1,40}$/.test(key)||!v||typeof v.label!=="string"||v.label.length>80||typeof v.showLabel!=="boolean"))) return "Enter valid document labels under 80 characters.";
   if ([value.invoiceTerms, value.quotationTerms].some(v => typeof v !== "string" || v.length > 8000)) return "Terms must be under 8,000 characters.";
   if (value.managerEmails.some(v => typeof v !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))) return "Enter valid manager email addresses.";
   if (value.signatoryEmails && (!Array.isArray(value.signatoryEmails) || value.signatoryEmails.length > 30 || value.signatoryEmails.some(v => typeof v !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)))) return "Enter valid signatory-user email addresses.";
