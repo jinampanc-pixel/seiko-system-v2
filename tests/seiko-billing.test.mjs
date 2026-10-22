@@ -240,3 +240,12 @@ test('order-filtered billing list returns only its documents and payments and re
     assert.equal((await call({operation:'list',orderId:12})).status,400);
   } finally {sqlite.close();}
 });
+
+test("customer prints omit internal revisions and use clean payment separators", () => {
+  const doc = {...invoice(), revision: 3};
+  const html = printing.billingPrintHtml(doc, [{...payment("receipt-test", 50), receiptNumber:"RCP-TEST"}], "customer");
+  assert.doesNotMatch(html, /Amended|Revision 3|Â/);
+  assert.match(html, /&middot; RCP-TEST &middot; UPI/);
+  assert.match(html, /class="ackLine">Name:.*<\/span><span class="ackLine">Date:/);
+  assert.equal(doc.revision, 3);
+});

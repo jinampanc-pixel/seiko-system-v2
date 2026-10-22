@@ -31,7 +31,7 @@ export function BillingProfileEditor({state,onClose,onSaved}:{state:ProfileState
   const assetBusy=(active:boolean)=>setAssetUploads(count=>Math.max(0,count+(active?1:-1)));
   const [managerText,setManagerText]=useState(state.profile.managerEmails.join('\n'));
   const [signerText,setSignerText]=useState((state.profile.signatoryEmails||[]).join('\n'));
-  const supplier=(key:string,value:string)=>setDraft(current=>({...current,supplier:{...current.supplier,[key]:value}}));
+  const supplier=(key:string,value:string)=>setDraft(current=>({...current,supplier:{...current.supplier,[key]:value,...(key==="paymentQr"?{showQr:Boolean(value)}:{})}}));
   async function save(){if(assetUploads)return;setBusy(true);setError("");try{onSaved(await requestBillingProfile({operation:"save",profile:{...draft,managerEmails:managerText.split(/[\n,;]/).map(v=>v.trim().toLowerCase()).filter(Boolean),signatoryEmails:signerText.split(/[\n,;]/).map(v=>v.trim().toLowerCase()).filter(Boolean)},version:state.version}));}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
   return <div className="phase2Scrim billingFormScrim"><form className="phase2Editor" role="dialog" aria-modal="true" aria-label="Billing settings and assets" onSubmit={e=>{e.preventDefault();void save();}}><header><h2>Billing settings & assets</h2><button type="button" onClick={onClose} disabled={busy}>Close</button></header><fieldset disabled={busy||assetUploads>0||!state.canManage} className="phase2EditorBody billingFormBody">
     <p className="billingFull">Changes apply to new documents. Issued documents retain their saved details until explicitly amended. Upload transparent signature and stamp images to blend with the cream document background.</p>

@@ -32,6 +32,7 @@ module.exports=async({page,navigate,sqlite,base})=>{
  await settings.getByRole('button',{name:'Save settings',exact:true}).click();await settings.waitFor({state:'detached'});
  await systemSettings.getByRole('button',{name:'Close settings',exact:true}).click();await navigate('Billing');
  const stored=JSON.parse(sqlite.prepare("SELECT value_json FROM erp_preferences WHERE key='billing.profile.v1'").get().value_json);
+ assert.equal(stored.supplier.showQr,true);
  assert.match(stored.supplier.logo,/^\/api\/erp\/billing-profile\?asset=/);
  assert.ok(sqlite.prepare("SELECT COUNT(*) AS n FROM erp_preferences WHERE key LIKE 'billing.asset.%'").get().n>=3);
  assert.equal(stored.signatories[0].name,'Sample Signatory');assert.match(stored.signatories[0].signature,/^\/api\/erp\/billing-profile\?asset=/);
@@ -83,6 +84,8 @@ module.exports=async({page,navigate,sqlite,base})=>{
  await frame.getByText(notes,{exact:true}).waitFor();
  const amended=JSON.parse(sqlite.prepare('SELECT data FROM seiko_billing_documents WHERE id=?').get(document.id).data);
  assert.equal(amended.notes,notes);assert.equal(amended.revision,1);
+ assert.equal(await frame.getByText(/Amended.*Revision/).count(),0);
+ assert.equal(await frame.locator('.ackLine').count(),2);
  // A fresh server revision must be fetched by Updated invoice, even if no receipt is open.
  amended.notes='Newer invoice notes from shared storage.';amended.revision=2;
  sqlite.prepare('UPDATE seiko_billing_documents SET data=? WHERE id=?').run(JSON.stringify(amended),document.id);
@@ -147,3 +150,4 @@ module.exports=async({page,navigate,sqlite,base})=>{
  await editor.getByRole('button',{name:'Close user editor',exact:true}).click();await access.getByRole('button',{name:'Close',exact:true}).click();
  console.log('PASS: shared settings save/reopen, signature and QR uploads, due dates, invoice snapshots, themed print and mobile settings.');
 };
+
