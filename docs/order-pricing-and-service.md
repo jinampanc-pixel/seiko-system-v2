@@ -4,11 +4,11 @@ Open **Orders → order actions → Pricing, deliveries & queries**. The same bu
 
 ## Pricing and eligibility
 
-Set prices in Order setup or the **Order pricing** section. Rules can charge per student/package, per garment or a fixed order amount. Choose the grouping field and matching values (for example `BV,1-4` and `5-8`), rate, GST rate/HSN where relevant, and package contents. A package is billed once per eligible student; its shirts, trousers and other contents remain separate physical items. Garment pricing excludes items already included in a matching package. Overlapping prices for the same package are flagged.
+Set prices in Order setup or the **Order pricing** section. Rules can charge per student/package, per garment or a fixed order amount. Choose the grouping field and matching values (for example `BV,1-4` and `5-8`), rate, GST rate/HSN where relevant, and package contents. A package is billed once per eligible student; its shirts, trousers and other contents remain separate physical items. Package entries can include interchangeable alternatives, such as Shirt or Kurti and Trousers or Salwar, with the same required quantity. Counts use each student’s assigned products; irrelevant variants are excluded. Garment pricing excludes items already included in a matching package. Overlapping prices for the same package are flagged.
 
 In **People & eligibility**, review the actual people behind the counts. Cancelled, held and incomplete records are excluded. Confirm a standard size or record a reasoned billing override when appropriate. Individual rate exceptions and supplementary-batch references are saved with the person. Use cancellation rather than deleting a person with delivery/query history.
 
-**Supplementary person** adds a new stable person ID without renumbering existing people. Enter their details, quantities, addition reference, and size, or enter their measurements in the normal workspace later. An incomplete new person remains excluded until ready.
+**Supplementary person** adds a new stable person ID without renumbering existing people. Enter their details, garment quantities (0 for variants not required), addition reference, and size, or enter their measurements in the normal workspace later. An incomplete new person remains excluded until ready.
 
 ## Partial or complete delivery
 
@@ -37,3 +37,8 @@ Client and signatory details can still be amended in Billing. Financial changes 
 ## Access and history
 
 Price and person eligibility changes require invoice-management access. Operational staff with order-edit access can record deliveries and queries. Financial values require financial-view access. Order saves retain version conflicts, shared storage, backups and audit history. Delivery history is append-only: correct it with a return/new movement rather than deleting it.
+
+## Correcting a payment receipt
+Open Billing → Payments & receipts → open the receipt → Amend receipt. Owners have this access. Other users need both See financial information and Amend payment receipts in their SEIKO access settings.
+
+Correct the received amount, date, payment mode, reference or notes and save. The invoice/order link and original receipt number stay the same. Shared balances refresh immediately. The internal audit record retains original and corrected values, who changed them and when; amendment wording is not printed on the receipt. A stale edit must be reloaded, and an increase cannot exceed an invoice's current balance.

@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
 function load(path, imports = {}, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
-    { exports, require: name => { if(name==="../../../lib/order-commerce")return load("app/lib/order-commerce.ts",{"./order-domain":load("app/lib/order-domain.ts",{"./order-statuses":load("app/lib/order-statuses.ts",{},globals)},globals)},globals); assert.ok(imports[name], `Unexpected import: ${name}`); return imports[name]; }, crypto, Response, Request, TextEncoder, ...globals });
+    { exports, require: name => { if(name==="./packing-label-model"&&!imports[name])return load("app/lib/packing-label-model.ts",{"./order-domain":imports["./order-domain"]},globals); if(name==="../../../lib/order-commerce")return load("app/lib/order-commerce.ts",{"./order-domain":load("app/lib/order-domain.ts",{"./order-statuses":load("app/lib/order-statuses.ts",{},globals)},globals)},globals); assert.ok(imports[name], `Unexpected import: ${name}`); return imports[name]; }, crypto, Response, Request, TextEncoder, ...globals });
   return exports;
 }
 

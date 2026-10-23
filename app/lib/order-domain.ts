@@ -149,6 +149,8 @@ export function groupRuleMatches(match: string, sourceValue: string): boolean {
 
 export function quantityForRecord(product: ProductPolicy, record: OrderRecord, firstRecord = false): number {
   if (product.quantityMode === "order_total") return firstRecord ? Math.max(0, Number(product.orderTotal) || 0) : 0;
+  const assigned=record.values[`product:${product.id}:assigned_qty`];
+  if(assigned!==undefined&&String(assigned).trim()!==""&&Number.isFinite(Number(assigned))&&Number(assigned)>=0)return Number(assigned);
   if (product.quantityMode === "by_group") {
     const sourceValue = product.quantityGroupFieldId ? String(record.values[`field:${product.quantityGroupFieldId}`] ?? "").trim() : "";
     const rule = (product.quantityGroupRules || []).find(item => groupRuleMatches(item.match, sourceValue));

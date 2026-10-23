@@ -11,6 +11,7 @@ function load(path, imports = {}) {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { exports, require: name => {
+    if(name==="./packing-label-model"&&!imports[name])return load("app/lib/packing-label-model.ts",{"./order-domain":imports["./order-domain"]});
     assert.ok(imports[name], `Unexpected import: ${name}`);
     return imports[name];
   }, crypto, Response, Request, URL, TextDecoder, TextEncoder, Uint8Array, atob, btoa, ReadableStream });
@@ -208,6 +209,14 @@ function load(path, imports = {}) {
     const text = await receipt.locator('body').innerText();
     assert.match(text, /SMOKE-001/); assert.match(text, /₹60.00/);
     assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM seiko_billing_payments').get().n, 1);
+    await page.getByRole('button',{name:'Amend receipt',exact:true}).click();
+    const amendReceipt=page.getByRole('dialog',{name:/Amend receipt · RCP-/});
+    await amendReceipt.getByLabel('Amount received ₹',{exact:true}).fill('55');
+    await amendReceipt.getByLabel('Reference / transaction ID',{exact:true}).fill('Corrected reference');
+    await amendReceipt.getByRole('button',{name:'Save',exact:true}).click();
+    await receipt.getByText('₹55.00',{exact:true}).first().waitFor();
+    const correctedReceipt=JSON.parse(sqlite.prepare('SELECT data FROM seiko_billing_payments').get().data);
+    assert.equal(correctedReceipt.amount,55);assert.equal(correctedReceipt.reference,'Corrected reference');assert.equal(correctedReceipt.revision,1);assert.ok(correctedReceipt.receiptNumber.startsWith('RCP-'));
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     await surface.getByRole('button', { name: '← Back to Home', exact: true }).click();
     assert.equal(await surface.count(), 0);

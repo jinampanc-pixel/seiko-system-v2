@@ -14,7 +14,7 @@ function documentFromRow(row: DocumentRow): SeikoCommercialDocument {
 }
 function paymentFromRow(row: PaymentRow): SeikoPaymentRecord {
   const value = JSON.parse(row.data) as SeikoPaymentRecord;
-  return { ...value, receiptNumber: numbered("RCP", value.date, row.sequence) };
+  return { ...value, receiptNumber: value.receiptNumber || numbered("RCP", value.date, row.sequence) };
 }
 
 export async function POST(request: Request) {
@@ -35,10 +35,11 @@ export async function POST(request: Request) {
   if (body.taxMode !== undefined && !["gst", "non_gst"].includes(body.taxMode)) return reply("Choose a valid tax register.");
   const membership = await authorizePermission(actor, "seiko", "billing.invoices.manage");
   const canManage = Boolean(membership);
+  const canAmendReceipts = Boolean(await authorizePermission(actor,"seiko","billing.receipts.amend"));
   const canArchive=Boolean(await authorizePermission(actor,"seiko","billing.documents.archive"));
   const canDelete=Boolean(await authorizePermission(actor,"seiko","billing.documents.delete"));
   const lifecycle=["archive","restore","delete","recover"].includes(body.operation||"");
-  if (lifecycle ? (["archive","restore"].includes(body.operation!) ? !canArchive : !canDelete) : body.operation !== "list" && !canManage) return reply("You do not have permission for this billing action.", 403);
+  if (lifecycle ? (["archive","restore"].includes(body.operation!) ? !canArchive : !canDelete) : body.operation === "amend_payment" ? !canAmendReceipts : body.operation !== "list" && !canManage) return reply("You do not have permission for this billing action.", 403);
   if (!env.DB) return reply("Billing database is not configured.", 503);
   const db = env.DB.withSession("first-primary");
   try {
@@ -119,6 +120,29 @@ export async function POST(request: Request) {
       // Check both the original revision and payments in the same statement as the amendment.
       const amended = await db.prepare("UPDATE seiko_billing_documents SET data = ?, total_paise = ? WHERE id = ? AND data = ? AND cancelled = 0 AND (? <> 'invoice' OR ? >= COALESCE((SELECT SUM(amount_paise) FROM seiko_billing_payments WHERE invoice_id = ?),0) OR ? >= ?)").bind(JSON.stringify(saved), totalPaise, saved.id, row.data, saved.kind, totalPaise, saved.id, totalPaise, Math.round(documentTotals(original).total*100)).run();
       if (!amended.meta?.changes) return reply("This document or its payments changed while you were editing. Refresh before amending again.", 409);
+    } else if (body.operation === "amend_payment") {
+      const draft=body.payment;
+      if(!draft?.id)return reply("Choose a receipt to amend.");
+      const row=await db.prepare("SELECT sequence,id,data FROM seiko_billing_payments WHERE id=?").bind(draft.id).first<PaymentRow>();
+      if(!row)return reply("Receipt not found.",404);
+      const original=paymentFromRow(row);
+      if(draft.revision!==original.revision||draft.updatedAt!==original.updatedAt)return reply("A newer receipt revision exists. Reload before amending.",409);
+      if(draft.invoiceId!==original.invoiceId||draft.orderId!==original.orderId)return reply("The receipt's invoice and order cannot be changed.");
+      if(!Number.isFinite(draft.amount)||draft.amount<=0||draft.amount>1_000_000_000||roundMoney(draft.amount)!==draft.amount||!validBillingDate(draft.date)||typeof draft.mode!=="string"||!draft.mode.trim())return reply("Enter a positive amount with at most two decimal places, a valid date and payment mode.");
+      if(original.invoiceId){
+        const invoice=await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE id=?").bind(original.invoiceId).first<DocumentRow>();
+        if(!invoice||invoice.cancelled||draft.date<JSON.parse(invoice.data).issueDate)return reply("Choose a payment date on or after the active invoice's issue date.");
+      }
+      // Keep the authorised original appearance and source snapshot. Receipt corrections
+      // cannot replace signature assets or reassign money to another order.
+      const now=new Date().toISOString();
+      const saved:SeikoPaymentRecord={...original,allocations:undefined,amount:draft.amount,date:draft.date,mode:draft.mode.trim(),reference:String(draft.reference||""),notes:String(draft.notes||""),updatedAt:now,revision:(original.revision||0)+1,amendedAt:now,amendedBy:actor.email};
+      const json=JSON.stringify(saved),paise=Math.round(saved.amount*100),oldPaise=Math.round(original.amount*100);
+      const results=await db.batch([
+        db.prepare("UPDATE seiko_billing_payments SET data=?,amount_paise=? WHERE id=? AND data=? AND (?='' OR ?<=? OR EXISTS(SELECT 1 FROM seiko_billing_documents d WHERE d.id=? AND d.cancelled=0 AND d.total_paise-COALESCE((SELECT SUM(p.amount_paise) FROM seiko_billing_payments p WHERE p.invoice_id=d.id AND p.id<>?),0)>=?))").bind(json,paise,row.id,row.data,original.invoiceId,paise,oldPaise,original.invoiceId,row.id,paise),
+        db.prepare("INSERT INTO erp_audit_events(id,business_id,entity_type,entity_id,action,version,actor_user_id,actor_email,at,snapshot_json) SELECT ?,'seiko','billing-payment',?,'amend',?,?,?,?,? WHERE EXISTS(SELECT 1 FROM seiko_billing_payments WHERE id=? AND data=?)").bind(crypto.randomUUID(),row.id,saved.revision,actor.userId,actor.email,now,JSON.stringify({before:original,after:saved}),row.id,json),
+      ]);
+      if(!results[0].meta.changes)return reply("Receipt or invoice balance changed. Reload and check the amount before amending.",409);
     } else if (body.operation === "payment") {
       const payment = body.payment;
       if (!payment || typeof payment.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(payment.id) || typeof payment.invoiceId !== "string") return reply("Invalid payment.");
@@ -169,7 +193,7 @@ export async function POST(request: Request) {
     const docs = await docsQuery.bind(...[orderFilter, taxFilter].filter(Boolean)).all<DocumentRow>();
     const payments = await (orderFilter ? paymentsQuery.bind(orderFilter) : paymentsQuery).all<PaymentRow>();
     const allocationDocs = taxFilter ? await (orderFilter ? db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE json_extract(data, '$.orderId') = ?").bind(orderFilter) : db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents")).all<DocumentRow>() : docs;
-    return Response.json({ ok: true, documents: docs.results.map(documentFromRow), payments: allocateOrderPayments(allocationDocs.results.map(documentFromRow), payments.results.map(paymentFromRow)), canManage,canArchive,canDelete }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ ok: true, documents: docs.results.map(documentFromRow), payments: allocateOrderPayments(allocationDocs.results.map(documentFromRow), payments.results.map(paymentFromRow)), canManage,canAmendReceipts,canArchive,canDelete }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return reply("Billing could not be saved or loaded. Your form is still available; retry when connected.", 503);
   }

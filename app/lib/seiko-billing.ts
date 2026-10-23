@@ -72,6 +72,10 @@ export type SeikoCommercialDocument = {
 };
 
 export type SeikoPaymentRecord = {
+  updatedAt?: string;
+  revision?: number;
+  amendedAt?: string;
+  amendedBy?: string;
   appearance?: Pick<SeikoCommercialDocument, "supplier" | "signatory" | "showSignatory" | "showSignature" | "showStamp" | "showSigningDate" | "signingDate">;
   orderNo?: string;
   clientName?: string;
