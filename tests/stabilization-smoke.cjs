@@ -34,6 +34,7 @@ function load(path, imports = {}) {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
     const domain = load('app/lib/order-domain.ts', { './order-statuses': load('app/lib/order-statuses.ts') });
+    const commercialModel=load('app/lib/order-commerce.ts',{'./order-domain':domain});
     const order = {
       orderId: 'smoke-order', status: 'Active', archived: false,
       details: { orderNo: 'SMOKE-001', clientName: 'Smoke School', contactNumber: '9999999999',
@@ -43,6 +44,7 @@ function load(path, imports = {}) {
       fields: [{ ...domain.field("Name"), id: "name" }], measurements: [], records: [{ recordId: 'one', personId: 'one', values: { 'field:name': 'Original name', 'product:vest:qty': 2 } }],
       revisions: [], updatedAt: '2026-10-03T00:00:00Z',
     };
+    order.products[0].specifications=[{...domain.blankSpecification(),id:'fixture-size',name:'Size',defaultValue:'M',required:false}];
     for (const file of fs.readdirSync('migrations').sort()) sqlite.exec(fs.readFileSync(`migrations/${file}`, 'utf8'));
     const db = { withSession() { return this; }, async batch(statements){sqlite.exec("BEGIN");try{const results=statements.map(stmt=>stmt.runSync());sqlite.exec("COMMIT");return results;}catch(error){sqlite.exec("ROLLBACK");throw error;}}, prepare(sql) {
       const stmt = sqlite.prepare(sql); let args = [];
@@ -51,7 +53,7 @@ function load(path, imports = {}) {
     } };
     const auth = { authenticateActor: async () => ({ userId: 'smoke-owner', email: 'smoke@example.invalid' }), authorizePermission: async () => ({ role: 'owner' }) };
     const ordersApi = load('app/api/erp/orders/route.ts', {
-      'cloudflare:workers': { env: { DB: db } }, '../../../lib/server-erp-auth': auth, '../../../lib/order-statuses': load('app/lib/order-statuses.ts'),
+      'cloudflare:workers': { env: { DB: db } }, '../../../lib/server-erp-auth': auth, '../../../lib/order-statuses': load('app/lib/order-statuses.ts'),'../../../lib/order-commerce':commercialModel,
     });
     const seed = async value => {
       const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: JSON.stringify({ operation: 'upsert', businessId: 'seiko', order: value }) }));
@@ -77,6 +79,7 @@ function load(path, imports = {}) {
       'cloudflare:workers': { env: { DB: db } }, '../../../lib/seiko-billing': load('app/lib/seiko-billing.ts'), '../../../lib/billing-profile': load('app/lib/billing-profile.ts'),
       '../../../lib/server-erp-auth': auth,
     });
+    const orderBilling=load('app/api/erp/order-billing/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/order-commerce':commercialModel,'../../../lib/seiko-billing':load('app/lib/seiko-billing.ts')});
     const billingProfile = load('app/api/erp/billing-profile/route.ts', { 'cloudflare:workers': { env: { DB: db } }, '../../../lib/billing-profile': load('app/lib/billing-profile.ts'), '../../../lib/server-erp-auth': auth });
     const artwork=load('app/api/erp/artwork/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth});
     const clients = load('app/api/erp/clients/route.ts', {
@@ -108,7 +111,7 @@ function load(path, imports = {}) {
       const response=await billingProfile.GET(new Request(route.request().url()));
       await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});
     });
-    for (const [path, api] of [['billing-profile', billingProfile], ['billing', billing], ['clients', clients], ['labels', labels], ['production',production]]) {
+    for (const [path, api] of [['order-billing',orderBilling],['billing-profile', billingProfile], ['billing', billing], ['clients', clients], ['labels', labels], ['production',production]]) {
       await page.route(`**/api/erp/${path}`, async route => {
         const response = await api.POST(new Request(`${base}/api/erp/${path}`, { method: 'POST', body: route.request().postData() }));
         await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
@@ -180,6 +183,7 @@ function load(path, imports = {}) {
       console.log(`PASS: 1,001 synthetic orders / 100,001 records; last-order search, bounded 10-row rendering and page navigation (${Date.now() - started} ms, local Chrome).`);
       return;
     }
+    if(process.argv.includes('--order-service')){await require('./order-service-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--production-handoffs')){await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--shared-measurements')){await require('./shared-measurements-browser.cjs')({page,sqlite,seed,navigate,order,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--artwork')){await require('./artwork-browser.cjs')({page,seed,navigate,order,sqlite,domain});assert.deepEqual(errors,[]);return;}

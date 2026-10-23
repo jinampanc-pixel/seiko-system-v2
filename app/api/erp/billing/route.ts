@@ -82,6 +82,8 @@ export async function POST(request: Request) {
     } else if (body.operation === "create") {
       const draft = body.document;
       if (!draft || typeof draft.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(draft.id)) return reply("Invalid document ID.");
+      if(draft.credits?.length||draft.pricingSnapshot||draft.supplementaryFor)return reply("Use the reviewed order billing workflow for linked invoices and credits.");
+      if(draft.orderId&&draft.kind==="invoice"){const priced=await db.prepare("SELECT json_array_length(json_extract(document_json,'$.commerce.rules')) AS count FROM erp_orders WHERE id=? AND business_id='seiko'").bind(draft.orderId).first<{count:number}>();if(priced?.count)return reply("Review the order pricing and billable roster before issuing this invoice.",409);}
       const now = new Date().toISOString();
       let clientSnapshot = {};
       if (draft.clientId) {
@@ -103,17 +105,19 @@ export async function POST(request: Request) {
       const row = await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE id = ?").bind(draft.id).first<DocumentRow>();
       if (!row || row.cancelled) return reply("This document is unavailable for amendment.", 404);
       const original = JSON.parse(row.data) as SeikoCommercialDocument;
+      if(draft.updatedAt&&original.updatedAt&&draft.updatedAt!==original.updatedAt)return reply("A newer document revision exists. Reload before amending.",409);
+      if((original.pricingSnapshot||original.credits?.length)&&(JSON.stringify(draft.lines)!==JSON.stringify(original.lines)||draft.taxMode!==original.taxMode||draft.taxTreatment!==original.taxTreatment))return reply("Use order billing review to change priced amounts or record credits. Client details can still be amended.",409);
       if (draft.orderId !== original.orderId) return reply("The source order cannot be changed during amendment.");
       if (draft.kind !== original.kind) return reply("The document type cannot be changed.");
       const now = new Date().toISOString();
-      const saved: SeikoCommercialDocument = { ...draft, archivedAt:original.archivedAt,deletedAt:original.deletedAt, id: original.id, number: "", status: "issued", createdAt: original.createdAt, updatedAt: now, revision: (original.revision || 0) + 1, amendedAt: now, amendedBy: actor.email };
+      const saved: SeikoCommercialDocument = { ...draft, pricingSnapshot:original.pricingSnapshot,credits:original.credits,supplementaryFor:original.supplementaryFor, archivedAt:original.archivedAt,deletedAt:original.deletedAt, id: original.id, number: "", status: "issued", createdAt: original.createdAt, updatedAt: now, revision: (original.revision || 0) + 1, amendedAt: now, amendedBy: actor.email };
       const problem = validateBillingDocument(saved); if (problem) return reply(problem);
       const snapshotProblem = snapshotError(saved, original); if (snapshotProblem) return reply(snapshotProblem,403);
       const paid = await db.prepare("SELECT COALESCE(SUM(amount_paise),0) AS total FROM seiko_billing_payments WHERE invoice_id = ?").bind(draft.id).first<{ total: number }>();
       const totalPaise = Math.round(documentTotals(saved).total * 100);
-      if (saved.kind === "invoice" && totalPaise < Number(paid?.total || 0)) return reply("The amended invoice total cannot be lower than payments already received.", 409);
+      if (saved.kind === "invoice" && totalPaise < Number(paid?.total || 0) && totalPaise < Math.round(documentTotals(original).total*100)) return reply("The amended invoice total cannot be lower than payments already received.", 409);
       // Check both the original revision and payments in the same statement as the amendment.
-      const amended = await db.prepare("UPDATE seiko_billing_documents SET data = ?, total_paise = ? WHERE id = ? AND data = ? AND cancelled = 0 AND (? <> 'invoice' OR ? >= COALESCE((SELECT SUM(amount_paise) FROM seiko_billing_payments WHERE invoice_id = ?),0))").bind(JSON.stringify(saved), totalPaise, saved.id, row.data, saved.kind, totalPaise, saved.id).run();
+      const amended = await db.prepare("UPDATE seiko_billing_documents SET data = ?, total_paise = ? WHERE id = ? AND data = ? AND cancelled = 0 AND (? <> 'invoice' OR ? >= COALESCE((SELECT SUM(amount_paise) FROM seiko_billing_payments WHERE invoice_id = ?),0) OR ? >= ?)").bind(JSON.stringify(saved), totalPaise, saved.id, row.data, saved.kind, totalPaise, saved.id, totalPaise, Math.round(documentTotals(original).total*100)).run();
       if (!amended.meta?.changes) return reply("This document or its payments changed while you were editing. Refresh before amending again.", 409);
     } else if (body.operation === "payment") {
       const payment = body.payment;

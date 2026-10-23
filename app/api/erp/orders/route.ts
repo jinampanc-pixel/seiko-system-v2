@@ -1,8 +1,11 @@
+import { validateCommerce, redactCommercialPrices } from "../../../lib/order-commerce";
+import type { SeikoOrder } from "../../../lib/order-domain";
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
 import { ORDER_STATUSES } from "../../../lib/order-statuses";
 
 type OrderLike = {
+  commerce?: SeikoOrder["commerce"];
   orderId?: unknown;
   status?: unknown;
   archived?: unknown;
@@ -61,6 +64,7 @@ export async function POST(request: Request) {
     const actor = await authenticateActor(request);
     if (!actor) return error("AUTH_REQUIRED", "Sign in is required.", 401);
 
+    const visible=async(response:Response)=>{if(businessId!=="seiko"||await authorizePermission(actor,businessId,"financials.view"))return response;const payload=await response.json();if(payload.data?.order)payload.data.order=redactCommercialPrices(payload.data.order);if(payload.data?.orders)payload.data.orders=payload.data.orders.map((entry:OrderEnvelope)=>({...entry,order:redactCommercialPrices(entry.order as unknown as SeikoOrder)}));return Response.json(payload,{status:response.status});};
     const operation = body.operation;
     if (!operation) return error("INVALID_OPERATION", "Choose a valid operation.", 400);
 
@@ -78,7 +82,7 @@ export async function POST(request: Request) {
       if (body.orderIds !== undefined && (!Array.isArray(body.orderIds) || body.orderIds.length > 25 || body.orderIds.some(id => typeof id !== "string" || !id || id.length > 200))) return error("INVALID_ORDER_IDS", "Select up to 25 orders.", 400);
       if (body.limit !== undefined && (!Number.isInteger(body.limit) || body.limit < 1 || body.limit > 25)) return error("INVALID_PAGE", "Choose a page size from 1 to 25.", 400);
       if (body.afterId !== undefined && (typeof body.afterId !== "string" || body.afterId.length > 200 || body.limit === undefined)) return error("INVALID_PAGE", "Choose a valid order page.", 400);
-      return await listOrders(db, businessId, body);
+      return visible(await listOrders(db, businessId, body));
     }
     if (operation === "versions") {
       if (!await authorizePermission(actor, businessId, "orders.view")) return forbidden();
@@ -87,6 +91,7 @@ export async function POST(request: Request) {
     }
     if (operation === "import-local") {
       if (!await authorizePermission(actor, businessId, "orders.create")) return forbidden();
+      if(body.orders?.some(o=>o.commerce)&&!await authorizePermission(actor,businessId,"billing.invoices.manage"))return forbidden();
       return await importLocalOrders(db, businessId, actor, body.orders);
     }
     if (operation === "audit") {
@@ -98,13 +103,21 @@ export async function POST(request: Request) {
         canCreate: Boolean(await authorizePermission(actor, businessId, "orders.create")),
         canEdit: Boolean(await authorizePermission(actor, businessId, "orders.edit")),
       };
+      if (body.order?.commerce && !await authorizePermission(actor,businessId,"billing.invoices.manage")) {
+        const existing = await db.prepare("SELECT document_json FROM erp_orders WHERE business_id=? AND id=?").bind(businessId,body.order.orderId).first<{document_json:string}>();
+        const originalOrder=JSON.parse(existing?.document_json||"{}");
+        if(!await authorizePermission(actor,businessId,"financials.view")){const shown=redactCommercialPrices(originalOrder as SeikoOrder).commerce;if(JSON.stringify(shown?.rules||[])!==JSON.stringify(body.order.commerce.rules))return forbidden();body.order.commerce.rules=originalOrder.commerce?.rules||[];body.order.commerce.people=Object.fromEntries(Object.entries(body.order.commerce.people).map(([id,p])=>[id,{...p,...(originalOrder.commerce?.people[id]?.rateOverrides?{rateOverrides:originalOrder.commerce.people[id].rateOverrides}:{})}]));body.order.commerce.issues=body.order.commerce.issues.map(i=>{const old=originalOrder.commerce?.issues.find((x:{id:string})=>x.id===i.id);return old?{...i,extraCharge:old.extraCharge,taxRate:old.taxRate,hsnSac:old.hsnSac}:i;});}
+        if(JSON.stringify(JSON.parse(existing?.document_json||"{}").commerce?.rules||[])!==JSON.stringify(body.order.commerce.rules))return forbidden();
+        if(JSON.stringify(JSON.parse(existing?.document_json||"{}").commerce?.people||{})!==JSON.stringify(body.order.commerce.people))return forbidden();
+        const oldIssues=JSON.parse(existing?.document_json||"{}").commerce?.issues||[];if(body.order.commerce.issues.some(i=>{const old=oldIssues.find((o:{id:string})=>o.id===i.id);return i.chargeable!==Boolean(old?.chargeable)||i.extraCharge!==(old?.extraCharge||0)||(i.taxRate||0)!==(old?.taxRate||0)||(i.hsnSac||"")!==(old?.hsnSac||"");}))return forbidden();
+      }
       if (!access.canCreate && !access.canEdit) return forbidden();
-      return await upsertOrder(db, businessId, actor, body.order, body.expectedVersion, access);
+      return visible(await upsertOrder(db, businessId, actor, body.order, body.expectedVersion, access));
     }
     if (operation === "status" || operation === "archive" || operation === "delete") {
       const membership = await authorizePermission(actor, businessId, "orders.edit");
       if (!membership || (operation === "delete" && membership.role !== "owner")) return forbidden();
-      return await mutateOrder(db, businessId, actor, body);
+      return visible(await mutateOrder(db, businessId, actor, body));
     }
     return error("INVALID_OPERATION", "Choose a valid operation.", 400);
   } catch (cause) {
@@ -166,6 +179,7 @@ async function upsertOrder(
   if (current && !access.canEdit) return error("FORBIDDEN", "You do not have permission to edit orders.", 403);
 
   const now = new Date().toISOString();
+  if(candidate?.commerce||current&&JSON.parse(current.document_json).commerce){const commercialProblem=validateCommerce(candidate as unknown as SeikoOrder,current?JSON.parse(current.document_json):{...candidate,commerce:{rules:[],people:{},deliveries:[],issues:[]}} as unknown as SeikoOrder);if(commercialProblem)return error("INVALID_COMMERCIAL_DETAILS",commercialProblem,400);}
   const document = { ...candidate, updatedAt: now } as OrderLike;
   const documentJson = JSON.stringify(document);
   const status = String(candidate?.status || "Draft");
@@ -333,6 +347,7 @@ function validateOrder(candidate: OrderLike | undefined): { ok: true; orderId: s
   } catch {
     return { ok: false, message: "Order data is invalid." };
   }
+  if(candidate?.commerce){const problem=validateCommerce(candidate as unknown as SeikoOrder);if(problem)return {ok:false,message:problem};}
   return { ok: true, orderId, orderNo };
 }
 

@@ -22,7 +22,7 @@ export function productionDemand(orders: ProductionOrder[]): ProductionDemand[] 
   for (const { order: raw, version } of orders) {
     if (raw.archived || (raw as SeikoOrder & {deletedAt?:string}).deletedAt) continue;
     const order = normalizeProductMeasurements(raw), quantities = packingQuantities(order);
-    const records = order.records.filter(record => !record.held);
+    const records = order.records.filter(record => !record.held && !["cancelled","hold","awaiting"].includes(order.commerce?.people[record.recordId]?.state||""));
     for (const product of order.products.filter(item => item.name.trim())) {
       const measurements = order.measurements.filter(item => item.appliesTo.includes(product.id) && item.name.trim());
       const rows = product.quantityMode === 'order_total' ? [{ recordId: 'order-total', personId: '', values: {} as Record<string,string|number> }] : records;
@@ -30,14 +30,15 @@ export function productionDemand(orders: ProductionOrder[]): ProductionDemand[] 
         const blankRecord = !Object.keys(record.values).some(key => /^(measurement:|spec:)/.test(key) && text(record.values[key]));
         const quantity = product.quantityMode === 'order_total' ? product.orderTotal : blankRecord ? quantityForRecord(product, record, index === 0) : quantities.get(record.recordId)?.[product.id] || 0;
         if (!Number.isFinite(quantity) || quantity <= 0) return;
+        const standardSize=order.commerce?.people[record.recordId]?.readySize?.trim();
         const values = measurements.map(item => ({ name: item.name, value: text(record.values[`measurement:${item.id}:product:${product.id}`]), required: item.requiredMode !== 'Optional' }));
-        let unresolved = !Number.isSafeInteger(quantity) || quantity > 100000 || product.quantityMode !== 'order_total' && measurements.length > 0 && (values.every(item => !item.value) || values.some(item => item.required && !item.value));
+        let unresolved = !Number.isSafeInteger(quantity) || quantity > 100000 || product.quantityMode !== 'order_total' && measurements.length > 0 && !standardSize && (values.every(item => !item.value) || values.some(item => item.required && !item.value));
         const specs = product.specifications.map(spec => {
-          const value = spec.mode === 'per_person' ? text(record.values[`spec:${spec.id}`]) : spec.mode === 'default_with_exceptions' ? text(record.values[`spec:${spec.id}:override`]) || spec.defaultValue : spec.mode === 'by_group' ? spec.groupRules.find(rule => groupRuleMatches(rule.match, text(record.values[`field:${spec.groupFieldId}`])))?.value || spec.defaultValue : spec.defaultValue;
+          const value = /size/i.test(spec.name)&&standardSize?standardSize:spec.mode === 'per_person' ? text(record.values[`spec:${spec.id}`]) : spec.mode === 'default_with_exceptions' ? text(record.values[`spec:${spec.id}:override`]) || spec.defaultValue : spec.mode === 'by_group' ? spec.groupRules.find(rule => groupRuleMatches(rule.match, text(record.values[`field:${spec.groupFieldId}`])))?.value || spec.defaultValue : spec.defaultValue;
           if (spec.required && !text(value)) unresolved = true;
           return { name: spec.name, role:spec.role, value: text(value) };
         });
-        const variant = values.filter(item => item.value).map(item => `${item.name}: ${item.value}`).join(' / ') || (measurements.length ? 'Measurements not entered' : 'No measurements required');
+        const variant = values.filter(item => item.value).map(item => `${item.name}: ${item.value}`).join(' / ') || (standardSize?`Standard size: ${standardSize}`:measurements.length ? 'Measurements not entered' : 'No measurements required');
         const cuttingSignature=specs.filter(item=>(item.role==='pattern'||item.role==='attribute')&&item.value).map(item=>`${item.name}: ${item.value}`).sort().join(' / ');
         const specifications = specs.filter(item => item.value).map(item => `${item.name}: ${item.value}`).join(' · ');
         // Product IDs and order IDs keep allocations separate even when cutting descriptions match.

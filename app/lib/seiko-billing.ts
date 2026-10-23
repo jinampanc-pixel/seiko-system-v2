@@ -1,3 +1,4 @@
+import type { PricingSnapshot, PriceUnit } from "./order-commerce";
 export type SeikoTaxMode = "gst" | "non_gst";
 export type SeikoDocumentKind = "quotation" | "delivery_challan" | "invoice" | "payment_receipt";
 export type SignatoryPlacement = { x: number; y: number; width: number; height: number };
@@ -15,6 +16,9 @@ export type SeikoBillingLine = {
 };
 
 export type SeikoCommercialDocument = {
+  pricingSnapshot?: PricingSnapshot;
+  supplementaryFor?: string;
+  credits?: {id:string;date:string;reason:string;subtotal:number;tax:number;amount:number;units:PriceUnit[];by:string}[];
   id: string;
   kind: SeikoDocumentKind;
   number: string;
@@ -128,13 +132,16 @@ export function lineSubtotal(line: SeikoBillingLine) {
   return roundMoney(Math.max(0, Number(line.quantity) || 0) * Math.max(0, Number(line.unitRate) || 0));
 }
 
-export function documentTotals(document: Pick<SeikoCommercialDocument, "taxMode" | "taxTreatment" | "lines">) {
-  const subtotal = roundMoney(document.lines.reduce((sum, line) => sum + lineSubtotal(line), 0));
-  const tax = document.taxMode === "gst" ? roundMoney(document.lines.reduce((sum, line) => sum + lineSubtotal(line) * Math.max(0, Number(line.taxRate) || 0) / 100, 0)) : 0;
+export function documentTotals(document: Pick<SeikoCommercialDocument, "taxMode" | "taxTreatment" | "lines" | "credits">) {
+  const originalSubtotal = roundMoney(document.lines.reduce((sum, line) => sum + lineSubtotal(line), 0));
+  const originalTax = document.taxMode === "gst" ? roundMoney(document.lines.reduce((sum, line) => sum + lineSubtotal(line) * Math.max(0, Number(line.taxRate) || 0) / 100, 0)) : 0;
+  const creditTotal=roundMoney((document.credits||[]).reduce((n,c)=>n+c.amount,0));
+  const subtotal=roundMoney(originalSubtotal-(document.credits||[]).reduce((n,c)=>n+c.subtotal,0));
+  const tax=roundMoney(originalTax-(document.credits||[]).reduce((n,c)=>n+c.tax,0));
   const cgst = document.taxMode === "gst" && document.taxTreatment === "intra_state" ? roundMoney(tax / 2) : 0;
   const sgst = document.taxMode === "gst" && document.taxTreatment === "intra_state" ? roundMoney(tax - cgst) : 0;
   const igst = document.taxMode === "gst" && document.taxTreatment === "inter_state" ? tax : 0;
-  return { subtotal, tax, cgst, sgst, igst, total: roundMoney(subtotal + tax) };
+  return { originalSubtotal, originalTotal:roundMoney(originalSubtotal+originalTax), creditTotal, subtotal, tax, cgst, sgst, igst, total: roundMoney(subtotal + tax) };
 }
 
 export function paymentsForInvoice(payments: SeikoPaymentRecord[], invoiceId: string) {

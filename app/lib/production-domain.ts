@@ -47,7 +47,7 @@ export function loadOrderArtifacts(businessId: string, orderId: string) {
 /** Saving an order creates identities and document drafts; it does not mark physical work as started. */
 export function generateOrderArtifacts(businessId: string, order: import("./order-domain").SeikoOrder): OrderGeneratedArtifacts {
   const garments: GarmentIdentity[] = [];
-  const activeRecords = order.records.filter(record => !record.held);
+  const activeRecords = order.records.filter(record => !record.held && !["cancelled","hold","awaiting"].includes(order.commerce?.people[record.recordId]?.state||""));
   const records: import("./order-domain").OrderRecord[] = order.records.length ? activeRecords : [{ recordId: "order", personId: "", values: {} }];
   for (const record of records) for (const product of order.products.filter(item => item.name.trim())) {
     const quantity = quantityForRecord(product, record, record.recordId === records[0].recordId);

@@ -11,11 +11,12 @@ export function handoverModel(source: SeikoOrder, options: HandoverOptions) {
   const products = order.products.filter(product => options.productIds.includes(product.id) && product.name.trim());
   const fields = order.fields.filter(field => options.fieldIds.includes(field.id));
   const quantities = packingQuantities(order);
-  const rows = order.records.filter(record => !record.held).map(record => {
+  const rows = order.records.filter(record => !record.held && !["cancelled","hold","awaiting"].includes(order.commerce?.people[record.recordId]?.state||"")).map(record => {
     const values = products.map(product => {
       // An order-wide total has no student allocation; never attribute it to the first student.
       const quantity = product.quantityMode === "order_total" ? 0 : quantities.get(record.recordId)?.[product.id] || 0;
       const details: string[] = [];
+      if(quantity&&options.sizes&&order.commerce?.people[record.recordId]?.readySize)details.push(`Standard size: ${order.commerce.people[record.recordId].readySize}`);
       if (quantity && options.sizes) for (const measurement of order.measurements.filter(item => item.appliesTo.includes(product.id))) {
         const value = record.values[`measurement:${measurement.id}:product:${product.id}`];
         if (value != null && String(value).trim()) details.push(`${measurement.name}: ${value}`);

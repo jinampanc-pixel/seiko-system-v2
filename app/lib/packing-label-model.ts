@@ -40,11 +40,11 @@ export function packingQuantities(order: SeikoOrder) {
     const ids = columns.filter(column => column.groupId === `product:${product.id}` && /^(measurement:|spec:)/.test(column.id)).map(column => column.id);
     return [product.id, { ids, used: order.records.some(record => ids.some(id => present(record.values[id]))) }];
   }));
-  return new Map(order.records.filter(record => !record.held).map((record, index) => [record.recordId, Object.fromEntries(order.products.map(product => {
+  return new Map(order.records.filter(record => !record.held && !["cancelled","hold","awaiting"].includes(order.commerce?.people[record.recordId]?.state||"")).map((record, index) => [record.recordId, Object.fromEntries(order.products.map(product => {
     const qty = quantityForRecord(product, record, index === 0);
     const explicit = [`product:${product.id}:qty_override`, `product:${product.id}:qty`].some(id => present(record.values[id]));
     const info = evidence.get(product.id)!;
-    const applies = explicit || !info.used || info.ids.some(id => present(record.values[id]));
+    const applies = explicit || Boolean(order.commerce?.people[record.recordId]?.readySize?.trim()) || !info.used || info.ids.some(id => present(record.values[id]));
     return [product.id, applies && Number.isFinite(qty) && qty > 0 ? qty : 0];
   }))]));
 }

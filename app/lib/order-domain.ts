@@ -1,3 +1,4 @@
+import type { OrderCommerce } from "./order-commerce";
 export type QuantityMode = "same_for_all" | "by_group" | "per_person" | "default_with_exceptions" | "order_total";
 export type ValueMode = "same_for_all" | "by_group" | "per_person" | "default_with_exceptions";
 import { ORDER_STATUSES, type OrderStatus } from "./order-statuses";
@@ -13,7 +14,7 @@ export type MeasurementPolicy = { id: string; name: string; type: "number" | "te
 export type OrderRecord = { recordId: string; personId: string; values: Record<string, string | number>; held?: boolean };
 export type OrderDetails = { orderNo: string; orderDate: string; deliveryDate: string; clientName: string; clientType: string; contactPerson: string; attnRequired: boolean; contactNumber: string; shipTo: string; billTo: string; remarks: string };
 export type OrderRevision = { revision: number; at: string; reason: string; recordCount: number };
-export type SeikoOrder = { orderId: string; status: OrderStatus; archived: boolean; details: OrderDetails; fields: OrderField[]; products: ProductPolicy[]; measurements: MeasurementPolicy[]; records: OrderRecord[]; revisions: OrderRevision[]; updatedAt: string; workspace?: { columnOrder?: string[]; hiddenColumns?: string[]; columnWidths?: Record<string, number>; columnAlignments?: Record<string, "left" | "center" | "right"> } };
+export type SeikoOrder = { commerce?: OrderCommerce; orderId: string; status: OrderStatus; archived: boolean; details: OrderDetails; fields: OrderField[]; products: ProductPolicy[]; measurements: MeasurementPolicy[]; records: OrderRecord[]; revisions: OrderRevision[]; updatedAt: string; workspace?: { columnOrder?: string[]; hiddenColumns?: string[]; columnWidths?: Record<string, number>; columnAlignments?: Record<string, "left" | "center" | "right"> } };
 
 // Preset definitions must be safe during a Workers module cold start.
 // Order creation assigns fresh IDs when it copies these templates.
