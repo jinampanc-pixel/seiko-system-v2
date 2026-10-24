@@ -44,7 +44,7 @@ async function versionFor(businessId: string, orderId: string) {
   return known.get(orderId) ?? null;
 }
 
-function accept(businessId: string, envelope: OrderEnvelope, removed = false) {
+export function acceptSharedOrder(businessId: string, envelope: OrderEnvelope, removed = false) {
   const order = normalizeProductMeasurements(envelope.order);
   orderVersions(businessId).set(order.orderId, envelope.version);
   const local = readOrderCache(businessId);
@@ -70,7 +70,7 @@ export async function saveSharedOrder(businessId: string, order: SeikoOrder, bas
   } else expectedVersion = await versionFor(businessId, order.orderId);
   const result = await requestOrders<OrderEnvelope>({ operation: "upsert", businessId, order: normalizeProductMeasurements(order), expectedVersion });
   if (!result.ok) throw new Error(result.message);
-  return accept(businessId, result.data);
+  return acceptSharedOrder(businessId, result.data);
 }
 
 export async function changeSharedOrder(businessId: string, orderId: string, command:
@@ -78,7 +78,7 @@ export async function changeSharedOrder(businessId: string, orderId: string, com
   const expectedVersion = await versionFor(businessId, orderId);
   const result = await requestOrders<OrderEnvelope>({ ...command, businessId, orderId, expectedVersion });
   if (!result.ok) throw new Error(result.message);
-  return accept(businessId, result.data, command.operation === "delete");
+  return acceptSharedOrder(businessId, result.data, command.operation === "delete");
 }
 
 export type OrderFinancialAction = "payment" | "payments" | "invoice" | "challan" | "quotation";

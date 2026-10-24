@@ -43,6 +43,7 @@ import "./packing-workspace-audit.css";
 import "./packing-workflow-final.css";
 import "./seiko-stable.css";
 import "./seiko-brand-theme.css";
+import { PersonLookup } from "./person-lookup";
 import { AccessProvider } from "./access-control";
 import { BusinessApplicationRouter } from "./business-application-router";
 
@@ -56,5 +57,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><AccessProvider><BusinessApplicationRouter>{children}</BusinessApplicationRouter></AccessProvider></body></html>;
+  return <html lang="en"><body><AccessProvider><PersonLookup/><BusinessApplicationRouter>{children}</BusinessApplicationRouter></AccessProvider></body></html>;
 }

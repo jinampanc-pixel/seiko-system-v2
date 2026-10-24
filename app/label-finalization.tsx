@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { readOrderCache } from "./lib/order-cache";
 
 type OrderSummary = {
@@ -128,7 +129,10 @@ function buildPrintSurface(copies = 1) {
   `;
   document.head.appendChild(style); return { root, preset, count: labels.length };
 }
-function labelOnlyPrint(copies = 1) {
+async function labelOnlyPrint(copies = 1) {
+  const page=document.querySelector<HTMLElement>("[data-source-order-id]");const source=readOrderCache(activeBusiness()).find(o=>o.orderId===page?.dataset.sourceOrderId);
+  if(source?.googleSheet){try{if(page?.dataset.sourceOrderVersion!==source.updatedAt)throw Error("The source records changed. Reopen this label selection before printing.");await ensureOrderSheetFreshForOutput(source);}catch(e){showPrintNotice((e as Error).message);return false;}}
+
   const runtime = buildPrintSurface(copies); if (!runtime) return false;
   document.body.appendChild(runtime.root);
   document.documentElement.classList.add("jinamLabelPrinting");
@@ -157,7 +161,7 @@ function routeSavedSetPrint(button: HTMLButtonElement, mode: "print" | "pdf") {
   return true;
 }
 function askPrintCopies(selected: number, onConfirm: (copies: number) => void) { void selected; onConfirm(1); }
-export function labelPrintCopiesDialog(selected: number) { askPrintCopies(selected, copies => labelOnlyPrint(copies)); }
+export function labelPrintCopiesDialog(selected: number) { askPrintCopies(selected, copies => {void labelOnlyPrint(copies);}); }
 export function LabelFinalization() {
   useEffect(() => {
     let frame = 0;
@@ -175,9 +179,9 @@ export function LabelFinalization() {
       }
       const button = target?.closest<HTMLButtonElement>(".labelDesignerPage .labelHeaderCommandBar > button.primary, .labelDesignerPage .labelTopbar .primary");
       if (!button || button.disabled || !/^Print\b/i.test(button.textContent || "")) return;
-      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); labelOnlyPrint(1);
+      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); void labelOnlyPrint(1);
     };
-    const directPrint = () => { labelOnlyPrint(1); };
+    const directPrint = () => { void labelOnlyPrint(1); };
     document.addEventListener("click", click, true);
     window.addEventListener("jinam:labels:print", directPrint);
     window.addEventListener("resize", schedule);

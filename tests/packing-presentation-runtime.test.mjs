@@ -20,7 +20,7 @@ const model = load("../app/lib/packing-label-model.ts", { "./order-domain": doma
 const designer = load("../app/packing-person-label-designer.tsx", {
   "./lib/label-storage": load("../app/lib/label-storage.ts"), react: {}, "react-dom": {}, "react/jsx-runtime": {}, "./physical-label-canvas": {},
   "./physical-label-editor.css": {}, "./lib/physical-output": load("../app/lib/physical-output.ts"),
-  "./lib/order-domain": domain, "./lib/packing-label-model": model,
+  "./lib/order-sheet-client": {ensureOrderSheetFreshForOutput:async()=>{}}, "./lib/order-domain": domain, "./lib/packing-label-model": model,
 }, "\nexports.mergeRules = mergeRules; exports.migrateItems = migrateItems; exports.freePlacement = freePlacement;");
 
 function fixture() {

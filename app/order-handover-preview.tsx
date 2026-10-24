@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { useAccess } from "./access-control";
 import { defaultHandoverOptions, handoverHtml } from "./lib/order-handover";
 import type { SeikoOrder } from "./lib/order-domain";
@@ -45,8 +46,8 @@ export function OrderHandoverPreview({ order, businessId, onClose }: { order: Se
       {businessId === "seiko" && can("financials.view") && <label><input type="checkbox" checked={includeMoney} onChange={event => { setReady(false); setIncludeMoney(event.target.checked); }}/>Financial reference</label>}</fieldset>
       {includeMoney && <><p>Uses one saved billing document. Prices are not inferred for students.</p>{loading ? <p role="status">Loading financial documents…</p> : <label>Billing document<select value={documentId} onChange={event => { setReady(false); setDocumentId(event.target.value); }}><option value="">Choose a document</option>{documents.map(item => <option key={item.id} value={item.id}>{item.number} · {item.kind.replaceAll("_", " ")}</option>)}</select></label>}{!loading && !documents.length && !error && <p>No billing documents for this order.</p>}{error && <p role="alert">{error}</p>}</>}
       <label>Page orientation<select value={options.orientation} onChange={event => change({ ...options, orientation: event.target.value as "portrait" | "landscape" })}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
-      <button className="primary" disabled={!ready || !options.productIds.length || (includeMoney && !selectedDocument)} onClick={() => { frame.current?.contentWindow?.focus(); frame.current?.contentWindow?.print(); }}>Print / Save PDF</button>
-      <p>In the print window, choose Save as PDF. All {order.records.filter(record => !record.held).length} unheld records are included.</p>
+      <button className="primary" disabled={!ready || !options.productIds.length || (includeMoney && !selectedDocument)} onClick={async () => {try{await ensureOrderSheetFreshForOutput(order);frame.current?.contentWindow?.focus();frame.current?.contentWindow?.print();}catch(e){setError((e as Error).message);}}}>Print / Save PDF</button>
+      {!includeMoney&&error&&<p role="alert">{error}</p>}<p>In the print window, choose Save as PDF. All {order.records.filter(record => !record.held).length} unheld records are included.</p>
     </aside><iframe ref={frame} title="Student handover print preview" srcDoc={html} onLoad={() => setReady(true)}/></div>
   </dialog>;
 }

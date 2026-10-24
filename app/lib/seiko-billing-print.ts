@@ -92,6 +92,8 @@ table{width:100%;border-collapse:collapse;color:#222}.copy thead{background:#173
 
 /* Keep commercial details compact; remaining page space belongs before the closing divider. */
 .separate .copy{font-size:12px}.separate .items{flex:0 0 auto;border:.2mm solid #d8d2c8}.separate .items tbody{border-bottom:0}.separate .items tbody tr+tr{border-top:.15mm solid #e8e0d5}.separate .copy footer{margin-top:6mm}.separate .closingGrid{padding-top:4mm;margin-top:auto}.separate .party{line-height:1.4}.separate .receiptAmount{flex:0 0 auto}
+/* Only the three closing columns anchor to the bottom. Item rows and financial details keep their natural height. */
+.items{flex:0 0 auto;min-height:0}.items table{height:auto}.closingGrid{margin-top:auto}.copy footer{margin-top:6mm}.both .closingGrid{margin-top:auto}.both .copy footer{margin-top:3mm}
 .footerAddress{text-align:center}.footerStatus{text-align:right}
 @media screen{body{width:210mm;margin:auto}.copy{border:1px solid #ccd6df}}@media print{body,.copy{background:#fbf5ed}.copy{border:0}thead{display:table-header-group}}
 `;

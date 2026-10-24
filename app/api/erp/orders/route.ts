@@ -6,6 +6,8 @@ import { ORDER_STATUSES } from "../../../lib/order-statuses";
 
 type OrderLike = {
   commerce?: SeikoOrder["commerce"];
+  googleSheet?: SeikoOrder["googleSheet"];
+  records?:SeikoOrder["records"];
   orderId?: unknown;
   status?: unknown;
   archived?: unknown;
@@ -36,7 +38,7 @@ type OrderEnvelope = {
   updatedBy: string;
 };
 
-type OrderDb = Pick<NonNullable<typeof env.DB>, "prepare">;
+type OrderDb = Pick<NonNullable<typeof env.DB>, "prepare"|"batch">;
 
 type OrderWriteAccess = { canCreate: boolean; canEdit: boolean };
 
@@ -82,6 +84,7 @@ export async function POST(request: Request) {
       if (body.orderIds !== undefined && (!Array.isArray(body.orderIds) || body.orderIds.length > 25 || body.orderIds.some(id => typeof id !== "string" || !id || id.length > 200))) return error("INVALID_ORDER_IDS", "Select up to 25 orders.", 400);
       if (body.limit !== undefined && (!Number.isInteger(body.limit) || body.limit < 1 || body.limit > 25)) return error("INVALID_PAGE", "Choose a page size from 1 to 25.", 400);
       if (body.afterId !== undefined && (typeof body.afterId !== "string" || body.afterId.length > 200 || body.limit === undefined)) return error("INVALID_PAGE", "Choose a valid order page.", 400);
+      if(businessId==="seiko"&&body.orderIds?.length){for(const id of body.orderIds){const row=await db.prepare("SELECT document_json FROM erp_orders WHERE id=? AND business_id='seiko'").bind(id).first<{document_json:string}>();if(row&&JSON.parse(row.document_json).googleSheet){try{await (await import("../../../lib/server-order-sheets")).syncOrderSheet(db,actor,id,false);}catch(e){return error("GOOGLE_SHEET_SYNC_REQUIRED",(e as Error).message,409);}}}}
       return visible(await listOrders(db, businessId, body));
     }
     if (operation === "versions") {
@@ -178,6 +181,9 @@ async function upsertOrder(
   if (!current && !access.canCreate) return error("FORBIDDEN", "You do not have permission to create orders.", 403);
   if (current && !access.canEdit) return error("FORBIDDEN", "You do not have permission to edit orders.", 403);
 
+  const previous=current?JSON.parse(current.document_json) as SeikoOrder:null;
+  if(JSON.stringify(candidate?.googleSheet)!==JSON.stringify(previous?.googleSheet))return error("SHEET_LINK_PROTECTED","Google Sheet links are managed by the sheet connection workflow.",409);
+  if(previous?.googleSheet){const people=(o:SeikoOrder)=>Object.entries(o.commerce?.people||{}).map(([id,p])=>[id,p.state,p.batch||"",p.readySize||""]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));if(JSON.stringify(candidate?.records)!==JSON.stringify(previous.records)||JSON.stringify(people(candidate as SeikoOrder))!==JSON.stringify(people(previous)))return error("SHEET_RECORDS_READ_ONLY","Person records are maintained in Google Sheets. Sync the sheet before saving other order changes.",409);}
   const now = new Date().toISOString();
   if(candidate?.commerce||current&&JSON.parse(current.document_json).commerce){const commercialProblem=validateCommerce(candidate as unknown as SeikoOrder,current?JSON.parse(current.document_json):{...candidate,commerce:{rules:[],people:{},deliveries:[],issues:[]}} as unknown as SeikoOrder);if(commercialProblem)return error("INVALID_COMMERCIAL_DETAILS",commercialProblem,400);}
   const document = { ...candidate, updatedAt: now } as OrderLike;
@@ -267,6 +273,7 @@ async function importLocalOrders(
     }
 
     const now = new Date().toISOString();
+    if (candidate.googleSheet) { invalid.push(parsed.orderId); continue; }
     const document = { ...candidate, updatedAt: now } as OrderLike;
     await db.prepare(
       `INSERT INTO erp_orders (

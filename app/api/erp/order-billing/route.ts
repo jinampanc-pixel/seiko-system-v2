@@ -17,7 +17,8 @@ export async function POST(request:Request){
  const canManage=Boolean(await authorizePermission(actor,"seiko","billing.invoices.manage"));if(b.operation!=="review"&&!canManage)return fail("Invoice management permission required.",403);
  if(!env.DB)return fail("Shared storage unavailable.",503);const db=env.DB.withSession("first-primary");
  try{
- const row=await db.prepare("SELECT document_json FROM erp_orders WHERE id=? AND business_id='seiko' AND json_extract(document_json,'$.deletedAt') IS NULL").bind(b.orderId).first<{document_json:string}>();if(!row)return fail("Order unavailable.",404);
+ let row=await db.prepare("SELECT document_json FROM erp_orders WHERE id=? AND business_id='seiko' AND json_extract(document_json,'$.deletedAt') IS NULL").bind(b.orderId).first<{document_json:string}>();if(!row)return fail("Order unavailable.",404);
+ if(JSON.parse(row.document_json).googleSheet){try{await (await import("../../../lib/server-order-sheets")).syncOrderSheet(db,actor,b.orderId,true);row=await db.prepare("SELECT document_json FROM erp_orders WHERE id=? AND business_id='seiko'").bind(b.orderId).first<{document_json:string}>();if(!row)return fail("Order unavailable.",404);}catch(e){return fail((e as Error).message,409);}}
  const order=JSON.parse(row.document_json) as SeikoOrder;if(!commerceOf(order).rules.length)return fail("Save order pricing before reviewing billing.");const problem=validateCommerce(order);if(problem)return fail(problem);
  const rows:DocRow[]=(await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE json_extract(data,'$.orderId')=? AND json_extract(data,'$.kind')='invoice' AND cancelled=0 AND json_extract(data,'$.deletedAt') IS NULL ORDER BY sequence").bind(b.orderId).all<DocRow>()).results;
  const docs:SeikoCommercialDocument[]=rows.map(decode);const taxMode=docs[0]?.taxMode||b.taxMode||"non_gst";if(!["gst","non_gst"].includes(taxMode))return fail("Choose a valid tax register.");

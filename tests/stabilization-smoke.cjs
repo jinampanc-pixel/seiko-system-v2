@@ -12,6 +12,7 @@ function load(path, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { exports, require: name => {
     if(name==="./packing-label-model"&&!imports[name])return load("app/lib/packing-label-model.ts",{"./order-domain":imports["./order-domain"]});
+    if(name.endsWith("server-order-sheets"))return {syncOrderSheet:async()=>{},orderSheetLink:async()=>({synced_at:new Date().toISOString()})};
     assert.ok(imports[name], `Unexpected import: ${name}`);
     return imports[name];
   }, crypto, Response, Request, URL, TextDecoder, TextEncoder, Uint8Array, atob, btoa, ReadableStream });
@@ -83,6 +84,7 @@ function load(path, imports = {}) {
     const orderBilling=load('app/api/erp/order-billing/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/order-commerce':commercialModel,'../../../lib/seiko-billing':load('app/lib/seiko-billing.ts')});
     const billingProfile = load('app/api/erp/billing-profile/route.ts', { 'cloudflare:workers': { env: { DB: db } }, '../../../lib/billing-profile': load('app/lib/billing-profile.ts'), '../../../lib/server-erp-auth': auth });
     const artwork=load('app/api/erp/artwork/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth});
+    const people=load('app/api/erp/people/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/order-commerce':commercialModel,'../../../lib/order-domain':domain,'../../../lib/seiko-billing':load('app/lib/seiko-billing.ts')});
     const clients = load('app/api/erp/clients/route.ts', {
       'cloudflare:workers': { env: { DB: db } }, '../../../lib/seiko-clients': load('app/lib/seiko-clients.ts'),
       '../../../lib/server-erp-auth': auth,
@@ -96,6 +98,7 @@ function load(path, imports = {}) {
     }] };
     await page.route('**/api/erp/session', route => route.fulfill({ json: { ok: true, data: session } }));
     await page.route('**/api/seiko', route => route.fulfill({ json: { ok: true, data: session } }));
+    await page.route("**/api/erp/order-sheets",route=>route.fulfill({json:{ok:true,connection:{configured:false,connected:false,accountEmail:""},canConnect:true,canCreate:true,link:null}}));
     await page.route('**/api/erp/orders', async route => {
       const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
       await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
@@ -112,7 +115,7 @@ function load(path, imports = {}) {
       const response=await billingProfile.GET(new Request(route.request().url()));
       await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});
     });
-    for (const [path, api] of [['order-billing',orderBilling],['billing-profile', billingProfile], ['billing', billing], ['clients', clients], ['labels', labels], ['production',production]]) {
+    for (const [path, api] of [['people',people],['order-billing',orderBilling],['billing-profile', billingProfile], ['billing', billing], ['clients', clients], ['labels', labels], ['production',production]]) {
       await page.route(`**/api/erp/${path}`, async route => {
         const response = await api.POST(new Request(`${base}/api/erp/${path}`, { method: 'POST', body: route.request().postData() }));
         await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
@@ -184,6 +187,7 @@ function load(path, imports = {}) {
       console.log(`PASS: 1,001 synthetic orders / 100,001 records; last-order search, bounded 10-row rendering and page navigation (${Date.now() - started} ms, local Chrome).`);
       return;
     }
+    if(process.argv.includes('--google-sheets')){await require('./google-sheets-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-service')){await require('./order-service-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--production-handoffs')){await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--shared-measurements')){await require('./shared-measurements-browser.cjs')({page,sqlite,seed,navigate,order,base});assert.deepEqual(errors,[]);return;}

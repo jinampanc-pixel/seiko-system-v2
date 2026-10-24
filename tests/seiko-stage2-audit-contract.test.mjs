@@ -283,7 +283,7 @@ test("label copies are requested after Print instead of occupying the header", (
   assert.match(labelFinalization, /function askPrintCopies/);
   assert.match(labelFinalization, /labelPrintCopiesDialog/);
   assert.match(labelFinalization, /function labelOnlyPrint\(copies = 1\)/);
-  assert.match(labelFinalization, /askPrintCopies\(selected, copies => labelOnlyPrint\(copies\)\)/);
+  assert.match(labelFinalization, /askPrintCopies\(selected, copies => \{void labelOnlyPrint\(copies\);\}\)/);
   assert.match(labelFinalization, /flatMap\(label => Array\.from\(\{ length: copies \}/);
   assert.doesNotMatch(labelFinalization, /function syncPrintCopies/);
   assert.doesNotMatch(labelFinalization, /window\.alert\(/);

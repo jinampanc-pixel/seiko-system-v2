@@ -1,6 +1,7 @@
 "use client";
 import { writeLabelStorage } from "./lib/label-storage";
 
+import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { groupRuleMatches, type ProductPolicy, type SeikoOrder } from "./lib/order-domain";
@@ -468,11 +469,13 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
     writeLabelStorage(layoutKey(businessId), JSON.stringify([...layouts, layout])); setNotice("Layout saved on this device; shared save pending.");
   };
   const print = useCallback(async () => {
-    setPrintBusy(true); setPrintReady(true);
+    setPrintBusy(true);
+    try{await ensureOrderSheetFreshForOutput(order);}catch(e){setNotice((e as Error).message);setPrintBusy(false);setPrintReady(false);return;}
+    setPrintReady(true);
     await document.fonts.ready;
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     window.print(); setPrintBusy(false);
-  }, []);
+  }, [order]);
   useEffect(() => {
     const request = () => { if (selectedRows.length && items.length) void print(); };
     window.addEventListener("jinam:packing:print", request);
@@ -485,7 +488,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   };
   // Delegate Escape and undo/redo from descendant controls without changing their semantics.
   // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-  return <div className="physicalPackingEditor" role="application" aria-label="Packing label editor" data-selected-count={selectedRows.length} data-eligible-count={records.length} onKeyDown={event => {
+  return <div className="physicalPackingEditor" data-source-order-id={order.orderId} data-source-order-version={order.updatedAt} role="application" aria-label="Packing label editor" data-selected-count={selectedRows.length} data-eligible-count={records.length} onKeyDown={event => {
     const target = event.target as HTMLElement;
     if (event.key === "Escape" && infoOpen) { event.preventDefault(); closeInfo(); }
     if (event.key === "Escape") setRecordDetail(null);

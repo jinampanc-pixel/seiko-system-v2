@@ -29,7 +29,8 @@ export async function POST(request:Request) {
     if(targetRecord)for(const row of (JSON.parse(targetRecord.document_json) as ProductionHandoff).allocations)if(!ids.includes(row.orderId))ids.push(row.orderId);
     if(ids.length>25)return reply('Select at most 25 source orders.');
     const placeholders=ids.map(()=>'?').join(',');
-    const result=ids.length?await db.prepare(`SELECT document_json,version FROM erp_orders WHERE business_id=? AND id IN (${placeholders}) AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL`).bind(business,...ids).all<{document_json:string;version:number}>():{results:[]};
+    let result=ids.length?await db.prepare(`SELECT document_json,version FROM erp_orders WHERE business_id=? AND id IN (${placeholders}) AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL`).bind(business,...ids).all<{document_json:string;version:number}>():{results:[]};
+    if(business==='seiko'){for(const source of result.results){const order=JSON.parse(source.document_json);if(order.googleSheet){try{await (await import('../../../lib/server-order-sheets')).syncOrderSheet(db,actor,order.orderId,true);}catch(e){return reply((e as Error).message,409);}}}if(result.results.some(source=>JSON.parse(source.document_json).googleSheet))result=await db.prepare(`SELECT document_json,version FROM erp_orders WHERE business_id=? AND id IN (${placeholders}) AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL`).bind(business,...ids).all<{document_json:string;version:number}>();}
     const orders:ProductionOrder[]=result.results.map(row=>({order:JSON.parse(row.document_json),version:row.version}));
     // Only reservations touching selected orders and the open handoff are transferred.
     const relevant=ids.length?` OR EXISTS(SELECT 1 FROM json_each(document_json,'$.allocations') a WHERE json_extract(a.value,'$.orderId') IN (${placeholders}))`:'';

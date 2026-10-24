@@ -84,6 +84,7 @@ export async function POST(request: Request) {
       const draft = body.document;
       if (!draft || typeof draft.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(draft.id)) return reply("Invalid document ID.");
       if(draft.credits?.length||draft.pricingSnapshot||draft.supplementaryFor)return reply("Use the reviewed order billing workflow for linked invoices and credits.");
+      if(draft.orderId&&draft.kind==="invoice"){const sheetSource=await db.prepare("SELECT json_extract(document_json,'$.googleSheet.id') AS id FROM erp_orders WHERE id=? AND business_id='seiko'").bind(draft.orderId).first<{id:string}>();if(sheetSource?.id)return reply("Set the order pricing and use Billing review to issue an invoice from validated Google Sheet records.",409);}
       if(draft.orderId&&draft.kind==="invoice"){const priced=await db.prepare("SELECT json_array_length(json_extract(document_json,'$.commerce.rules')) AS count FROM erp_orders WHERE id=? AND business_id='seiko'").bind(draft.orderId).first<{count:number}>();if(priced?.count)return reply("Review the order pricing and billable roster before issuing this invoice.",409);}
       const now = new Date().toISOString();
       let clientSnapshot = {};

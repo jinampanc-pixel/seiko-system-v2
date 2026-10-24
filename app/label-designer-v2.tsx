@@ -1,6 +1,7 @@
 "use client";
 import { writeLabelStorage } from "./lib/label-storage";
 
+import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { groupRuleMatches, quantityForRecord, type ProductPolicy, type SeikoOrder } from "./lib/order-domain";
 import { garmentScanToken } from "./lib/production-domain";
@@ -416,6 +417,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
 }) {
   const purpose: LabelPurpose = initialPurpose || "production";
   const actualOrder = order || null;
+  const printVerified=async()=>{try{if(actualOrder)await ensureOrderSheetFreshForOutput(actualOrder);window.print();}catch(e){window.alert((e as Error).message);}};
   const [representation, setRepresentation] = useState<Representation>(purpose === "packing" ? "package" : purpose === "inventory" ? "product_group" : "item");
   const [packagePlan, setPackagePlan] = useState<PackagePlan>("person");
   const [groupKeys, setGroupKeys] = useState<string[]>(purpose === "inventory" ? ["product", "size"] : ["product", "size"]);
@@ -490,7 +492,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actualOrder?.orderId, businessId]);
 
-  if (!actualOrder) return <div className="page labelDesignerPage labelDesignerV2"><section className="panel labelV2Empty"><h2>Open an order to create labels</h2><p>Labels use the people, products, quantities and measurements saved on a real order.</p>{onBack && <button className="secondary" onClick={onBack}>Back</button>}</section></div>;
+  if (!actualOrder) return <div data-source-order-id={actualOrder.orderId} data-source-order-version={actualOrder.updatedAt} className="page labelDesignerPage labelDesignerV2"><section className="panel labelV2Empty"><h2>Open an order to create labels</h2><p>Labels use the people, products, quantities and measurements saved on a real order.</p>{onBack && <button className="secondary" onClick={onBack}>Back</button>}</section></div>;
 
   const changeRepresentation = (value: Representation) => {
     setRepresentation(value);
@@ -612,12 +614,12 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
   };
 
   return <div className="page labelDesignerPage labelDesignerV2">
-    <section className="labelTopbar panel labelV2Topbar"><div><p className="eyebrow">ORDER {actualOrder.details.orderNo} · {purpose.toUpperCase()}</p><h2>Labels for {actualOrder.details.clientName}</h2><p>Create, preview, filter, save and print labels from this order without changing the order itself.</p></div><div className="labelV2TopActions">{onBack && <button className="secondary" onClick={onBack}>← Back to labels</button>}<button className="primary" disabled={!selectedForPrint.length} onClick={() => window.print()}>Print · {selectedForPrint.length}</button></div></section>
+    <section className="labelTopbar panel labelV2Topbar"><div><p className="eyebrow">ORDER {actualOrder.details.orderNo} · {purpose.toUpperCase()}</p><h2>Labels for {actualOrder.details.clientName}</h2><p>Create, preview, filter, save and print labels from this order without changing the order itself.</p></div><div className="labelV2TopActions">{onBack && <button className="secondary" onClick={onBack}>← Back to labels</button>}<button className="primary" disabled={!selectedForPrint.length} onClick={() => void printVerified()}>Print · {selectedForPrint.length}</button></div></section>
 
     <nav className="labelV2LibraryBar" aria-label="Label libraries"><button className="secondary" onClick={saveLayout}>{activeLayoutId ? "Update layout" : "Save layout"}</button><button onClick={() => setLibrary(library === "layouts" ? null : "layouts")}>Layouts <span>{layouts.length}</span></button><i/><button className="primary labelSetSave" onClick={saveLabelSet}>{activeSetId ? "Update label set" : "Save label set"}</button><button onClick={() => setLibrary(library === "sets" ? null : "sets")}>Label sets <span>{labelSets.filter(item => item.orderId === actualOrder.orderId).length}</span></button></nav>
 
     {library === "layouts" && <section className="panel labelV2Library"><div className="labelV2LibraryHead"><div><p className="eyebrow">LAYOUT LIBRARY</p><h3>Reusable physical layouts</h3><p>Layouts control label size, content placement and typography.</p></div><button className="iconButton" onClick={() => setLibrary(null)} aria-label="Close layout library">×</button></div><div className="labelV2LibraryRows">{layouts.map(layout => <article key={layout.id}><div><b>{layout.name}</b><small>{presets.find(item => item.id === layout.presetId)?.name || "Saved size"}</small></div><button onClick={() => loadLayout(layout)}>Use</button>{canManageSizes && <button className="iconButton" aria-label={`Delete ${layout.name}`} onClick={() => { const next = layouts.filter(item => item.id !== layout.id); setLayouts(next); writeLabelStorage(storageKey(businessId, "layouts-v2"), JSON.stringify(next)); }}>×</button>}</article>)}{!layouts.length && <p>No saved layouts yet.</p>}</div></section>}
-    {library === "sets" && <section className="panel labelV2Library"><div className="labelV2LibraryHead"><div><p className="eyebrow">LABEL SET LIBRARY</p><h3>Saved label jobs for this order</h3><p>Label sets remember what one label represents, filtering, numbering and layout.</p></div><button className="iconButton" onClick={() => setLibrary(null)} aria-label="Close label set library">×</button></div><div className="labelV2LibraryRows">{labelSets.filter(item => item.orderId === actualOrder.orderId).map(saved => <article key={saved.id}><div><b>{saved.name}</b><small>{saved.selectedRows.length} selected · {saved.purpose}</small></div><button onClick={() => loadLabelSet(saved)}>Open</button><button onClick={() => { loadLabelSet(saved); window.setTimeout(() => window.print(), 80); }}>Print</button></article>)}{!labelSets.some(item => item.orderId === actualOrder.orderId) && <p>No saved label sets yet.</p>}</div></section>}
+    {library === "sets" && <section className="panel labelV2Library"><div className="labelV2LibraryHead"><div><p className="eyebrow">LABEL SET LIBRARY</p><h3>Saved label jobs for this order</h3><p>Label sets remember what one label represents, filtering, numbering and layout.</p></div><button className="iconButton" onClick={() => setLibrary(null)} aria-label="Close label set library">×</button></div><div className="labelV2LibraryRows">{labelSets.filter(item => item.orderId === actualOrder.orderId).map(saved => <article key={saved.id}><div><b>{saved.name}</b><small>{saved.selectedRows.length} selected · {saved.purpose}</small></div><button onClick={() => loadLabelSet(saved)}>Open</button><button onClick={() => { loadLabelSet(saved); window.setTimeout(() => void printVerified(), 80); }}>Print</button></article>)}{!labelSets.some(item => item.orderId === actualOrder.orderId) && <p>No saved label sets yet.</p>}</div></section>}
 
     <div className="labelV2SetupGrid">
       <section className="panel labelSetup labelV2Setup"><div className="labelV2SectionHead"><div><p className="eyebrow">1 · LABEL OUTPUT</p><h3>What gets one label?</h3></div></div><label className="labelV2MainSelect"><span>Create one label for</span><select value={representation} onChange={event => changeRepresentation(event.target.value as Representation)}><option value="item">Each item</option><option value="person">Each person / record</option><option value="package">Each package</option><option value="product_group">Each product group</option><option value="custom">Custom grouping</option></select><small>{representationHelp(representation, generated.length)}</small></label>
