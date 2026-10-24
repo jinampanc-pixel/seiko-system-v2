@@ -31,3 +31,6 @@ body[data-seiko-palette="true"] :is(.workspaceTable td,.orderRow,.phase2TableRow
 .orderSetup input.adaptiveNativeInput{left:0!important;top:0!important;min-width:0!important;max-width:1px!important;min-height:0!important;padding:0!important;border:0!important;clip-path:inset(50%)}
 body[data-seiko-palette="true"] .membershipLoginStatusDot,body[data-seiko-palette="true"] .membershipLoginStatus.ready .membershipLoginStatusDot{background:var(--gold)!important;box-shadow:0 0 0 4px #c3a06c20!important}
 body[data-seiko-palette="true"] :is(.seikoDashboardActivity,.seikoMetricCard,.seikoDailyActions,.seikoHomeOptionGrid label,.seikoAccessSettings,.moduleCard,.moduleMenu,.seikoDashboardActivityRow,.phase2LibraryRow){background:var(--paper)!important;color:var(--navy)!important;border-color:var(--gold)!important}
+
+/* Pin the SEIKO tokens on the app roots too: saved inline theme variables used to override inherited body tokens. */
+body[data-seiko-palette="true"] :is(.app,.seikoPhase2Surface,.globalStandaloneNav,.personLookupDialog){--navy:#173c5e!important;--navy2:#173c5e!important;--ink:#173c5e!important;--brand:#173c5e!important;--blue:#173c5e!important;--gold:#c3a06c!important;--paper:#fbf5ed!important;--pale:#fbf5ed!important;--bg:#fbf5ed!important;--app-background:#fbf5ed!important;--muted:#48617a!important;--line:#c3a06c!important;--surface:#fbf5ed!important}

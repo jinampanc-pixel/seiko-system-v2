@@ -1,0 +1,5 @@
+import type { SheetColumn } from './order-sheet-model';
+import type { SeikoOrder } from './order-domain';
+export function missingEntryGroups(order:SeikoOrder,values:Record<string,string|number>){return order.fields.filter(f=>order.products.some(p=>p.quantityMode==='by_group'&&p.quantityGroupFieldId===f.id&&p.quantityGroupRules.length>0)&&!String(values['field:'+f.id]??'').trim());}
+/** Label slots align equivalent headings while each cell retains its own stable field ID. */
+export function measurementEntryGrid(columns:SheetColumn[],groups:[string,string][]){const headings:string[]=[];const rows=groups.map(([id,label])=>{const seen=new Map<string,number>(),cells=new Map<string,SheetColumn>();for(const c of columns.filter(c=>c.groupId===id&&!c.id.endsWith(':assigned_qty'))){const n=(seen.get(c.label)||0)+1;seen.set(c.label,n);const key=c.label+(n>1?' ('+n+')':'');cells.set(key,c);if(!headings.includes(key))headings.push(key);}return {id,label,cells};});return {headings,rows};}
