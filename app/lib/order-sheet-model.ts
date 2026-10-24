@@ -113,3 +113,18 @@ export function sheetLayoutRequests(cols:SheetColumn[],sheetId=0):Record<string,
  requests.push({repeatCell:{range:{sheetId,startRowIndex:1,endRowIndex:2,endColumnIndex:cols.length},cell:{userEnteredFormat:{backgroundColor:{red:.77,green:.63,blue:.4},textFormat:{bold:true,foregroundColor:{red:.09,green:.23,blue:.37}},horizontalAlignment:"CENTER",verticalAlignment:"MIDDLE"}},fields:"userEnteredFormat"}});
  return requests;
 }
+
+/** Validate a complete append before touching Sheets. Stable IDs make retries safe. */
+export function prepareSheetPeopleAppend(order:SeikoOrder,table:unknown[][],edits:SheetPersonEdit[]){
+ if(!Array.isArray(edits)||!edits.length||edits.length>1000)throw Error('Import between 1 and 1,000 people.');
+ readOrderSheet(order,table,()=>crypto.randomUUID());
+ const keys=table[0].map(String),columns=new Map(orderSheetColumns(order).map(c=>[c.id,c])),proposed=table.map(r=>[...r]),ids=new Set<string>(),rows:(string|number)[][]=[];
+ for(const edit of edits){
+ if(!edit||!edit.isNew||typeof edit.recordId!=='string'||!/^[a-zA-Z0-9:_-]{1,150}$/.test(edit.recordId)||ids.has(edit.recordId)||!edit.changes||typeof edit.changes!=='object')throw Error('Invalid imported person.');ids.add(edit.recordId);
+ const existing=table.findIndex((r,i)=>i>=3&&r[0]===edit.recordId),row:(string|number)[]=Array(keys.length).fill('');row[0]=edit.recordId;row[1]='ADD-'+edit.recordId;
+ for(const [key,value] of Object.entries(edit.changes)){const c=columns.get(key),index=keys.indexOf(key);if(!c||index<0||key===RECORD_KEY||key===PERSON_KEY)throw Error('The order fields changed. Refresh the columns and review the import.');if((typeof value!=='string'&&typeof value!=='number')||String(value).length>2000)throw Error('Invalid imported field value.');row[index]=c.numeric&&String(value).trim()!==''?Number(value):value;if(existing>=0&&String(value).trim()!==''&&String(table[existing][index]??'')!==String(row[index]))throw Error('An imported person has since changed. Sync and review before retrying.');}
+ if(existing>=0)continue;proposed.push(row);rows.push(row);
+ }
+ const parsed=readOrderSheet(order,proposed,()=>crypto.randomUUID());for(const fill of parsed.fills)if(fill.row>=table.length)proposed[fill.row][fill.column]=fill.value;
+ return rows;
+}
