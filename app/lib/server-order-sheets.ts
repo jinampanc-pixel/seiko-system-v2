@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { orderSheetColumns, readOrderSheet, sheetInitialRequests, sheetCell, prepareSheetPersonEdit, prepareSheetPeopleAppend, sheetLayoutRequests, type SheetPersonEdit } from "./order-sheet-model";
+import { orderSheetColumns, readOrderSheet, sheetInitialRequests, sheetCell, prepareSheetPersonEdit, sheetLayoutRequests, type SheetPersonEdit } from "./order-sheet-model";
 import type { SeikoOrder } from "./order-domain";
 import type { Actor } from "./server-erp-auth";
 type DB=Pick<NonNullable<typeof env.DB>,"prepare"|"batch">;
@@ -124,12 +124,4 @@ export async function saveSheetPerson(db:DB,actor:Actor,id:string,edit:SheetPers
  }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
  // If this read fails the row is still saved in Sheets; retry uses the same identity.
  return syncOrderSheet(db,actor,id);
-}
-
-export async function saveSheetPeople(db:DB,actor:Actor,id:string,edits:SheetPersonEdit[]){
- const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError('Connect this order’s Google Sheet first.');
- const lease=await claim(db,id,actor);try{const source=await orderRow(db,id),token=await accessToken(db),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(link.spreadsheet_id);
- const result=await google(token,base+'/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING');let rows:ReturnType<typeof prepareSheetPeopleAppend>;try{rows=prepareSheetPeopleAppend(source.order,result.values||[],edits);}catch(e){throw new SheetError((e as Error).message);}
- if(rows.length)await google(token,base+':batchUpdate',{requests:[{appendCells:{sheetId:link.people_sheet_id,rows:rows.map(row=>({values:Array.from(row,v=>sheetCell(v??''))})),fields:'userEnteredValue'}}]});
- }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}return syncOrderSheet(db,actor,id);
 }
