@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { orderSheetColumns, readOrderSheet, sheetInitialRequests, sheetCell } from "./order-sheet-model";
+import { orderSheetColumns, readOrderSheet, sheetInitialRequests, sheetCell, prepareSheetPersonEdit, sheetLayoutRequests, type SheetPersonEdit } from "./order-sheet-model";
 import type { SeikoOrder } from "./order-domain";
 import type { Actor } from "./server-erp-auth";
 type DB=Pick<NonNullable<typeof env.DB>,"prepare"|"batch">;
@@ -90,7 +90,9 @@ export async function refreshOrderSheetStructure(db:DB,actor:Actor,id:string){
  if(!grid)throw new SheetError("The People worksheet could not be found.");
  const requests:unknown[]=[];if(all.length>grid.columnCount)requests.push({updateSheetProperties:{properties:{sheetId:link.people_sheet_id,gridProperties:{columnCount:all.length}},fields:"gridProperties.columnCount"}});
  const rows=[all,all.map((key,i)=>known.get(key)?.groupLabel||header.values?.[1]?.[i]||""),all.map((key,i)=>known.get(key)?.label||header.values?.[2]?.[i]||"")];
+ requests.push({unmergeCells:{range:{sheetId:link.people_sheet_id,startRowIndex:1,endRowIndex:2,startColumnIndex:0,endColumnIndex:all.length}}});
  requests.push({updateCells:{start:{sheetId:link.people_sheet_id,rowIndex:0,columnIndex:0},rows:rows.map(row=>({values:row.map(sheetCell)})),fields:"userEnteredValue"}});
+ requests.push(...sheetLayoutRequests(all.map(id=>known.get(id)||{id,label:id,groupId:id,groupLabel:id,required:false}),link.people_sheet_id));
  await google(token,`${base}:batchUpdate`,{requests});
  await db.prepare("UPDATE seiko_order_sheets SET error=NULL WHERE order_id=? AND lease_token=?").bind(id,lease).run();
  }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
@@ -109,4 +111,17 @@ export async function syncOrderSheet(db:DB,actor:Actor,id:string,force=true){
  const now=new Date().toISOString();if(changed){const saved={...parsed.order,updatedAt:now,revisions:[...(source.order.revisions||[]),{revision:(source.order.revisions?.length||0)+1,at:now,reason:"Person records synchronized from Google Sheets",recordCount:parsed.order.records.length}]};const json=JSON.stringify(saved);const write=await db.prepare("UPDATE erp_orders SET document_json=?,version=version+1,updated_at=?,updated_by_user_id=?,updated_by_email=? WHERE id=? AND version=? AND document_json=? AND EXISTS(SELECT 1 FROM seiko_order_sheets WHERE order_id=? AND lease_token=?)").bind(json,now,actor.userId,actor.email,id,source.version,source.document_json,id,lease).run();if(!write.meta.changes)throw new SheetError("The order changed while Sheets was syncing. Retry to merge with the latest saved order.");}
  await db.prepare("UPDATE seiko_order_sheets SET status='ready',synced_at=?,checked_at=?,error=NULL WHERE order_id=? AND lease_token=?").bind(now,now,id,lease).run();return await orderRow(db,id);
  }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
+}
+
+export async function saveSheetPerson(db:DB,actor:Actor,id:string,edit:SheetPersonEdit){
+ const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError("Connect this order’s Google Sheet before entering measurements.");
+ const lease=await claim(db,id,actor);try{
+  const source=await orderRow(db,id),token=await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(link.spreadsheet_id)}`;
+  const result=await google(token,base+"/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING");
+  let editPlan:ReturnType<typeof prepareSheetPersonEdit>;try{editPlan=prepareSheetPersonEdit(source.order,result.values||[],edit);}catch(e){throw new SheetError((e as Error).message);}
+  const requests=editPlan.adding?[{appendCells:{sheetId:link.people_sheet_id,rows:[{values:Array.from(editPlan.values,v=>sheetCell(typeof v==="number"?v:String(v??"")))}],fields:"userEnteredValue"}}]:editPlan.updates.map(u=>({updateCells:{start:{sheetId:link.people_sheet_id,rowIndex:editPlan.row,columnIndex:u.column},rows:[{values:[sheetCell(u.value)]}],fields:"userEnteredValue"}}));
+  if(requests.length)await google(token,base+":batchUpdate",{requests});
+ }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
+ // If this read fails the row is still saved in Sheets; retry uses the same identity.
+ return syncOrderSheet(db,actor,id);
 }

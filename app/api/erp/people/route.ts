@@ -21,8 +21,8 @@ export async function POST(request:Request){
  FROM erp_orders o,json_each(o.document_json,'$.records') r
  WHERE o.business_id=? AND json_extract(o.document_json,'$.deletedAt') IS NULL
  AND (instr(lower(CAST(json_extract(r.value,'$.personId') AS TEXT)),?)>0 OR instr(lower(CAST(json_extract(r.value,'$.recordId') AS TEXT)),?)>0
- OR EXISTS(SELECT 1 FROM json_each(r.value,'$.values') v WHERE instr(lower(CAST(v.value AS TEXT)),?)>0))
- ORDER BY o.updated_at DESC,o.id,CAST(r.key AS INTEGER) LIMIT 21 OFFSET ?`).bind(business,q,q,q,(page-1)*20).all<{order_id:string;order_no:string;client:string;fields_json:string;record_json:string;state:string;sheet_id:string}>();
+ OR EXISTS(SELECT 1 FROM json_each(r.value,'$.values') v WHERE instr(lower(CAST(v.value AS TEXT)),?)>0) OR instr(lower(CAST(json_extract(o.document_json,'$.details') AS TEXT)),?)>0)
+ ORDER BY o.updated_at DESC,o.id,CAST(r.key AS INTEGER) LIMIT 21 OFFSET ?`).bind(business,q,q,q,q,(page-1)*20).all<{order_id:string;order_no:string;client:string;fields_json:string;record_json:string;state:string;sheet_id:string}>();
  const results=found.results.slice(0,20).map(row=>{const record=JSON.parse(row.record_json),fields=JSON.parse(row.fields_json||"[]") as SeikoOrder["fields"],nameField=fields.find(f=>/name/i.test(f.name))||fields[0];return {orderId:row.order_id,recordId:record.recordId,personId:record.personId,name:String(record.values[`field:${nameField?.id}`]||record.personId),orderNo:row.order_no,client:row.client,state:record.held?"hold":row.state||"active",sheetLinked:Boolean(row.sheet_id)};});
  return Response.json({ok:true,results,page,hasMore:found.results.length>20,sourceNote:"Search uses validated app records. Sheet edits appear after synchronization; opening a person checks that order’s latest sheet."},{headers:{"Cache-Control":"no-store"}});
  }

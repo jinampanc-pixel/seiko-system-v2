@@ -85,12 +85,13 @@ function load(path, imports = {}) {
     const billingProfile = load('app/api/erp/billing-profile/route.ts', { 'cloudflare:workers': { env: { DB: db } }, '../../../lib/billing-profile': load('app/lib/billing-profile.ts'), '../../../lib/server-erp-auth': auth });
     const artwork=load('app/api/erp/artwork/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth});
     const people=load('app/api/erp/people/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/order-commerce':commercialModel,'../../../lib/order-domain':domain,'../../../lib/seiko-billing':load('app/lib/seiko-billing.ts')});
+    const search=load('app/api/erp/search/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../people/route':people,'../../../lib/seiko-billing':load('app/lib/seiko-billing.ts')});
     const clients = load('app/api/erp/clients/route.ts', {
       'cloudflare:workers': { env: { DB: db } }, '../../../lib/seiko-clients': load('app/lib/seiko-clients.ts'),
       '../../../lib/server-erp-auth': auth,
     });
-    browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
-    const page = await browser.newPage(); const errors = [];
+    browser = await chromium.launch({ headless: true, ...(process.env.TEST_DOWNLOAD_DIR?{downloadsPath:process.env.TEST_DOWNLOAD_DIR}:{}), ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
+    const page = await browser.newPage({acceptDownloads:true}); const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const session = { user: { displayName: 'Smoke Owner', email: 'smoke@example.invalid' }, businesses: [{
       businessId: 'seiko', businessName: 'SEIKO', role: 'owner',
@@ -115,7 +116,7 @@ function load(path, imports = {}) {
       const response=await billingProfile.GET(new Request(route.request().url()));
       await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});
     });
-    for (const [path, api] of [['people',people],['order-billing',orderBilling],['billing-profile', billingProfile], ['billing', billing], ['clients', clients], ['labels', labels], ['production',production]]) {
+    for (const [path, api] of [['search',search],['people',people],['order-billing',orderBilling],['billing-profile', billingProfile], ['billing', billing], ['clients', clients], ['labels', labels], ['production',production]]) {
       await page.route(`**/api/erp/${path}`, async route => {
         const response = await api.POST(new Request(`${base}/api/erp/${path}`, { method: 'POST', body: route.request().postData() }));
         await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });

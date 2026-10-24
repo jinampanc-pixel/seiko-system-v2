@@ -67,11 +67,48 @@ export function sheetInitialRequests(order:SeikoOrder){
  const navy={red:0.09,green:0.23,blue:0.37},gold={red:0.77,green:0.63,blue:0.4};
  const requests:Record<string,unknown>[]=[{updateCells:{start:{sheetId:0,rowIndex:0,columnIndex:0},rows:rows.map(row=>({values:row.map(sheetCell)})),fields:"userEnteredValue"}},{updateSheetProperties:{properties:{sheetId:0,gridProperties:{frozenRowCount:3,frozenColumnCount:2}},fields:"gridProperties.frozenRowCount,gridProperties.frozenColumnCount"}},{updateDimensionProperties:{range:{sheetId:0,dimension:"ROWS",startIndex:0,endIndex:1},properties:{hiddenByUser:true},fields:"hiddenByUser"}},{updateDimensionProperties:{range:{sheetId:0,dimension:"COLUMNS",startIndex:0,endIndex:1},properties:{hiddenByUser:true},fields:"hiddenByUser"}},{repeatCell:{range:{sheetId:0,startRowIndex:1,endRowIndex:3,endColumnIndex:cols.length},cell:{userEnteredFormat:{backgroundColor:navy,textFormat:{bold:true,foregroundColor:{red:1,green:1,blue:1}},wrapStrategy:"WRAP"}},fields:"userEnteredFormat"}},{repeatCell:{range:{sheetId:0,startRowIndex:3,endColumnIndex:cols.length},cell:{userEnteredFormat:{textFormat:{fontSize:10},verticalAlignment:"MIDDLE"}},fields:"userEnteredFormat"}},{setBasicFilter:{filter:{range:{sheetId:0,startRowIndex:2,endColumnIndex:cols.length}}}},{updateDimensionProperties:{range:{sheetId:0,dimension:"COLUMNS",startIndex:0,endIndex:cols.length},properties:{pixelSize:140},fields:"pixelSize"}},{addProtectedRange:{protectedRange:{range:{sheetId:0,startRowIndex:0,endRowIndex:3},description:"Order structure — change fields and products in the app",warningOnly:true}}},{addProtectedRange:{protectedRange:{range:{sheetId:0,startColumnIndex:0,endColumnIndex:2},description:"Stable record identities — leave blank for new people",warningOnly:true}}}];
  cols.forEach((c,i)=>{if(c.options?.length)requests.push({setDataValidation:{range:{sheetId:0,startRowIndex:3,startColumnIndex:i,endColumnIndex:i+1},rule:{condition:{type:"ONE_OF_LIST",values:c.options.map(userEnteredValue=>({userEnteredValue}))},showCustomUi:true,strict:true}}});});
- const summary=[["Order",order.details.orderNo],["Client",order.details.clientName],["How to use","Edit person records on People. Leave Record ID and Person ID blank for additions. Mark removed people Cancelled; retain their row."],["Sync","Use Sync records in the app before production or billing. The app validates measurement readiness and saved pricing."],["Units","Product quantities are individual pieces: one shirt = 1, one trouser = 1. Package prices are defined separately in the app."],["People listed",order.records.length]];
+ requests.push(...sheetLayoutRequests(cols));
+ const summary=[["Order",order.details.orderNo],["Client",order.details.clientName],["How to use","Use the app workspace to add people and enter measurements one product at a time. Use People for bulk editing. Hidden columns contain identities, status, batch and confirmed size; unhide them only when needed."],["Sync","Use Sync records in the app before production or billing. The app validates measurement readiness and saved pricing."],["Units","Product quantities are individual pieces: one shirt = 1, one trouser = 1. Package prices are defined separately in the app."],["People listed",order.records.length]];
  requests.push({updateCells:{start:{sheetId:1,rowIndex:0,columnIndex:0},rows:summary.map(row=>({values:row.map(sheetCell)})),fields:"userEnteredValue"}},{repeatCell:{range:{sheetId:1,startColumnIndex:0,endColumnIndex:1},cell:{userEnteredFormat:{backgroundColor:gold,textFormat:{bold:true}}},fields:"userEnteredFormat"}},{updateDimensionProperties:{range:{sheetId:1,dimension:"COLUMNS",startIndex:1,endIndex:2},properties:{pixelSize:650},fields:"pixelSize"}});
  const letter=(index:number)=>{let name="";for(let n=index+1;n>0;n=Math.floor((n-1)/26))name=String.fromCharCode(65+(n-1)%26)+name;return name;};
  const nameCol=letter(Math.max(5,cols.findIndex(c=>c.id.startsWith("field:")))),range=(i:number)=>`'People'!${letter(i)}4:${letter(i)}`,names=`'People'!${nameCol}4:${nameCol}`,statuses=range(cols.findIndex(c=>c.id==="_state"));
  const calculated=[{label:"People listed",formula:`=COUNTIF(${names},"<>")`},{label:"Active people (not a billing count)",formula:`=COUNTIFS(${names},"<>",${statuses},"<>Cancelled",${statuses},"<>Hold",${statuses},"<>Awaiting")`},...cols.map((c,i)=>({c,i})).filter(({c})=>c.id.endsWith(":assigned_qty")).map(({c,i})=>({label:`${c.groupLabel} — active pieces`,formula:`=SUMIFS(${range(i)},${names},"<>",${statuses},"<>Cancelled",${statuses},"<>Hold",${statuses},"<>Awaiting")`}))];
  requests.push({updateCells:{start:{sheetId:1,rowIndex:5,columnIndex:0},rows:calculated.map(row=>({values:[sheetCell(row.label),{userEnteredValue:{formulaValue:row.formula}}]})),fields:"userEnteredValue"}});
  return {requests,columns:cols,rows};
+}
+
+export type SheetPersonEdit={recordId:string;isNew:boolean;changes:Record<string,string|number>;expected:Record<string,string|number>};
+/** Build a narrow update against the latest sheet, preserving unrelated cells and histories. */
+export function prepareSheetPersonEdit(order:SeikoOrder,table:unknown[][],edit:SheetPersonEdit){
+ if(!/^[a-zA-Z0-9:_-]{1,150}$/.test(edit.recordId))throw Error("Invalid person identity.");
+ readOrderSheet(order,table,()=>crypto.randomUUID());
+ const keys=table[0].map(String),columns=new Map(orderSheetColumns(order).map(c=>[c.id,c]));
+ let row=table.findIndex((r,i)=>i>=3&&r[0]===edit.recordId);
+ if(row<0&&!edit.isNew)throw Error("This person is no longer in the sheet. Refresh before editing.");
+ const adding=row<0,prior=adding?[]:table[row],next=[...prior],updates:{column:number;value:string|number}[]=[];
+ for(const [key,value] of Object.entries(edit.changes)){
+  if(!columns.has(key)||key===RECORD_KEY||key===PERSON_KEY||!keys.includes(key))throw Error("The order fields changed. Update the sheet columns and reopen this person.");
+  if(typeof value!=="string"&&typeof value!=="number"||String(value).length>2000)throw Error("Invalid field value.");
+  const entered=columns.get(key)?.numeric&&String(value).trim()!==""?Number(value):value;
+  const column=keys.indexOf(key),current=String(prior[column]??""),wanted=String(entered);
+  if(!adding&&current!==String(edit.expected[key]??"")&&current!==wanted)throw Error("This person was changed in Sheets or by another user. Refresh and review before saving.");
+  next[column]=entered;if(current!==wanted)updates.push({column,value:entered});
+ }
+ if(adding){next[0]=edit.recordId;next[1]='ADD-'+edit.recordId.slice(0,8);row=table.length;}
+ const proposed=table.map(r=>[...r]);proposed[row]=next;
+ const parsed=readOrderSheet(order,proposed,()=>crypto.randomUUID());
+ // Fill defaults only for the new row; existing unrelated cells remain untouched.
+ if(adding)for(const fill of parsed.fills.filter(f=>f.row===row))next[fill.column]=fill.value;
+ if(adding&&!parsed.order.records.find(r=>r.recordId===edit.recordId)?.values)throw Error("Enter person details first.");
+ return {adding,row,values:next,updates};
+}
+
+/** Keep names visible and measurements compact; advanced metadata stays available by unhiding it. */
+export function sheetLayoutRequests(cols:SheetColumn[],sheetId=0):Record<string,unknown>[]{
+ const nameIndex=cols.findIndex(c=>c.id.startsWith("field:")&&/name/i.test(c.label));
+ const requests:Record<string,unknown>[]=[{updateSheetProperties:{properties:{sheetId,gridProperties:{frozenRowCount:3,frozenColumnCount:Math.min(8,Math.max(2,nameIndex+1))}},fields:"gridProperties.frozenRowCount,gridProperties.frozenColumnCount"}},{updateDimensionProperties:{range:{sheetId,dimension:"COLUMNS",startIndex:2,endIndex:5},properties:{hiddenByUser:true},fields:"hiddenByUser"}},{unmergeCells:{range:{sheetId,startRowIndex:1,endRowIndex:2,startColumnIndex:0,endColumnIndex:cols.length}}},{updateDimensionProperties:{range:{sheetId,dimension:"ROWS",startIndex:1,endIndex:3},properties:{pixelSize:34},fields:"pixelSize"}}];
+ for(let i=0;i<cols.length;i++)requests.push({updateDimensionProperties:{range:{sheetId,dimension:"COLUMNS",startIndex:i,endIndex:i+1},properties:{pixelSize:i===nameIndex?190:cols[i].id.startsWith("field:")?125:100},fields:"pixelSize"}});
+ for(let start=0;start<cols.length;){let end=start+1;while(end<cols.length&&cols[end].groupId===cols[start].groupId)end++;if(end-start>1)requests.push({mergeCells:{range:{sheetId,startRowIndex:1,endRowIndex:2,startColumnIndex:start,endColumnIndex:end},mergeType:"MERGE_ALL"}});start=end;}
+ requests.push({repeatCell:{range:{sheetId,startRowIndex:1,endRowIndex:2,endColumnIndex:cols.length},cell:{userEnteredFormat:{backgroundColor:{red:.77,green:.63,blue:.4},textFormat:{bold:true,foregroundColor:{red:.09,green:.23,blue:.37}},horizontalAlignment:"CENTER",verticalAlignment:"MIDDLE"}},fields:"userEnteredFormat"}});
+ return requests;
 }

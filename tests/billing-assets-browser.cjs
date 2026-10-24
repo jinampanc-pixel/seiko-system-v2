@@ -3,7 +3,7 @@ const fs=require('node:fs');
 module.exports=async({page,navigate,sqlite,base,printing})=>{
  await navigate('Billing');
  const surface=page.getByRole('region',{name:'SEIKO billing',exact:true});
- await surface.getByRole('button',{name:'Settings',exact:true}).click();
+ await page.getByRole('button',{name:'Open billing navigation',exact:true}).click();await page.getByRole('navigation',{name:'Modules',exact:true}).getByRole('button',{name:/Settings/}).click();
  const systemSettings=page.getByRole('dialog',{name:/Settings ·/});
  await systemSettings.getByRole('button',{name:'Billing & assets',exact:true}).click();
  await systemSettings.getByRole('button',{name:'Billing settings & assets',exact:true}).click();
@@ -151,6 +151,9 @@ assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
  await frame.getByText(amended.notes,{exact:true}).waitFor();
  if(process.env.BILLING_ASSET_SCREENSHOTS)await preview.screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/invoice-amendment-fixed.png'});
 
+ // Exercise actual PDF downloads at narrow mobile widths, independently of browser printing.
+ for(const width of [390,360]){console.log("PDF download check",width);await page.setViewportSize({width,height:844});await preview.getByLabel('Preview zoom',{exact:true}).selectOption('fit');await page.waitForTimeout(100);const bounds=await frame.locator('.copy').first().boundingBox();const frameBox=await page.locator('iframe[title="Billing print preview"]').boundingBox();assert.ok(bounds.width<=frameBox.width+2,'A4 preview fits mobile width');await preview.getByRole('button',{name:'Prepare PDF',exact:true}).click();const link=preview.getByRole('link',{name:'Download PDF',exact:true});await Promise.race([link.waitFor(),preview.getByRole('alert').waitFor().then(async()=>{throw Error(await preview.getByRole('alert').innerText());})]);const style=await link.evaluate(el=>({color:getComputedStyle(el).color,background:getComputedStyle(el).backgroundColor}));assert.notEqual(style.color,style.background,'PDF download label is readable');const downloading=page.waitForEvent('download');await link.click();const downloaded=await downloading;assert.match(downloaded.suggestedFilename(),/\.pdf$/);const data=Buffer.from(await link.evaluate(async el=>Array.from(new Uint8Array(await(await fetch(el.href)).arrayBuffer()))));assert.equal(data.subarray(0,5).toString(),'%PDF-');assert.ok(data.length>10000,'PDF contains rendered document pages');if(process.env.BILLING_ASSET_SCREENSHOTS){fs.writeFileSync(process.env.BILLING_ASSET_SCREENSHOTS+'/mobile-invoice-'+width+'.pdf',data);await preview.screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/mobile-invoice-'+width+'.png'});}}
+ await page.setViewportSize({width:1280,height:900});
  if(process.env.BILLING_ASSET_SCREENSHOTS){
   fs.mkdirSync(process.env.BILLING_ASSET_SCREENSHOTS,{recursive:true});
   let html=await page.locator('iframe[title="Billing print preview"]').getAttribute('srcdoc');
@@ -188,7 +191,7 @@ assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
   await surface.locator('.billingFilters > summary').click();await page.screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/billing-filter-preview.png'});await surface.locator('.billingFilters > summary').click();
  }
  await page.setViewportSize({width:390,height:844});await surface.locator('.billingFilters > summary').click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await surface.locator('.billingFilters > summary').click();await page.setViewportSize({width:1280,height:900});
- await surface.getByRole('button',{name:'Settings',exact:true}).click();
+ await page.getByRole('button',{name:'Open billing navigation',exact:true}).click();await page.getByRole('navigation',{name:'Modules',exact:true}).getByRole('button',{name:/Settings/}).click();
  await systemSettings.getByRole('button',{name:'Billing & assets',exact:true}).click();
  await systemSettings.getByRole('button',{name:'Billing settings & assets',exact:true}).click();
  assert.equal(await settings.getByLabel('Signatory name',{exact:true}).inputValue(),'Sample Signatory');
