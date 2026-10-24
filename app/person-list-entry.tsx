@@ -1,10 +1,11 @@
 "use client";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SeikoOrder } from './lib/order-domain';
 import { orderSheetColumns, type SheetPersonEdit } from './lib/order-sheet-model';
 import { parsePersonList, matchPersonHeaders, personListEdits } from './lib/person-list-import';
 export function PersonListEntry({order,busy,canEdit,onSave}:{order:SeikoOrder;busy:boolean;canEdit:boolean;onSave:(edits:SheetPersonEdit[])=>Promise<boolean>}){
  const [text,setText]=useState(''),[headers,setHeaders]=useState(true),[mapping,setMapping]=useState<string[]>([]),[rows,setRows]=useState<string[][]>([]),[review,setReview]=useState<ReturnType<typeof personListEdits>|null>(null),[selected,setSelected]=useState<boolean[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ useEffect(()=>{const guard=(e:BeforeUnloadEvent)=>{if(text.trim()){e.preventDefault();e.returnValue="";}};window.addEventListener("beforeunload",guard);return()=>window.removeEventListener("beforeunload",guard);},[text]);
  const cols=orderSheetColumns(order).filter(c=>!['_record_id','_person_id'].includes(c.id));
  function read(){try{const parsed=parsePersonList(text);if(!parsed.length)throw Error('Paste a list first.');setRows(parsed);setMapping(headers?matchPersonHeaders(order,parsed[0]):parsed[0].map(()=>''));setReview(null);setError('');setNotice('');}catch(e){setError((e as Error).message);}}
  function prepare(){try{const result=personListEdits(order,headers?rows.slice(1):rows,mapping,()=>crypto.randomUUID());if(!result.length)throw Error('No people below the header.');setReview(result);setSelected(result.map(r=>!r.duplicate));setError('');}catch(e){setError((e as Error).message);}}
