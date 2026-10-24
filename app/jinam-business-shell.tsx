@@ -75,7 +75,7 @@ export function JinamBusinessShell<T extends string>({
     </aside>
 
     <main className="jinamShellMain">
-      {back && <div className="jinamContextBar"><button type="button" className="jinamContextBack" onClick={back.onClick}>← {back.label}</button></div>}
+      {back && <div className="jinamContextBar"><button type="button" className="jinamContextBack appBackControl" onClick={back.onClick}>← {back.label}</button></div>}
       {children}
     </main>
   </div>;

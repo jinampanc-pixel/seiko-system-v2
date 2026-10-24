@@ -492,7 +492,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actualOrder?.orderId, businessId]);
 
-  if (!actualOrder) return <div data-source-order-id={actualOrder.orderId} data-source-order-version={actualOrder.updatedAt} className="page labelDesignerPage labelDesignerV2"><section className="panel labelV2Empty"><h2>Open an order to create labels</h2><p>Labels use the people, products, quantities and measurements saved on a real order.</p>{onBack && <button className="secondary" onClick={onBack}>Back</button>}</section></div>;
+  if (!actualOrder) return <div data-source-order-id={actualOrder.orderId} data-source-order-version={actualOrder.updatedAt} className="page labelDesignerPage labelDesignerV2"><section className="panel labelV2Empty"><h2>Open an order to create labels</h2><p>Labels use the people, products, quantities and measurements saved on a real order.</p>{onBack && <button className="secondary appBackControl" onClick={onBack}>Back</button>}</section></div>;
 
   const changeRepresentation = (value: Representation) => {
     setRepresentation(value);
@@ -614,7 +614,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
   };
 
   return <div className="page labelDesignerPage labelDesignerV2">
-    <section className="labelTopbar panel labelV2Topbar"><div><p className="eyebrow">ORDER {actualOrder.details.orderNo} · {purpose.toUpperCase()}</p><h2>Labels for {actualOrder.details.clientName}</h2><p>Create, preview, filter, save and print labels from this order without changing the order itself.</p></div><div className="labelV2TopActions">{onBack && <button className="secondary" onClick={onBack}>← Back to labels</button>}<button className="primary" disabled={!selectedForPrint.length} onClick={() => void printVerified()}>Print · {selectedForPrint.length}</button></div></section>
+    <section className="labelTopbar panel labelV2Topbar"><div><p className="eyebrow">ORDER {actualOrder.details.orderNo} · {purpose.toUpperCase()}</p><h2>Labels for {actualOrder.details.clientName}</h2><p>Create, preview, filter, save and print labels from this order without changing the order itself.</p></div><div className="labelV2TopActions">{onBack && <button className="secondary appBackControl" onClick={onBack}>← Back to labels</button>}<button className="primary" disabled={!selectedForPrint.length} onClick={() => void printVerified()}>Print · {selectedForPrint.length}</button></div></section>
 
     <nav className="labelV2LibraryBar" aria-label="Label libraries"><button className="secondary" onClick={saveLayout}>{activeLayoutId ? "Update layout" : "Save layout"}</button><button onClick={() => setLibrary(library === "layouts" ? null : "layouts")}>Layouts <span>{layouts.length}</span></button><i/><button className="primary labelSetSave" onClick={saveLabelSet}>{activeSetId ? "Update label set" : "Save label set"}</button><button onClick={() => setLibrary(library === "sets" ? null : "sets")}>Label sets <span>{labelSets.filter(item => item.orderId === actualOrder.orderId).length}</span></button></nav>
 

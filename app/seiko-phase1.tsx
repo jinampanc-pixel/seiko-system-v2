@@ -129,7 +129,7 @@ export function SeikoPhase1() {
         if (text === "Order Center") button.textContent = "← Back to Orders";
         if (text === "Back" && button.closest(".ordersPage,.orderSetup,.workspacePage")) button.textContent = "← Back to Orders";
         if (text === "Back" && button.closest(".labelCreateApp,.labelDesigner")) button.textContent = "← Back to Labels";
-        if (button.textContent?.trim().startsWith("← Back")) button.classList.add("contextBackButton");
+        if (button.textContent?.trim().startsWith("← Back")) button.classList.add("contextBackButton","appBackControl");
       });
 
     });

@@ -88,7 +88,7 @@ export default function SavedLabelPrintPage() {
   };
 
   if (!ready) return <main style={{ padding: 32 }}><b>Preparing labels for print…</b></main>;
-  if (!task || !order) return <main style={{ padding: 32 }}><h1>Saved label set not found</h1><button type="button" onClick={() => history.back()}>Back to Labels</button></main>;
+  if (!task || !order) return <main style={{ padding: 32 }}><h1>Saved label set not found</h1><button type="button" onClick={() => history.back()} className="appBackControl">Back to Labels</button></main>;
 
   const isPackingPerson = task.purpose === "packing" && task.sourceMode === "person";
   return <main className="savedLabelPrintRoute" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 32, background: "#f5f1eb", color: "#102d49" }}>

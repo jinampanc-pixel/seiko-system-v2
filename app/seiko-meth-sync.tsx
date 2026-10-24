@@ -148,7 +148,7 @@ export function SeikoMethSync() {
     <section className="seikoPhase2Surface" aria-label="SEIKO MeTh manufacturing">
       <header className="seikoPhase2Head">
         <div>
-          <button className="secondary" onClick={() => setOpen(false)}>← Back to Home</button>
+          <button className="secondary appBackControl" onClick={() => setOpen(false)}>← Back to Home</button>
           <small>SEIKO ↔ METH</small>
           <h1>MeTh manufacturing</h1>
           <p>MeTh customer orders stay in MeTh. SEIKO receives only explicit production handoffs and creates a real receivable for chargeable output.</p>

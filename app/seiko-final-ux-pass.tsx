@@ -414,7 +414,7 @@ function ensureSessionBack() {
     if (!head || head.querySelector(".finalSessionBack")) return;
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "textButton finalSessionBack";
+    button.className = "textButton finalSessionBack appBackControl";
     button.textContent = stack.length ? "← Back" : "← Back";
     button.disabled = !stack.length && window.history.length <= 1;
     button.addEventListener("click", navigateBack);
@@ -423,16 +423,8 @@ function ensureSessionBack() {
   add(document.querySelector<HTMLElement>(".ordersPage .orderCenterHead"));
   add(document.querySelector<HTMLElement>(".labelLauncher .labelLauncherHead"));
 
-  document.querySelectorAll<HTMLButtonElement>(".contextBackButton:not(.orderCenterBackHome)").forEach(button => {
-    if (button.dataset.finalSessionBackReady) return;
-    button.dataset.finalSessionBackReady = "true";
-    button.addEventListener("click", event => {
-      const currentStack = readJson<NavEntry[]>(NAV_STACK_KEY, []);
-      if (!currentStack.length) return;
-      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-      navigateBack();
-    }, true);
-  });
+  // Context controls keep their native return handlers, including save guards.
+
 }
 
 function waitFor(predicate: () => HTMLElement | null, action: (node: HTMLElement) => void, attempts = 80) {

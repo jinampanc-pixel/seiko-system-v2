@@ -16,7 +16,7 @@
     "test": "npm run test:contracts && npm run build && npm run test:render",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "test:smoke": "node tests/stabilization-smoke.cjs --order-workflows && node tests/shared-label-browser.cjs && node tests/backup-browser.cjs && node tests/label-order-cache-browser.cjs && node tests/stabilization-smoke.cjs --billing-assets && node tests/stabilization-smoke.cjs --shared-measurements && node tests/stabilization-smoke.cjs --artwork && node tests/stabilization-smoke.cjs --order-service && node tests/stabilization-smoke.cjs --google-sheets",
+    "test:smoke": "node tests/stabilization-smoke.cjs --order-workflows && node tests/shared-label-browser.cjs && node tests/backup-browser.cjs && node tests/label-order-cache-browser.cjs && node tests/stabilization-smoke.cjs --billing-assets && node tests/stabilization-smoke.cjs --shared-measurements && node tests/stabilization-smoke.cjs --artwork && node tests/stabilization-smoke.cjs --order-service && node tests/stabilization-smoke.cjs --google-sheets && node tests/stabilization-smoke.cjs --responsive-audit",
     "db:migrate": "node scripts/d1-migrations.mjs --local",
     "db:migrate:remote": "node scripts/d1-migrations.mjs --remote",
     "backup:export": "node scripts/business-backup.mjs export",
