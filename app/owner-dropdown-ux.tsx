@@ -36,7 +36,7 @@ function setOwnerOnlyControls(owner: boolean) {
     const typeSelect = row.querySelector<HTMLSelectElement>("select");
     if (typeSelect) {
       const listOption = Array.from(typeSelect.options).find(option => option.value === "dropdown");
-      if (listOption) listOption.textContent = owner ? "Dropdown · manage options" : "Dropdown";
+      if (listOption) listOption.textContent = "Dropdown";
     }
     const optionInput = row.querySelector<HTMLInputElement>(".optionEditor > input");
     if (optionInput) optionInput.placeholder = "+ Add option — type and press Enter";
