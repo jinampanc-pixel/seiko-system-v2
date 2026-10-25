@@ -5,3 +5,5 @@
 .personLookupLaunch{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;min-width:42px;padding:0!important;border:0!important;background:transparent!important;order:-1}.personLookupLaunch svg{display:block;flex:none}.topbarEnd,.globalStandaloneNavEnd{gap:8px}.phase2BrandHeader .personLookupLaunch{margin-left:auto}.phase2BrandHeader .personLookupLaunch+button{margin-left:0}
 
 .personLookupLaunch{order:initial}.topbarEnd .personLookupLaunch,.globalStandaloneNavEnd .personLookupLaunch{order:-1}.phase2BrandHeader .personLookupLaunch{order:1}.phase2BrandHeader>button:not(.personLookupLaunch){order:2}
+
+.personLookupDialog{margin:auto;inset:0;width:min(820px,calc(100vw - 24px));max-height:calc(100dvh - 24px)}

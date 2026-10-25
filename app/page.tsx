@@ -62,6 +62,7 @@ export default function Home() {
   useEffect(()=>{const open=(e:Event)=>{setServiceOrder((e as CustomEvent<SeikoOrder>).detail);setModule("orders");setNavOpen(false);};window.addEventListener("seiko:open-order-service",open);return()=>window.removeEventListener("seiko:open-order-service",open);},[]);
   const [labelOrder,setLabelOrder]=useState<SeikoOrder|null>(null);
   const [labelPurpose,setLabelPurpose]=useState<"production"|"packing"|"inventory"|null>(null);
+  useEffect(()=>{const home=()=>{setModule("home");setNavOpen(false);setThemeOpen(false);setNewOrderRequest(0);setServiceOrder(null);setLabelOrder(null);};window.addEventListener("seiko:home",home);return()=>window.removeEventListener("seiko:home",home);},[]);
   const [labelBatchOrder,setLabelBatchOrder]=useState<SeikoOrder|null>(null);
   const membership = businesses.find(item => item.businessId === businessId) || businesses[0];
   useEffect(() => {

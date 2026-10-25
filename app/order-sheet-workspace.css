@@ -16,3 +16,5 @@
 .entrySpeechToolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0}.entrySpeechToolbar small{color:var(--muted,#48617a)}.entrySpeechToolbar .dictationControl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.entrySpeechToolbar .dictationControl button{min-height:44px;min-width:100px}@media(max-width:600px){.entrySpeechToolbar{gap:6px}.entrySpeechToolbar>small{font-size:10px}}
 
 .orderPeopleEntry .phase2Actions .entrySpeechToolbar{margin:0;gap:8px}.orderPeopleEntry .phase2Actions .entrySpeechToolbar>small{font-size:10px}@media(max-width:600px){.orderPeopleEntry .phase2Actions .entrySpeechToolbar>small{display:none}.orderPeopleEntry .phase2Actions .entrySpeechToolbar .dictationControl button{min-width:72px}}
+
+.orderPeopleEntry,.orderPeopleEntry form,.orderPeopleEntry fieldset{min-width:0;max-width:100%}.orderPeopleEntry .measurementGridScroll{width:100%;min-width:0;box-sizing:border-box}.orderPeopleEntry .measurementGridFieldset{width:100%;min-inline-size:0}.orderPeopleEntry .measurementEntryGrid{min-width:340px}
