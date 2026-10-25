@@ -123,8 +123,11 @@ export function sheetLayoutRequests(cols:SheetColumn[],sheetId=0,order?:SeikoOrd
 export function sheetCountRequests(order:SeikoOrder,cols:SheetColumn[],summarySheetId=1):Record<string,unknown>[]{
  const requests:Record<string,unknown>[]=[];
  const letter=(index:number)=>{let name="";for(let n=index+1;n>0;n=Math.floor((n-1)/26))name=String.fromCharCode(65+(n-1)%26)+name;return name;};
- const nameCol=letter(Math.max(5,cols.findIndex(c=>c.id.startsWith("field:")))),range=(i:number)=>`'People'!${letter(i)}4:${letter(i)}`,names=`'People'!${nameCol}4:${nameCol}`,statuses=range(cols.findIndex(c=>c.id==="_state"));
- const calculated=[{label:"People listed",formula:`=COUNTIF(${names},"<>")`},{label:"Active people (not a billing count)",formula:`=COUNTIFS(${names},"<>",${statuses},"<>Cancelled",${statuses},"<>Hold",${statuses},"<>Awaiting")`},...cols.map((c,i)=>({c,i})).filter(({c})=>c.id.endsWith(usesStructuredRules(order)?":resolved_qty":":assigned_qty")).map(({c,i})=>({label:`${c.groupLabel} — active pieces`,formula:`=SUMIFS(${range(i)},${names},"<>",${statuses},"<>Cancelled",${statuses},"<>Hold",${statuses},"<>Awaiting")`}))];
+ const personField=order.fields.find(f=>/name/i.test(f.name))||order.fields[0];
+ const nameCol=letter(Math.max(5,cols.findIndex(c=>c.id===`field:${personField?.id}`))),range=(i:number)=>`'People'!${letter(i)}4:${letter(i)}`,names=`'People'!${nameCol}4:${nameCol}`,statuses=range(cols.findIndex(c=>c.id==="_state"));
+ // Explicit empty cells and whitespace must not create a person or garment count.
+ const named=`N(LEN(TRIM(${names}&""))>0)`,active=[named,...["cancelled","hold","awaiting"].map(state=>`N(LOWER(TRIM(${statuses}))<>"${state}")`)];
+ const calculated=[{label:"People listed",formula:`=SUMPRODUCT(${named})`},{label:"Active people (not a billing count)",formula:`=SUMPRODUCT(${active.join(",")})`},...cols.map((c,i)=>({c,i})).filter(({c})=>c.id.endsWith(usesStructuredRules(order)?":resolved_qty":":assigned_qty")).map(({c,i})=>({label:`${c.groupLabel} — active pieces`,formula:`=SUMPRODUCT(${active.join(",")},IFERROR(${range(i)}*1,0))`}))];
  requests.push({updateCells:{start:{sheetId:summarySheetId,rowIndex:5,columnIndex:0},rows:calculated.map(row=>({values:[sheetCell(row.label),{userEnteredValue:{formulaValue:row.formula}}]})),fields:"userEnteredValue"}});
  requests.push({autoResizeDimensions:{dimensions:{sheetId:summarySheetId,dimension:"ROWS",startIndex:0,endIndex:5+calculated.length}}});
  return requests;
