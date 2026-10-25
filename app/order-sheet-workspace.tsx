@@ -4,12 +4,13 @@ import type { SeikoOrder } from "./lib/order-domain";
 import { requestOrders, type OrderEnvelope, acceptSharedOrder } from "./lib/order-commands";
 import "./order-sheet-workspace.css";
 import { OrderPersonEntry } from "./order-person-entry";
+import { requestOrderSheet } from "./lib/order-sheet-client";
 import type { SheetPersonEdit } from "./lib/order-sheet-model";
 type Status={connection:{configured:boolean;connected:boolean;accountEmail:string};canConnect:boolean;canCreate:boolean;link:null|{id:string;url:string;status:string;syncedAt:string|null;error:string|null}};
 export function OrderSheetWorkspace({order,onChange,onBack,onSetup,onService,children,initialPersonId,onEntryOpened}:{initialPersonId?:string|null;onEntryOpened?:()=>void;order:SeikoOrder;onChange:(order:SeikoOrder)=>void;onBack:()=>void;onSetup:()=>void;onService:()=>void;children:ReactNode}){
  const [state,setState]=useState<Status|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState("");const statusResult=useRef<Status|null>(null);const pending=useRef(false),autoCreate=useRef(false),latest=useRef(onChange);useEffect(()=>{latest.current=onChange;},[onChange]);
  const action=useCallback(async(operation:string,edit?:SheetPersonEdit)=>{if(pending.current)return false;pending.current=true;setBusy(true);setError("");try{
- const response=await fetch("/api/erp/order-sheets",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({operation,orderId:order.orderId,...(edit?{edit}:{})})}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.message||"Google Sheets is unavailable.");if(result.authorizationUrl){window.location.assign(result.authorizationUrl);return true;}statusResult.current=result;setState(result);
+ const result=await requestOrderSheet({operation,orderId:order.orderId,...(edit?{edit}:{})});if(result.authorizationUrl){window.location.assign(result.authorizationUrl);return true;}statusResult.current=result;setState(result);
  if(operation!=="status"){if(result.envelope){acceptSharedOrder("seiko",result.envelope);latest.current(result.envelope.order);}else{const saved=await requestOrders<{orders:OrderEnvelope[]}>({operation:"list",businessId:"seiko",orderIds:[order.orderId]});if(!saved.ok)throw Error(saved.message);const envelope=saved.data.orders[0];if(envelope){acceptSharedOrder("seiko",envelope);latest.current(envelope.order);}}}
  return true;}catch(e){setError((e as Error).message);return false;}finally{pending.current=false;setBusy(false);}},[order.orderId]);
  useEffect(()=>{void action("status").then(()=>{if(order.googleSheet)void action(statusResult.current?.canCreate?"prepare":"sync");});},[action,order.googleSheet?.id]);

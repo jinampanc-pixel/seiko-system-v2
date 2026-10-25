@@ -2,7 +2,7 @@ import { redactCommercialPrices } from "../../../lib/order-commerce";
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
 import { SheetError, sheetConnectionStatus, beginSheetConnection, createOrderSheet, prepareOrderSheet, refreshOrderSheetStructure, orderSheetLink, syncOrderSheet, saveSheetPerson } from "../../../lib/server-order-sheets";
-const fail=(message:string,status=400)=>Response.json({ok:false,message},{status,headers:{"Cache-Control":"no-store"}});
+const fail=(message:string,status=400,code?:string)=>Response.json({ok:false,message,...(code?{code}:{})},{status,headers:{"Cache-Control":"no-store"}});
 export async function POST(request:Request){
  if(request.headers.get("origin")&&request.headers.get("origin")!==new URL(request.url).origin)return fail("Invalid request origin.",403);
  const actor=await authenticateActor(request);if(!actor)return fail("Sign in required.",401);
@@ -24,5 +24,5 @@ export async function POST(request:Request){
  const link=await orderSheetLink(db,body.orderId),connection=await sheetConnectionStatus(db);
  const envelope=savedPerson?{order:await authorizePermission(actor,"seiko","financials.view")?savedPerson.order:redactCommercialPrices(savedPerson.order),version:savedPerson.version,updatedAt:savedPerson.order.updatedAt,updatedBy:actor.email}:undefined;
  return Response.json({ok:true,envelope,connection,canConnect:owner,canCreate:canEdit,link:link?{id:link.spreadsheet_id,url:link.spreadsheet_url,status:link.status,syncedAt:link.synced_at,error:link.error}:null},{headers:{"Cache-Control":"no-store"}});
- }catch(e){return fail(e instanceof SheetError?e.message:"Google Sheets could not be loaded. Your saved order records remain safe.",e instanceof SheetError?e.status:503);}
+ }catch(e){return fail(e instanceof SheetError?e.message:"Google Sheets could not be loaded. Your saved order records remain safe.",e instanceof SheetError?e.status:503,e instanceof SheetError?e.code:undefined);}
 }

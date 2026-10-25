@@ -6,7 +6,7 @@ type DB=Pick<NonNullable<typeof env.DB>,"prepare"|"batch">;
 type Link={people_sheet_id:number;order_id:string;spreadsheet_id:string|null;spreadsheet_url:string|null;status:string;synced_at:string|null;checked_at:string|null;error:string|null;lease_token:string|null;lease_until:string|null;created_by:string};
 type Connection={ciphertext:string;iv:string;account_email:string};
 type Token={refreshToken:string;subject:string;email:string};
-export class SheetError extends Error { constructor(message:string,public status=409){super(message);} }
+export class SheetError extends Error { constructor(message:string,public status=409,public code?:string){super(message);} }
 const scope="https://www.googleapis.com/auth/drive.file openid email";
 const callbackPath="/api/erp/order-sheets/callback";
 const b64=(b:ArrayBuffer|Uint8Array)=>Buffer.from(b instanceof Uint8Array?b:new Uint8Array(b)).toString("base64url");
@@ -45,7 +45,7 @@ export async function orderSheetLink(db:DB,id:string){
  await db.prepare("INSERT INTO seiko_order_sheets(order_id,spreadsheet_id,spreadsheet_url,people_sheet_id,status,created_by) VALUES(?,?,?,?,'ready','restored-order-link') ON CONFLICT(order_id) DO NOTHING").bind(id,sheet.id,sheet.url,sheet.peopleSheetId||0).run();row=await db.prepare("SELECT * FROM seiko_order_sheets WHERE order_id=?").bind(id).first<Link>();}
  return row;
 }
-async function claim(db:DB,id:string,actor:Actor){const token=crypto.randomUUID(),now=new Date().toISOString();const r=await db.prepare("INSERT INTO seiko_order_sheets(order_id,status,lease_token,lease_until,created_by) VALUES(?,'creating',?,?,?) ON CONFLICT(order_id) DO UPDATE SET lease_token=excluded.lease_token,lease_until=excluded.lease_until WHERE lease_until IS NULL OR lease_until<?").bind(id,token,new Date(Date.now()+300000).toISOString(),actor.email,now).run();if(!r.meta.changes)throw new SheetError("This order is already syncing. Wait for it to finish before retrying.");return token;}
+async function claim(db:DB,id:string,actor:Actor){const token=crypto.randomUUID(),now=new Date().toISOString();const r=await db.prepare("INSERT INTO seiko_order_sheets(order_id,status,lease_token,lease_until,created_by) VALUES(?,'creating',?,?,?) ON CONFLICT(order_id) DO UPDATE SET lease_token=excluded.lease_token,lease_until=excluded.lease_until WHERE lease_until IS NULL OR lease_until<?").bind(id,token,new Date(Date.now()+300000).toISOString(),actor.email,now).run();if(!r.meta.changes)throw new SheetError("Another sync is using this order. Your entry is retained; retry shortly.",409,"SHEET_BUSY");return token;}
 async function release(db:DB,id:string,lease:string,error?:string){await db.prepare("UPDATE seiko_order_sheets SET lease_token=NULL,lease_until=NULL,error=COALESCE(?,error) WHERE order_id=? AND lease_token=?").bind(error||null,id,lease).run();}
 async function orderRow(db:DB,id:string){const row=await db.prepare("SELECT document_json,version FROM erp_orders WHERE id=? AND business_id='seiko' AND json_extract(document_json,'$.deletedAt') IS NULL").bind(id).first<{document_json:string;version:number}>();if(!row)throw new SheetError("Order not found.",404);return {...row,order:JSON.parse(row.document_json) as SeikoOrder};}
 export async function createOrderSheet(db:DB,actor:Actor,id:string){
@@ -102,10 +102,10 @@ export async function refreshOrderSheetStructure(db:DB,actor:Actor,id:string){
  }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
  return syncOrderSheet(db,actor,id);
 }
-export async function syncOrderSheet(db:DB,actor:Actor,id:string,force=true,existingToken?:string){
+export async function syncOrderSheet(db:DB,actor:Actor,id:string,force=true,existingToken?:string,existingLease?:string){
  const before=await orderSheetLink(db,id);if(!before?.spreadsheet_id)return null;
  if(!force&&before.checked_at&&Date.now()-Date.parse(before.checked_at)<60000){if(before.error)throw new SheetError(before.error);return null;}
- const lease=await claim(db,id,actor);try{
+ const lease=existingLease||await claim(db,id,actor);try{
  const source=await orderRow(db,id),token=existingToken||await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(before.spreadsheet_id)}`;
  const result=await google(token,`${base}/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`);
  const table:unknown[][]=result.values||[];if(table.some(row=>row.some(v=>typeof v==="string"&&/^#(REF!|VALUE!|DIV\/0!|N\/A|ERROR!|NAME\?|NUM!)/.test(v))))throw new SheetError("Resolve formula errors in People before syncing. No app records were changed.");
@@ -114,18 +114,19 @@ export async function syncOrderSheet(db:DB,actor:Actor,id:string,force=true,exis
  const changed=JSON.stringify(parsed.order.records)!==JSON.stringify(source.order.records)||JSON.stringify(parsed.order.commerce?.people)!==JSON.stringify(source.order.commerce?.people);
  const now=new Date().toISOString();if(changed){const saved={...parsed.order,updatedAt:now,revisions:[...(source.order.revisions||[]),{revision:(source.order.revisions?.length||0)+1,at:now,reason:"Person records synchronized from Google Sheets",recordCount:parsed.order.records.length}]};const json=JSON.stringify(saved);const write=await db.prepare("UPDATE erp_orders SET document_json=?,version=version+1,updated_at=?,updated_by_user_id=?,updated_by_email=? WHERE id=? AND version=? AND document_json=? AND EXISTS(SELECT 1 FROM seiko_order_sheets WHERE order_id=? AND lease_token=?)").bind(json,now,actor.userId,actor.email,id,source.version,source.document_json,id,lease).run();if(!write.meta.changes)throw new SheetError("The order changed while Sheets was syncing. Retry to merge with the latest saved order.");}
  await db.prepare("UPDATE seiko_order_sheets SET status='ready',synced_at=?,checked_at=?,error=NULL WHERE order_id=? AND lease_token=?").bind(now,now,id,lease).run();return await orderRow(db,id);
- }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
+ }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{if(!existingLease)await release(db,id,lease);}
 }
 
 export async function saveSheetPerson(db:DB,actor:Actor,id:string,edit:SheetPersonEdit){
  const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError("Connect this order’s Google Sheet before entering measurements.");
- const lease=await claim(db,id,actor);let saveToken:string|undefined;try{
+ const lease=await claim(db,id,actor);try{
   const source=await orderRow(db,id),token=await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(link.spreadsheet_id)}`;
-  saveToken=token;const result=await google(token,base+"/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING");
+  const result=await google(token,base+"/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING");
   let editPlan:ReturnType<typeof prepareSheetPersonEdit>;try{editPlan=prepareSheetPersonEdit(source.order,result.values||[],edit);}catch(e){throw new SheetError((e as Error).message);}
   const requests=editPlan.adding?[{appendCells:{sheetId:link.people_sheet_id,rows:[{values:Array.from(editPlan.values,v=>sheetCell(typeof v==="number"?v:String(v??"")))}],fields:"userEnteredValue"}}]:editPlan.updates.map(u=>({updateCells:{start:{sheetId:link.people_sheet_id,rowIndex:editPlan.row,columnIndex:u.column},rows:[{values:[sheetCell(u.value)]}],fields:"userEnteredValue"}}));
   if(requests.length)await google(token,base+":batchUpdate",{requests});
+  // Keep the lease through confirmation. A retry reuses the same person identity
+  // if the sheet write succeeded but its confirmation was interrupted.
+  return await syncOrderSheet(db,actor,id,true,token,lease);
  }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
- // If this read fails the row is still saved in Sheets; retry uses the same identity.
- return syncOrderSheet(db,actor,id,true,saveToken);
 }
