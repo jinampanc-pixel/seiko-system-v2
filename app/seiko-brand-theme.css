@@ -55,3 +55,6 @@ body[data-seiko-palette="true"] .productionPage .identityFlow span.on{color:var(
 body[data-seiko-palette="true"] .themePreview>span,body[data-seiko-palette="true"] .themePreview>b{color:var(--paper)!important}
 
 @media(max-width:600px){.ordersPage .orderCenterOperationalMeta>span{gap:0!important}.ordersPage .orderCenterOperationalMeta{row-gap:4px!important}}
+
+/* Modal widths are relative to the padded overlay, not the viewport. */
+.phase2Scrim>.phase2Editor{width:min(820px,100%);max-width:100%;min-width:0;box-sizing:border-box}.phase2Scrim>.billingPreview{width:min(1120px,100%);max-width:100%;min-width:0;box-sizing:border-box}
