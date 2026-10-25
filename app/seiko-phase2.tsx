@@ -3,6 +3,7 @@
 import { useDialogInteractions } from "./dialog-interactions";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useCachedOrders } from "./lib/use-cached-orders";
 import { SeikoBillingWorkspace } from "./seiko-billing-workspace";
 import { SeikoClientDirectory } from "./seiko-client-directory";
 import { startDomEnhancement } from "./lib/dom-enhancement";
@@ -35,6 +36,7 @@ function writeStore<T>(key: string, value: T) { const encoded = JSON.stringify(v
 export function SeikoPhase2() {
   useDialogInteractions();
   const businessId = "seiko";
+  const orders = useCachedOrders(businessId);
   const [view, setView] = useState<Phase2View>(null);
   const [billingAction, setBillingAction] = useState<"payment" | "payments" | "invoice" | "quotation" | "challan" | null>(null);
   const [billingOrderId, setBillingOrderId] = useState("");
@@ -145,7 +147,7 @@ export function SeikoPhase2() {
   const saveTemplates = (next: SeikoTemplateSet) => { setTemplates(next); writeStore(templateStoreKey(businessId), next); };
 
   if (!view || typeof document === "undefined") return null;
-  const orders = readStore<SeikoOrder[]>(orderStoreKey(businessId), []);
+
   return createPortal(<section className="seikoPhase2Surface" aria-label={`SEIKO ${view}`}>
     <header className="phase2BrandHeader"><img src="/brands/seiko-logo-transparent.png" alt="SEIKO Tailors"/><button type="button" className="menuToggle" aria-label="Open billing navigation" onClick={()=>{setView(null);document.querySelector<HTMLButtonElement>('.app .topbar .menuToggle[aria-expanded="false"]')?.click();}}><span/><span/><span/></button></header><header className="seikoPhase2Head"><div><button type="button" className="secondary appBackControl" onClick={() => {setView(null);window.dispatchEvent(new Event("seiko:home"));}}>← Back to Home</button><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
     {view === "clients" && <SeikoClientDirectory legacyRecords={clients}/>} {/* shared client directory */}
