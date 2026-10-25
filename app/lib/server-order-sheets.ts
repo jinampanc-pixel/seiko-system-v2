@@ -80,32 +80,33 @@ async function markSource(db:DB,actor:Actor,id:string,link:Link){
  const result=await db.prepare("UPDATE erp_orders SET document_json=?,version=version+1,updated_at=?,updated_by_user_id=?,updated_by_email=? WHERE id=? AND version=?").bind(JSON.stringify(saved),now,actor.userId,actor.email,id,source.version).run();if(!result.meta.changes)throw new SheetError("The order changed while its sheet was linking. Retry to retain the newest order.");
 }
 /** Bring new rule result/exception columns across once, without repeatedly resetting a user's sheet layout. */
-export async function prepareOrderSheet(db:DB,actor:Actor,id:string){const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)return null;const source=await orderRow(db,id),token=await accessToken(db),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(link.spreadsheet_id);const header=await google(token,base+'/values/People!1:1?valueRenderOption=UNFORMATTED_VALUE'),keys=(header.values?.[0]||[]).map(String);if(orderSheetColumns(source.order).some(c=>!keys.includes(c.id)))return refreshOrderSheetStructure(db,actor,id);return syncOrderSheet(db,actor,id);}
+export async function prepareOrderSheet(db:DB,actor:Actor,id:string){const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)return null;const source=await orderRow(db,id),token=await accessToken(db),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(link.spreadsheet_id);const header=await google(token,base+'/values/People!1:3?valueRenderOption=UNFORMATTED_VALUE'),keys=(header.values?.[0]||[]).map(String);if(orderSheetColumns(source.order).some((c,i)=>keys[i]!==c.id||header.values?.[2]?.[i]!==c.label))return refreshOrderSheetStructure(db,actor,id);return syncOrderSheet(db,actor,id);}
 export async function refreshOrderSheetStructure(db:DB,actor:Actor,id:string){
  const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError("Create this order’s Google Sheet first.");
  const lease=await claim(db,id,actor);try{
  const source=await orderRow(db,id),token=await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(link.spreadsheet_id)}`;
  const header=await google(token,`${base}/values/People!1:3?valueRenderOption=UNFORMATTED_VALUE`),keys:string[]=(header.values?.[0]||[]).map(String);
  if(keys[0]!=="_record_id"||keys[1]!=="_person_id"||new Set(keys.filter(Boolean)).size!==keys.filter(Boolean).length)throw new SheetError("Restore the People header and its first two identity columns before updating the sheet structure.");
- const cols=orderSheetColumns(source.order),missing=cols.filter(c=>!keys.includes(c.id)),all=[...keys,...missing.map(c=>c.id)],known=new Map(cols.map(c=>[c.id,c]));
+ const cols=orderSheetColumns(source.order),missing=cols.filter(c=>!keys.includes(c.id)),all=[...cols.map(c=>c.id),...keys.filter(k=>!cols.some(c=>c.id===k))],known=new Map(cols.map(c=>[c.id,c]));
  const metadata=await google(token,`${base}?fields=sheets.properties`),grid=metadata.sheets.find((s:{properties:{sheetId:number}})=>s.properties.sheetId===link.people_sheet_id)?.properties.gridProperties;
  if(!grid)throw new SheetError("The People worksheet could not be found.");
  const requests:unknown[]=[];if(all.length>grid.columnCount)requests.push({updateSheetProperties:{properties:{sheetId:link.people_sheet_id,gridProperties:{columnCount:all.length}},fields:"gridProperties.columnCount"}});
- const rows=[all,all.map((key,i)=>known.get(key)?.groupLabel||header.values?.[1]?.[i]||""),all.map((key,i)=>known.get(key)?.label||header.values?.[2]?.[i]||"")];
+ const rows=[all,all.map(key=>known.get(key)?.groupLabel||header.values?.[1]?.[keys.indexOf(key)]||""),all.map(key=>known.get(key)?.label||header.values?.[2]?.[keys.indexOf(key)]||"")];
  requests.push({unmergeCells:{range:{sheetId:link.people_sheet_id,startRowIndex:1,endRowIndex:2,startColumnIndex:0,endColumnIndex:all.length}}});
+ const currentKeys=[...keys,...missing.map(c=>c.id)];for(let target=0;target<all.length;target++){const from=currentKeys.indexOf(all[target]);if(from!==target){requests.push({moveDimension:{source:{sheetId:link.people_sheet_id,dimension:"COLUMNS",startIndex:from,endIndex:from+1},destinationIndex:target}});currentKeys.splice(target,0,currentKeys.splice(from,1)[0]);}}
  requests.push({updateCells:{start:{sheetId:link.people_sheet_id,rowIndex:0,columnIndex:0},rows:rows.map(row=>({values:row.map(sheetCell)})),fields:"userEnteredValue"}});
- requests.push(...sheetLayoutRequests(all.map(id=>known.get(id)||{id,label:id,groupId:id,groupLabel:id,required:false}),link.people_sheet_id));
+ requests.push(...sheetLayoutRequests(all.map(id=>known.get(id)||{id,label:id,groupId:id,groupLabel:id,required:false}),link.people_sheet_id,source.order));
  const summary=metadata.sheets.find((s:{properties:{title:string;sheetId:number}})=>s.properties.title==='Order & totals');if(summary)requests.push(...sheetCountRequests(source.order,all.map(id=>known.get(id)||{id,label:id,groupId:id,groupLabel:id,required:false}),summary.properties.sheetId));
  await google(token,`${base}:batchUpdate`,{requests});
  await db.prepare("UPDATE seiko_order_sheets SET error=NULL WHERE order_id=? AND lease_token=?").bind(id,lease).run();
  }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
  return syncOrderSheet(db,actor,id);
 }
-export async function syncOrderSheet(db:DB,actor:Actor,id:string,force=true){
+export async function syncOrderSheet(db:DB,actor:Actor,id:string,force=true,existingToken?:string){
  const before=await orderSheetLink(db,id);if(!before?.spreadsheet_id)return null;
  if(!force&&before.checked_at&&Date.now()-Date.parse(before.checked_at)<60000){if(before.error)throw new SheetError(before.error);return null;}
  const lease=await claim(db,id,actor);try{
- const source=await orderRow(db,id),token=await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(before.spreadsheet_id)}`;
+ const source=await orderRow(db,id),token=existingToken||await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(before.spreadsheet_id)}`;
  const result=await google(token,`${base}/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`);
  const table:unknown[][]=result.values||[];if(table.some(row=>row.some(v=>typeof v==="string"&&/^#(REF!|VALUE!|DIV\/0!|N\/A|ERROR!|NAME\?|NUM!)/.test(v))))throw new SheetError("Resolve formula errors in People before syncing. No app records were changed.");
  let parsed:ReturnType<typeof readOrderSheet>;try{parsed=readOrderSheet(source.order,table,()=>crypto.randomUUID());}catch(e){throw new SheetError((e as Error).message);}
@@ -118,13 +119,13 @@ export async function syncOrderSheet(db:DB,actor:Actor,id:string,force=true){
 
 export async function saveSheetPerson(db:DB,actor:Actor,id:string,edit:SheetPersonEdit){
  const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError("Connect this order’s Google Sheet before entering measurements.");
- const lease=await claim(db,id,actor);try{
+ const lease=await claim(db,id,actor);let saveToken:string|undefined;try{
   const source=await orderRow(db,id),token=await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(link.spreadsheet_id)}`;
-  const result=await google(token,base+"/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING");
+  saveToken=token;const result=await google(token,base+"/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING");
   let editPlan:ReturnType<typeof prepareSheetPersonEdit>;try{editPlan=prepareSheetPersonEdit(source.order,result.values||[],edit);}catch(e){throw new SheetError((e as Error).message);}
   const requests=editPlan.adding?[{appendCells:{sheetId:link.people_sheet_id,rows:[{values:Array.from(editPlan.values,v=>sheetCell(typeof v==="number"?v:String(v??"")))}],fields:"userEnteredValue"}}]:editPlan.updates.map(u=>({updateCells:{start:{sheetId:link.people_sheet_id,rowIndex:editPlan.row,columnIndex:u.column},rows:[{values:[sheetCell(u.value)]}],fields:"userEnteredValue"}}));
   if(requests.length)await google(token,base+":batchUpdate",{requests});
  }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
  // If this read fails the row is still saved in Sheets; retry uses the same identity.
- return syncOrderSheet(db,actor,id);
+ return syncOrderSheet(db,actor,id,true,saveToken);
 }

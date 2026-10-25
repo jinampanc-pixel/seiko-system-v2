@@ -1,3 +1,4 @@
+import { redactCommercialPrices } from "../../../lib/order-commerce";
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
 import { SheetError, sheetConnectionStatus, beginSheetConnection, createOrderSheet, prepareOrderSheet, refreshOrderSheetStructure, orderSheetLink, syncOrderSheet, saveSheetPerson } from "../../../lib/server-order-sheets";
@@ -17,9 +18,11 @@ export async function POST(request:Request){
  if(body.operation==="create"){if(!canEdit)return fail("Order edit access is required to create its Google Sheet.",403);await createOrderSheet(db,actor,body.orderId);await syncOrderSheet(db,actor,body.orderId);}
  if(body.operation==="prepare"){if(!canEdit)return fail("Order edit access is required to update sheet columns.",403);await prepareOrderSheet(db,actor,body.orderId);}
  if(body.operation==="refresh"){if(!canEdit)return fail("Order edit access is required to update sheet columns.",403);await refreshOrderSheetStructure(db,actor,body.orderId);}
- if(body.operation==="save-person"){if(!canEdit)return fail("Order edit access is required to save a person.",403);if(!body.edit||typeof body.edit.changes!=="object"||!body.edit.changes||!body.edit.expected||typeof body.edit.expected!=="object")return fail("Enter person details.");await saveSheetPerson(db,actor,body.orderId,body.edit);}
+ let savedPerson:Awaited<ReturnType<typeof saveSheetPerson>>=null;
+ if(body.operation==="save-person"){if(!canEdit)return fail("Order edit access is required to save a person.",403);if(!body.edit||typeof body.edit.changes!=="object"||!body.edit.changes||!body.edit.expected||typeof body.edit.expected!=="object")return fail("Enter person details.");savedPerson=await saveSheetPerson(db,actor,body.orderId,body.edit);}
  if(body.operation==="sync")await syncOrderSheet(db,actor,body.orderId);
  const link=await orderSheetLink(db,body.orderId),connection=await sheetConnectionStatus(db);
- return Response.json({ok:true,connection,canConnect:owner,canCreate:canEdit,link:link?{id:link.spreadsheet_id,url:link.spreadsheet_url,status:link.status,syncedAt:link.synced_at,error:link.error}:null},{headers:{"Cache-Control":"no-store"}});
+ const envelope=savedPerson?{order:await authorizePermission(actor,"seiko","financials.view")?savedPerson.order:redactCommercialPrices(savedPerson.order),version:savedPerson.version,updatedAt:savedPerson.order.updatedAt,updatedBy:actor.email}:undefined;
+ return Response.json({ok:true,envelope,connection,canConnect:owner,canCreate:canEdit,link:link?{id:link.spreadsheet_id,url:link.spreadsheet_url,status:link.status,syncedAt:link.synced_at,error:link.error}:null},{headers:{"Cache-Control":"no-store"}});
  }catch(e){return fail(e instanceof SheetError?e.message:"Google Sheets could not be loaded. Your saved order records remain safe.",e instanceof SheetError?e.status:503);}
 }

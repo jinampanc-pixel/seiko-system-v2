@@ -11,6 +11,7 @@ function load(path, imports = {}) {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { exports, require: name => {
+    if(name==="./measurement-entry-grid")return load("app/lib/measurement-entry-grid.ts",{"./order-domain":imports["./order-domain"]});
     if(name==="./packing-label-model"&&!imports[name])return load("app/lib/packing-label-model.ts",{"./order-domain":imports["./order-domain"]});
     if(name.endsWith("server-order-sheets"))return {syncOrderSheet:async()=>{},orderSheetLink:async()=>({synced_at:new Date().toISOString()})};
     assert.ok(imports[name], `Unexpected import: ${name}`);
