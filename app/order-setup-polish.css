@@ -16,7 +16,7 @@
 .orderSetup>.clientDetails{grid-column:1}
 .orderSetup>.personDetails{grid-column:2}
 .orderSetup>.clientDetails,
-.orderSetup>.personDetails{margin-bottom:0!important;height:100%}
+.orderSetup>.personDetails{margin-bottom:0!important;height:auto;align-self:start}
 .orderSetup>.personDetails .sectionTitle{align-items:flex-start}
 .orderSetup>.personDetails .sectionTitle p{max-width:300px}
 .orderSetup>.personDetails .policyRow{
