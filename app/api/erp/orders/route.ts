@@ -354,7 +354,7 @@ function validateOrder(candidate: OrderLike | undefined): { ok: true; orderId: s
   } catch {
     return { ok: false, message: "Order data is invalid." };
   }
-  if(candidate?.commerce){const problem=validateCommerce(candidate as unknown as SeikoOrder);if(problem)return {ok:false,message:problem};}
+  if(candidate?.commerce||Array.isArray((candidate as unknown as SeikoOrder)?.products)){const problem=validateCommerce(candidate as unknown as SeikoOrder);if(problem)return {ok:false,message:problem};}
   return { ok: true, orderId, orderNo };
 }
 

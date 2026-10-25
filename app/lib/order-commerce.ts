@@ -1,7 +1,7 @@
 import { packingQuantities } from "./packing-label-model";
-import { groupRuleMatches, workspaceColumns, type OrderRecord, type SeikoOrder } from "./order-domain";
+import { orderRuleErrors, predicateState, specificationForRecord, recordRuleIssues, measurementRequired, type RulePredicate, workspaceColumns, type OrderRecord, type SeikoOrder } from "./order-domain";
 
-export type PriceRule = { id:string; name:string; mode:"package"|"product"|"fixed"; rate:number; taxRate:number; hsnSac:string; fieldId:string; match:string; contents:{productId:string;quantity:number;alternatives?:string[]}[] };
+export type PriceRule = RulePredicate & { id:string; name:string; mode:"package"|"product"|"fixed"; rate:number; taxRate:number; hsnSac:string; fieldId:string; match:string; contents:{productId:string;quantity:number;alternatives?:string[]}[] };
 export type PersonCommercial = { state:"active"|"awaiting"|"hold"|"cancelled"; reason:string; overrideReason?:string; readySize?:string; batch?:string; rateOverrides?:Record<string,number> };
 export type DeliveryEntry = { id:string; date:string; recordId:string; productId:string; quantity:number; kind:"delivery"|"return"|"replacement"; issueId?:string; reference:string; at:string };
 export type ServiceIssue = { id:string; recordId:string; productId:string; type:"fitting"|"missing"|"wrong_item"|"new_person"|"removal"|"other"; description:string; owner:string; promisedDate:string; status:"open"|"in_progress"|"resolved"; chargeable:boolean; extraCharge:number; taxRate?:number; hsnSac?:string; history:{at:string;status:string;note:string}[] };
@@ -28,17 +28,19 @@ export function recordEligibility(order:SeikoOrder,record:OrderRecord,productIds
   if(record.held)return {eligible:false,reason:"On hold"};
   if(order.fields.some(f=>/status|cancel/i.test(f.name)&&/^(cancelled|canceled|removed)$/i.test(String(record.values[`field:${f.id}`]||"").trim())))return {eligible:false,reason:"Cancelled in person details"};
   let cols=eligibilityColumns.get(order);if(!cols){cols=workspaceColumns(order);eligibilityColumns.set(order,cols);}
+  const ruleIssues=recordRuleIssues(order,record);if(ruleIssues.length)return {eligible:false,reason:ruleIssues.join("; ")};
   const assigned=productIds.filter(id=>assignedQuantity(order,record,id,quantities)>0);
   if(!assigned.length)return {eligible:false,reason:"No assigned garments / awaiting measurements"};
   if(person?.overrideReason?.trim())return {eligible:true,reason:"Override: "+person.overrideReason};
   if(person?.readySize?.trim())return {eligible:true,reason:"Standard size: "+person.readySize};
   for(const id of assigned){
     const product=order.products.find(p=>p.id===id);if(!product) return {eligible:false,reason:"Package product was removed"};
-    const measurements=order.measurements.filter(m=>m.appliesTo.includes(id));
-    const required=measurements.filter(m=>m.requiredMode!=="Optional");
+    const measurements=order.measurements.filter(m=>m.appliesTo.includes(id)&&(!m.requiredWhen?.conditions?.length||measurementRequired(m,record)));
+    const required=measurements.filter(m=>measurementRequired(m,record));
     const has=(m:typeof measurements[number])=>present(record.values[m.shared?`measurement:${m.id}:shared`:`measurement:${m.id}:product:${id}`]);
-    const size=product.specifications.some(s=>/size/i.test(s.name)&&present(s.mode==="per_person"?record.values[`spec:${s.id}`]:s.mode==="default_with_exceptions"?record.values[`spec:${s.id}:override`]||s.defaultValue:s.mode==="by_group"?s.groupRules.find(g=>groupRuleMatches(g.match,String(record.values[`field:${s.groupFieldId}`]||"")))?.value:s.defaultValue));
-    if(!size&&(!measurements.length||!measurements.some(has)||required.some(m=>!has(m))))return {eligible:false,reason:`Awaiting measurements or standard size: ${product.name}`};
+    const size=product.specifications.some(s=>/size/i.test(s.name)&&present(specificationForRecord(s,record)));
+    if(!size&&(!measurements.length&&!order.measurements.some(m=>m.appliesTo.includes(id)&&m.requiredWhen?.conditions?.length)||measurements.length>0&&!measurements.some(has)||required.some(m=>!has(m))))return {eligible:false,reason:`Awaiting measurements or standard size: ${product.name}`};
+    if(product.specifications.some(s=>s.role!=="asset"&&s.required&&!present(specificationForRecord(s,record))))return {eligible:false,reason:`Incomplete product details: ${product.name}`};
     if(cols.some(c=>c.groupId===`product:${id}`&&c.required&&c.id.startsWith("spec:")&&!present(record.values[c.id])))return {eligible:false,reason:`Incomplete product details: ${product.name}`};
   }
   return {eligible:true,reason:"Ready"};
@@ -61,12 +63,12 @@ export function pricingQuote(order:SeikoOrder,basis:"eligible"|"delivered"="elig
     const bulk=rule.mode==="product"&&order.products.find(p=>p.id===rule.contents[0]?.productId)?.quantityMode==="order_total";
     const records=rule.mode==="fixed"||bulk?[{recordId:"order",personId:"",values:{}} as OrderRecord]:order.records;
     for(const record of records){
-      if(rule.fieldId&&!groupRuleMatches(rule.match,String(record.values[`field:${rule.fieldId}`]||"")))continue;
+      const condition=predicateState(rule,record,rule.fieldId);if(condition!=="match"){if(condition==="pending")excluded.push({recordId:record.recordId,ruleId:rule.id,reason:"Pricing conditions pending"});continue;}
       const resolve=(r:PriceRule)=>r.contents.filter(x=>x.quantity>0).map(x=>({...x,productId:[x.productId,...(x.alternatives||[])].find(id=>assignedQuantity(order,record,id,quantities)>0)||x.productId}));
       const contents=resolve(rule);
       const state=rule.mode==="fixed"||bulk?{eligible:order.status!=="Cancelled",reason:"Order cancelled"}:recordEligibility(order,record,contents.map(x=>x.productId),quantities);
       if(!state.eligible){excluded.push({recordId:record.recordId,ruleId:rule.id,reason:state.reason});continue;}
-      const matching=c.rules.filter(r=>r.mode!=="fixed"&&(!r.fieldId||groupRuleMatches(r.match,String(record.values[`field:${r.fieldId}`]||""))));
+      const matching=c.rules.filter(r=>r.mode!=="fixed"&&predicateState(r,record,r.fieldId)==="match");
       const signature=(r:PriceRule)=>r.contents.map(x=>`${[x.productId,...(x.alternatives||[])].sort().join("/")}:${x.quantity}`).sort().join("|");
       if(rule.mode!=="fixed"&&matching.filter(r=>r.mode===rule.mode&&signature(r)===signature(rule)).length>1){excluded.push({recordId:record.recordId,ruleId:rule.id,reason:"Overlapping price rules. Make their groups distinct."});continue;}
       const packageQuantity=(id:string)=>matching.filter(r=>r.mode==="package").reduce((n,r)=>n+resolve(r).filter(x=>x.productId===id).reduce((a,x)=>a+x.quantity,0),0);
@@ -96,11 +98,12 @@ export function pricingDelta(desired:PriceUnit[],booked:PriceUnit[]) {
   return [...map.values()].filter(u=>Math.abs(u.amount)>=.01||u.quantity!==0);
 }
 export function validateCommerce(order:SeikoOrder, previous?:SeikoOrder):string {
+  const ruleProblem=orderRuleErrors(order);if(ruleProblem.length)return ruleProblem.join(" ");
   if(!order.commerce)return previous?.commerce?"Commercial history cannot be removed.":"";
   const c=order.commerce;
   if(!Array.isArray(c.rules)||!Array.isArray(c.deliveries)||!Array.isArray(c.issues)||!c.people||typeof c.people!=="object")return "Invalid order commercial details.";
   if(c.rules.length>100||c.deliveries.length>10000||c.issues.length>3000)return "Commercial record limit reached.";
-  if(new Set(c.rules.map(r=>r.id)).size!==c.rules.length||c.rules.some(r=>!r.id||!r.name?.trim()||!["package","product","fixed"].includes(r.mode)||!Number.isFinite(r.rate)||r.rate<0||r.rate>1e9||cents(r.rate)!==r.rate||!Number.isFinite(r.taxRate)||r.taxRate<0||r.taxRate>100||!Array.isArray(r.contents)||(r.mode!=="fixed"&&!r.contents.length)||new Set(r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])])).size!==r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])]).length||r.mode==="product"&&r.contents.length!==1||r.contents.some(x=>![x.productId,...(x.alternatives||[])].every(id=>order.products.some(p=>p.id===id))||!Number.isInteger(x.quantity)||x.quantity<=0)||(r.fieldId&&(!order.fields.some(f=>f.id===r.fieldId)||!r.match?.trim()))))return "Complete every price rule, product, group and rate.";
+  if(new Set(c.rules.map(r=>r.id)).size!==c.rules.length||c.rules.some(r=>!r.id||!r.name?.trim()||!["package","product","fixed"].includes(r.mode)||!Number.isFinite(r.rate)||r.rate<0||r.rate>1e9||cents(r.rate)!==r.rate||!Number.isFinite(r.taxRate)||r.taxRate<0||r.taxRate>100||!Array.isArray(r.contents)||(r.mode!=="fixed"&&!r.contents.length)||new Set(r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])])).size!==r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])]).length||r.mode==="product"&&r.contents.length!==1||r.contents.some(x=>![x.productId,...(x.alternatives||[])].every(id=>order.products.some(p=>p.id===id))||!Number.isInteger(x.quantity)||x.quantity<=0)||(!r.conditions?.length&&r.fieldId&&(!order.fields.some(f=>f.id===r.fieldId)||!r.match?.trim()))))return "Complete every price rule, product, group and rate.";
   for(const [id,p] of Object.entries(c.people)){if(!order.records.some(r=>r.recordId===id)||!["active","awaiting","hold","cancelled"].includes(p.state)||p.state!=="active"&&!p.reason?.trim()||p.overrideReason!==undefined&&!p.overrideReason.trim()||Object.values(p.rateOverrides||{}).some(n=>!Number.isFinite(n)||n<0||n>1e9||cents(n)!==n))return "Use valid person states, prices and reasons.";}
   const old=previous?.commerce;
   if(old&&[...old.deliveries,...old.issues].some(x=>x.recordId!=="order"&&!order.records.some(r=>r.recordId===x.recordId)))return "Preserve people with delivery or query history. Cancel them in People & eligibility instead of deleting their row.";

@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
-import { SheetError, sheetConnectionStatus, beginSheetConnection, createOrderSheet, refreshOrderSheetStructure, orderSheetLink, syncOrderSheet, saveSheetPerson } from "../../../lib/server-order-sheets";
+import { SheetError, sheetConnectionStatus, beginSheetConnection, createOrderSheet, prepareOrderSheet, refreshOrderSheetStructure, orderSheetLink, syncOrderSheet, saveSheetPerson } from "../../../lib/server-order-sheets";
 const fail=(message:string,status=400)=>Response.json({ok:false,message},{status,headers:{"Cache-Control":"no-store"}});
 export async function POST(request:Request){
  if(request.headers.get("origin")&&request.headers.get("origin")!==new URL(request.url).origin)return fail("Invalid request origin.",403);
@@ -11,10 +11,11 @@ export async function POST(request:Request){
  const text=await request.text();if(text.length>100000)return fail("Request too large.",413);const body=JSON.parse(text) as {operation?:string;orderId?:string;edit?:import("../../../lib/order-sheet-model").SheetPersonEdit};
  const membership=await authorizePermission(actor,"seiko","settings.manage"),owner=membership?.role==="owner",canEdit=Boolean(await authorizePermission(actor,"seiko","orders.edit"));
  if(body.operation==="connect"){if(!owner)return fail("The owner must connect the Google account.",403);return Response.json({ok:true,authorizationUrl:await beginSheetConnection(db,actor,request)});}
- if(!["status","create","sync","refresh","save-person"].includes(body.operation||""))return fail("Choose a sheet action.");
+ if(!["status","create","sync","refresh","prepare","save-person"].includes(body.operation||""))return fail("Choose a sheet action.");
  if(typeof body.orderId!=="string"||!body.orderId||body.orderId.length>128)return fail("Choose an order.");
  const exists=await db.prepare("SELECT id FROM erp_orders WHERE id=? AND business_id='seiko' AND json_extract(document_json,'$.deletedAt') IS NULL").bind(body.orderId).first();if(!exists)return fail("Order not found.",404);
  if(body.operation==="create"){if(!canEdit)return fail("Order edit access is required to create its Google Sheet.",403);await createOrderSheet(db,actor,body.orderId);await syncOrderSheet(db,actor,body.orderId);}
+ if(body.operation==="prepare"){if(!canEdit)return fail("Order edit access is required to update sheet columns.",403);await prepareOrderSheet(db,actor,body.orderId);}
  if(body.operation==="refresh"){if(!canEdit)return fail("Order edit access is required to update sheet columns.",403);await refreshOrderSheetStructure(db,actor,body.orderId);}
  if(body.operation==="save-person"){if(!canEdit)return fail("Order edit access is required to save a person.",403);if(!body.edit||typeof body.edit.changes!=="object"||!body.edit.changes||!body.edit.expected||typeof body.edit.expected!=="object")return fail("Enter person details.");await saveSheetPerson(db,actor,body.orderId,body.edit);}
  if(body.operation==="sync")await syncOrderSheet(db,actor,body.orderId);

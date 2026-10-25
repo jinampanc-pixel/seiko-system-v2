@@ -1,4 +1,4 @@
-import { quantityForRecord, workspaceColumns, type SeikoOrder } from "./order-domain";
+import { recordRuleIssues, quantityForRecord, workspaceColumns, type SeikoOrder } from "./order-domain";
 
 export type LabelBox = { x: number; y: number; w: number; h: number };
 export const LABEL_WIDTH = 50;
@@ -44,7 +44,7 @@ export function packingQuantities(order: SeikoOrder) {
     const qty = quantityForRecord(product, record, index === 0);
     const explicit = [`product:${product.id}:assigned_qty`, `product:${product.id}:qty_override`, `product:${product.id}:qty`].some(id => present(record.values[id]));
     const info = evidence.get(product.id)!;
-    const applies = explicit || !info.used || info.ids.some(id => present(record.values[id]));
+    const applies = explicit || product.quantityGroupRules?.some(r=>r.conditions?.length) || !info.used || info.ids.some(id => present(record.values[id]));
     return [product.id, applies && Number.isFinite(qty) && qty > 0 ? qty : 0];
   }))]));
 }
@@ -60,3 +60,6 @@ export function measureLabelText(text: string, preferredPt: number, widthMm: num
   while (font > 1 && !fits(font)) font = Math.max(1, font - .25);
   return { lines, font, overflow: !fits(font), small: font < 4 };
 }
+
+/** Output eligibility must not alter the actual ordered quantities shown in records or totals. */
+export function packingLabelQuantities(order:SeikoOrder){const quantities=packingQuantities(order);for(const record of order.records){const row=quantities.get(record.recordId);if(row)for(const product of order.products)if(recordRuleIssues({...order,products:[product]},record).length)row[product.id]=0;}return quantities;}

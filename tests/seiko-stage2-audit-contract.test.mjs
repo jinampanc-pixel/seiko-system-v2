@@ -209,7 +209,7 @@ test("label package contents use the shared order quantity resolver and exclude 
   assert.match(labelDesigner, /labelQuantityForRecord/);
   assert.match(labelDesigner, /quantityForRecord\(product, record, recordIndex === 0\)/);
   assert.match(labelDesigner, /orderUsesProductEvidence/);
-  assert.match(labelDesigner, /groupRuleMatches\(rule\.match, groupValue\)/);
+  assert.match(labelDesigner, /specificationForRecord\(spec,record\)/);
   assert.match(labelDesigner, /\(Number\(row\.qty\) \|\| 0\) <= 0/);
   assert.match(labelDesigner, /package_products: JSON\.stringify\(packageProductNames\)/);
   assert.match(labelDesigner, /contains_product/);

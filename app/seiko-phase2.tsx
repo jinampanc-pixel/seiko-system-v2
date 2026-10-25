@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialogInteractions } from "./dialog-interactions";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SeikoBillingWorkspace } from "./seiko-billing-workspace";
@@ -32,6 +33,7 @@ function readStore<T>(key: string, fallback: T): T {
 function writeStore<T>(key: string, value: T) { const encoded = JSON.stringify(value); if (localStorage.getItem(key) !== encoded) localStorage.setItem(key, encoded); }
 
 export function SeikoPhase2() {
+  useDialogInteractions();
   const businessId = "seiko";
   const [view, setView] = useState<Phase2View>(null);
   const [billingAction, setBillingAction] = useState<"payment" | "payments" | "invoice" | "quotation" | "challan" | null>(null);

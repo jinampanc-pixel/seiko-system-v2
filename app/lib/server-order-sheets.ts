@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { orderSheetColumns, readOrderSheet, sheetInitialRequests, sheetCell, prepareSheetPersonEdit, sheetLayoutRequests, type SheetPersonEdit } from "./order-sheet-model";
+import { orderSheetColumns, readOrderSheet, sheetInitialRequests, sheetCell, prepareSheetPersonEdit, sheetLayoutRequests, sheetCountRequests, type SheetPersonEdit } from "./order-sheet-model";
 import type { SeikoOrder } from "./order-domain";
 import type { Actor } from "./server-erp-auth";
 type DB=Pick<NonNullable<typeof env.DB>,"prepare"|"batch">;
@@ -79,6 +79,8 @@ async function markSource(db:DB,actor:Actor,id:string,link:Link){
  const now=new Date().toISOString(),saved={...source.order,googleSheet:{id:link.spreadsheet_id!,url:link.spreadsheet_url!,peopleSheetId:link.people_sheet_id},updatedAt:now};
  const result=await db.prepare("UPDATE erp_orders SET document_json=?,version=version+1,updated_at=?,updated_by_user_id=?,updated_by_email=? WHERE id=? AND version=?").bind(JSON.stringify(saved),now,actor.userId,actor.email,id,source.version).run();if(!result.meta.changes)throw new SheetError("The order changed while its sheet was linking. Retry to retain the newest order.");
 }
+/** Bring new rule result/exception columns across once, without repeatedly resetting a user's sheet layout. */
+export async function prepareOrderSheet(db:DB,actor:Actor,id:string){const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)return null;const source=await orderRow(db,id),token=await accessToken(db),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(link.spreadsheet_id);const header=await google(token,base+'/values/People!1:1?valueRenderOption=UNFORMATTED_VALUE'),keys=(header.values?.[0]||[]).map(String);if(orderSheetColumns(source.order).some(c=>!keys.includes(c.id)))return refreshOrderSheetStructure(db,actor,id);return syncOrderSheet(db,actor,id);}
 export async function refreshOrderSheetStructure(db:DB,actor:Actor,id:string){
  const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError("Create this order’s Google Sheet first.");
  const lease=await claim(db,id,actor);try{
@@ -93,6 +95,7 @@ export async function refreshOrderSheetStructure(db:DB,actor:Actor,id:string){
  requests.push({unmergeCells:{range:{sheetId:link.people_sheet_id,startRowIndex:1,endRowIndex:2,startColumnIndex:0,endColumnIndex:all.length}}});
  requests.push({updateCells:{start:{sheetId:link.people_sheet_id,rowIndex:0,columnIndex:0},rows:rows.map(row=>({values:row.map(sheetCell)})),fields:"userEnteredValue"}});
  requests.push(...sheetLayoutRequests(all.map(id=>known.get(id)||{id,label:id,groupId:id,groupLabel:id,required:false}),link.people_sheet_id));
+ const summary=metadata.sheets.find((s:{properties:{title:string;sheetId:number}})=>s.properties.title==='Order & totals');if(summary)requests.push(...sheetCountRequests(source.order,all.map(id=>known.get(id)||{id,label:id,groupId:id,groupLabel:id,required:false}),summary.properties.sheetId));
  await google(token,`${base}:batchUpdate`,{requests});
  await db.prepare("UPDATE seiko_order_sheets SET error=NULL WHERE order_id=? AND lease_token=?").bind(id,lease).run();
  }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}

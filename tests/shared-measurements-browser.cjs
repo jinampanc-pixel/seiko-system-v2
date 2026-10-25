@@ -8,7 +8,7 @@ module.exports=async({page,sqlite,seed,navigate,order})=>{
  await page.reload();await navigate('Orders');
  const row=page.locator('.orderRow').filter({hasText:'SHARED-001'});await row.locator('.orderCenterOperationalMeta').waitFor();assert.equal(await row.locator('.openOrderButton').isVisible(),false);assert.equal(await page.evaluate(()=>localStorage.getItem('jinam:seiko:orders-v1').includes('shared-measurement-order')),false);await row.locator('.orderCenterInfo').click();await page.locator('.orderSetup').waitFor();
  assert.equal(await page.locator('.workspacePage').count(),0);
- const measurement=page.locator('.productMeasurementRow').first();await measurement.locator('.measurementProductLinks summary').click();
+ const measurement=page.locator('.productMeasurementRow').first();await measurement.locator('.measurementProductLinks>summary').click();
  await measurement.getByRole('checkbox',{name:'Use Waist for Dress',exact:true}).check();
  await measurement.getByRole('checkbox',{name:'Use Waist for Track pant',exact:true}).check();
  await page.getByRole('button',{name:'Open workspace',exact:true}).click();await page.locator('.workspacePage').waitFor();

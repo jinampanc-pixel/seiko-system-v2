@@ -86,7 +86,7 @@ test("Seiko orders preserve flexible client and person-entry behaviour", () => {
   assert.match(orderDomain, /CLIENT_TYPE_PRESETS/);
   assert.match(orderDomain, /attnRequired/);
   assert.match(orders, /Set different values by group/);
-  assert.match(orders, /\+ New source field/);
+  assert.match(orders, /RuleConditions/);
   assert.match(orders, /removeSourceField/);
   assert.match(orders, />\+ Add detail<\/button>/);
   assert.doesNotMatch(orders, />\+ Gender<\/button>/);

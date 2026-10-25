@@ -1,4 +1,4 @@
-import { groupRuleMatches, normalizeProductMeasurements, type SeikoOrder } from "./order-domain";
+import { specificationForRecord, normalizeProductMeasurements, type SeikoOrder } from "./order-domain";
 import { packingQuantities } from "./packing-label-model";
 import { documentTotals, formatInr, type SeikoCommercialDocument } from "./seiko-billing";
 
@@ -22,7 +22,7 @@ export function handoverModel(source: SeikoOrder, options: HandoverOptions) {
         if (value != null && String(value).trim()) details.push(`${measurement.name}: ${value}`);
       }
       if (quantity && options.specifications) for (const spec of product.specifications) {
-        const value = spec.mode === "per_person" ? record.values[`spec:${spec.id}`] : spec.mode === "default_with_exceptions" ? record.values[`spec:${spec.id}:override`] || spec.defaultValue : spec.mode === "by_group" ? spec.groupRules.find(rule => groupRuleMatches(rule.match, String(record.values[`field:${spec.groupFieldId}`] ?? "")))?.value || spec.defaultValue : spec.defaultValue;
+        const value = specificationForRecord(spec,record);
         if (value != null && String(value).trim()) details.push(`${spec.name}: ${value}`);
       }
       return { quantity, details };

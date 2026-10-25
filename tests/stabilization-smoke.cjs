@@ -131,7 +131,9 @@ function load(path, imports = {}) {
     try { await page.getByRole('button', { name: 'Open menu', exact: true }).waitFor({ timeout: 10000 }); }
     catch { throw new Error(`Application did not mount: ${JSON.stringify(errors)}. ${await page.locator('body').innerText()}`); }
     const navigate = async name => {
-      await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+      const moduleMenu=page.getByRole('button',{name:'Open billing navigation',exact:true});
+      if(await moduleMenu.isVisible())await moduleMenu.click();
+      else await page.getByRole('button', { name: 'Open menu', exact: true }).click();
       await page.getByRole('navigation', { name: 'Modules' }).getByRole('button', { name: new RegExp(`${name}$`) }).click();
     };
     if (process.argv.includes('--large-orders')) {
@@ -188,6 +190,8 @@ function load(path, imports = {}) {
       console.log(`PASS: 1,001 synthetic orders / 100,001 records; last-order search, bounded 10-row rendering and page navigation (${Date.now() - started} ms, local Chrome).`);
       return;
     }
+    if(process.argv.includes('--dialog-ux')){await require('./dialog-interactions-browser.cjs')({page,navigate,base});assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--order-rules')){await require('./order-rules-browser.cjs')({page,seed,navigate,order,sqlite,domain,sheetModel:load('app/lib/order-sheet-model.ts',{'./order-domain':domain})});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--responsive-audit')){await require('./responsive-audit-browser.cjs')({page,navigate,billing,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--google-sheets')){await require('./google-sheets-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-service')){await require('./order-service-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}

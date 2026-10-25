@@ -4,9 +4,9 @@ import { writeLabelStorage } from "./lib/label-storage";
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { groupRuleMatches, type ProductPolicy, type SeikoOrder } from "./lib/order-domain";
+import { specificationForRecord, type ProductPolicy, type SeikoOrder } from "./lib/order-domain";
 
-import { eligiblePackingIds, packingQuantities, constrainBox, measureLabelText, MM_PX } from "./lib/packing-label-model";
+import { eligiblePackingIds, packingLabelQuantities as packingQuantities, constrainBox, measureLabelText, MM_PX } from "./lib/packing-label-model";
 import { PhysicalLabelCanvas } from "./physical-label-canvas";
 import { PHYSICAL_OUTPUT_PROFILES, physicalPageCss } from "./lib/physical-output";
 import "./physical-label-editor.css";
@@ -159,13 +159,7 @@ function measurementValue(order: SeikoOrder, productId: string, measurementId: s
 }
 
 function specificationValue(product: ProductPolicy, spec: ProductPolicy["specifications"][number], record: SeikoOrder["records"][number]) {
-  if (spec.mode === "per_person") return String(record.values[`spec:${spec.id}`] || "");
-  if (spec.mode === "default_with_exceptions") return String(record.values[`spec:${spec.id}:override`] ?? spec.defaultValue ?? "");
-  if (spec.mode === "by_group") {
-    const source = spec.groupFieldId ? String(record.values[`field:${spec.groupFieldId}`] || "") : "";
-    return spec.groupRules.find(rule => groupRuleMatches(rule.match, source))?.value || spec.defaultValue || "";
-  }
-  return spec.defaultValue || "";
+  return specificationForRecord(spec,record);
 }
 
 function renderProduct(order: SeikoOrder, product: ProductPolicy, rule: ProductRule, record: SeikoOrder["records"][number], quantity: number) {

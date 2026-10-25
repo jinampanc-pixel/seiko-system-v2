@@ -4,7 +4,7 @@ import { writeLabelStorage, removeLabelStorage } from "./lib/label-storage";
 /* eslint-disable @typescript-eslint/no-unused-vars -- old cutting-template readers remain during local data migration */
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { groupRuleMatches, quantityForRecord, workspaceColumns, type SeikoOrder } from "./lib/order-domain";
+import { recordRuleIssues, specificationForRecord, quantityForRecord, workspaceColumns, type SeikoOrder } from "./lib/order-domain";
 import { garmentScanToken } from "./lib/production-domain";
 type Kind = "text" | "field" | "barcode" | "qr" | "sequence";
 type OutputMode = "combined" | "code" | "information" | "custom";
@@ -629,6 +629,7 @@ function normalizedMeasurementValues(order: SeikoOrder, values: Record<string, s
     return normalized;
 }
 function labelQuantityForRecord(order: SeikoOrder, product: SeikoOrder["products"][number], record: SeikoOrder["records"][number], recordIndex: number) {
+    if(recordRuleIssues({...order,products:[product]},record).length)return 0;
     const quantity = quantityForRecord(product, record, recordIndex === 0);
     if (quantity <= 0) return 0;
     const explicitQuantity = [`product:${product.id}:qty`, `product:${product.id}:qty_override`].some(key => hasLabelValue(record.values[key]));
@@ -666,13 +667,7 @@ function orderLabelRows(order: SeikoOrder, source: SourceMode): RecordRow[] {
         productKeys.set(product.id, keys);
         keys.forEach(item => allProductKeys.add(item));
     }
-    const productValues = (product: SeikoOrder["products"][number], record?: SeikoOrder["records"][number]) => Object.fromEntries(product.specifications.filter(spec => spec.name.trim()).map(spec => { let value = spec.defaultValue; if (spec.role === "asset")
-        value = (spec.attachments || []).map(file => file.name).join(", "); if (record && spec.mode === "per_person")
-        value = String(record.values[`spec:${spec.id}`] || ""); if (record && spec.mode === "default_with_exceptions")
-        value = String(record.values[`spec:${spec.id}:override`] || spec.defaultValue || ""); if (record && spec.mode === "by_group") {
-        const groupValue = String(record.values[`field:${spec.groupFieldId}`] || "");
-        value = spec.groupRules.find(rule => groupRuleMatches(rule.match, groupValue))?.value || spec.defaultValue || "";
-    } return [`spec:${spec.id}`, value]; })); if (source === "order")
+    const productValues = (product: SeikoOrder["products"][number], record?: SeikoOrder["records"][number]) => Object.fromEntries(product.specifications.filter(spec => spec.name.trim()).map(spec => { const value=record?specificationForRecord(spec,record):spec.role==="asset"?(spec.attachments||[]).map(f=>f.name).join(", "):spec.defaultValue; return [`spec:${spec.id}`, value]; })); if (source === "order")
         return [{ ...common, id: `order:${order.orderId}`, product: products.map(product => product.name).join(", "), token: `order:${order.orderId}`, values: { ...commonValues, product: products.map(product => product.name).join(", ") } }]; if (source === "product")
         return products.map(product => { const qty = String(product.quantityMode === "order_total" ? product.orderTotal : product.defaultQuantity); return { ...common, id: `product:${product.id}`, product: product.name, qty, token: `${order.orderId}:product:${product.id}`, values: { ...commonValues, product: product.name, qty, [`product_name:${product.id}`]: product.name, [`product_quantity:${product.id}`]: qty, ...productValues(product) } }; }); const firstField = order.fields[0], secondField = order.fields[1]; return activeRecords.flatMap((record, recordIndex) => { const normalizedMeasurements = normalizedMeasurementValues(order, record.values); return (products.length ? products : [undefined]).map(product => { const combinedValues = { ...Object.fromEntries(Object.entries(record.values).map(([key, value]) => [key, String(value)])), ...normalizedMeasurements }; const scopedValues = product ? Object.fromEntries(Object.entries(combinedValues).filter(([key]) => !allProductKeys.has(key) || productKeys.get(product.id)?.has(key))) : combinedValues; const sizeEntry = Object.entries(scopedValues).find(([key, value]) => key.startsWith("measurement:") && hasLabelValue(value) && (!product || key.endsWith(`product:${product.id}`))); const qty = product ? labelQuantityForRecord(order, product, record, recordIndex) : 1; const name = String(record.values[`field:${firstField?.id}`] || record.personId), group = String(record.values[`field:${secondField?.id}`] || ""); return { ...common, id: `${record.recordId}:${product?.id || "order"}`, name, group, product: product?.name || "Order", size: String(sizeEntry?.[1] || ""), qty: String(qty), token: `${order.orderId}:${record.recordId}:${product?.id || "order"}`, values: { ...commonValues, ...scopedValues, name, group, product: product?.name || "Order", product_id: product?.id || "", record_id: record.recordId, quantity_mode: product?.quantityMode || "", size: String(sizeEntry?.[1] || ""), qty: String(qty), ...(product ? { [`product_name:${product.id}`]: product.name, [`product_quantity:${product.id}`]: String(qty), ...productValues(product, record) } : {}) } }; }); }); }
 

@@ -3,7 +3,7 @@ import { writeLabelStorage } from "./lib/label-storage";
 
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { groupRuleMatches, quantityForRecord, type ProductPolicy, type SeikoOrder } from "./lib/order-domain";
+import { recordRuleIssues, specificationForRecord, quantityForRecord, type ProductPolicy, type SeikoOrder } from "./lib/order-domain";
 import { garmentScanToken } from "./lib/production-domain";
 
 type LabelPurpose = "production" | "packing" | "inventory";
@@ -150,21 +150,14 @@ function secondPersonValue(order: SeikoOrder, values: Record<string, string | nu
 }
 
 function resolvedSpecification(product: ProductPolicy, spec: ProductPolicy["specifications"][number], record: SeikoOrder["records"][number]) {
-  if (spec.role === "asset") return (spec.attachments || []).map(item => item.name).join(", ");
-  if (spec.mode === "per_person") return String(record.values[`spec:${spec.id}`] ?? "");
-  if (spec.mode === "default_with_exceptions") return String(record.values[`spec:${spec.id}:override`] ?? spec.defaultValue ?? "");
-  if (spec.mode === "by_group") {
-    const groupValue = String(record.values[`field:${spec.groupFieldId}`] ?? "");
-    return spec.groupRules.find(rule => groupRuleMatches(rule.match, groupValue))?.value || spec.defaultValue || "";
-  }
-  return spec.defaultValue || "";
+  return specificationForRecord(spec,record);
 }
 
 function baseRows(order: SeikoOrder): BaseRow[] {
   const products = order.products.filter(product => product.name.trim());
   const activeRecords = order.records.filter(record => !record.held);
   return activeRecords.flatMap((record, recordIndex) => products.flatMap(product => {
-    const qty = quantityForRecord(product, record, recordIndex === 0);
+    const qty = recordRuleIssues({...order,products:[product]},record).length?0:quantityForRecord(product, record, recordIndex === 0);
     if (qty <= 0) return [];
     const measurementValues = order.measurements
       .filter(measurement => measurement.appliesTo.includes(product.id) && measurement.name.trim())

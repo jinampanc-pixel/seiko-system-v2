@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { readOrderCache } from "./lib/order-cache";
 import { startDomEnhancement } from "./lib/dom-enhancement";
-import { groupRuleMatches, quantityForRecord, type SeikoOrder } from "./lib/order-domain";
+import { specificationForRecord, quantityForRecord, type SeikoOrder } from "./lib/order-domain";
 
 type SavedLabelTask = {
   orderId?: string;
@@ -82,10 +82,7 @@ function resolvedSpecification(order: SeikoOrder, product: SeikoOrder["products"
   const values = new Set<string>();
   order.records.forEach((record, index) => {
     if (record.held || quantityForRecord(product, record, index === 0) <= 0) return;
-    let value = spec.defaultValue || "";
-    if (spec.mode === "per_person") value = String(record.values[`spec:${spec.id}`] || "");
-    if (spec.mode === "default_with_exceptions") value = String(record.values[`spec:${spec.id}:override`] ?? spec.defaultValue ?? "");
-    if (spec.mode === "by_group") { const source=spec.groupFieldId ? String(record.values[`field:${spec.groupFieldId}`] || "") : ""; value=(spec.groupRules||[]).find(rule=>groupRuleMatches(rule.match,source))?.value || spec.defaultValue || ""; }
+    const value = specificationForRecord(spec,record);
     if (value.trim()) values.add(value.trim());
   });
   return [...values].join(", ");

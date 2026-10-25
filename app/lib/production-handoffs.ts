@@ -1,4 +1,4 @@
-import { groupRuleMatches, normalizeProductMeasurements, quantityForRecord, type SeikoOrder } from './order-domain';
+import { specificationForRecord, measurementRequired, normalizeProductMeasurements, quantityForRecord, type SeikoOrder } from './order-domain';
 import { packingQuantities } from './packing-label-model';
 
 export type ProductionDemand = {
@@ -31,10 +31,11 @@ export function productionDemand(orders: ProductionOrder[]): ProductionDemand[] 
         const quantity = product.quantityMode === 'order_total' ? product.orderTotal : blankRecord ? quantityForRecord(product, record, index === 0) : quantities.get(record.recordId)?.[product.id] || 0;
         if (!Number.isFinite(quantity) || quantity <= 0) return;
         const standardSize=order.commerce?.people[record.recordId]?.readySize?.trim();
-        const values = measurements.map(item => ({ name: item.name, value: text(record.values[`measurement:${item.id}:product:${product.id}`]), required: item.requiredMode !== 'Optional' }));
-        let unresolved = !Number.isSafeInteger(quantity) || quantity > 100000 || product.quantityMode !== 'order_total' && measurements.length > 0 && !standardSize && (values.every(item => !item.value) || values.some(item => item.required && !item.value));
+        const expectedMeasurements=measurements.filter(m=>!m.requiredWhen?.conditions?.length||measurementRequired(m,record));
+        const values = measurements.map(item => ({ name: item.name, value: text(record.values[`measurement:${item.id}:product:${product.id}`]), required: measurementRequired(item,record) }));
+        let unresolved = !Number.isSafeInteger(quantity) || quantity > 100000 || product.quantityMode !== 'order_total' && expectedMeasurements.length > 0 && !standardSize && (values.filter(item=>expectedMeasurements.some(m=>m.name===item.name)).every(item => !item.value) || values.some(item => item.required && !item.value));
         const specs = product.specifications.map(spec => {
-          const value = /size/i.test(spec.name)&&standardSize?standardSize:spec.mode === 'per_person' ? text(record.values[`spec:${spec.id}`]) : spec.mode === 'default_with_exceptions' ? text(record.values[`spec:${spec.id}:override`]) || spec.defaultValue : spec.mode === 'by_group' ? spec.groupRules.find(rule => groupRuleMatches(rule.match, text(record.values[`field:${spec.groupFieldId}`])))?.value || spec.defaultValue : spec.defaultValue;
+          const value = /size/i.test(spec.name)&&standardSize?standardSize:specificationForRecord(spec,record);
           if (spec.required && !text(value)) unresolved = true;
           return { name: spec.name, role:spec.role, value: text(value) };
         });
