@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { DocumentViewer } from "./document-viewer";
 import { productionDocumentHtml } from "./lib/production-document";
@@ -11,6 +11,7 @@ type Summary={id:string;number:string;name:string;status:string;purpose:string};
 type Shared = {choices?:Choice[];total?:number;page?:number;handoffs?:Summary[];handoffTotal?:number;handoffPage?:number;ok:boolean;message?:string;code?:string;ledger:ProductionLedger;version:number;orders:ProductionOrder[]};
 const initial:Shared={ok:true,ledger:{handoffs:[]},version:0,orders:[]};
 export function Production({businessId,canManage,initialOrderId,onHome}:{businessId:string;canManage:boolean;initialOrderId?:string;onHome:()=>void}) {
+  const readEpoch=useRef(0);
   const [shared,setShared]=useState(initial),[busy,setBusy]=useState(false),[ready,setReady]=useState(false);
   const [error,setError]=useState(''),[message,setMessage]=useState(''),[setup,setSetup]=useState(false);
   const [selected,setSelected]=useState<string[]>(initialOrderId?[initialOrderId]:[]),[draft,setDraft]=useState<ProductionHandoff|null>(()=>{try{return typeof window==='undefined'?null:JSON.parse(sessionStorage.getItem(`jinam:${businessId}:production-draft`)||'null');}catch{return null;}}),[openId,setOpenId]=useState('');
@@ -35,11 +36,11 @@ export function Production({businessId,canManage,initialOrderId,onHome}:{busines
     }throw Error('Production is still syncing. Refresh to check the latest saved orders.');
   };
   const listBody={operation:'list',orderIds:openId?[]:[...new Set([...selected,...(draft?.allocations||[]).map(row=>row.orderId)])],id:openId,search,status,page,deliveryFrom,deliveryTo,handoffPage,handoffSearch,handoffStatus};
-  useEffect(()=>{let active=true;const timer=setTimeout(()=>{setBusy(true);void request(listBody).then(result=>{if(active){setShared(result);setReady(true);setError('');}}).catch(cause=>{if(active)setError(cause.message||'Production storage is unreachable.');}).finally(()=>{if(active)setBusy(false);});},250);return()=>{active=false;clearTimeout(timer);};
+  useEffect(()=>{let active=true;const epoch=++readEpoch.current;const current=()=>active&&epoch===readEpoch.current;const timer=setTimeout(()=>{if(!current())return;setBusy(true);void request(listBody).then(result=>{if(current()){setShared(result);setReady(true);setError('');}}).catch(cause=>{if(current())setError(cause.message||'Production storage is unreachable.');}).finally(()=>{if(current())setBusy(false);});},250);return()=>{active=false;clearTimeout(timer);};
   // Values, rather than the request object, identify a search. Stale responses are ignored.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[businessId,search,status,page,deliveryFrom,deliveryTo,handoffPage,handoffSearch,handoffStatus,selected.join('|'),openId]);
-  const refresh=async()=>{setBusy(true);setError('');try{const fresh=await request({...listBody,refreshSources:true});setShared(fresh);if(draft)setDraft(current=>current?refreshDraftSources(current,productionDemand(fresh.orders)):current);setReady(true);setMessage(draft?'Latest data loaded. Review open draft quantities against the updated demand.':'Production refreshed.');}catch(cause){setError((cause as Error).message);}finally{setBusy(false);}};
+  const refresh=async()=>{++readEpoch.current;setBusy(true);setError('');try{const fresh=await request({...listBody,refreshSources:true});setShared(fresh);if(draft)setDraft(current=>current?refreshDraftSources(current,productionDemand(fresh.orders)):current);setReady(true);setMessage(draft?'Latest data loaded. Review open draft quantities against the updated demand.':'Production refreshed.');}catch(cause){setError((cause as Error).message);}finally{setBusy(false);}};
   const demand=useMemo(()=>productionDemand(shared.orders),[shared.orders]);
   const open=shared.ledger.handoffs.find(item=>item.id===openId)||null;
   const active=draft||open;
@@ -55,7 +56,7 @@ export function Production({businessId,canManage,initialOrderId,onHome}:{busines
   const shownQuantityPage=Math.min(quantityPage,quantityPages);
   const changed=shared.ledger.handoffs.filter(item=>item.status!=='Draft'&&item.status!=='Cancelled'&&item.purpose==='normal').flatMap(item=>item.allocations.filter(row=>{const current=demand.find(value=>value.key===row.key);return !current||issuedQuantity(shared.ledger,current)>current.quantity;}).map(row=>({handoff:item.number,row})));
   const mutate=async(operation:string,extra:Record<string,unknown>={})=>{
-    setBusy(true);setError('');setMessage('');try{
+    ++readEpoch.current;setBusy(true);setError('');setMessage('');try{
       const result=await request({operation,expectedVersion:shared.version,id:openId,orderIds:[],...extra});setShared(previous=>({...previous,...result}));setReady(true);
       if(operation==='save'){setOpenId(draft!.id);setDraft(null);setMessage(extra.release?'Handoff released. Quantities are now allocated.':'Production sheet saved successfully.');}
       else setMessage(operation==='release'?'Handoff released. Quantities are now allocated.':'Production saved to shared storage.');
