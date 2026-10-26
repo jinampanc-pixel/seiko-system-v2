@@ -20,7 +20,7 @@ module.exports=async({page,seed,navigate,order,sqlite,domain,sheetModel})=>{
  fixture.measurements=fixture.products.map(p=>({...domain.blankMeasurement(),id:'length-'+p.id,name:'Length',appliesTo:[p.id]}));fixture.records=[];fixture.commerce={rules:[],people:{},deliveries:[],issues:[]};persist();
  await page.reload();await navigate('Orders');await page.locator('.orderRow').filter({hasText:'RULES-001'}).locator('.orderCenterInfo').click();
  for(let i=0;i<4;i++){
-  const card=setup.locator('.productPolicy').nth(i);await card.locator('.productCardSummary').click();
+  const card=setup.locator('.productPolicy').nth(i);if(await card.getAttribute('open')===null)await card.locator('.productCardSummary').click();
   assert.equal(await card.getByLabel('Quantity each',{exact:true}).inputValue(),'1');
   await card.getByLabel('Who receives it?',{exact:true}).selectOption({label:'Gender: '+(i<2?'Male':'Female')});
   assert.equal(await card.getByLabel('Default qty',{exact:true}).count(),0,'simple assignment hides zero/default machinery');
