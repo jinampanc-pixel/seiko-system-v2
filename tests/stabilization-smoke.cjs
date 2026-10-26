@@ -196,6 +196,7 @@ function load(path, imports = {}) {
     if(process.argv.includes('--responsive-audit')){await require('./responsive-audit-browser.cjs')({page,navigate,billing,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--google-sheets')){await require('./google-sheets-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-service')){await require('./order-service-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--production-pagination')){await require('./production-pagination-browser.cjs')({page,seed,navigate});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--production-handoffs')){await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--shared-measurements')){await require('./shared-measurements-browser.cjs')({page,sqlite,seed,navigate,order,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--artwork')){await require('./artwork-browser.cjs')({page,seed,navigate,order,sqlite,domain});assert.deepEqual(errors,[]);return;}

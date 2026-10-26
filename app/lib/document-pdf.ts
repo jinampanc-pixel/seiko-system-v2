@@ -3,6 +3,7 @@ export async function readyDocument(frame:HTMLIFrameElement,copies?:BillingCopie
  const doc=frame.contentDocument;if(!doc||!doc.body?.textContent?.trim())throw Error("Document is not ready. Wait for the preview and try again.");
  await doc.fonts.ready;
  await Promise.all(Array.from(doc.images).map(async image=>{if(image.complete&&image.naturalWidth>0)return;if(image.decode)await image.decode();else await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(Error("A document image could not load."));});if(!image.naturalWidth)throw Error("A document image could not load.");}));
+ if(doc.querySelector("[data-production-document]")){const {paginateProductionDocument}=await import("./production-document");paginateProductionDocument(doc);}
  if(copies)fitBillingCopies(frame,copies);
  return doc;
 }
