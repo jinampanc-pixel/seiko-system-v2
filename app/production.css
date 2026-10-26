@@ -24,3 +24,11 @@
 .productionPatternNote{display:block;font-size:.9em;margin-top:2px}
 
 @media screen{.productionDraftPrint{display:none}.productionSimpleEditor .productionCuttingGrid{align-items:start}.productionSimpleEditor td:last-child{width:90px}.productionSimpleEditor input[type=number]{min-width:65px;width:80px}.productionSimpleEditor .productionPatternNote{color:var(--muted)}}
+
+.productionProductTabs .productionProductChoice{display:flex;align-items:center;gap:10px;min-width:180px;margin:0;padding:12px;border:1px solid var(--gold);border-radius:8px}.productionProductChoice small{display:block;margin-top:4px}.productionProductChoice input{width:20px;height:20px;flex:none}.productionSelectionSummary{font-weight:700}.productionFilters[open]{display:flex;flex-wrap:wrap;gap:10px;align-items:end}.productionFilters summary{cursor:pointer}.productionWorkspace .productionActions{align-items:center}@media(max-width:620px){.productionProductTabs .productionProductChoice{flex:1;min-width:0}.productionFilters{width:100%}}
+
+.productionPdfDialog{background:var(--paper);color:var(--navy);width:min(1100px,96vw);height:92vh;display:flex;flex-direction:column;border-radius:12px;padding:16px;overflow:auto}.productionPdfDialog>header{display:flex;align-items:center;justify-content:space-between;gap:12px}.productionPdfDialog .documentViewer{min-height:0;flex:1}.productionPdfDialog iframe{min-height:55vh}.productionPdfDialog h2{font-size:20px}@media(max-width:620px){.productionPdfDialog{width:100vw;height:100dvh;border-radius:0;padding:10px}}
+
+.productionWorkspace input[type=checkbox]{width:18px!important;height:18px;min-height:18px;flex:none;padding:0}.productionWorkspace .productionPreviewToggle{display:flex;align-items:center;gap:8px;margin:10px 0 0}.productionLifecycle{margin-left:auto}.productionLifecycle[open]{flex-basis:100%;margin:8px 0}.productionLifecycle summary{font-size:13px}.productionPdfDialog .documentViewerActions label{margin:0}
+
+.productionPurpose{font-size:13px;margin:8px 0}.productionPurpose[open]{display:flex;gap:12px;align-items:end;flex-wrap:wrap}.productionPurpose summary{padding:6px 0}.productionPurpose label{flex:1;min-width:180px}@media(max-width:620px){.productionPurpose[open]{display:block}}

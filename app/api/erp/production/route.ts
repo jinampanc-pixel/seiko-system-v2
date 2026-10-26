@@ -1,10 +1,10 @@
 import { env } from 'cloudflare:workers';
 import { authenticateActor, authorizePermission } from '../../../lib/server-erp-auth';
-import { completedQuantity, productionDemand, reserveMembers, validateRelease, type ProductionHandoff, type ProductionLedger, type ProductionOrder } from '../../../lib/production-handoffs';
+import { processedQuantity, productionDemand, reserveMembers, validateRelease, type ProductionHandoff, type ProductionLedger, type ProductionOrder } from '../../../lib/production-handoffs';
 
 const collection = 'production-handoffs-v1';
-const reply = (message:string,status=400) => Response.json({ok:false,message},{status,headers:{'Cache-Control':'no-store'}});
-type Body = { orderIds?:string[]; search?:string; status?:string; deliveryFrom?:string; deliveryTo?:string; page?:number; handoffPage?:number; handoffSearch?:string; handoffStatus?:string; businessId?:string; operation?:string; expectedVersion?:number; handoff?:ProductionHandoff; id?:string; reason?:string; event?:{allocationKey:string;operation:string;quantity:number;rejects:number;extras:number;reason:string} };
+const reply = (message:string,status=400,code?:string) => Response.json({ok:false,message,...(code?{code}:{})},{status,headers:{'Cache-Control':'no-store'}});
+type Body = { release?:boolean; refreshSources?:boolean; orderIds?:string[]; search?:string; status?:string; deliveryFrom?:string; deliveryTo?:string; page?:number; handoffPage?:number; handoffSearch?:string; handoffStatus?:string; businessId?:string; operation?:string; expectedVersion?:number; handoff?:ProductionHandoff; id?:string; reason?:string; event?:{allocationKey:string;operation:string;quantity:number;rejects:number;extras:number;reason:string} };
 export async function POST(request:Request) {
   if (request.headers.get('origin') && request.headers.get('origin') !== new URL(request.url).origin) return reply('Invalid request origin.',403);
   try {
@@ -30,7 +30,7 @@ export async function POST(request:Request) {
     if(ids.length>25)return reply('Select at most 25 source orders.');
     const placeholders=ids.map(()=>'?').join(',');
     let result=ids.length?await db.prepare(`SELECT document_json,version FROM erp_orders WHERE business_id=? AND id IN (${placeholders}) AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL`).bind(business,...ids).all<{document_json:string;version:number}>():{results:[]};
-    if(business==='seiko'){for(const source of result.results){const order=JSON.parse(source.document_json);if(order.googleSheet){try{await (await import('../../../lib/server-order-sheets')).syncOrderSheet(db,actor,order.orderId,true);}catch(e){return reply((e as Error).message,409);}}}if(result.results.some(source=>JSON.parse(source.document_json).googleSheet))result=await db.prepare(`SELECT document_json,version FROM erp_orders WHERE business_id=? AND id IN (${placeholders}) AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL`).bind(business,...ids).all<{document_json:string;version:number}>();}
+    if(business==='seiko'){for(const source of result.results){const order=JSON.parse(source.document_json);if(order.googleSheet){try{await (await import('../../../lib/server-order-sheets')).syncOrderSheet(db,actor,order.orderId,body.operation!=="list"||Boolean(body.refreshSources));}catch(e){return reply((e as Error).message,409,(e as {code?:string}).code);}}}if(result.results.some(source=>JSON.parse(source.document_json).googleSheet))result=await db.prepare(`SELECT document_json,version FROM erp_orders WHERE business_id=? AND id IN (${placeholders}) AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL`).bind(business,...ids).all<{document_json:string;version:number}>();}
     const orders:ProductionOrder[]=result.results.map(row=>({order:JSON.parse(row.document_json),version:row.version}));
     // Only reservations touching selected orders and the open handoff are transferred.
     const relevant=ids.length?` OR EXISTS(SELECT 1 FROM json_each(document_json,'$.allocations') a WHERE json_extract(a.value,'$.orderId') IN (${placeholders}))`:'';
@@ -60,7 +60,7 @@ export async function POST(request:Request) {
     const guards:ProductionOrder[]=[];
     if(body.operation==='save'){
       const input=body.handoff;
-      if(!input || input.id==='ledger' || typeof input.id!=='string' || input.id.length>100 || !input.id || typeof input.name!=='string' || !input.name.trim() || !Array.isArray(input.allocations) || !Array.isArray(input.lays) || input.allocations.length>3000 || input.lays.length>100)return reply('Invalid handoff.');
+      if(!input || input.id==='ledger' || typeof input.id!=='string' || input.id.length>100 || !input.id || typeof input.name!=='string' || !input.name.trim() || !Array.isArray(input.allocations) || !Array.isArray(input.lays) || !input.allocations.length||input.allocations.length>3000 || input.lays.length>100)return reply('Invalid handoff.');
       const previous=ledger.handoffs.find(item=>item.id===input.id);
       if(previous && previous.status!=='Draft')return reply('Released handoffs are fixed. Create an additional handoff for changes.',409);
       if(!['normal','rework','extra'].includes(input.purpose)||typeof input.reason!=='string')return reply('Invalid handoff purpose.');
@@ -76,6 +76,7 @@ export async function POST(request:Request) {
       for(const lay of input.lays){if(typeof lay.id!=='string'||!lay.id||layIds.has(lay.id)||['pattern','fabric','width','stretch','grain','direction','checks'].some(key=>typeof lay[key as keyof typeof lay]!=='string')||typeof lay.confirmed!=='boolean')return reply('Invalid cutting lay.');layIds.add(lay.id);}
       target={id:input.id,number:previous?.number||`PH-${String((await db.prepare("SELECT COUNT(*) AS total FROM jinam_shared_records WHERE scope=? AND collection=? AND id!='ledger'").bind(business,collection).first<{total:number}>())!.total+1).padStart(5,'0')}`,name:input.name.trim(),status:'Draft',purpose:input.purpose,reason:input.reason,allocations,lays:input.lays,events:[],createdAt:previous?.createdAt||now,history:[...(previous?.history||[]),{at:now,actor:actor.email,action:'Draft saved'}]};
       if(previous)ledger.handoffs=ledger.handoffs.map(item=>item.id===target!.id?target!:item);else ledger.handoffs.push(target);
+      if(body.release){try{validateRelease(target,ledger,demand);reserveMembers(target,ledger,demand);}catch(error){return reply((error as Error).message,409);}guards.push(...orders.filter(item=>target!.allocations.some(row=>row.orderId===item.order.orderId)));target.status="Released";target.history.push({at:now,actor:actor.email,action:"Released to production"});}
     }else{
       target=ledger.handoffs.find(item=>item.id===body.id);if(!target)return reply('Handoff not found.',404);
       if(body.operation==='release'){
@@ -87,7 +88,7 @@ export async function POST(request:Request) {
         if(!['Released','In progress'].includes(target.status))return reply('Only released or active handoffs can record work.',409);
         const event=body.event;const row=target.allocations.find(item=>item.key===event?.allocationKey);
         if(!row || !event || typeof event.operation!=='string'||!event.operation.trim()||event.operation.length>80||[event.quantity,event.rejects,event.extras].some(value=>!Number.isSafeInteger(value)||value<0)||event.quantity+event.rejects+event.extras===0)return reply('Enter an operation and positive whole quantities.');
-        if(event.quantity+completedQuantity(target,row.key,event.operation.trim())>row.quantity)return reply('Completed quantity exceeds this allocation. Record authorised extras separately.');
+        if(event.quantity+event.rejects+processedQuantity(target,row.key,event.operation.trim())>row.quantity)return reply('Good pieces and rejects exceed the remaining allocation. Record authorised extras separately.');
         if((event.rejects||event.extras)&&!event.reason?.trim())return reply('Explain rejects or authorised extras.');
         target.events.push({...event,id:crypto.randomUUID(),operation:event.operation.trim(),at:now,actor:actor.email});target.status='In progress';
       }else if(body.operation==='close'){
@@ -109,7 +110,7 @@ export async function POST(request:Request) {
     const args=guards.flatMap(item=>[business,item.order.orderId,item.version]);
     const claim=stored
       ? db.prepare(`UPDATE jinam_shared_records SET document_json=?,version=version+1,updated_at=?,updated_by_user_id=?,updated_by_email=? WHERE scope=? AND collection=? AND id='ledger' AND version=?${condition}`).bind(lock,now,actor.userId,actor.email,business,collection,version,...args)
-      : db.prepare("INSERT INTO jinam_shared_records(scope,collection,id,document_json,version,created_at,updated_at,updated_by_user_id,updated_by_email) VALUES(?,?,'ledger',?,1,?,?,?,?) ON CONFLICT(scope,collection,id) DO NOTHING").bind(business,collection,lock,now,now,actor.userId,actor.email);
+      : db.prepare(`INSERT INTO jinam_shared_records(scope,collection,id,document_json,version,created_at,updated_at,updated_by_user_id,updated_by_email) SELECT ?,?,'ledger',?,1,?,?,?,? WHERE 1=1${condition} ON CONFLICT(scope,collection,id) DO NOTHING`).bind(business,collection,lock,now,now,actor.userId,actor.email,...args);
     const write=db.prepare(`INSERT INTO jinam_shared_records(scope,collection,id,document_json,version,created_at,updated_at,updated_by_user_id,updated_by_email)
       SELECT ?,?,?,?,1,?,?,?,? WHERE EXISTS(SELECT 1 FROM jinam_shared_records WHERE scope=? AND collection=? AND id='ledger' AND version=? AND json_extract(document_json,'$.nonce')=?)
       ON CONFLICT(scope,collection,id) DO UPDATE SET document_json=excluded.document_json,version=jinam_shared_records.version+1,updated_at=excluded.updated_at,updated_by_user_id=excluded.updated_by_user_id,updated_by_email=excluded.updated_by_email`)

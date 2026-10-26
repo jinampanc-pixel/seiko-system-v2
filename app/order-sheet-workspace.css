@@ -26,3 +26,5 @@
 .entryProgress{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;margin:8px 0;color:var(--navy)}.entrySaveFailure{padding:10px;border:1px solid #a33;border-radius:6px;margin:8px 0}.entryProgress span{white-space:normal}
 
 .orderPeopleEntry .entryPrevious{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;width:100%;max-width:100%;padding:8px 10px;margin:6px 0 10px;white-space:normal;overflow-wrap:anywhere}.entryPrevious small{font-size:12px;line-height:1.5;font-weight:400}.entryPrevious>span{font-size:12px}.orderPeopleEntry .entryResume{margin-bottom:8px;font-size:12px}
+
+.orderPeopleEntry .entryDelete{margin-left:auto;order:9;color:#8b302b}.orderDeletedEntries{margin:12px 0;font-size:13px}.orderDeletedEntries p{display:flex;align-items:center;gap:12px}.orderDeletedEntries button{min-height:36px}

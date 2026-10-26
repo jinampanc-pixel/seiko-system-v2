@@ -106,13 +106,18 @@ export async function syncOrderSheet(db:DB,actor:Actor,id:string,force=true,exis
  const before=await orderSheetLink(db,id);if(!before?.spreadsheet_id)return null;
  if(!force&&before.checked_at&&Date.now()-Date.parse(before.checked_at)<60000){if(before.error)throw new SheetError(before.error);return null;}
  const lease=existingLease||await claim(db,id,actor);try{
- const source=await orderRow(db,id),token=existingToken||await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(before.spreadsheet_id)}`;
+ const source=await orderRow(db,id),deleted=new Set((await deletedSheetPeople(db,id)).map(p=>p.recordId));
+ const pendingDeletion=source.order.records.filter(r=>deleted.has(r.recordId));
+ const productionVersion=pendingDeletion.length?(await db.prepare("SELECT version FROM jinam_shared_records WHERE scope='seiko' AND collection='production-handoffs-v1' AND id='ledger'").first<{version:number}>())?.version||0:null;
+ for(const record of pendingDeletion)if(await sheetPersonHasHistory(db,source.order,record.recordId))throw new SheetError("This entry acquired linked history while deletion was in progress. Restore it from Deleted entries to retain that history.");
+ const importOrder={...source.order,records:source.order.records.filter(r=>!deleted.has(r.recordId))};
+ const token=existingToken||await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(before.spreadsheet_id)}`;
  const result=await google(token,`${base}/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`);
- const table:unknown[][]=result.values||[];if(table.some(row=>row.some(v=>typeof v==="string"&&/^#(REF!|VALUE!|DIV\/0!|N\/A|ERROR!|NAME\?|NUM!)/.test(v))))throw new SheetError("Resolve formula errors in People before syncing. No app records were changed.");
- let parsed:ReturnType<typeof readOrderSheet>;try{parsed=readOrderSheet(source.order,table,()=>crypto.randomUUID());}catch(e){throw new SheetError((e as Error).message);}
+ const table:unknown[][]=(result.values||[]).map((row:unknown[],index:number)=>index>=3&&deleted.has(String(row[0]))?[]:row);if(table.some(row=>row.some(v=>typeof v==="string"&&/^#(REF!|VALUE!|DIV\/0!|N\/A|ERROR!|NAME\?|NUM!)/.test(v))))throw new SheetError("Resolve formula errors in People before syncing. No app records were changed.");
+ let parsed:ReturnType<typeof readOrderSheet>;try{parsed=readOrderSheet(importOrder,table,()=>crypto.randomUUID());}catch(e){throw new SheetError((e as Error).message);}
  if(parsed.identities.length||parsed.fills.length)await google(token,`${base}:batchUpdate`,{requests:parsed.identities.map(r=>({updateCells:{start:{sheetId:before.people_sheet_id,rowIndex:r.row,columnIndex:0},rows:[{values:[sheetCell(r.recordId),sheetCell(r.personId)]}],fields:"userEnteredValue"}})).concat(parsed.fills.map(f=>({updateCells:{start:{sheetId:before.people_sheet_id,rowIndex:f.row,columnIndex:f.column},rows:[{values:[sheetCell(f.value)]}],fields:"userEnteredValue"}})))});
  const changed=JSON.stringify(parsed.order.records)!==JSON.stringify(source.order.records)||JSON.stringify(parsed.order.commerce?.people)!==JSON.stringify(source.order.commerce?.people);
- const now=new Date().toISOString();if(changed){const saved={...parsed.order,updatedAt:now,revisions:[...(source.order.revisions||[]),{revision:(source.order.revisions?.length||0)+1,at:now,reason:"Person records synchronized from Google Sheets",recordCount:parsed.order.records.length}]};const json=JSON.stringify(saved);const write=await db.prepare("UPDATE erp_orders SET document_json=?,version=version+1,updated_at=?,updated_by_user_id=?,updated_by_email=? WHERE id=? AND version=? AND document_json=? AND EXISTS(SELECT 1 FROM seiko_order_sheets WHERE order_id=? AND lease_token=?)").bind(json,now,actor.userId,actor.email,id,source.version,source.document_json,id,lease).run();if(!write.meta.changes)throw new SheetError("The order changed while Sheets was syncing. Retry to merge with the latest saved order.");}
+ const now=new Date().toISOString();if(changed){const saved={...parsed.order,updatedAt:now,revisions:[...(source.order.revisions||[]),{revision:(source.order.revisions?.length||0)+1,at:now,reason:"Person records synchronized from Google Sheets",recordCount:parsed.order.records.length}]};const json=JSON.stringify(saved);const write=await db.prepare("UPDATE erp_orders SET document_json=?,version=version+1,updated_at=?,updated_by_user_id=?,updated_by_email=? WHERE id=? AND version=? AND document_json=? AND EXISTS(SELECT 1 FROM seiko_order_sheets WHERE order_id=? AND lease_token=?) AND (? IS NULL OR COALESCE((SELECT version FROM jinam_shared_records WHERE scope='seiko' AND collection='production-handoffs-v1' AND id='ledger'),0)=?)").bind(json,now,actor.userId,actor.email,id,source.version,source.document_json,id,lease,productionVersion,productionVersion).run();if(!write.meta.changes)throw new SheetError("The order changed while Sheets was syncing. Retry to merge with the latest saved order.");}
  await db.prepare("UPDATE seiko_order_sheets SET status='ready',synced_at=?,checked_at=?,error=NULL WHERE order_id=? AND lease_token=?").bind(now,now,id,lease).run();return await orderRow(db,id);
  }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{if(!existingLease)await release(db,id,lease);}
 }
@@ -120,6 +125,7 @@ export async function syncOrderSheet(db:DB,actor:Actor,id:string,force=true,exis
 export async function saveSheetPerson(db:DB,actor:Actor,id:string,edit:SheetPersonEdit){
  const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError("Connect this order’s Google Sheet before entering measurements.");
  const lease=await claim(db,id,actor);try{
+  if((await deletedSheetPeople(db,id)).some(p=>p.recordId===edit.recordId))throw new SheetError("This entry was deleted. Restore it from Deleted entries before editing.");
   const source=await orderRow(db,id),token=await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(link.spreadsheet_id)}`;
   const result=await google(token,base+"/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING");
   let editPlan:ReturnType<typeof prepareSheetPersonEdit>;try{editPlan=prepareSheetPersonEdit(source.order,result.values||[],edit);}catch(e){throw new SheetError((e as Error).message);}
@@ -128,5 +134,39 @@ export async function saveSheetPerson(db:DB,actor:Actor,id:string,edit:SheetPers
   // Keep the lease through confirmation. A retry reuses the same person identity
   // if the sheet write succeeded but its confirmation was interrupted.
   return await syncOrderSheet(db,actor,id,true,token,lease);
+ }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
+}
+
+
+const personTrashCollection="order-person-trash-v1";
+type DeletedPerson={orderId:string;recordId:string;name:string;cells:Record<string,string|number>;enteredValues?:Record<string,Record<string,unknown>>;record:SeikoOrder["records"][number];deletedAt:string;deletedBy:string;restoredAt?:string};
+export async function deletedSheetPeople(db:DB,id:string){
+ const rows=await db.prepare("SELECT document_json FROM jinam_shared_records WHERE scope='seiko' AND collection=? AND json_extract(document_json,'$.orderId')=? AND json_extract(document_json,'$.restoredAt') IS NULL ORDER BY updated_at DESC").bind(personTrashCollection,id).all<{document_json:string}>();return rows.results.map(row=>JSON.parse(row.document_json) as DeletedPerson);
+}
+async function storeDeletedPerson(db:DB,actor:Actor,person:DeletedPerson){const now=new Date().toISOString();await db.prepare("INSERT INTO jinam_shared_records(scope,collection,id,document_json,version,created_at,updated_at,updated_by_user_id,updated_by_email) VALUES('seiko',?,?,?,1,?,?,?,?) ON CONFLICT(scope,collection,id) DO UPDATE SET document_json=excluded.document_json,version=jinam_shared_records.version+1,updated_at=excluded.updated_at,updated_by_user_id=excluded.updated_by_user_id,updated_by_email=excluded.updated_by_email").bind(personTrashCollection,person.orderId+':'+person.recordId,JSON.stringify(person),now,now,actor.userId,actor.email).run();}
+async function sheetPersonHasHistory(db:DB,order:SeikoOrder,recordId:string){const id=order.orderId,commerce=order.commerce,billingTable=await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='seiko_billing_documents'").first();return Boolean(commerce?.deliveries.some(d=>d.recordId===recordId)||commerce?.issues.some(i=>i.recordId===recordId)||billingTable&&await db.prepare("SELECT id FROM seiko_billing_documents WHERE json_extract(data,'$.orderId')=? AND EXISTS(SELECT 1 FROM json_tree(data) j WHERE j.key='recordId' AND j.value=?) LIMIT 1").bind(id,recordId).first()||await db.prepare("SELECT id FROM jinam_shared_records WHERE scope='seiko' AND collection='production-handoffs-v1' AND json_extract(document_json,'$.status')!='Cancelled' AND EXISTS(SELECT 1 FROM json_each(document_json,'$.allocations') a WHERE json_extract(a.value,'$.orderId')=? AND EXISTS(SELECT 1 FROM json_tree(a.value) j WHERE j.key='recordId' AND j.value=?)) LIMIT 1").bind(id,recordId).first());}
+export async function deleteSheetPerson(db:DB,actor:Actor,id:string,edit:SheetPersonEdit){
+ const lease=await claim(db,id,actor);try{
+  if(!/^[a-zA-Z0-9:_-]{1,150}$/.test(edit.recordId))throw new SheetError("Choose a person entry.");
+  const source=await orderRow(db,id),link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError("This order has no connected sheet.");
+  const token=await accessToken(db),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(link.spreadsheet_id),result=await google(token,base+'/values/People?valueRenderOption=UNFORMATTED_VALUE'),table:unknown[][]=result.values||[],keys=(table[0]||[]).map(String),row=table.findIndex((r,i)=>i>=3&&r[0]===edit.recordId),archived=(await deletedSheetPeople(db,id)).find(p=>p.recordId===edit.recordId);
+  if(keys[0]!=="_record_id"||keys[1]!=="_person_id")throw new SheetError("Restore the sheet identity headers before deleting an entry.");
+  if(row<0&&!archived)throw new SheetError("This entry changed or was removed. Refresh and review before deleting.");
+  if(row>=0){
+   const columns=new Map(orderSheetColumns(source.order).map(c=>[c.id,c]));for(const [key,value] of Object.entries(edit.expected||{})){const c=columns.get(key);if(!c||c.derived||key==='_record_id'||key==='_person_id')continue;if(String(table[row][keys.indexOf(key)]??'')!==String(value??''))throw new SheetError("This person changed after it was opened. Reopen the entry before deleting.");}
+   const linkedHistory=await sheetPersonHasHistory(db,source.order,edit.recordId);
+   if(linkedHistory)throw new SheetError("This entry has production, delivery, issue or billing history. Use Order management to cancel/remove it while keeping that history.");
+   if(!archived){const cellSnapshot=await google(token,base+'?ranges='+encodeURIComponent("'People'!"+(row+1)+':'+(row+1))+'&includeGridData=true&fields=sheets(data(rowData(values(userEnteredValue))))');const entered=cellSnapshot.sheets?.[0]?.data?.[0]?.rowData?.[0]?.values||[];const enteredValues=Object.fromEntries(keys.map((key,i)=>[key,entered[i]||{}]));const record=source.order.records.find(r=>r.recordId===edit.recordId)||{recordId:edit.recordId,personId:String(table[row][1]||''),values:{}};const nameField=source.order.fields.find(f=>/name/i.test(f.name))||source.order.fields[0];await storeDeletedPerson(db,actor,{orderId:id,recordId:edit.recordId,name:String(table[row][keys.indexOf('field:'+nameField?.id)]||record.personId||'Unnamed entry'),enteredValues,cells:Object.fromEntries(keys.map((key,i)=>[key,(table[row][i]??'') as string|number])),record,deletedAt:new Date().toISOString(),deletedBy:actor.email});}
+   await google(token,base+':batchUpdate',{requests:[{deleteDimension:{range:{sheetId:link.people_sheet_id,dimension:'ROWS',startIndex:row,endIndex:row+1}}}]});
+  }
+  return await syncOrderSheet(db,actor,id,true,token,lease);
+ }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
+}
+export async function restoreSheetPerson(db:DB,actor:Actor,id:string,recordId:string){
+ const lease=await claim(db,id,actor);try{
+  const archived=(await deletedSheetPeople(db,id)).find(p=>p.recordId===recordId);if(!archived)throw new SheetError("This entry is no longer in Deleted entries. Refresh the order.");const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError("This order has no connected sheet.");
+  const token=await accessToken(db),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(link.spreadsheet_id),result=await google(token,base+'/values/People?valueRenderOption=UNFORMATTED_VALUE'),table:unknown[][]=result.values||[],keys=(table[0]||[]).map(String);if(keys[0]!=='_record_id'||keys[1]!=='_person_id')throw new SheetError("Restore the sheet identity headers before restoring an entry.");
+  if(!table.some((r,i)=>i>=3&&r[0]===recordId))await google(token,base+':batchUpdate',{requests:[{appendCells:{sheetId:link.people_sheet_id,rows:[{values:keys.map(key=>archived.enteredValues?.[key]||sheetCell(archived.cells[key]??''))}],fields:'userEnteredValue'}}]});
+  await storeDeletedPerson(db,actor,{...archived,restoredAt:new Date().toISOString()});return await syncOrderSheet(db,actor,id,true,token,lease);
  }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
 }

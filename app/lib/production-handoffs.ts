@@ -1,4 +1,4 @@
-import { specificationForRecord, measurementRequired, normalizeProductMeasurements, quantityForRecord, type SeikoOrder } from './order-domain';
+import { recordRuleIssues, specificationForRecord, measurementRequired, normalizeProductMeasurements, quantityForRecord, type SeikoOrder } from './order-domain';
 import { packingQuantities } from './packing-label-model';
 
 export type ProductionDemand = {
@@ -20,9 +20,9 @@ export const productionKey = (values: unknown[]) => JSON.stringify(values);
 export function productionDemand(orders: ProductionOrder[]): ProductionDemand[] {
   const result = new Map<string, ProductionDemand>();
   for (const { order: raw, version } of orders) {
-    if (raw.archived || (raw as SeikoOrder & {deletedAt?:string}).deletedAt) continue;
+    if (raw.status === "Cancelled" || raw.archived || (raw as SeikoOrder & {deletedAt?:string}).deletedAt) continue;
     const order = normalizeProductMeasurements(raw), quantities = packingQuantities(order);
-    const records = order.records.filter(record => !record.held && !["cancelled","hold","awaiting"].includes(order.commerce?.people[record.recordId]?.state||""));
+    const records = order.records.filter(record => !record.held && !order.fields.some(f=>/status|cancel/i.test(f.name)&&/^(cancelled|canceled|removed)$/i.test(String(record.values["field:"+f.id]||"").trim())) && !["cancelled","hold","awaiting"].includes(order.commerce?.people[record.recordId]?.state||""));
     for (const product of order.products.filter(item => item.name.trim())) {
       const measurements = order.measurements.filter(item => item.appliesTo.includes(product.id) && item.name.trim());
       const rows = product.quantityMode === 'order_total' ? [{ recordId: 'order-total', personId: '', values: {} as Record<string,string|number> }] : records;
@@ -33,7 +33,7 @@ export function productionDemand(orders: ProductionOrder[]): ProductionDemand[] 
         const standardSize=order.commerce?.people[record.recordId]?.readySize?.trim();
         const expectedMeasurements=measurements.filter(m=>!m.requiredWhen?.conditions?.length||measurementRequired(m,record));
         const values = measurements.map(item => ({ name: item.name, value: text(record.values[`measurement:${item.id}:product:${product.id}`]), required: measurementRequired(item,record) }));
-        let unresolved = !Number.isSafeInteger(quantity) || quantity > 100000 || product.quantityMode !== 'order_total' && expectedMeasurements.length > 0 && !standardSize && (values.filter(item=>expectedMeasurements.some(m=>m.name===item.name)).every(item => !item.value) || values.some(item => item.required && !item.value));
+        let unresolved = recordRuleIssues({...order,products:[product],measurements},record).length>0 || product.quantityMode!=="order_total"&&order.fields.some(f=>f.required&&!text(record.values["field:"+f.id])) || !Number.isSafeInteger(quantity) || quantity > 100000 || product.quantityMode !== 'order_total' && expectedMeasurements.length > 0 && !standardSize && (values.filter(item=>expectedMeasurements.some(m=>m.name===item.name)).every(item => !item.value) || values.some(item => item.required && !item.value));
         const specs = product.specifications.map(spec => {
           const value = /size/i.test(spec.name)&&standardSize?standardSize:specificationForRecord(spec,record);
           if (spec.required && !text(value)) unresolved = true;
@@ -107,3 +107,7 @@ export function validateRelease(handoff: ProductionHandoff, ledger: ProductionLe
 export function completedQuantity(handoff: ProductionHandoff, key: string, operation: string) {
   return handoff.events.filter(event => event.allocationKey === key && event.operation.trim().toLocaleLowerCase() === operation.trim().toLocaleLowerCase()).reduce((sum,event) => sum + event.quantity,0);
 }
+
+export function processedQuantity(handoff:ProductionHandoff,key:string,operation:string){return handoff.events.filter(event=>event.allocationKey===key&&event.operation.trim().toLocaleLowerCase()===operation.trim().toLocaleLowerCase()).reduce((sum,event)=>sum+event.quantity+event.rejects,0);}
+/** Refresh unchanged size identities without discarding the user's partial quantities. */
+export function refreshDraftSources(draft:ProductionHandoff,demand:ProductionDemand[]):ProductionHandoff{return {...draft,allocations:draft.allocations.map(row=>{const current=demand.find(item=>item.key===row.key);return current?{...current,quantity:row.quantity,lay:row.lay,stack:row.stack}:row;})};}
