@@ -37,7 +37,7 @@ function finalizePersonDetails(setup: Element) {
 
 function finalizeProductDetails(setup: Element) {
   setup.querySelectorAll<HTMLElement>(".productPolicy").forEach(card => {
-    const quantitySelect = card.querySelector<HTMLSelectElement>(".productPolicyTop label > select");
+    const quantitySelect = card.querySelector<HTMLSelectElement>(".productPolicyTop:not([data-react-quantity]) label > select");
     const help = card.querySelector<HTMLElement>(":scope > .ruleHelp");
     const quantityInputs = Array.from(card.querySelectorAll<HTMLInputElement>(".productPolicyTop input"));
     const quantityInput = quantityInputs.at(-1);

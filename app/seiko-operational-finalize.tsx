@@ -81,7 +81,7 @@ function enhanceOrderSetup() {
   });
 
   setup.querySelectorAll<HTMLElement>(".productPolicy").forEach(card => {
-    const quantitySelect = card.querySelector<HTMLSelectElement>(".productPolicyTop label > select");
+    const quantitySelect = card.querySelector<HTMLSelectElement>(".productPolicyTop:not([data-react-quantity]) label > select");
     const quantityInputs = Array.from(card.querySelectorAll<HTMLInputElement>(".productPolicyTop input"));
     const defaultInput = quantityInputs.at(-1);
     const defaultLabel = defaultInput?.closest("label")?.querySelector<HTMLElement>(":scope > span");

@@ -35,8 +35,11 @@ test("Person IDs remain stable after row deletion and new IDs never reuse a dele
 test("group quantity UI and domain both use default quantity plus exceptions", () => {
   assert.match(orderDomain, /return Math\.max\(0, Number\(product\.defaultQuantity\) \|\| 0\)/);
   assert.match(orderDomain, /split\(\/\[;,\\n\]\//);
-  assert.match(orders, /min="0" placeholder="Quantity" value=\{rule\.quantity \?\? ""\}/);
-  assert.match(orders, /quantity 0 means that group does not receive this product/);
+  const quantitySetup = read("app/product-quantity-setup.tsx");
+  assert.match(orders, /<ProductQuantitySetup/);
+  assert.match(quantitySetup, /min="0" placeholder="Quantity"/);
+  assert.match(quantitySetup, /Who receives it\?/);
+  assert.match(quantitySetup, /Other rules/);
   assert.doesNotMatch(setupPolish, /quantitySelect\.value === "by_group" \|\| quantitySelect\.value === "per_person"/);
   assert.match(setupFinalize, /Set the normal quantity once, then add only the groups that differ/);
 });

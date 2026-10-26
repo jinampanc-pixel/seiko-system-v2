@@ -18,3 +18,31 @@ test('pricing detects symbolic overlap, preserves individual rates and treats in
 test('legacy rules and recorded quantities are retained without migration guesses',()=>{const o=fixture(),p=o.products[0],r=o.records[0];p.quantityGroupFieldId='class';p.quantityGroupRules=[{match:'9-11',quantity:2}];r.values['product:tee:assigned_qty']=5;assert.equal(d.quantityForRecord(p,r),5);delete r.values['product:tee:assigned_qty'];assert.equal(d.quantityForRecord(p,r),2);assert.equal(d.predicateState({match:'9-11'},r,'class'),'match');});
 
 test('labels omit people whose colour conditions are still pending instead of printing a blank or guessed colour',()=>{const o=fixture();o.products[0].quantityMode='same_for_all';o.products[0].defaultQuantity=1;delete o.records[0].values['field:gender'];const packing=load('app/lib/packing-label-model.ts');assert.equal(packing.packingLabelQuantities(o).get('one').tee,0);o.records[0].values['field:gender']='Male';assert.equal(packing.packingLabelQuantities(o).get('one').tee,1);});
+const recipients=load('app/lib/product-recipients.ts');
+test('simple recipients reuse quantity rules for unnamed entries, Sheet totals and product-specific measurements',()=>{
+ const o=fixture();o.fields=o.fields.filter(f=>f.id==='class'||f.id==='gender');o.fields.find(f=>f.id==='gender').options=['Male','Female'];
+ const choices=recipients.recipientChoices(o.fields),male=choices.find(c=>c.value==='Male'),female=choices.find(c=>c.value==='Female');
+ o.products=['Shirt','Male Pant','Kurti','Female Pant'].map((name,i)=>recipients.setProductRecipient({...d.blankProduct(),id:'p'+i,name},i<2?male:female,1));
+ o.measurements=o.products.map(p=>({...d.blankMeasurement(),id:'length-'+p.id,name:'Length',appliesTo:[p.id]}));
+ const grid=load('app/lib/measurement-entry-grid.ts');
+ const values={'field:class':'9','field:gender':'Male'};
+ const record={recordId:'r',personId:'P-001',values};o.records=[record];
+ assert.deepEqual(Array.from(o.products,p=>d.quantityForRecord(p,record)),[1,1,0,0]);
+ assert.equal(commerce.personName(o,'r'),'P-001');
+ assert.deepEqual(Array.from(grid.missingEntryGroups(o,{'field:class':'9'}),f=>f.id),['gender']);
+ values['field:gender']='Female';assert.deepEqual(Array.from(o.products,p=>d.quantityForRecord(p,record)),[0,0,1,1]);
+ for(const p of o.products){assert.equal(recipients.simpleRecipient(p,choices).quantity,1);assert.equal(recipients.simpleRecipient(p,choices).label,p.name==='Shirt'||p.name==='Male Pant'?'gender: Male':'gender: Female');}
+ const cols=sheet.orderSheetColumns(o),rows=sheet.orderSheetRows(o,cols);
+ for(const p of o.products)assert.equal(rows[0][cols.findIndex(c=>c.id==='product:'+p.id+':resolved_qty')],d.quantityForRecord(p,record));
+ const everyone=recipients.setProductRecipient(o.products[0],null,2);assert.equal(d.quantityForRecord(everyone,record),2);assert.equal(everyone.quantityGroupRules.length,0);
+});
+test('complex and legacy quantity policies are never silently flattened by simple recipient detection',()=>{
+ const o=fixture(),p=o.products[0],choices=recipients.recipientChoices(o.fields);const before=JSON.stringify(p);
+ assert.equal(recipients.simpleRecipient(p,choices),null);assert.equal(JSON.stringify(p),before);
+ const gender=o.fields.find(f=>f.id==='gender');gender.options=['Male','Female'];const available=recipients.recipientChoices(o.fields);
+ const legacy={...p,defaultQuantity:0,quantityGroupFieldId:'gender',quantityGroupRules:[{match:'Male',quantity:3}]};
+ assert.equal(recipients.simpleRecipient(legacy,available).quantity,3);
+ for(const quantityMode of ['per_person','default_with_exceptions','order_total'])assert.equal(recipients.simpleRecipient({...legacy,quantityMode},available),null);
+ assert.equal(recipients.simpleRecipient({...legacy,defaultQuantity:1},available),null);
+ assert.equal(recipients.simpleRecipient({...legacy,quantityGroupRules:[{match:'Other',quantity:1}]},available),null);
+});

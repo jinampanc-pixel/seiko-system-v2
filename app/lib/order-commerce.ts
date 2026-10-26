@@ -16,7 +16,7 @@ export function redactCommercialPrices(order:SeikoOrder):SeikoOrder{
 }
 export const cents = (n:number) => Math.round((n+Number.EPSILON)*100)/100;
 const present = (v:unknown) => v!==undefined&&v!==null&&String(v).trim()!==""&&String(v).trim()!=="0";
-export function personName(order:SeikoOrder, recordId:string) { const r=order.records.find(r=>r.recordId===recordId);const f=order.fields.find(f=>/name/i.test(f.name))||order.fields[0];return r?String(r.values[`field:${f?.id}`]||r.personId||r.recordId):recordId==="order"?"Whole order":"Removed person"; }
+export function personName(order:SeikoOrder, recordId:string) { const r=order.records.find(r=>r.recordId===recordId);const f=order.fields.find(f=>/name/i.test(f.name));return r?String(r.values[`field:${f?.id}`]||r.personId||r.recordId):recordId==="order"?"Whole order":"Removed person"; }
 const assignedCache=new WeakMap<SeikoOrder,ReturnType<typeof packingQuantities>>();
 export function assignedQuantities(order:SeikoOrder){let q=assignedCache.get(order);if(!q){q=packingQuantities(order);assignedCache.set(order,q);}return q;}
 export function assignedQuantity(order:SeikoOrder,record:OrderRecord,productId:string,q=assignedQuantities(order)){const p=order.products.find(p=>p.id===productId);return p?.quantityMode==="order_total"&&record.recordId==="order"?p.orderTotal:q.get(record.recordId)?.[productId]||0;}

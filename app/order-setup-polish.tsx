@@ -9,7 +9,7 @@ function sectionByTitle(title: string) {
 
 function lockIrrelevantDefaults() {
   document.querySelectorAll<HTMLElement>(".orderSetup .productPolicy").forEach(card => {
-    const quantitySelect = card.querySelector<HTMLSelectElement>(".productPolicyTop label > select");
+    const quantitySelect = card.querySelector<HTMLSelectElement>(".productPolicyTop:not([data-react-quantity]) label > select");
     const inputs = Array.from(card.querySelectorAll<HTMLInputElement>(".productPolicyTop input"));
     const quantityInput = inputs.at(-1);
     if (quantitySelect && quantityInput) {
