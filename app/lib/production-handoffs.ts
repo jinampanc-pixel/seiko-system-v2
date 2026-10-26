@@ -75,10 +75,11 @@ export function reserveMembers(handoff:ProductionHandoff, ledger:ProductionLedge
     if(remaining>0)throw new Error('Some source records have already been issued, even if their size or colour changed.');
   }
 }
-export function cuttingGroups(allocations: ProductionAllocation[]) {
+export function cuttingGroups(allocations: ProductionAllocation[],lays:ProductionLay[]=[],sizeSummary=false) {
   const groups = new Map<string,{product:string;variant:string;quantity:number;allocations:ProductionAllocation[]}>();
   for (const row of allocations) {
-    const key = productionKey([row.product.toLocaleLowerCase(), row.variant, row.cuttingSignature]);
+    const confirmedLay=lays.find(lay=>lay.id===row.lay&&lay.confirmed&&text(lay.pattern)&&text(row.stack));
+    const key = productionKey([row.product.toLocaleLowerCase(), row.variant, sizeSummary?"size-summary":confirmedLay?[confirmedLay.id,row.stack]:row.cuttingSignature]);
     const group = groups.get(key) || {product:row.product,variant:row.variant,quantity:0,allocations:[]};
     group.quantity += row.quantity; group.allocations.push(row); groups.set(key,group);
   }
@@ -99,7 +100,7 @@ export function validateRelease(handoff: ProductionHandoff, ledger: ProductionLe
   }
   for (const lay of handoff.lays) {
     if (!handoff.allocations.some(row => row.lay === lay.id)) continue;
-    if (!lay.confirmed || [lay.pattern,lay.fabric,lay.width,lay.stretch,lay.grain,lay.direction,lay.checks].some(value => !text(value))) throw new Error('Confirm pattern and fabric compatibility for every planned lay.');
+    if (!lay.confirmed || !text(lay.pattern)) throw new Error('Confirm pattern and fabric compatibility for every planned lay.');
     const rows = handoff.allocations.filter(row => row.lay === lay.id);
     if (rows.some(row => !row.stack.trim())) throw new Error('Name a fabric / colour stack for each allocation in a lay.');
   }
@@ -111,3 +112,12 @@ export function completedQuantity(handoff: ProductionHandoff, key: string, opera
 export function processedQuantity(handoff:ProductionHandoff,key:string,operation:string){return handoff.events.filter(event=>event.allocationKey===key&&event.operation.trim().toLocaleLowerCase()===operation.trim().toLocaleLowerCase()).reduce((sum,event)=>sum+event.quantity+event.rejects,0);}
 /** Refresh unchanged size identities without discarding the user's partial quantities. */
 export function refreshDraftSources(draft:ProductionHandoff,demand:ProductionDemand[]):ProductionHandoff{return {...draft,allocations:draft.allocations.map(row=>{const current=demand.find(item=>item.key===row.key);return current?{...current,quantity:row.quantity,lay:row.lay,stack:row.stack}:row;})};}
+
+/** Display sections only: source allocations stay unchanged. */
+export type CuttingGrouping="specifications"|"size"|"stack";
+export function cuttingSections(allocations:ProductionAllocation[],groupBy:CuttingGrouping="specifications",lays:ProductionLay[]=[]){
+ const sections=new Map<string,ProductionAllocation[]>();
+ for(const row of allocations){const key=groupBy==="specifications"?row.specifications:groupBy==="stack"?productionKey([row.lay,row.stack]):"";const rows=sections.get(key)||[];rows.push(row);sections.set(key,rows);}
+ const compare=new Intl.Collator(undefined,{numeric:true,sensitivity:"base"}).compare;
+ return [...sections].map(([key,rows])=>{const first=rows[0],lay=lays.find(item=>item.id===first.lay);const label=groupBy==="stack"?(lay?[lay.id,lay.pattern,first.stack||"Stack not named"].filter(Boolean).join(" · "):"Unassigned cutting plan"):key;const details=groupBy==="stack"&&lay?(["fabric","width","stretch","grain","direction","checks"] as const).filter(key=>text(lay[key])).map(key=>`${({fabric:"Fabric",width:"Width",stretch:"Stretch",grain:"Grain",direction:"Direction",checks:"Checks"})[key]}: ${lay[key]}`).join(" · "):"";return {key,label,details,specifications:groupBy==="specifications"?key:"",quantity:rows.reduce((n,row)=>n+row.quantity,0),allocations:[...rows].sort((a,b)=>compare(a.variant,b.variant)||compare(a.orderNo,b.orderNo))};}).sort((a,b)=>compare(a.label,b.label));
+}

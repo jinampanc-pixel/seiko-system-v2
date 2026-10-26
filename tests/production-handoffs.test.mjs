@@ -103,3 +103,31 @@ test('portable production documents retain their rendered identity and content',
 
 
 test('the first save-and-issue checks source revisions atomically before creating any handoff',async()=>{const sqlite=new DatabaseSync(':memory:');try{for(const file of fs.readdirSync('migrations').sort())sqlite.exec(fs.readFileSync('migrations/'+file,'utf8'));let race=true;const order=makeOrder('first-issue');sqlite.prepare("INSERT INTO erp_orders(id,business_id,order_no,status,document_json,version,created_at,created_by_user_id,created_by_email,updated_at,updated_by_user_id,updated_by_email) VALUES(?,'seiko',?,'Active',?,1,'now','owner','owner@example.invalid','now','owner','owner@example.invalid')").run(order.orderId,order.details.orderNo,JSON.stringify(order));const db={withSession(){return this;},prepare(sql){let args=[];const stmt=sqlite.prepare(sql);return {bind(...values){args=values;return this;},async first(){return stmt.get(...args)||null;},async all(){return {results:stmt.all(...args)};},runSync(){return {meta:{changes:stmt.run(...args).changes}};}};},async batch(rows){if(race){race=false;sqlite.prepare('UPDATE erp_orders SET version=version+1').run();}sqlite.exec('BEGIN');try{const results=rows.map(row=>row.runSync());sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};const api=load('app/api/erp/production/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':{authenticateActor:async()=>({userId:'owner',email:'owner@example.invalid'}),authorizePermission:async()=>({role:'owner'})},'../../../lib/production-handoffs':domain});const issue=async version=>{const response=await api.POST(new Request('https://test.invalid/api/erp/production',{method:'POST',body:JSON.stringify({businessId:'seiko',operation:'save',expectedVersion:0,release:true,handoff:handoff(domain.productionDemand([{order,version}]),'first')})}));return {status:response.status,...await response.json()};};assert.equal((await issue(1)).status,409);assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM jinam_shared_records WHERE collection='production-handoffs-v1'").get().n,0,'a raced first issue writes neither ledger nor handoff');const confirmed=await issue(2);assert.equal(confirmed.status,200,JSON.stringify(confirmed));assert.equal(confirmed.ledger.handoffs[0].status,'Released');}finally{sqlite.close();}});
+
+test('cutting display groups specifications before naturally ordered sizes without changing allocations or compatibility',()=>{
+ const rows=domain.productionDemand([{order:makeOrder('one','Blue'),version:1},{order:makeOrder('two','Red'),version:2}]).map(allocation);
+ rows.push({...rows[0],key:'small',variant:'Length: 8',quantity:1},{...rows[0],key:'medium',variant:'Length: 10',quantity:3});
+ const original=JSON.stringify(rows),sections=domain.cuttingSections(rows);
+ assert.deepEqual(Array.from(sections,x=>x.specifications),['Colour: Blue','Colour: Red']);
+ assert.equal(sections[0].quantity,8);assert.equal(sections[1].quantity,4);
+ assert.deepEqual(Array.from(sections[0].allocations,x=>x.variant),['Length: 8','Length: 10','Length: 28','Length: 28 / Waist: 36']);
+ assert.equal(sections.reduce((n,x)=>n+x.quantity,0),rows.reduce((n,x)=>n+x.quantity,0));
+ assert.equal(domain.cuttingSections(rows,'size').length,1);assert.equal(JSON.stringify(rows),original,'view settings never mutate saved source allocations');
+ const incompatible={...rows[0],key:'other-pattern',cuttingSignature:'different panels'};
+ assert.equal(domain.cuttingGroups(domain.cuttingSections([rows[0],incompatible])[0].allocations).length,2,'the display grouping never merges incompatible cutting patterns');
+});
+
+test('different collar designs and main colours can share one explicitly confirmed cutting stack',()=>{
+ const blue=makeOrder('blue','Blue'),red=makeOrder('red','Red');
+ blue.products[0].specifications.push({id:'collar',name:'Collar pattern',role:'pattern',mode:'same_for_all',defaultValue:'Style A',required:true,groupRules:[]});
+ red.products[0].specifications.push({id:'collar',name:'Collar pattern',role:'pattern',mode:'same_for_all',defaultValue:'Style B',required:true,groupRules:[]});
+ const demand=domain.productionDemand([{order:blue,version:1},{order:red,version:1}]).filter(row=>!row.variant.includes('Waist'));
+ const plan=handoff(demand);plan.allocations.forEach(row=>{row.lay='L1';row.stack='Mixed main colours';});plan.lays=[{id:'L1',pattern:'Shared body pattern',fabric:'',width:'',stretch:'',grain:'',direction:'',checks:'',confirmed:false}];
+ assert.equal(domain.cuttingGroups(plan.allocations,plan.lays).length,2,'specification differences are not automatically treated as the same cutting pattern');assert.equal(domain.cuttingGroups(plan.allocations,[],true).length,1,'a simple PDF size summary combines quantities without claiming cutting compatibility or requiring a plan');assert.equal(domain.cuttingGroups(plan.allocations,[],true)[0].quantity,4);
+ assert.throws(()=>domain.validateRelease(plan,{handoffs:[]},demand),/Confirm pattern/);
+ plan.lays[0].confirmed=true;domain.validateRelease(plan,{handoffs:[]},demand);
+ const groups=domain.cuttingGroups(plan.allocations,plan.lays);assert.equal(groups.length,1);assert.equal(groups[0].quantity,4);assert.equal(groups[0].allocations.length,2);
+ assert.ok(groups[0].allocations.some(row=>row.specifications.includes('Style A')));assert.ok(groups[0].allocations.some(row=>row.specifications.includes('Style B')));
+ plan.lays[0].fabric='Cotton';plan.lays[0].width='60 inches';const sections=domain.cuttingSections(plan.allocations,'stack',plan.lays);assert.match(sections[0].details,/Fabric: Cotton.*Width: 60 inches/);assert.equal(sections.length,1);assert.match(sections[0].label,/Shared body pattern.*Mixed main colours/);
+ plan.allocations[1].stack='Separate stack';assert.equal(domain.cuttingSections(plan.allocations,'stack',plan.lays).length,2);assert.equal(domain.cuttingGroups(plan.allocations,plan.lays).length,2,'separate physical stacks retain separate quantities');
+});
