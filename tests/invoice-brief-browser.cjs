@@ -4,6 +4,7 @@ module.exports=async({page,seed,navigate,order})=>{
  await navigate('Orders');await page.locator('.orderRow').filter({hasText:'BRIEF-001'}).waitFor();await navigate('Billing');
  await page.locator('.billingCreateMenu>summary').click();await page.getByRole('button',{name:'+ Invoice',exact:true}).click();
  const form=page.getByRole('dialog',{name:'New invoice',exact:true});await form.getByLabel('Bill source',{exact:true}).selectOption(o.orderId);
+ assert.match(await form.locator('.billingLine').first().getByLabel('Description',{exact:true}).inputValue(),/Agreed clothing package/);assert.equal(await form.locator('.billingLine').first().getByLabel('Rate ₹',{exact:true}).inputValue(),'800');assert.equal(await form.locator('.billingLine').first().getByLabel('Quantity',{exact:true}).inputValue(),'1');
  const brief=form.getByRole('region',{name:'Order brief',exact:true});await brief.getByRole('heading',{name:'Order brief'}).waitFor();assert.match(await brief.innerText(),/800.00/);
  await form.getByLabel('Notes / payment terms',{exact:true}).fill('Keep this half-written draft');
  await form.locator('.billingLine').first().getByLabel('Description',{exact:true}).fill('Custom line already entered');await form.locator('.billingLine').first().getByLabel('Rate ₹',{exact:true}).fill('17');
