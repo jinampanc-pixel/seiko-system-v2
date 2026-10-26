@@ -3,7 +3,7 @@ import { orderRuleErrors, predicateState, specificationForRecord, recordRuleIssu
 
 export type PriceRule = RulePredicate & { id:string; name:string; mode:"package"|"product"|"fixed"; rate:number; taxRate:number; hsnSac:string; fieldId:string; match:string; contents:{productId:string;quantity:number;alternatives?:string[]}[] };
 export type PersonCommercial = { state:"active"|"awaiting"|"hold"|"cancelled"; reason:string; overrideReason?:string; readySize?:string; batch?:string; rateOverrides?:Record<string,number> };
-export type DeliveryEntry = { id:string; date:string; recordId:string; productId:string; quantity:number; kind:"delivery"|"return"|"replacement"; issueId?:string; reference:string; at:string };
+export type DeliveryEntry = { id:string; date:string; historical?:boolean; dateUnknown?:boolean; recordId:string; productId:string; quantity:number; kind:"delivery"|"return"|"replacement"; issueId?:string; reference:string; at:string };
 export type ServiceIssue = { id:string; recordId:string; productId:string; type:"fitting"|"missing"|"wrong_item"|"new_person"|"removal"|"return"|"defect"|"other"; description:string; owner:string; promisedDate:string; status:"open"|"in_progress"|"resolved"; chargeable:boolean; extraCharge:number; taxRate?:number; hsnSac?:string; history:{at:string;status:string;note:string}[] };
 export type OrderCommerce = { rules:PriceRule[]; people:Record<string,PersonCommercial>; deliveries:DeliveryEntry[]; issues:ServiceIssue[] };
 export type PriceUnit = { unit?:string; personName?:string; key:string; ruleId:string; recordId:string; description:string; quantity:number; rate:number; amount:number; taxRate:number; hsnSac:string };
@@ -21,12 +21,17 @@ const assignedCache=new WeakMap<SeikoOrder,ReturnType<typeof packingQuantities>>
 export function assignedQuantities(order:SeikoOrder){let q=assignedCache.get(order);if(!q){q=packingQuantities(order);assignedCache.set(order,q);}return q;}
 export function assignedQuantity(order:SeikoOrder,record:OrderRecord,productId:string,q=assignedQuantities(order)){const p=order.products.find(p=>p.id===productId);return p?.quantityMode==="order_total"&&record.recordId==="order"?p.orderTotal:q.get(record.recordId)?.[productId]||0;}
 const eligibilityColumns=new WeakMap<SeikoOrder,ReturnType<typeof workspaceColumns>>();
+function inactiveRecordReason(order:SeikoOrder,record:OrderRecord):string {
+ const person=commerceOf(order).people[record.recordId];
+ if(order.status==="Cancelled")return "Order cancelled";
+ if(person&&person.state!=="active")return person.state+": "+person.reason;
+ if(record.held)return "On hold";
+ if(order.fields.some(f=>/status|cancel/i.test(f.name)&&/^(cancelled|canceled|removed)$/i.test(String(record.values[`field:${f.id}`]||"").trim())))return "Cancelled in person details";
+ return "";
+}
 export function recordEligibility(order:SeikoOrder,record:OrderRecord,productIds=order.products.map(p=>p.id),quantities=assignedQuantities(order)) {
-  const person=commerceOf(order).people[record.recordId];
-  if(order.status==="Cancelled")return {eligible:false,reason:"Order cancelled"};
-  if(person&&person.state!=="active")return {eligible:false,reason:person.state+": "+person.reason};
-  if(record.held)return {eligible:false,reason:"On hold"};
-  if(order.fields.some(f=>/status|cancel/i.test(f.name)&&/^(cancelled|canceled|removed)$/i.test(String(record.values[`field:${f.id}`]||"").trim())))return {eligible:false,reason:"Cancelled in person details"};
+  const person=commerceOf(order).people[record.recordId],inactive=inactiveRecordReason(order,record);
+  if(inactive)return {eligible:false,reason:inactive};
   let cols=eligibilityColumns.get(order);if(!cols){cols=workspaceColumns(order);eligibilityColumns.set(order,cols);}
   const ruleIssues=recordRuleIssues(order,record);if(ruleIssues.length)return {eligible:false,reason:ruleIssues.join("; ")};
   const assigned=productIds.filter(id=>assignedQuantity(order,record,id,quantities)>0);
@@ -34,6 +39,8 @@ export function recordEligibility(order:SeikoOrder,record:OrderRecord,productIds
   if(person?.overrideReason?.trim())return {eligible:true,reason:"Override: "+person.overrideReason};
   if(person?.readySize?.trim())return {eligible:true,reason:"Standard size: "+person.readySize};
   for(const id of assigned){
+    // Recorded supply proves this product was fulfilled; never invent its old measurements.
+    if(deliveredQuantity(order,record.recordId,id)>=assignedQuantity(order,record,id,quantities))continue;
     const product=order.products.find(p=>p.id===id);if(!product) return {eligible:false,reason:"Package product was removed"};
     const measurements=order.measurements.filter(m=>m.appliesTo.includes(id)&&(!m.requiredWhen?.conditions?.length||measurementRequired(m,record)));
     const required=measurements.filter(m=>measurementRequired(m,record));
@@ -109,7 +116,7 @@ export function validateCommerce(order:SeikoOrder, previous?:SeikoOrder):string 
   if(old&&[...old.deliveries,...old.issues].some(x=>x.recordId!=="order"&&!order.records.some(r=>r.recordId===x.recordId)))return "Preserve people with delivery or query history. Cancel them in People & eligibility instead of deleting their row.";
   if(old&&JSON.stringify(c.deliveries.slice(0,old.deliveries.length))!==JSON.stringify(old.deliveries))return "Delivery history is permanent. Add a return or correction entry instead.";
   const net=new Map<string,number>();
-  for(const [deliveryIndex,d] of c.deliveries.entries()){const key=`${d.recordId}:${d.productId}`,p=order.products.find(p=>p.id===d.productId),record=order.records.find(r=>r.recordId===d.recordId)||(d.recordId==="order"&&p?.quantityMode==="order_total"?{recordId:"order",personId:"",values:{}}:undefined);if(!d.id||!record||!p||!Number.isInteger(d.quantity)||d.quantity<=0||!["delivery","return","replacement"].includes(d.kind)||!/^\d{4}-\d{2}-\d{2}$/.test(d.date)||!d.reference?.trim())return "Complete delivery person, product, date, quantity and reference.";if(d.kind==="delivery"&&Boolean(previous)&&deliveryIndex>=(old?.deliveries.length||0)&&(record.recordId==="order"?order.status==="Cancelled":!recordEligibility(order,record,[p.id]).eligible))return "Only eligible active people can receive new delivery. Record returns or linked replacements separately.";if(d.kind==="replacement"){if(!c.issues.some(i=>i.id===d.issueId&&i.recordId===d.recordId&&i.productId===d.productId))return "Link replacement supply to its issue.";continue;}const qty=(net.get(key)||0)+(d.kind==="return"?-d.quantity:d.quantity);if(qty<0||d.kind==="delivery"&&deliveryIndex>=(old?.deliveries.length||0)&&qty>assignedQuantity(order,record,p.id))return "Delivery exceeds the ordered quantity or return exceeds deliveries. Use a linked replacement for extra supply.";net.set(key,qty);}
+  for(const [deliveryIndex,d] of c.deliveries.entries()){const key=`${d.recordId}:${d.productId}`,p=order.products.find(p=>p.id===d.productId),record=order.records.find(r=>r.recordId===d.recordId)||(d.recordId==="order"&&p?.quantityMode==="order_total"?{recordId:"order",personId:"",values:{}}:undefined);if(!d.id||!record||!p||!Number.isInteger(d.quantity)||d.quantity<=0||!["delivery","return","replacement"].includes(d.kind)||!(d.historical===true&&d.dateUnknown===true&&d.date===""||!d.dateUnknown&&/^\d{4}-\d{2}-\d{2}$/.test(d.date))||d.historical!==undefined&&typeof d.historical!=="boolean"||d.dateUnknown!==undefined&&typeof d.dateUnknown!=="boolean"||d.historical===true&&d.kind!=="delivery"||!d.reference?.trim())return "Complete delivery person, product, date (or historical date unknown), quantity and reference.";if(d.kind==="delivery"&&Boolean(previous)&&deliveryIndex>=(old?.deliveries.length||0)&&(record.recordId==="order"?order.status==="Cancelled":Boolean(d.historical?inactiveRecordReason(order,record):!recordEligibility({...order,commerce:{...c,deliveries:c.deliveries.slice(0,deliveryIndex)}},record,[p.id]).eligible)))return "Only eligible active people can receive new delivery. Record returns or linked replacements separately.";if(d.kind==="replacement"){if(!c.issues.some(i=>i.id===d.issueId&&i.recordId===d.recordId&&i.productId===d.productId))return "Link replacement supply to its issue.";continue;}const qty=(net.get(key)||0)+(d.kind==="return"?-d.quantity:d.quantity);if(qty<0||d.kind==="delivery"&&deliveryIndex>=(old?.deliveries.length||0)&&qty>assignedQuantity(order,record,p.id))return "Delivery exceeds the ordered quantity or return exceeds deliveries. Use a linked replacement for extra supply.";net.set(key,qty);}
   if(new Set(c.deliveries.map(d=>d.id)).size!==c.deliveries.length)return "Duplicate delivery entry.";
   for(const i of c.issues){if(!i.id||!(order.records.some(r=>r.recordId===i.recordId)||i.recordId==="order"&&order.products.some(p=>p.quantityMode==="order_total"))||i.productId&&!order.products.some(p=>p.id===i.productId)||!["fitting","missing","wrong_item","new_person","removal","return","defect","other"].includes(i.type)||!i.description?.trim()||!i.owner?.trim()||!["open","in_progress","resolved"].includes(i.status)||!Number.isFinite(i.extraCharge)||i.extraCharge<0||cents(i.extraCharge)!==i.extraCharge||i.taxRate!==undefined&&(!Number.isFinite(i.taxRate)||i.taxRate<0||i.taxRate>100)||!Array.isArray(i.history)||!i.history.length||i.history.at(-1)?.status!==i.status)return "Complete issue description, person, owner, status and charge.";const before=old?.issues.find(x=>x.id===i.id);if(before&&JSON.stringify(i.history.slice(0,before.history.length))!==JSON.stringify(before.history))return "Issue history cannot be rewritten.";if(before&&JSON.stringify(i)!==JSON.stringify(before)&&i.history.length<=before.history.length)return "Record a reason for the issue update.";}
   if(old?.issues.some(i=>!c.issues.some(n=>n.id===i.id)))return "Issues cannot be removed; resolve them with a note.";

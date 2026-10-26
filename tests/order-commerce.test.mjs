@@ -45,3 +45,17 @@ test('receipt amendment preserves number across years, audits corrections, rejec
  assert.equal((await post({operation:'amend_payment',payment:changed})).status,409);assert.equal((await post({operation:'amend_payment',payment:{...saved,amount:2000}})).status,409);assert.equal((await post({operation:'amend_payment',payment:{...saved,invoiceId:'other'}})).status,400);
  result=await post({operation:'amend_payment',payment:{...saved,amount:300}});assert.equal(result.status,200,JSON.stringify(result));assert.equal(result.payments[0].revision,2);assert.equal(result.payments[0].receiptNumber,original.receiptNumber);
  }finally{r.sqlite.close();}});
+test('historical fulfilled garments can be billed without invented measurements or a delivery date',()=>{
+ const o=order();o.records=o.records.filter(r=>r.recordId==='missing');const r=o.records[0];
+ const before=structuredClone(o),at='2026-10-26T07:00:00Z';
+ const delivery=(id,productId)=>({id,productId,recordId:r.recordId,quantity:2,kind:'delivery',date:'',dateUnknown:true,historical:true,reference:'Client confirms prior supply; date not recorded',at});
+ o.commerce.deliveries=[delivery('old-shirt','shirt'),delivery('old-pant','pant')];
+ assert.equal(commerce.validateCommerce(o,before),'');assert.equal(commerce.recordEligibility(o,r).eligible,true);
+ assert.equal(commerce.pricingQuote(o).total,900);assert.equal(commerce.pricingQuote(o,'delivered').total,900);
+ assert.equal(Object.keys(r.values).some(k=>k.startsWith('measurement:')),false);
+ const original=structuredClone(o);o.commerce.deliveries[0].dateUnknown=false;assert.match(commerce.validateCommerce(o),/date/);o.commerce.deliveries=original.commerce.deliveries;
+ const current=structuredClone(before);current.commerce.deliveries=o.commerce.deliveries.map(d=>({...d,historical:false,dateUnknown:false,date:'2026-10-26'}));assert.match(commerce.validateCommerce(current,before),/eligible/,'ordinary new delivery still needs measurement evidence before that movement');
+ o.commerce.people[r.recordId]={state:'cancelled',reason:'Cancelled'};assert.match(commerce.validateCommerce(o,before),/eligible/);delete o.commerce.people[r.recordId];
+ o.commerce.deliveries.push({id:'returned',productId:'pant',recordId:r.recordId,quantity:1,kind:'return',date:'2026-10-26',reference:'One returned',at});
+ assert.equal(commerce.recordEligibility(o,r).eligible,false);assert.equal(commerce.pricingQuote(o,'delivered').total,0);
+});
