@@ -72,7 +72,7 @@
   opacity:0!important;
   pointer-events:none!important;
 }
-.orderSetup .adaptiveTextArea,
+.orderSetup .setupLongText,
 .orderSetup .adaptiveSpecText textarea{
   box-sizing:border-box;
   display:block;
@@ -365,3 +365,5 @@
 @media(max-width:620px){.orderSetup .quantityGroupRules>div:has(>.iconRemove)>input,.orderSetup .quantityGroupRules>div:has(>.iconRemove)>.iconRemove{margin-top:0!important}.orderSetup .productPolicyTop>.iconRemove{margin-top:20px!important}}
 
 .orderSetup .productQuantityRules{padding-top:12px;max-width:940px}.orderSetup .productQuantityRules>label{display:grid;gap:6px;max-width:330px;margin-bottom:12px}.orderSetup .productQuantityRules .quantityGroupRules{margin-left:0!important;margin-right:0!important}
+
+.orderSetup .setupLongText{field-sizing:content;resize:vertical}

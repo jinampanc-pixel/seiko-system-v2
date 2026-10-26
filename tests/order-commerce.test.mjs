@@ -90,3 +90,13 @@ test('append calculated lines retains half-entered rows and does not duplicate r
  const two=brief.missingDraftLines([c,{...c,id:'b',quantity:4}],[{...c,quantity:12}]);assert.equal(two[0].quantity,0);assert.equal(two[1].quantity,2);
  assert.equal(brief.missingDraftLines([c],[{...c,unit:'pair'}])[0].quantity,10);assert.equal(brief.missingDraftLines([c],[{...c,description:'Different wording'}])[0].quantity,10);
 });
+
+const recordGroups=load('app/lib/billing-record-groups.ts',{'./order-domain':domain,'./order-commerce':commerce});
+test('billing records group identical unnamed entries while retaining names, sizes, rates and references',()=>{
+ const o=order();o.records=o.records.slice(0,1);o.records[0].values['field:name']='';const second=structuredClone(o.records[0]);second.recordId='b';second.personId='B';o.records.push(second);
+ let units=commerce.pricingQuote(o).units,rows=recordGroups.billingRecordGroups(o,units);assert.equal(rows.length,1);assert.equal(rows[0].quantity,2);assert.equal(rows[0].amount,1800);assert.equal(rows[0].recordIds.length,2);assert.match(rows[0].label,/Class: 4/);assert.doesNotMatch(rows[0].label,/ADD|^[AB]$/);
+ second.values['measurement:chest:product:shirt']=34;rows=recordGroups.billingRecordGroups(o,commerce.pricingQuote(o).units);assert.equal(rows.length,2,'different sizes remain separate');
+ second.values['measurement:chest:product:shirt']=30;o.records[0].values['field:name']='Same name';second.values['field:name']='Same name';rows=recordGroups.billingRecordGroups(o,commerce.pricingQuote(o).units);assert.equal(rows.length,2,'named people with identical names stay individually traceable');
+ o.records[0].values['field:name']='';second.values['field:name']='';o.commerce.people.b={state:'active',reason:'',rateOverrides:{lower:850}};rows=recordGroups.billingRecordGroups(o,commerce.pricingQuote(o).units);assert.equal(rows.length,2,'different agreed rates stay distinct');
+ units=commerce.pricingQuote(o).units.map(u=>({...u,quantity:-u.quantity,amount:-u.amount}));rows=recordGroups.billingRecordGroups(o,units);assert.equal(rows.reduce((n,r)=>n+r.amount,0),-1750);assert.equal(recordGroups.billingRecordGroups(o,[{...units[0],recordId:'new-from-sheet',personName:'Newly synced person'}])[0].label,'Newly synced person','fresh server records keep their supplied name when not yet in the local roster');
+});
