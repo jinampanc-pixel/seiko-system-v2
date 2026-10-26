@@ -36,12 +36,10 @@ module.exports = async ({ page, sqlite, order, seed, navigate }) => {
   }
   await dialog.getByRole('button',{name:'Close preview'}).click();
   await page.setViewportSize({width:1365,height:900});
-  await row.locator('summary').click(); await row.getByRole('button',{name:'Open workspace',exact:true}).click();
-  await page.getByPlaceholder('Search rows').fill('Student 1');
-  await page.getByRole('button',{name:'More order actions',exact:true}).click();
-  await page.getByRole('button',{name:'Student handover list / PDF',exact:true}).click();
+  await page.getByPlaceholder('Search order, client, type or status').fill('Student 1');
+  await row.locator('summary').click();await row.getByRole('button',{name:'Student handover list / PDF',exact:true}).click();
   await preview.locator('tr[data-record-id]').last().waitFor();
-  assert.equal(await preview.locator('tr[data-record-id]').count(),101,'Workspace search does not trim print rows');
+  assert.equal(await preview.locator('tr[data-record-id]').count(),101,'Order search does not trim print rows');
   await dialog.getByRole('button',{name:'Print / Save PDF'}).waitFor({state:'visible'});
   assert.equal(await dialog.getByRole('button',{name:'Print / Save PDF'}).isEnabled(),true);
   const iframe=page.frames().find(frame=>frame!==page.mainFrame()&&frame.url()==='about:srcdoc');

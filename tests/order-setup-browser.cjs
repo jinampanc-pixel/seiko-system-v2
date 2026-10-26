@@ -25,7 +25,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
  await cards.nth(1).getByRole('button',{name:'+ Measurement',exact:true}).click();await cards.nth(1).getByRole('combobox',{name:'Measurement',exact:true}).fill('Sleeve');
  await cards.nth(1).getByRole('button',{name:'+ Measurement',exact:true}).click();await cards.nth(1).getByRole('combobox',{name:'Measurement',exact:true}).nth(1).fill('Temporary');
  await cards.nth(1).getByRole('button',{name:'Remove Temporary from Shirt',exact:true}).click();assert.equal(await cards.nth(1).locator('.productMeasurementRow').count(),1);assert.equal(await name.inputValue(),'Waist');
-  await create.click();await page.locator('.workspacePage').waitFor();
+  await create.click();await page.getByRole('region',{name:'Google Sheets order workspace',exact:true}).waitFor();
  let saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('jinam:seiko:orders-v1'))[0]);assert.equal(saved.details.contactNumber,'+91 90000 00000');assert.equal(saved.measurements.length,2);
  assert.equal(JSON.parse(sqlite.prepare('SELECT document_json FROM erp_orders WHERE id = ?').get(saved.orderId).document_json).details.contactNumber, '+91 90000 00000');
  const pant=saved.products.find(p=>p.name==='Pant'),shirt=saved.products.find(p=>p.name==='Shirt');assert.deepEqual(saved.measurements.find(m=>m.name==='Waist').appliesTo,[pant.id]);assert.equal(saved.measurements.find(m=>m.name==='Waist').requiredMode,'Always');assert.deepEqual(saved.measurements.find(m=>m.name==='Sleeve').appliesTo,[shirt.id]);

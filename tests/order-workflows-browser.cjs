@@ -47,14 +47,13 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     }
   }
   await page.setViewportSize({ width: 1365, height: 900 });
-  await action('SMOKE-001', 'Open workspace');
-  const cell = page.locator('td[data-column-id="field:name"] input').first();
-  await cell.fill('Persisted through Save and Close'); await cell.press('Tab');
-  await page.getByRole('button', { name: 'More order actions', exact: true }).click();
-  page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: 'Save & close', exact: true }).click();
+  await page.evaluate(draft=>localStorage.setItem('jinam:seiko:order-setup-draft-v1',JSON.stringify(draft)),{...structuredClone(order),orderId:'unrelated-recovery',revisions:[]});
+  await action('SMOKE-001', 'Edit setup');
+  const cell = page.getByLabel('Contact person / Attn',{exact:true});
+  await cell.fill('Persisted through Save and Close'); await cell.press('Tab');assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('jinam:seiko:order-setup-draft-v1')).orderId),'unrelated-recovery','editing a saved order without revisions does not overwrite another new-order draft');
+  await page.getByRole('button', { name: 'Save changes', exact: true }).first().click();
   await row('SMOKE-001').waitFor();
-  assert.equal(read(order.orderId).records[0].values['field:name'], 'Persisted through Save and Close');
+  assert.equal(read(order.orderId).details.contactPerson, 'Persisted through Save and Close');assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('jinam:seiko:order-setup-draft-v1')).orderId),'unrelated-recovery','saving an existing order retains unrelated draft recovery');await page.evaluate(()=>localStorage.removeItem('jinam:seiko:order-setup-draft-v1'));
   for (const [status, body, message] of [[502, '<html>Gateway unavailable</html>', 'unreadable response (HTTP 502)'], [401, '<html>Sign in</html>', 'sign-in session has expired'], [200, '{}', 'did not confirm the save']]) {
     await page.unroute('**/api/erp/orders');
     await page.route('**/api/erp/orders', async (route, request) => {
@@ -64,18 +63,14 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
         await route.fulfill({status:response.status,contentType:'application/json',body:await response.text()});
       }
     });
-    await action('SMOKE-001', 'Open workspace');
+    await action('SMOKE-001', 'Edit setup');
     await cell.fill('Unsaved failure fixture'); await cell.press('Tab');
-    await page.getByRole('button', { name: 'More order actions', exact: true }).click();
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByRole('button', { name: 'Save & close', exact: true }).click();
+        await page.getByRole('button', { name: 'Save changes', exact: true }).first().click();
     await page.getByRole('alert').filter({ hasText: message }).waitFor();
     assert.equal(await cell.inputValue(), 'Unsaved failure fixture');
     assert.equal(await page.locator('.orderSaveConfirmation').count(), 0, 'Failed saves never show success');
-    assert.equal(read(order.orderId).records[0].values['field:name'], 'Persisted through Save and Close');
-    await page.getByRole('button', { name: 'More order actions', exact: true }).click();
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByRole('button', { name: 'Close without saving', exact: true }).click();
+    assert.equal(read(order.orderId).details.contactPerson, 'Persisted through Save and Close');
+        await page.getByRole('button', { name: '← Back to Orders', exact: true }).first().click();
     await row('SMOKE-001').waitFor();
   }
   await page.unroute('**/api/erp/orders');
@@ -83,9 +78,9 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
     await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
   });
-  await action('SMOKE-001', 'Open workspace');
+  await action('SMOKE-001', 'Edit setup');
   assert.equal(await cell.inputValue(), 'Persisted through Save and Close');
-  await page.reload(); await navigate('Orders'); await action('SMOKE-001', 'Open workspace');
+  await page.reload(); await navigate('Orders'); await action('SMOKE-001', 'Edit setup');
   assert.equal(await cell.inputValue(), 'Persisted through Save and Close');
 
   // A failed shared write must keep the draft open and must never claim a save.
@@ -94,22 +89,19 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     if (JSON.parse(request.postData()).operation === 'upsert') await route.fulfill({ status: 503, json: { ok: false, code: 'ERP_STORAGE_ERROR', message: 'Simulated shared save failure' } });
     else await route.fallback();
   });
-  await page.getByRole('button', { name: 'More order actions', exact: true }).click();
-  page.once('dialog', dialog => dialog.accept()); await page.getByRole('button', { name: 'Save & close', exact: true }).click();
+  await page.getByRole('button', { name: 'Save changes', exact: true }).first().click();
   await page.getByRole('alert').filter({ hasText: 'Simulated shared save failure' }).waitFor();
   assert.equal(await cell.inputValue(), 'Unsaved failure fixture');
     assert.equal(await page.locator('.orderSaveConfirmation').count(), 0, 'Failed saves never show success');
-  assert.equal(read(order.orderId).records[0].values['field:name'], 'Persisted through Save and Close');
+  assert.equal(read(order.orderId).details.contactPerson, 'Persisted through Save and Close');
   await page.unroute('**/api/erp/orders');
   await page.route('**/api/erp/orders', async route => {
     const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
     await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
   });
-  await page.getByRole('button', { name: 'More order actions', exact: true }).click();
-  page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: 'Save & close', exact: true }).click();
+  await page.getByRole('button', { name: 'Save changes', exact: true }).first().click();
   await row('SMOKE-001').waitFor();
-  assert.equal(read(order.orderId).records[0].values['field:name'], 'Unsaved failure fixture');
+  assert.equal(read(order.orderId).details.contactPerson, 'Unsaved failure fixture');
   await page.reload();
   const homeRow = page.locator('.homeOrderOperationalRow').filter({ hasText: 'SECOND-002' });
   await homeRow.locator('select').selectOption('Completed');
@@ -207,5 +199,5 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await fresh.locator('.orderRow').filter({ hasText: 'SMOKE-001' }).locator('summary').click();
   assert.equal(await fresh.getByRole('button', { name: 'Delete order', exact: true }).count(), 0);
   await context.close();
-  console.log('PASS: shared Save & Close/reopen/reload, failed save keeps draft, Home status stays Active, visible statuses, scoped payments/receipts/document drafts/setup, archive/restore, confirmed protected deletion, audit tombstone, fresh browser.');
+  console.log('PASS: shared setup save/reopen/reload, failed save keeps draft, Home status stays Active, visible statuses, scoped payments/receipts/document drafts/setup, archive/restore, confirmed protected deletion, audit tombstone, fresh browser.');
 };

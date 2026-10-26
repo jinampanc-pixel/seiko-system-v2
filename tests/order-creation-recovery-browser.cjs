@@ -35,7 +35,7 @@ module.exports = async ({page, sqlite, navigate}) => {
   assert.equal(await setup.locator('.productPolicy').count(),6);
   await page.unroute('**/api/erp/orders', expired);
   await setup.getByRole('button',{name:'Create workspace',exact:true}).last().click();
-  await page.locator('.workspacePage').waitFor();
+  await page.getByRole('region',{name:'Google Sheets order workspace',exact:true}).waitFor();assert.equal(await page.locator('.workspacePage').count(),0,'order creation opens the current workspace without mounting the legacy grid');
   const saved = sqlite.prepare("SELECT document_json FROM erp_orders WHERE json_extract(document_json, '$.details.clientName') = ?").get('Recovery test client');
   assert.equal(JSON.parse(saved.document_json).products.length,6);
   assert.equal(await page.evaluate(() => localStorage.getItem('jinam:seiko:order-setup-draft-v1')),null);

@@ -140,5 +140,5 @@ test("normal Print opens native browser print with calibrated output and no inte
 test("Order Setup returns to the page it was opened from", () => {
   assert.match(orders, /setView\(existingOrder \? setupReturnView : "workspace"\)/);
   assert.match(orders, /returnView === "workspace" \? "Update workspace" : "Save changes"/);
-  assert.match(orders, /onCancel=\{\(\) => setView\(current\.revisions\.length \? setupReturnView : "center"\)\}/);
+  assert.match(orders, /onCancel=\{\(\) => setView\(currentExists \? setupReturnView : "center"\)\}/);
 });
