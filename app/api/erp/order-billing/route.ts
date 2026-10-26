@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
-import { commerceOf, pricingQuote, pricingDelta, pricingLines, cents, validateCommerce } from "../../../lib/order-commerce";
+import { commerceOf, pricingQuote, pricingDelta, pricingInvoiceLines, cents, validateCommerce } from "../../../lib/order-commerce";
 import type { SeikoOrder } from "../../../lib/order-domain";
 import { documentTotals, paymentsForInvoice, allocateOrderPayments, validateBillingDocument, type SeikoCommercialDocument, type SeikoPaymentRecord } from "../../../lib/seiko-billing";
 import type { BillingProfile } from "../../../lib/billing-profile";
@@ -70,7 +70,7 @@ export async function POST(request:Request){
  let extra:SeikoCommercialDocument|undefined;
  if(positive.length||zero.length){
   const base=docs[0];const pref=await db.prepare("SELECT value_json FROM erp_preferences WHERE business_id='seiko' AND key='billing.profile.v1'").first<{value_json:string}>();const profile=pref?JSON.parse(pref.value_json) as BillingProfile:undefined;
-  const units=[...positive,...zero];const normalUnits=positive.filter(u=>u.quantity>0&&cents(u.quantity*u.rate)===u.amount);const adjustments=positive.filter(u=>!normalUnits.includes(u));const lines=[...pricingLines(normalUnits),...adjustments.map((u,i)=>({id:`change-${i}`,description:u.description,quantity:1,unit:"adjustment",unitRate:u.amount,taxRate:u.taxRate,hsnSac:u.hsnSac}))];
+  const units=[...positive,...zero];const lines=pricingInvoiceLines(positive);
   extra={id:crypto.randomUUID(),number:"",kind:"invoice",orderId:order.orderId,orderNo:order.details.orderNo,clientName:order.details.clientName,clientPhone:order.details.contactNumber,clientContactPerson:order.details.contactPerson,clientAddress:order.details.billTo,clientDeliveryAddress:order.details.shipTo,issueDate:date,dueOnReceipt:true,dueDate:date,taxMode,taxTreatment:base?.taxTreatment||"intra_state",placeOfSupply:base?.placeOfSupply,supplier:base?.supplier||profile?.supplier,showSignatory:false,showSignature:false,showStamp:false,showSigningDate:false,lines:lines.length?lines:[{id:"coverage",description:"Quantity reconciliation — no additional charge",quantity:1,unit:"review",unitRate:0,taxRate:0}],notes:b.reason,status:"issued",createdAt:now,updatedAt:now,supplementaryFor:base?.id,pricingSnapshot:{orderUpdatedAt:order.updatedAt,basis:b.basis||"eligible",units}};
   const invalid=validateBillingDocument(extra!);if(invalid)return fail(invalid);
  }

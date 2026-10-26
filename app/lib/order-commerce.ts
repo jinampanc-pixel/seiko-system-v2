@@ -100,6 +100,11 @@ export function pricingLines(units:PriceUnit[]) {
   for(const u of units){const key=`${u.ruleId}:${u.rate}:${u.taxRate}`;const old=groups.get(key);if(old)old.quantity+=u.quantity;else groups.set(key,{id:key,description:u.description,quantity:u.quantity,unit:u.unit||"unit",unitRate:u.rate,taxRate:u.taxRate,hsnSac:u.hsnSac});}
   return [...groups.values()];
 }
+/** The same invoice rows are used by billing reconciliation and its inline brief. */
+export function pricingInvoiceLines(units:PriceUnit[]) {
+ const normal=units.filter(u=>u.quantity>0&&cents(u.quantity*u.rate)===u.amount);
+ return [...pricingLines(normal),...units.filter(u=>!normal.includes(u)).map((u,i)=>({id:`change-${i}`,description:u.description,quantity:1,unit:"adjustment",unitRate:u.amount,taxRate:u.taxRate,hsnSac:u.hsnSac}))];
+}
 export function pricingDelta(desired:PriceUnit[],booked:PriceUnit[]) {
   const map=new Map<string,PriceUnit>();for(const u of desired)map.set(u.key,{...u});for(const u of booked){const current=map.get(u.key)||{...u,quantity:0,amount:0};map.set(u.key,{...current,quantity:cents(current.quantity-u.quantity),amount:cents(current.amount-u.amount)});}
   return [...map.values()].filter(u=>Math.abs(u.amount)>=.01||u.quantity!==0);

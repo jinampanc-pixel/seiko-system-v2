@@ -68,3 +68,25 @@ test('billing keeps one fresh-sheet check and never silently reuses stale data o
   r.setSheetSync(()=>{throw Error('Sheet validation failed');});const failed=await r.call({operation:'review'});assert.equal(failed.status,409);assert.equal(failed.message,'Sheet validation failed');assert.equal(failed.quote,undefined);assert.equal(r.sqlite.prepare('SELECT COUNT(*) n FROM seiko_billing_documents').get().n,0);
  }finally{r.sqlite.close();}
 });
+
+const brief=load('app/lib/invoice-order-brief.ts',{'./order-domain':domain,'./order-commerce':commerce,'./seiko-billing':billing});
+test('invoice brief distinguishes people, sets and pieces and follows delivery/return basis',()=>{
+ const o=order();const b=brief.orderBrief(o,[],[]);assert.equal(b.quote.billablePeople,2);assert.equal(b.groups[0].people,1);assert.equal(b.groups[0].sets,2);assert.equal(b.groups[0].pieces,4);assert.equal(b.groups[0].setRate,450);assert.equal(b.value,1950);
+ o.commerce.deliveries=[{id:'d1',recordId:'a',productId:'shirt',quantity:2,kind:'delivery'},{id:'d2',recordId:'a',productId:'pant',quantity:2,kind:'delivery'},{id:'r1',recordId:'a',productId:'shirt',quantity:1,kind:'return'}];
+ assert.equal(brief.orderBrief(o,[],[],'delivered').value,0);const row=brief.briefProductGroups(o,['field:class']).find(r=>r.product==='Shirt'&&r.group==='4');assert.equal(row.delivered,1);assert.equal(row.pending,row.ordered-1);
+ o.products[0].specifications=[{id:'colour',name:'Colour',mode:'same_for_all',defaultValue:'Blue'}];assert.ok(brief.briefGroupingOptions(o).some(x=>x.id==='spec:colour:resolved'));assert.equal(brief.briefProductGroups(o,['spec:colour:resolved'])[0].group,'Blue');
+});
+test('invoice brief respects billed snapshots, credits, manual history, tax mode and advances',()=>{
+ const o=order();o.commerce.rules[0].taxRate=5;const all=brief.orderBrief(o,[],[]);assert.equal(all.value,1950);assert.equal(brief.orderBrief(o,[],[],'eligible','', 'gst').value,1995);
+ const u=all.quote.units[0],doc={id:'prior',orderId:o.orderId,kind:'invoice',status:'issued',taxMode:'non_gst',lines:commerce.pricingLines([u]),pricingSnapshot:{units:[u]}};
+ let b=brief.orderBrief(o,[doc],[{orderId:o.orderId,invoiceId:'',amount:200},{orderId:'other',invoiceId:'other',amount:999}]);assert.equal(b.lines.length,1);assert.equal(b.invoiced,900);assert.equal(b.received,200);assert.equal(b.balance,1750);
+ doc.credits=[{amount:900,subtotal:900,tax:0,units:[{...u,quantity:-u.quantity,amount:-u.amount}]}];b=brief.orderBrief(o,[doc],[]);assert.equal(b.lines.length,2);assert.equal(b.invoiced,0);
+ assert.equal(brief.orderBrief(o,[doc],[],'eligible','prior').lines.length,2);delete doc.pricingSnapshot;assert.equal(brief.orderBrief(o,[doc],[]).unmapped.length,1);
+ doc.status='cancelled';assert.equal(brief.orderBrief(o,[doc],[]).unmapped.length,0);
+});
+test('append calculated lines retains half-entered rows and does not duplicate repeated additions or equal rule descriptions',()=>{
+ const c={id:'a',description:'Package',quantity:10,unit:'person',unitRate:400,taxRate:0},draft=[{...c,id:'manual',quantity:3},{...c,id:'custom',description:'Additional work',quantity:1,unitRate:80}];
+ const before=JSON.stringify(draft);const next=brief.appendBriefLines(draft,[c],['a'],()=> 'new');assert.equal(JSON.stringify(draft),before);assert.equal(next[0].id,'manual');assert.equal(next[1].description,'Additional work');assert.equal(next[2].quantity,7);assert.equal(brief.appendBriefLines(next,[c],['a'],()=> 'duplicate').length,3);
+ const two=brief.missingDraftLines([c,{...c,id:'b',quantity:4}],[{...c,quantity:12}]);assert.equal(two[0].quantity,0);assert.equal(two[1].quantity,2);
+ assert.equal(brief.missingDraftLines([c],[{...c,unit:'pair'}])[0].quantity,10);assert.equal(brief.missingDraftLines([c],[{...c,description:'Different wording'}])[0].quantity,10);
+});
