@@ -2,6 +2,7 @@
 /* Exact business logos are served unchanged; image optimization is intentionally disabled. */
 /* eslint-disable @next/next/no-img-element */
 
+import { requestAppNavigation, useModuleNavigation } from "./app-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useAccess } from "./access-control";
@@ -45,31 +46,33 @@ const previewBusinesses: BusinessMembership[] = [
 
 export default function Home() {
   const {can:canPermission}=useAccess();
-  const [module, setModule] = useState<Module>("home");
+  const {module,setModule,back:moduleBack,reset:resetNavigation,restore:restoreModule,backLabel:moduleBackLabel}=useModuleNavigation();
   const [newOrderRequest, setNewOrderRequest] = useState(0);
   const [productionOrderId,setProductionOrderId]=useState<string|undefined>();
   const [online, setOnline] = useState(true);
   const [pending, setPending] = useState(0);
   const [businesses, setBusinesses] = useState<BusinessMembership[]>(previewBusinesses);
   const [businessId, setBusinessId] = useState(previewBusinesses[0].businessId);
+  useEffect(()=>resetNavigation(),[businessId,resetNavigation]);
   useEffect(()=>{if(businessId==="seiko")document.body.dataset.seikoPalette="true";else delete document.body.dataset.seikoPalette;return()=>{delete document.body.dataset.seikoPalette;};},[businessId]);
   const [themeOverrides, setThemeOverrides] = useState<Record<string, BusinessTheme>>({});
   const [themeOpen, setThemeOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   useEffect(()=>{const open=()=>{setThemeOpen(true);setNavOpen(false);};window.addEventListener("jinam:open-settings",open);return()=>window.removeEventListener("jinam:open-settings",open);},[]);
   useEffect(()=>{const open=(event:Event)=>{setProductionOrderId((event as CustomEvent<string>).detail);setModule("production");setNavOpen(false);};window.addEventListener("seiko:production-order",open);return()=>window.removeEventListener("seiko:production-order",open);},[]);
+  const [serviceOriginModule,setServiceOriginModule]=useState<Module>("home");
   const [serviceOrder,setServiceOrder]=useState<SeikoOrder|null>(null);
-  useEffect(()=>{const open=(e:Event)=>{setServiceOrder((e as CustomEvent<SeikoOrder>).detail);setModule("orders");setNavOpen(false);};window.addEventListener("seiko:open-order-service",open);return()=>window.removeEventListener("seiko:open-order-service",open);},[]);
+  useEffect(()=>{const open=(e:Event)=>{setServiceOriginModule(module);setServiceOrder((e as CustomEvent<SeikoOrder>).detail);setModule("orders",{preserveDraft:true});setNavOpen(false);};window.addEventListener("seiko:open-order-service",open);return()=>window.removeEventListener("seiko:open-order-service",open);},[module,setModule]);
   const [labelOrder,setLabelOrder]=useState<SeikoOrder|null>(null);
   const [labelPurpose,setLabelPurpose]=useState<"production"|"packing"|"inventory"|null>(null);
-  useEffect(()=>{const home=()=>{setModule("home");setNavOpen(false);setThemeOpen(false);setNewOrderRequest(0);setServiceOrder(null);setLabelOrder(null);};window.addEventListener("seiko:home",home);return()=>window.removeEventListener("seiko:home",home);},[]);
+  useEffect(()=>{const home=()=>requestAppNavigation(()=>{setModule("home");setNavOpen(false);setThemeOpen(false);setNewOrderRequest(0);setServiceOrder(null);setLabelOrder(null);});window.addEventListener("seiko:home",home);return()=>window.removeEventListener("seiko:home",home);},[]);
   const [labelBatchOrder,setLabelBatchOrder]=useState<SeikoOrder|null>(null);
   const membership = businesses.find(item => item.businessId === businessId) || businesses[0];
   useEffect(() => {
     const create = () => {
       if (!canAccess(membership, "orders")) return;
-      setLabelOrder(null); setServiceOrder(null); setNavOpen(false);
-      setNewOrderRequest(value => value + 1); setModule("orders");
+      requestAppNavigation(()=>{setLabelOrder(null); setServiceOrder(null); setNavOpen(false);
+      setNewOrderRequest(value => value + 1); setModule("orders");});
     };
     window.addEventListener("seiko:new-order", create);
     return () => window.removeEventListener("seiko:new-order", create);
@@ -103,11 +106,11 @@ export default function Home() {
     } catch { /* keep the configured business theme */ }
   }, [businessId]);
 
-  const switchBusiness = (nextBusinessId: string) => {
+  const switchBusiness = (nextBusinessId: string) => requestAppNavigation(()=>{
     setBusinessId(nextBusinessId);
     setServiceOrder(null);setModule("home");
     setThemeOpen(false);
-  };
+  });
 
   const saveTheme = (theme: BusinessTheme) => {
     setThemeOverrides(current => ({ ...current, [businessId]: theme }));
@@ -146,13 +149,13 @@ export default function Home() {
     <div className="surface">
       <header className="topbar"><label className="compactBusinessPicker"><span className={`businessMark logo-${businessId}`}>{membership?.logoUrl ? <img src={membership.logoUrl} alt=""/> : <b>{membership?.businessName?.slice(0, 1) || "J"}</b>}</span>{membership?.logoUrl && <span className={`businessWordmark logo-${businessId}`}><img src={membership.logoUrl} alt={`${membership.businessName} logo`}/></span>}<span className="srOnly">Active business</span><select aria-label="Active business" value={businessId} onChange={event => switchBusiness(event.target.value)}>{businesses.map(item => <option key={item.businessId} value={item.businessId}>{item.businessName}</option>)}</select></label><div className="topbarEnd">{pending > 0 && <div className="topActions"><span className="queue">{pending} waiting to sync</span></div>}<button className={`menuToggle ${navOpen ? "active" : ""}`} onClick={() => setNavOpen(open => !open)} aria-label={navOpen ? "Close menu" : "Open menu"} aria-expanded={navOpen}><span></span><span></span><span></span></button></div>{navOpen && <><button className="menuBackdrop" aria-label="Close menu" onClick={() => setNavOpen(false)}/><nav className="moduleMenu" aria-label="Modules"><div className="moduleMenuHead"><b>Menu</b><button onClick={() => setNavOpen(false)} aria-label="Close menu">×</button></div><Nav icon="⌂" label="Home" active={module === "home"} onClick={() => { setNewOrderRequest(0); setModule("home"); setNavOpen(false); }}/>{canAccess(membership, "orders") && <Nav icon="≡" label="Orders" active={module === "orders"} onClick={() => { setNewOrderRequest(0); setServiceOrder(null); setModule("orders"); setNavOpen(false); }}/>} {canAccess(membership, "labels") && <Nav icon="▤" label="Labels" active={module === "labels"} onClick={() => { setModule("labels"); setNavOpen(false); }}/>} {canAccess(membership, "scan") && <Nav icon="⌗" label="Scan" active={module === "scan"} onClick={() => { setModule("scan"); setNavOpen(false); }}/>} {canAccess(membership, "trace") && <Nav icon="◎" label="Trace" active={module === "trace"} onClick={() => { setModule("trace"); setNavOpen(false); }}/>} {(["production", "inventory", "sales", "delivery"] as Module[]).filter(item => canAccess(membership, item)).map(item => <Nav key={item} icon="•" label={title(item)} active={module === item} onClick={() => { setModule(item); setNavOpen(false); }}/>) }{(canAccess(membership, "admin")||canPermission("financials.view")) && <div className="moduleMenuSettings"><Nav icon="⚙" label="Settings" active={themeOpen} onClick={() => window.dispatchEvent(new CustomEvent("jinam:open-settings"))}/></div>}</nav></>}</header>
       {themeOpen && createPortal(<ThemeCustomizer key={businessId} businessName={membership?.businessName || "Business"} theme={activeTheme} onSave={saveTheme} onClose={() => setThemeOpen(false)} />,document.body)}
-      <main>{(["scan","trace","inventory","sales","delivery"] as Module[]).includes(module)&&<div className="moduleBackRow"><button type="button" className="appBackControl" onClick={()=>setModule("home")}>← Back to Home</button></div>}
+      <main>{(["scan","trace","inventory","sales","delivery"] as Module[]).includes(module)&&<div className="moduleBackRow"><button type="button" className="appBackControl" onClick={moduleBack}>{moduleBackLabel}</button></div>}
         {module === "home" && <Overview membership={membership} onOpen={next => { setNewOrderRequest(0); setServiceOrder(null); setModule(next); }} />}
-        {module === "orders" && canAccess(membership, "orders") && <Orders key={`${businessId}:${serviceOrder?.orderId||labelOrder?.orderId || "center"}:${newOrderRequest}`} initialService={Boolean(serviceOrder)} onHome={() => { setNewOrderRequest(0); setServiceOrder(null); setLabelOrder(null); setModule("home"); setNavOpen(false); }} startNewOrder={newOrderRequest > 0} businessId={businessId} initialOrder={serviceOrder||labelOrder} canManageSuggestions={membership?.role === "owner" || membership?.role === "admin"} onOpenLabelBatches={order => { setLabelOrder(null); setLabelPurpose(null); setLabelBatchOrder(order); setModule("labels"); }}/>}
-        {module === "labels" && canAccess(membership, "labels") && (labelOrder ? <SavedLabelWorkspace key={`${businessId}:${labelOrder.orderId}:${labelPurpose || "choose"}`} businessId={businessId} order={labelOrder} initialPurpose={labelPurpose} backLabel="← Back to Labels" onBack={() => { setLabelOrder(null); setLabelPurpose(null); }} canManageSizes={membership?.role === "owner" || membership?.role === "admin"}/> : <LabelLauncher businessId={businessId} focusedOrder={labelBatchOrder} onOpen={(order, purpose) => { setLabelBatchOrder(null); setLabelOrder(order); setLabelPurpose(purpose); }} onOpenOrders={() => { setLabelBatchOrder(null); setModule("orders"); }}/>)}
+        {module === "orders" && canAccess(membership, "orders") && <Orders key={`${businessId}:${serviceOrder?.orderId||labelOrder?.orderId || "center"}:${newOrderRequest}`} initialService={Boolean(serviceOrder)} onServiceBack={()=>{setServiceOrder(null);restoreModule(serviceOriginModule);window.dispatchEvent(new Event("seiko:resume-billing"));}} homeLabel={moduleBackLabel} onHome={() => requestAppNavigation(()=>{ setNewOrderRequest(0); setServiceOrder(null); setLabelOrder(null); moduleBack(); setNavOpen(false); })} startNewOrder={newOrderRequest > 0} businessId={businessId} initialOrder={serviceOrder||labelOrder} canManageSuggestions={membership?.role === "owner" || membership?.role === "admin"} onOpenLabelBatches={order => { setLabelOrder(null); setLabelPurpose(null); setLabelBatchOrder(order); setModule("labels"); }}/>}
+        {module === "labels" && canAccess(membership, "labels") && (labelOrder ? <SavedLabelWorkspace key={`${businessId}:${labelOrder.orderId}:${labelPurpose || "choose"}`} businessId={businessId} order={labelOrder} initialPurpose={labelPurpose} backLabel="← Back to Labels" onBack={() => { setLabelOrder(null); setLabelPurpose(null); }} canManageSizes={membership?.role === "owner" || membership?.role === "admin"}/> : <LabelLauncher onBack={moduleBack} backLabel={moduleBackLabel} businessId={businessId} focusedOrder={labelBatchOrder} onOpen={(order, purpose) => { setLabelBatchOrder(null); setLabelOrder(order); setLabelPurpose(purpose); }} onOpenOrders={() => { setLabelBatchOrder(null); setModule("orders"); }}/>)}
         {module === "scan" && canAccess(membership, "scan") && <Scanner businessId={businessId} queueKey={queueKey} onPending={setPending} />}
         {module === "trace" && canAccess(membership, "trace") && <Trace />}
-        {module === "production" && canAccess(membership, "production") && <Production key={`${businessId}:${productionOrderId||"all"}`} businessId={businessId} initialOrderId={productionOrderId} onHome={()=>setModule("home")} canManage={membership?.role === "owner" || membership?.role === "admin"}/>}
+        {module === "production" && canAccess(membership, "production") && <Production key={`${businessId}:${productionOrderId||"all"}`} businessId={businessId} initialOrderId={productionOrderId} onHome={moduleBack} backLabel={moduleBackLabel} canManage={membership?.role === "owner" || membership?.role === "admin"}/>}
         {(["inventory", "sales", "delivery"] as Module[]).includes(module) && <section className="page"><div className="panel"><p className="eyebrow">{title(module).toUpperCase()}</p><h2>{title(module)}</h2><p>{module === "inventory" ? "Manage stock, materials and inventory label batches here." : "This module will be configured after the main navigation and home screen are finalised."}</p></div></section>}
       </main>
     </div>
@@ -184,7 +187,7 @@ function packingBatchType(batch: SavedLabelBatch) {
   return "Packing labels";
 }
 
-export function LabelLauncher({businessId,focusedOrder,onOpen,onOpenOrders}:{businessId:string;focusedOrder?:SeikoOrder|null;onOpen:(order:SeikoOrder,purpose:"production"|"packing"|"inventory")=>void;onOpenOrders:()=>void}){
+export function LabelLauncher({businessId,focusedOrder,onOpen,onOpenOrders,onBack,backLabel="← Back to Home"}:{onBack?:()=>void;backLabel?:string;businessId:string;focusedOrder?:SeikoOrder|null;onOpen:(order:SeikoOrder,purpose:"production"|"packing"|"inventory")=>void;onOpenOrders:()=>void}){
   const [query,setQuery]=useState("");
   const [batchQuery,setBatchQuery]=useState("");
   const [batchFilter,setBatchFilter]=useState<"all"|SavedLabelBatch["purpose"]>("all");
@@ -197,7 +200,7 @@ export function LabelLauncher({businessId,focusedOrder,onOpen,onOpenOrders}:{bus
   const visibleBatches=batches.filter(batch=>(!focusedOrder||batch.orderId===focusedOrder.orderId)&&(batchFilter==="all"||batch.purpose===batchFilter)&&`${batch.name} ${batch.orderNo} ${batch.client} ${packingBatchType(batch)}`.toLowerCase().includes(batchQuery.toLowerCase()));
   const openBatch=(batch:SavedLabelBatch)=>{const order=orders.find(item=>item.orderId===batch.orderId);if(!order)return;sessionStorage.setItem(`jinam:${businessId}:labels:open-task`,batch.id);onOpen(order,batch.purpose)};
   return <div className="page labelLauncher">
-    <section className="labelLauncherHead"><div><p className="eyebrow">LABELS</p><h2>Labels</h2></div><button className="secondary" onClick={onOpenOrders}>Open Order Center</button></section>
+    <section className="labelLauncherHead"><div>{onBack&&<button type="button" className="finalSessionBack appBackControl" onClick={onBack}>{backLabel}</button>}<p className="eyebrow">LABELS</p><h2>Labels</h2></div><button className="secondary" onClick={onOpenOrders}>Open Order Center</button></section>
     <section className="labelBatchModule panel">
       <div className="labelBatchModuleHead"><h3>Label batch library</h3><div className="labelLibraryFilters"><select aria-label="Filter label batches" value={batchFilter} onChange={event=>setBatchFilter(event.target.value as typeof batchFilter)}><option value="all">All batches</option><option value="production">Production</option><option value="packing">Packing</option>{!focusedOrder&&<option value="inventory">Inventory</option>}</select><input aria-label="Find a saved label batch" placeholder="Find batch, order or client" value={batchQuery} onChange={event=>setBatchQuery(event.target.value)}/></div></div>
       <div className="labelBatchModuleList">{visibleBatches.map(batch=><article key={batch.id}><div><b>{batch.name}</b><small>{batch.orderNo} · {packingBatchType(batch)} · {batch.selectedRows.length} labels</small></div><button disabled={!orders.some(order=>order.orderId===batch.orderId)} onClick={()=>openBatch(batch)}>Open</button></article>)}{!visibleBatches.length&&<p className="emptyLibrary">{batches.length?"No matching batches.":"No saved batches yet."}</p>}</div>
@@ -207,7 +210,7 @@ export function LabelLauncher({businessId,focusedOrder,onOpen,onOpenOrders}:{bus
 }
 
 function Nav({ icon, label, active, onClick }: { icon: string; label: string; active: boolean; onClick: () => void }) {
-  return <button className={`nav ${active ? "active" : ""}`} onClick={onClick}><span>{icon}</span><small>{label}</small></button>;
+  return <button className={`nav ${active ? "active" : ""}`} onClick={()=>requestAppNavigation(onClick)}><span>{icon}</span><small>{label}</small></button>;
 }
 
 function title(m: Module) { return ({ home: "Operations", orders: "Order Center", labels: "Create labels", scan: "Scan & record", trace: "Track & trace", production: "Production", inventory: "Inventory", sales: "Sales", delivery: "Delivery", admin: "Administration" } as const)[m]; }

@@ -411,7 +411,7 @@ function navigateBack() {
 function ensureSessionBack() {
   const stack = readJson<NavEntry[]>(NAV_STACK_KEY, []);
   const add = (head: HTMLElement | null) => {
-    if (!head || head.querySelector(".finalSessionBack")) return;
+    if (!head || head.querySelector(".finalSessionBack") || head.closest(".ordersPage")?.querySelector(".orderCenterBackHome")) return;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "textButton finalSessionBack appBackControl";

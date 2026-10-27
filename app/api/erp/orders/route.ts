@@ -1,4 +1,4 @@
-import { validateCommerce, redactCommercialPrices } from "../../../lib/order-commerce";
+import { validateCommerce, redactCommercialPrices, fulfilmentEvidence, stampFulfilment } from "../../../lib/order-commerce";
 import type { SeikoOrder } from "../../../lib/order-domain";
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
@@ -186,7 +186,17 @@ async function upsertOrder(
   if(previous?.googleSheet){const people=(o:SeikoOrder)=>Object.entries(o.commerce?.people||{}).map(([id,p])=>[id,p.state,p.batch||"",p.readySize||""]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));if(JSON.stringify(candidate?.records)!==JSON.stringify(previous.records)||JSON.stringify(people(candidate as SeikoOrder))!==JSON.stringify(people(previous)))return error("SHEET_RECORDS_READ_ONLY","Person records are maintained in Google Sheets. Sync the sheet before saving other order changes.",409);}
   const now = new Date().toISOString();
   if(candidate?.commerce||current&&JSON.parse(current.document_json).commerce){const commercialProblem=validateCommerce(candidate as unknown as SeikoOrder,current?JSON.parse(current.document_json):{...candidate,commerce:{rules:[],people:{},deliveries:[],issues:[]}} as unknown as SeikoOrder);if(commercialProblem)return error("INVALID_COMMERCIAL_DETAILS",commercialProblem,400);}
-  const document = { ...candidate, updatedAt: now } as OrderLike;
+  if(businessId==='seiko'&&candidate?.commerce?.fulfilment){
+    const existingEvidence=new Map((previous?fulfilmentEvidence(previous):[]).map(e=>[e.id,JSON.stringify(e)]));
+    for(const evidence of fulfilmentEvidence(candidate as SeikoOrder)){
+      if(existingEvidence.get(evidence.id)===JSON.stringify(evidence))continue;
+      const row=await db.prepare("SELECT value_json AS data FROM erp_preferences WHERE business_id='seiko' AND key=?").bind('order.evidence.'+evidence.id).first<{data:string}>();
+      const meta=row?JSON.parse(row.data):null;
+      if(!meta||meta.orderId!==orderId||meta.name!==evidence.name||meta.type!==evidence.mimeType||meta.size!==evidence.size||meta.sha256!==evidence.sha256||meta.addedAt!==evidence.addedAt)return error('INVALID_EVIDENCE','Upload acknowledgement evidence for this order before saving.',400);
+    }
+  }
+  const stamped=businessId==='seiko'&&candidate?.commerce?.fulfilment?stampFulfilment(candidate as SeikoOrder,previous||undefined,actor.email,now):candidate;
+  const document = { ...stamped, updatedAt: now } as OrderLike;
   const documentJson = JSON.stringify(document);
   const status = String(candidate?.status || "Draft");
   const archived = candidate?.archived ? 1 : 0;

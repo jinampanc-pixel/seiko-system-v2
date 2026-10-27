@@ -65,3 +65,8 @@ test("standalone menu closes through its React-owned backdrop", () => {
 test("retired business access stays excluded from global navigation", () => {
   assert.match(navigation, /item\.businessId !== "veyn-view"/);
 });
+
+test("module Back follows the actual path and temporary order review preserves that path", async () => {
+ const {default:ts}=await import('typescript'),{default:vm}=await import('node:vm');const exports={};vm.runInNewContext(ts.transpileModule(readFileSync('app/app-navigation.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:()=>({})});const move=exports.moduleNavigation;
+ let state={current:'home',history:[]};state=move(state,{type:'open',module:'orders'});state=move(state,{type:'open',module:'production'});assert.equal(state.history.at(-1),'orders');state=move(state,{type:'back'});assert.equal(state.current,'orders');state=move(state,{type:'replace',module:'scan'});assert.equal(state.history.at(-1),'home');state=move(state,{type:'back'});assert.equal(state.current,'home');state=move(state,{type:'back'});assert.equal(state.current,'home');assert.equal(state.history.length,0);state=move(state,{type:'open',module:'labels'});assert.equal(move(state,{type:'open',module:'labels'}).history.length,1);assert.equal(move(state,{type:'reset'}).history.length,0);
+});

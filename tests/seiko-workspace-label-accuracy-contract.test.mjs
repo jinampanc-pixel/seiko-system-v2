@@ -158,7 +158,7 @@ test("Order Setup return path and label workspace header are source-owned", () =
   const create = read("app/labels/create/page.tsx");
   assert.match(orders, /setupReturnView/);
   assert.match(listCenter, /order-setup-origin/);
-  assert.match(orders, /returnView === "workspace" \? "← Back to Workspace" : "← Back to Orders"/);
+  assert.match(orders, /returnView === "workspace" \? "← Back to Workspace" : existing && returnView === "service" \? "← Back to Order management" : "← Back to Orders"/);
   assert.match(orders, /<Field label="Order date" type="date"/);
   assert.doesNotMatch(orders, /className="orderDateEditor"/);
   assert.match(create, /backLabel="← Back to label setup"/);

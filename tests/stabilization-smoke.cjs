@@ -85,6 +85,7 @@ function load(path, imports = {}) {
     const orderBilling=load('app/api/erp/order-billing/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/invoice-order-brief':load('app/lib/invoice-order-brief.ts',{'./order-commerce':commercialModel,'./order-domain':domain,'./seiko-billing':load('app/lib/seiko-billing.ts')}),'../../../lib/billing-profile':load('app/lib/billing-profile.ts'),'../../../lib/order-commerce':commercialModel,'../../../lib/seiko-billing':load('app/lib/seiko-billing.ts')});
     const billingProfile = load('app/api/erp/billing-profile/route.ts', { 'cloudflare:workers': { env: { DB: db } }, '../../../lib/billing-profile': load('app/lib/billing-profile.ts'), '../../../lib/server-erp-auth': auth });
     const artwork=load('app/api/erp/artwork/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth});
+    const orderEvidence=load('app/api/erp/order-evidence/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth});
     const people=load('app/api/erp/people/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/order-commerce':commercialModel,'../../../lib/order-domain':domain,'../../../lib/seiko-billing':load('app/lib/seiko-billing.ts')});
     const search=load('app/api/erp/search/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../people/route':people,'../../../lib/seiko-billing':load('app/lib/seiko-billing.ts')});
     const clients = load('app/api/erp/clients/route.ts', {
@@ -113,6 +114,7 @@ function load(path, imports = {}) {
       const response=await (request.method==='POST'?artwork.POST(request):artwork.GET(request));
       await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});
     });
+    await page.route('**/api/erp/order-evidence?*',async route=>{const r=route.request();const response=r.method()==='GET'?await orderEvidence.GET(new Request(r.url())):await orderEvidence.POST(new Request(r.url(),{method:'POST',headers:r.headers(),body:r.postDataBuffer()}));await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});});
     await page.route('**/api/erp/billing-profile?asset=*',async route=>{
       const response=await billingProfile.GET(new Request(route.request().url()));
       await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});
@@ -196,9 +198,10 @@ function load(path, imports = {}) {
     if(process.argv.includes('--order-rules')){await require('./order-rules-browser.cjs')({page,seed,navigate,order,sqlite,domain,sheetModel:load('app/lib/order-sheet-model.ts',{'./order-domain':domain})});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--responsive-audit')){await require('./responsive-audit-browser.cjs')({page,navigate,billing,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--google-sheets')){await require('./google-sheets-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--order-delivery')){try { await require('./order-delivery-browser.cjs')({page,seed,navigate,order,sqlite}); } catch(error) { fs.mkdirSync('../../outputs',{recursive:true});require('node:fs').writeFileSync('../../outputs/delivery-failure.html',await page.content()); await page.screenshot({path:'../../outputs/delivery-failure.png',fullPage:true}); throw error; }assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-service')){await require('./order-service-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--production-pagination')){await require('./production-pagination-browser.cjs')({page,seed,navigate});assert.deepEqual(errors,[]);return;}
-    if(process.argv.includes('--production-handoffs')){await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--production-handoffs')){try{await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});}catch(error){fs.mkdirSync('../../outputs',{recursive:true});fs.writeFileSync('../../outputs/production-failure.html',await page.content());await page.screenshot({path:'../../outputs/production-failure.png',fullPage:true});throw error;}assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--shared-measurements')){await require('./shared-measurements-browser.cjs')({page,sqlite,seed,navigate,order,base,domain,sheetModel:load('app/lib/order-sheet-model.ts',{'./order-domain':domain})});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--artwork')){await require('./artwork-browser.cjs')({page,seed,navigate,order,sqlite,domain});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--billing-assets')){await require('./billing-assets-browser.cjs')({page,billing,sqlite,navigate,base,printing:load('app/lib/seiko-billing-print.ts',{'./seiko-billing':load('app/lib/seiko-billing.ts')})});assert.deepEqual(errors,[]);return;}
@@ -231,7 +234,7 @@ function load(path, imports = {}) {
     const correctedReceipt=JSON.parse(sqlite.prepare('SELECT data FROM seiko_billing_payments').get().data);
     assert.equal(correctedReceipt.amount,55);assert.equal(correctedReceipt.reference,'Corrected reference');assert.equal(correctedReceipt.revision,1);assert.ok(correctedReceipt.receiptNumber.startsWith('RCP-'));
     await page.getByRole('button', { name: 'Close', exact: true }).click();
-    await surface.getByRole('button', { name: '← Back to Home', exact: true }).click();
+    await surface.getByRole('button', { name: '← Back', exact: true }).click();
     assert.equal(await surface.count(), 0);
     await navigate('(Home|Overview)');
     await page.getByText('ACTIVE ORDERS', { exact: true }).first().waitFor();
@@ -239,7 +242,7 @@ function load(path, imports = {}) {
     if (process.argv.includes('--order-workflows')) await require('./order-workflows-browser.cjs')({ page, browser, sqlite, order, seed, navigate, base, ordersApi, session, errors });
     if (process.argv.includes('--order-workflows')) await require('./order-cache-browser.cjs')({ page, sqlite, navigate, ordersApi, base });
     if (process.argv.includes('--order-workflows')) await require('./billing-production-browser.cjs')({page,billing,sqlite,navigate,base,seed,order});
-    if (process.argv.includes('--order-workflows')) await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});
+    if (process.argv.includes('--order-workflows')) try{await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});}catch(error){fs.mkdirSync('../../outputs',{recursive:true});fs.writeFileSync('../../outputs/production-failure.html',await page.content());await page.screenshot({path:'../../outputs/production-failure.png',fullPage:true});throw error;}
     assert.deepEqual(errors, []);
     console.log('PASS: Home → Orders → Billing → order payment → persisted receipt → Back/Home; no page errors.');
   } finally {

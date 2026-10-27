@@ -1,5 +1,6 @@
 "use client";
 
+import { requestAppNavigation } from "./app-navigation";
 import { useDialogInteractions } from "./dialog-interactions";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -38,6 +39,8 @@ export function SeikoPhase2() {
   const businessId = "seiko";
   const orders = useCachedOrders(businessId);
   const [view, setView] = useState<Phase2View>(null);
+  const [reviewingOrder,setReviewingOrder]=useState(false);
+  useEffect(()=>{const open=()=>setReviewingOrder(true),resume=()=>setReviewingOrder(false);window.addEventListener("seiko:open-order-service",open);window.addEventListener("seiko:resume-billing",resume);return()=>{window.removeEventListener("seiko:open-order-service",open);window.removeEventListener("seiko:resume-billing",resume);};},[]);
   const [billingAction, setBillingAction] = useState<"payment" | "payments" | "invoice" | "quotation" | "challan" | null>(null);
   const [billingOrderId, setBillingOrderId] = useState("");
   const [billingRequestId, setBillingRequestId] = useState(0);
@@ -74,18 +77,18 @@ export function SeikoPhase2() {
   useEffect(() => {
     const openBilling = (event: Event) => {
       const detail = (event as CustomEvent<{ action?: "payment" | "payments" | "invoice" | "quotation" | "challan"; orderId?: string }>).detail;
-      setBillingOrderId(detail?.orderId || ""); setBillingRequestId(value => value + 1); setBillingAction(detail?.action || null); setView("billing");
+      setReviewingOrder(false);setBillingOrderId(detail?.orderId || ""); setBillingRequestId(value => value + 1); setBillingAction(detail?.action || null); setView("billing");
     };
     window.addEventListener("seiko:open-billing", openBilling);
     return () => window.removeEventListener("seiko:open-billing", openBilling);
   }, []);
 
   useEffect(() => {
-    if (!view) return;
+    if (!view||reviewingOrder) return;
     const bodyOverflow = document.body.style.overflow; const rootOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden"; document.documentElement.style.overflow = "hidden";
     return () => { document.body.style.overflow = bodyOverflow; document.documentElement.style.overflow = rootOverflow; };
-  }, [view]);
+  }, [view,reviewingOrder]);
 
   useEffect(() => {
     queueMicrotask(load);
@@ -108,7 +111,7 @@ export function SeikoPhase2() {
           button.className = "nav";
           button.dataset.phase2Nav = key;
           button.innerHTML = `<span>${icon}</span><small>${label}</small>`;
-          button.addEventListener("click", () => { setView(key); document.querySelector<HTMLButtonElement>('.menuToggle[aria-expanded="true"]')?.click(); });
+          button.addEventListener("click", () => requestAppNavigation(()=>{ setReviewingOrder(false);setView(key); document.querySelector<HTMLButtonElement>('.menuToggle[aria-expanded="true"]')?.click(); }));
           if (settings) menu.insertBefore(button, settings); else menu.appendChild(button);
         };
         addNav("clients", "Clients", "◎");
@@ -148,11 +151,11 @@ export function SeikoPhase2() {
 
   if (!view || typeof document === "undefined") return null;
 
-  return createPortal(<section className="seikoPhase2Surface" aria-label={`SEIKO ${view}`}>
-    <header className="phase2BrandHeader"><img src="/brands/seiko-logo-transparent.png" alt="SEIKO Tailors"/><button type="button" className="menuToggle" aria-label="Open billing navigation" onClick={()=>{setView(null);document.querySelector<HTMLButtonElement>('.app .topbar .menuToggle[aria-expanded="false"]')?.click();}}><span/><span/><span/></button></header><header className="seikoPhase2Head"><div><button type="button" className="secondary appBackControl" onClick={() => {setView(null);window.dispatchEvent(new Event("seiko:home"));}}>← Back to Home</button><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
+  return createPortal(<section className="seikoPhase2Surface" style={reviewingOrder?{display:"none"}:undefined} aria-label={`SEIKO ${view}`}>
+    <header className="phase2BrandHeader"><img src="/brands/seiko-logo-transparent.png" alt="SEIKO Tailors"/><button type="button" className="menuToggle" aria-label="Open billing navigation" onClick={()=>requestAppNavigation(()=>{setView(null);document.querySelector<HTMLButtonElement>('.app .topbar .menuToggle[aria-expanded="false"]')?.click();})}><span/><span/><span/></button></header><header className="seikoPhase2Head"><div><button type="button" className="secondary appBackControl" onClick={() => requestAppNavigation(()=>setView(null))}>← Back</button><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
     {view === "clients" && <SeikoClientDirectory legacyRecords={clients}/>} {/* shared client directory */}
     {view === "products" && <ProductLibrary records={products} onChange={saveProducts}/>} {/* browser product library */}
-    {view === "billing" && <SeikoBillingWorkspace key={billingRequestId} initialOrderId={billingOrderId} orders={orders} legacyDocuments={documents} legacyPayments={payments} initialAction={billingAction} onActionHandled={() => setBillingAction(null)}/>}
+    {view === "billing" && <SeikoBillingWorkspace suspended={reviewingOrder} key={billingRequestId} initialOrderId={billingOrderId} orders={orders} legacyDocuments={documents} legacyPayments={payments} initialAction={billingAction} onActionHandled={() => setBillingAction(null)}/>}
     {view === "templates" && <TemplateManager templates={templates} onChange={saveTemplates}/>} 
   </section>, document.body);
 }

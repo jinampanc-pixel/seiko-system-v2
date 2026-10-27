@@ -42,3 +42,21 @@ Price and person eligibility changes require invoice-management access. Operatio
 Open Billing → Payments & receipts → open the receipt → Amend receipt. Owners have this access. Other users need both See financial information and Amend payment receipts in their SEIKO access settings.
 
 Correct the received amount, date, payment mode, reference or notes and save. The invoice/order link and original receipt number stay the same. Shared balances refresh immediately. The internal audit record retains original and corrected values, who changed them and when; amendment wording is not printed on the receipt. A stale edit must be reloaded, and an increase cannot exceed an invoice's current balance.
+
+
+## Order-owned delivery and contextual navigation (2026-10-28)
+
+The saved `SeikoOrder` remains the parent. `commerce.fulfilment` stores immutable request confirmations and prepared delivery snapshots; actual handovers append to the existing `commerce.deliveries` movement ledger. People, product assignments, measurements, specifications and pending quantities are resolved from that same order. A saved snapshot is historical evidence, not another editable roster.
+
+- Preparation reserves unhanded items across open deliveries. Dispatch alone records no delivered quantity.
+- Partial handovers record their receiver, date and exact order movement references.
+- Acknowledgement is optional and separate: an authorised representative can acknowledge the whole handed-over delivery, selected items/people, or one person. Written confirmation needs its text/reference; signed confirmation needs an attachment. Partial quantities never appear as whole-delivery acknowledgement.
+- Evidence is private, order-bound storage with authenticated access, upload type/size checks and a SHA-256 digest. New actions are stamped with the authenticated actor and server time.
+- Earlier movements can be linked without adding quantities, fabricating signatures or inventing unknown delivery dates. The linking snapshot explicitly uses current names/sizes; the original movement dates remain intact.
+- Cases retain the original person/product/handover reference. Returns and replacements continue through the same movement ledger. No acknowledgement, invoice or charge is created automatically.
+- Confirmations, delivery items and action history are append-only. Stable action IDs make retrying a lost response safe; changed payloads with an existing ID are rejected.
+- Delivery and case actions save immediately. Other staged eligibility edits still use the page's Save changes control.
+
+App module Back follows the actual navigation path. Order setup, workspace, order management and invoice review have explicit source-owned return contexts. Reviewing an order from an unfinished invoice keeps the editor mounted and restores its draft on Back. Dirty order setup, person entry, billing/receipt, delivery and production drafts guard navigation before the destination clears their state. No DOM-generated Back button is added beside a native control.
+
+Validation includes model tests for immutable history, quantity limits, linked cases, unknown dates and retries; private evidence API tests; browser confirmation/dispatch/partial handover/written and signed acknowledgement/case flows; invoice-draft return and discarded-Back protection; and mobile/tablet/desktop layouts. Tests use synthetic records and do not create historical acknowledgements in live orders.

@@ -1,4 +1,5 @@
 "use client";
+import { useUnsavedNavigation } from "./app-navigation";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { DocumentViewer } from "./document-viewer";
@@ -10,11 +11,12 @@ type Choice={orderId:string;orderNo:string;client:string;status:string;deliveryD
 type Summary={id:string;number:string;name:string;status:string;purpose:string};
 type Shared = {choices?:Choice[];total?:number;page?:number;handoffs?:Summary[];handoffTotal?:number;handoffPage?:number;ok:boolean;message?:string;code?:string;ledger:ProductionLedger;version:number;orders:ProductionOrder[]};
 const initial:Shared={ok:true,ledger:{handoffs:[]},version:0,orders:[]};
-export function Production({businessId,canManage,initialOrderId,onHome}:{businessId:string;canManage:boolean;initialOrderId?:string;onHome:()=>void}) {
+export function Production({businessId,canManage,initialOrderId,onHome,backLabel="← Back to Home"}:{backLabel?:string;businessId:string;canManage:boolean;initialOrderId?:string;onHome:()=>void}) {
   const readEpoch=useRef(0);
   const [shared,setShared]=useState(initial),[busy,setBusy]=useState(false),[ready,setReady]=useState(false);
   const [error,setError]=useState(''),[message,setMessage]=useState(''),[setup,setSetup]=useState(false);
   const [selected,setSelected]=useState<string[]>(initialOrderId?[initialOrderId]:[]),[draft,setDraft]=useState<ProductionHandoff|null>(()=>{try{return typeof window==='undefined'?null:JSON.parse(sessionStorage.getItem(`jinam:${businessId}:production-draft`)||'null');}catch{return null;}}),[openId,setOpenId]=useState('');
+  useUnsavedNavigation(Boolean(draft),"Leave this handoff? Its recovery draft stays on this device; it has not been saved to shared storage.");
   const [amounts,setAmounts]=useState<Record<string,string>>({}),[search,setSearch]=useState('');
   const [status,setStatus]=useState('Open'),[page,setPage]=useState(1),[deliveryFrom,setDeliveryFrom]=useState(''),[deliveryTo,setDeliveryTo]=useState(''),[handoffPage,setHandoffPage]=useState(1),[handoffSearch,setHandoffSearch]=useState(''),[handoffStatus,setHandoffStatus]=useState('Active');
   const [selectionNames,setSelectionNames]=useState<Record<string,string>>({});
@@ -77,7 +79,7 @@ export function Production({businessId,canManage,initialOrderId,onHome}:{busines
   const tickets=ticketCount<=2000?active?.allocations.flatMap((row,index)=>Array.from({length:Math.ceil(row.quantity/bundleSize)},(_,ticket)=>({id:`${active.number}-B${bundleSize}-${index+1}-${ticket+1}`,row,quantity:Math.min(bundleSize,row.quantity-ticket*bundleSize)})))||[]:[];
   if(setup)return <><div className="page"><button className="secondary appBackControl" onClick={()=>setSetup(false)}>← Back to Production</button></div><ProductionSetup businessId={businessId} canManage={canManage}/></>;
   return <section className="page productionWorkspace">
-    <button className="secondary productionNoPrint appBackControl" onClick={onHome}>← Back to Home</button>
+    <button className="secondary productionNoPrint appBackControl" onClick={onHome}>{backLabel}</button>
     <header className="productionWorkspaceHead"><div><p className="eyebrow">PRODUCTION</p><h1>Production handoffs</h1><p>Choose orders and products, review quantities, then print or issue the handoff.</p></div><div className="productionNoPrint"><button className="secondary" onClick={()=>setSetup(true)}>Planning preferences</button><button className="secondary" disabled={busy} onClick={()=>void refresh()}>Refresh</button></div></header>
     {error&&<p className="productionSaveError productionNoPrint" role="alert">{error}</p>}{message&&<p role="status" className="productionNotice productionNoPrint">{message}</p>}
     {!ready&&<p>Load shared orders and handoffs to continue.</p>}

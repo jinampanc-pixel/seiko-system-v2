@@ -166,7 +166,7 @@ test("Save label set stays in header actions and Ctrl or Cmd S asks what to save
 test("editing an existing order returns to its actual setup origin", () => {
   assert.match(orders, /setView\(existingOrder \? setupReturnView : "workspace"\)/);
   assert.match(orders, /returnView === "workspace" \? "Update workspace" : "Save changes"/);
-  assert.match(orders, /onCancel=\{\(\) => setView\(currentExists \? setupReturnView : "center"\)\}/);
+  assert.match(orders, /onCancel=\{\(\) => requestAppNavigation\(\(\)=>\{if\(storedSetup\)setCurrent\(structuredClone\(storedSetup\)\);setView\(currentExists \? setupReturnView : "center"\)/);
 });
 
 test("PDF acceptance keeps archive, setup policy controls and group rules explicit", () => {
