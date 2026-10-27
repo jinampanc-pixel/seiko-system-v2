@@ -82,7 +82,7 @@ function load(path, imports = {}) {
       'cloudflare:workers': { env: { DB: db } }, '../../../lib/seiko-billing': load('app/lib/seiko-billing.ts'), '../../../lib/billing-profile': load('app/lib/billing-profile.ts'),
       '../../../lib/server-erp-auth': auth,
     });
-    const orderBilling=load('app/api/erp/order-billing/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/order-commerce':commercialModel,'../../../lib/seiko-billing':load('app/lib/seiko-billing.ts')});
+    const orderBilling=load('app/api/erp/order-billing/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/invoice-order-brief':load('app/lib/invoice-order-brief.ts',{'./order-commerce':commercialModel,'./order-domain':domain,'./seiko-billing':load('app/lib/seiko-billing.ts')}),'../../../lib/billing-profile':load('app/lib/billing-profile.ts'),'../../../lib/order-commerce':commercialModel,'../../../lib/seiko-billing':load('app/lib/seiko-billing.ts')});
     const billingProfile = load('app/api/erp/billing-profile/route.ts', { 'cloudflare:workers': { env: { DB: db } }, '../../../lib/billing-profile': load('app/lib/billing-profile.ts'), '../../../lib/server-erp-auth': auth });
     const artwork=load('app/api/erp/artwork/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth});
     const people=load('app/api/erp/people/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/order-commerce':commercialModel,'../../../lib/order-domain':domain,'../../../lib/seiko-billing':load('app/lib/seiko-billing.ts')});
@@ -191,7 +191,7 @@ function load(path, imports = {}) {
       console.log(`PASS: 1,001 synthetic orders / 100,001 records; last-order search, bounded 10-row rendering and page navigation (${Date.now() - started} ms, local Chrome).`);
       return;
     }
-    if(process.argv.includes('--invoice-brief')){await require('./invoice-brief-browser.cjs')({page,seed,navigate,order});assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--invoice-brief')){await require('./invoice-brief-browser.cjs')({page,seed,navigate,order,sqlite});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--dialog-ux')){await require('./dialog-interactions-browser.cjs')({page,navigate,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-rules')){await require('./order-rules-browser.cjs')({page,seed,navigate,order,sqlite,domain,sheetModel:load('app/lib/order-sheet-model.ts',{'./order-domain':domain})});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--responsive-audit')){await require('./responsive-audit-browser.cjs')({page,navigate,billing,base});assert.deepEqual(errors,[]);return;}

@@ -49,3 +49,12 @@ export function profileSnapshotAllowed(doc: SeikoCommercialDocument, profile: Bi
   const allowedSign = !sign || JSON.stringify(sign) === JSON.stringify(original?.signatory) || profile?.signatories.some(s => JSON.stringify(s) === JSON.stringify(sign));
   return Boolean(allowedSupplier && allowedSign);
 }
+
+export function billingSnapshotError(doc:SeikoCommercialDocument, profile:BillingProfile|null, owner:boolean, canConfigure:boolean, email:string, original?:SeikoCommercialDocument):string {
+ if(!validBillingImage(doc.supplier?.paymentQr)||!validBillingImage(doc.supplier?.logo)||!validBillingImage(doc.signatory?.signature)||!validBillingImage(doc.signatory?.stamp))return "Use valid uploaded PNG, JPEG or WebP images.";
+ if(!canConfigure&&!profileSnapshotAllowed(doc,profile,original))return "Select saved business/payment details and an authorised signatory. Only a billing-settings manager can edit them.";
+ if(doc.signatory&&JSON.stringify(doc.signatory)!==JSON.stringify(original?.signatory)&&!canConfigure&&!profile?.signatoryEmails?.includes(email.toLowerCase()))return "The owner must authorise access to saved signatures and stamps.";
+ if(!canConfigure&&!profile?.signatoryEmails?.includes(email.toLowerCase())&&((doc.showSignature&&!original?.showSignature)||(doc.showStamp&&!original?.showStamp)))return "The owner must authorise use of saved signatures and stamps.";
+ if(!owner&&doc.supplier?.gstin!==original?.supplier?.gstin&&doc.supplier?.gstin!==profile?.supplier.gstin)return "Only the owner can amend supplier GST details.";
+ return "";
+}

@@ -2,6 +2,15 @@ import { packingQuantities } from "./packing-label-model";
 import { orderRuleErrors, predicateState, specificationForRecord, recordRuleIssues, measurementRequired, type RulePredicate, workspaceColumns, type OrderRecord, type SeikoOrder } from "./order-domain";
 
 export type PriceRule = RulePredicate & { id:string; name:string; mode:"package"|"product"|"fixed"; rate:number; taxRate:number; hsnSac:string; fieldId:string; match:string; contents:{productId:string;quantity:number;alternatives?:string[]}[] };
+/** A garment can belong to only one component of a package. */
+export function selectPriceProduct(rule:PriceRule, productId:string, selected:boolean):PriceRule["contents"] {
+ const primary=rule.contents.find(x=>x.productId===productId);
+ const alternative=rule.contents.find(x=>x.alternatives?.includes(productId));
+ if(selected&&(primary||alternative))return rule.contents;
+ if(selected)return [...(rule.mode==="product"?[]:rule.contents),{productId,quantity:1}];
+ return rule.contents.filter(x=>x.productId!==productId).map(x=>({...x,alternatives:x.alternatives?.filter(id=>id!==productId)}));
+}
+
 export type PersonCommercial = { state:"active"|"awaiting"|"hold"|"cancelled"; reason:string; overrideReason?:string; readySize?:string; batch?:string; rateOverrides?:Record<string,number> };
 export type DeliveryEntry = { id:string; date:string; historical?:boolean; dateUnknown?:boolean; recordId:string; productId:string; quantity:number; kind:"delivery"|"return"|"replacement"; issueId?:string; reference:string; at:string };
 export type ServiceIssue = { id:string; recordId:string; productId:string; type:"fitting"|"missing"|"wrong_item"|"new_person"|"removal"|"return"|"defect"|"other"; description:string; owner:string; promisedDate:string; status:"open"|"in_progress"|"resolved"; chargeable:boolean; extraCharge:number; taxRate?:number; hsnSac?:string; history:{at:string;status:string;note:string}[] };

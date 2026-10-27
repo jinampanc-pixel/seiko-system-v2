@@ -16,6 +16,7 @@ export type SeikoBillingLine = {
 };
 
 export type SeikoCommercialDocument = {
+  creationFingerprint?: string;
   pricingSnapshot?: PricingSnapshot;
   supplementaryFor?: string;
   credits?: {id:string;date:string;reason:string;subtotal:number;tax:number;amount:number;units:PriceUnit[];by:string}[];

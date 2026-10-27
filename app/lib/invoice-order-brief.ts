@@ -55,3 +55,12 @@ export function briefProductGroups(order:SeikoOrder, fields:string[]=[]){
  }
  return [...groups.values()];
 }
+
+export function invoiceLinesMatch(expected:SeikoBillingLine[], actual:SeikoBillingLine[]):boolean {
+ const signature=(lines:SeikoBillingLine[])=>{
+  const groups=new Map<string,number>();
+  for(const l of lines){const key=JSON.stringify([clean(l.description),clean(l.unit),l.unitRate,l.taxRate,clean(l.hsnSac||'')]);groups.set(key,cents((groups.get(key)||0)+l.quantity));}
+  return JSON.stringify([...groups].sort(([a],[b])=>a.localeCompare(b)));
+ };
+ return signature(expected)===signature(actual);
+}

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
 import { allocateOrderPayments, documentTotals, roundMoney, validBillingDate, validateBillingDocument, type SeikoCommercialDocument, type SeikoPaymentRecord } from "../../../lib/seiko-billing";
-import { profileSnapshotAllowed, validBillingImage, type BillingProfile } from "../../../lib/billing-profile";
+import { billingSnapshotError, type BillingProfile } from "../../../lib/billing-profile";
 
 type DocumentRow = { sequence: number; id: string; data: string; cancelled: number };
 type PaymentRow = { sequence: number; id: string; data: string };
@@ -47,14 +47,7 @@ export async function POST(request: Request) {
     const profileRow = await db.prepare("SELECT value_json AS data FROM erp_preferences WHERE business_id='seiko' AND key='billing.profile.v1'").first<{data:string}>();
     const profile: BillingProfile | null = profileRow ? JSON.parse(profileRow.data) : null;
     const canConfigure = membership?.role === "owner" || Boolean(profile?.managerEmails.includes(actor.email.toLowerCase()));
-    const snapshotError = (doc: SeikoCommercialDocument, original?: SeikoCommercialDocument) => {
-      if (!validBillingImage(doc.supplier?.paymentQr) || !validBillingImage(doc.supplier?.logo) || !validBillingImage(doc.signatory?.signature) || !validBillingImage(doc.signatory?.stamp)) return "Use valid uploaded PNG, JPEG or WebP images.";
-      if (!canConfigure && !profileSnapshotAllowed(doc, profile, original)) return "Select saved business/payment details and an authorised signatory. Only a billing-settings manager can edit them.";
-      if (doc.signatory && JSON.stringify(doc.signatory)!==JSON.stringify(original?.signatory) && !canConfigure && !profile?.signatoryEmails?.includes(actor.email.toLowerCase())) return "The owner must authorise access to saved signatures and stamps.";
-      if (!canConfigure && !profile?.signatoryEmails?.includes(actor.email.toLowerCase()) && ((doc.showSignature && !original?.showSignature) || (doc.showStamp && !original?.showStamp))) return "The owner must authorise use of saved signatures and stamps.";
-      if (membership?.role !== "owner" && doc.supplier?.gstin !== original?.supplier?.gstin && doc.supplier?.gstin !== profile?.supplier.gstin) return "Only the owner can amend supplier GST details.";
-      return "";
-    };
+    const snapshotError = (doc:SeikoCommercialDocument, original?:SeikoCommercialDocument) => billingSnapshotError(doc,profile,membership?.role==="owner",canConfigure,actor.email,original);
     await db.prepare(`CREATE TABLE IF NOT EXISTS seiko_billing_documents (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, data TEXT NOT NULL, total_paise INTEGER NOT NULL, cancelled INTEGER NOT NULL DEFAULT 0, created_by TEXT NOT NULL)`).run();
     await db.prepare(`CREATE TABLE IF NOT EXISTS seiko_billing_payments (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, invoice_id TEXT NOT NULL, amount_paise INTEGER NOT NULL, data TEXT NOT NULL, created_by TEXT NOT NULL)`).run();
     await db.prepare(`CREATE TABLE IF NOT EXISTS seiko_clients (id TEXT PRIMARY KEY, name_key TEXT NOT NULL, phone_key TEXT NOT NULL, email_key TEXT NOT NULL, archived INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL, created_by TEXT NOT NULL, updated_by TEXT NOT NULL)`).run();
