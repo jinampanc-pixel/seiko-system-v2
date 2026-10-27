@@ -162,7 +162,7 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
         <div className="orderMenuContext"><b>{order.details.orderNo}</b><span>{order.details.clientName}</span></div><p className="orderMenuGroupLabel">Order</p><button disabled={busy} onClick={() => openWorkspace(order)}>Open workspace</button>
         <p className="orderMenuGroupLabel">Billing & documents</p><button onClick={() => openOrderFinancialAction(order.orderId, "payment")}>Record payment</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "payments")}>View payments / receipts</button>
-        <button onClick={() => {if(order.commerce?.rules.length){setCurrent(structuredClone(order));setView("service");}else openOrderFinancialAction(order.orderId,"invoice");}}>Create invoice</button>
+        <button onClick={() => openOrderFinancialAction(order.orderId,"invoice")}>Create invoice</button>
         <button onClick={() => setHandoverOrder(structuredClone(order))}>Student handover list / PDF</button><button onClick={() => openOrderFinancialAction(order.orderId, "challan")}>Create delivery challan</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "quotation")}>Create quotation</button>
         {businessId==="seiko"&&<button onClick={()=>{setCurrent(structuredClone(order));setView("service");}}>Order management</button>}{membership?.modules.includes("production")&&<button onClick={()=>window.dispatchEvent(new CustomEvent("seiko:production-order",{detail:order.orderId}))}>Production handoff</button>}<p className="orderMenuGroupLabel">Setup & labels</p><button onClick={() => { setCurrent(structuredClone(order)); setSetupReturnView("center"); setView("setup"); }}>Edit setup</button>
