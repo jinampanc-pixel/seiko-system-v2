@@ -6,6 +6,7 @@ export type SignatoryLayout = Record<"signature" | "stamp" | "name", SignatoryPl
 export type BillingPrintPreferences = { fieldLabels?: Record<string, { label: string; showLabel: boolean }> };
 
 export type SeikoBillingLine = {
+  section?: { label:string; date?:string };
   id: string;
   description: string;
   quantity: number;
@@ -203,6 +204,7 @@ export function validateBillingDocument(document: SeikoCommercialDocument): stri
   if (document.taxMode === "gst" && document.taxTreatment === "inter_state" && !document.placeOfSupply?.trim()) return "Enter the place of supply for an interstate GST document.";
   if (!Array.isArray(document.lines) || !document.lines.length || document.lines.length > 200) return "Add between 1 and 200 item lines.";
   if (document.lines.some(line => !line.description?.trim() || !Number.isFinite(line.quantity) || line.quantity <= 0 || !Number.isFinite(line.unitRate) || line.unitRate < 0 || !Number.isFinite(line.taxRate) || line.taxRate < 0 || line.taxRate > 100)) return "Each item needs a description, positive quantity and valid rate/tax.";
+  if (document.lines.some(line=>line.section&&(typeof line.section.label!=="string"||!line.section.label.trim()||line.section.label.length>120||line.section.date!==undefined&&!validBillingDate(line.section.date)))) return "Use a section label up to 120 characters and a valid optional date.";
   if (document.taxMode === "gst" && document.lines.some(line => !line.hsnSac?.trim())) return "Every GST item needs an HSN/SAC code.";
   if (documentTotals(document).total > 1_000_000_000) return "Invoice total is too large.";
   return "";

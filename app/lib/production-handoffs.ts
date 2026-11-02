@@ -1,15 +1,16 @@
-import { recordRuleIssues, specificationForRecord, measurementRequired, normalizeProductMeasurements, quantityForRecord, type SeikoOrder } from './order-domain';
+import { recordInOrderGroup, recordRuleIssues, specificationForRecord, measurementRequired, normalizeProductMeasurements, quantityForRecord, type SeikoOrder } from './order-domain';
 import { packingQuantities } from './packing-label-model';
 
 export type ProductionDemand = {
   key: string; orderId: string; orderNo: string; client: string; productId: string; product: string;
-  variant: string; specifications: string; cuttingSignature: string; quantity: number; sourceQuantity:number; unresolved: boolean; sourceVersion: number; members:{recordId:string;quantity:number}[];
+  variant: string; specifications: string; cuttingSignature: string; quantity: number; sourceQuantity:number; unresolved: boolean; sourceVersion: number; members:{recordId:string;quantity:number;delivered?:number}[];
 };
 export type ProductionAllocation = ProductionDemand & { quantity: number; lay: string; stack: string; issuedMembers?:{recordId:string;quantity:number}[] };
 export type ProductionLay = { id: string; pattern: string; fabric: string; width: string; stretch: string; grain: string; direction: string; checks: string; confirmed: boolean };
 export type ProductionEvent = { id: string; at: string; actor: string; allocationKey: string; operation: string; quantity: number; rejects: number; extras: number; reason: string };
 export type ProductionHandoff = {
   id: string; number: string; name: string; status: 'Draft'|'Released'|'In progress'|'Closed'|'Cancelled';
+  sourceGroups?:Record<string,string>;
   purpose: 'normal'|'rework'|'extra'; reason: string; allocations: ProductionAllocation[]; lays: ProductionLay[];
   events: ProductionEvent[]; history: { at: string; actor: string; action: string }[]; createdAt: string;
 };
@@ -17,13 +18,14 @@ export type ProductionLedger = { handoffs: ProductionHandoff[] };
 export type ProductionOrder = { order: SeikoOrder; version: number };
 const text = (value: unknown) => String(value ?? '').trim();
 export const productionKey = (values: unknown[]) => JSON.stringify(values);
-export function productionDemand(orders: ProductionOrder[]): ProductionDemand[] {
+export function productionDemand(orders: ProductionOrder[],sourceGroups:Record<string,string>={}): ProductionDemand[] {
   const result = new Map<string, ProductionDemand>();
   for (const { order: raw, version } of orders) {
     if (raw.status === "Cancelled" || raw.archived || (raw as SeikoOrder & {deletedAt?:string}).deletedAt) continue;
     const order = normalizeProductMeasurements(raw), quantities = packingQuantities(order);
-    const records = order.records.filter(record => !record.held && !order.fields.some(f=>/status|cancel/i.test(f.name)&&/^(cancelled|canceled|removed)$/i.test(String(record.values["field:"+f.id]||"").trim())) && !["cancelled","hold","awaiting"].includes(order.commerce?.people[record.recordId]?.state||""));
+    const records = order.records.filter(record => recordInOrderGroup(order,record.recordId,sourceGroups[order.orderId]||"all") && !record.held && !order.fields.some(f=>/status|cancel/i.test(f.name)&&/^(cancelled|canceled|removed)$/i.test(String(record.values["field:"+f.id]||"").trim())) && !["cancelled","hold","awaiting"].includes(order.commerce?.people[record.recordId]?.state||""));
     for (const product of order.products.filter(item => item.name.trim())) {
+      if(product.quantityMode==='order_total'&&!recordInOrderGroup(order,'order-total',sourceGroups[order.orderId]||'all'))continue;
       const measurements = order.measurements.filter(item => item.appliesTo.includes(product.id) && item.name.trim());
       const rows = product.quantityMode === 'order_total' ? [{ recordId: 'order-total', personId: '', values: {} as Record<string,string|number> }] : records;
       rows.forEach((record, index) => {
@@ -45,8 +47,9 @@ export function productionDemand(orders: ProductionOrder[]): ProductionDemand[] 
         // Product IDs and order IDs keep allocations separate even when cutting descriptions match.
         const key = productionKey([order.orderId, product.id, variant, specifications, unresolved]);
         const previous = result.get(key);
-        if (previous) { previous.quantity += quantity; previous.members.push({recordId:record.recordId,quantity}); }
-        else result.set(key, { key, orderId: order.orderId, orderNo: order.details.orderNo, client: order.details.clientName, productId: product.id, product: product.name.trim(), variant, specifications, cuttingSignature, quantity, sourceQuantity:quantity, unresolved, sourceVersion: version, members:[{recordId:record.recordId,quantity}] });
+        const delivered=Math.min(quantity,(order.commerce?.deliveries||[]).filter(d=>d.recordId===(record.recordId==='order-total'?'order':record.recordId)&&d.productId===product.id&&d.kind==='delivery').reduce((n,d)=>n+d.quantity,0));
+        if (previous) { previous.quantity += quantity; previous.members.push({recordId:record.recordId,quantity,...(delivered?{delivered}:{})}); }
+        else result.set(key, { key, orderId: order.orderId, orderNo: order.details.orderNo, client: order.details.clientName, productId: product.id, product: product.name.trim(), variant, specifications, cuttingSignature, quantity, sourceQuantity:quantity, unresolved, sourceVersion: version, members:[{recordId:record.recordId,quantity,...(delivered?{delivered}:{})}] });
       });
     }
   }
@@ -68,7 +71,7 @@ export function reserveMembers(handoff:ProductionHandoff, ledger:ProductionLedge
   for(const row of handoff.allocations){
     const current=demand.find(item=>item.key===row.key)!;let remaining=row.quantity;
     row.issuedMembers=current.members.map(member=>{
-      const used=issuedQuantity(ledger,{...current,members:[member]},handoff.id);
+      const used=Math.max(member.delivered||0,issuedQuantity(ledger,{...current,members:[member]},handoff.id));
       const quantity=handoff.purpose==='normal'?Math.min(Math.max(0,member.quantity-used),remaining):remaining;
       remaining-=quantity;return {recordId:member.recordId,quantity};
     }).filter(member=>member.quantity>0);
@@ -95,7 +98,7 @@ export function validateRelease(handoff: ProductionHandoff, ledger: ProductionLe
     seen.add(row.key);
     const current = demand.find(item => item.key === row.key);
     if (!current || current.unresolved || current.sourceVersion !== row.sourceVersion) throw new Error('A source order changed or needs details. Refresh demand and review the handoff.');
-    if (handoff.purpose === 'normal' && row.quantity + issuedQuantity(ledger,current,handoff.id) > current.quantity) throw new Error('These quantities have already been issued or exceed current order demand.');
+    if (handoff.purpose === 'normal' && row.quantity > productionRemaining(ledger,current,handoff.id)) throw new Error('These quantities have already been issued or exceed current order demand.');
     if (row.lay && !handoff.lays.some(lay => lay.id === row.lay)) throw new Error('Choose an existing cutting lay.');
   }
   for (const lay of handoff.lays) {
@@ -121,3 +124,10 @@ export function cuttingSections(allocations:ProductionAllocation[],groupBy:Cutti
  const compare=new Intl.Collator(undefined,{numeric:true,sensitivity:"base"}).compare;
  return [...sections].map(([key,rows])=>{const first=rows[0],lay=lays.find(item=>item.id===first.lay);const label=groupBy==="stack"?(lay?[lay.id,lay.pattern,first.stack||"Stack not named"].filter(Boolean).join(" · "):"Unassigned cutting plan"):key;const details=groupBy==="stack"&&lay?(["fabric","width","stretch","grain","direction","checks"] as const).filter(key=>text(lay[key])).map(key=>`${({fabric:"Fabric",width:"Width",stretch:"Stretch",grain:"Grain",direction:"Direction",checks:"Checks"})[key]}: ${lay[key]}`).join(" · "):"";return {key,label,details,specifications:groupBy==="specifications"?key:"",quantity:rows.reduce((n,row)=>n+row.quantity,0),allocations:[...rows].sort((a,b)=>compare(a.variant,b.variant)||compare(a.orderNo,b.orderNo))};}).sort((a,b)=>compare(a.label,b.label));
 }
+
+/** Issued work and recorded deliveries overlap; count their per-person maximum once. Returns do not undo prior production. */
+export function productionRemaining(ledger:ProductionLedger,demand:ProductionDemand,exceptId=""){
+ return demand.members.reduce((n,member)=>n+Math.max(0,member.quantity-Math.max(member.delivered||0,issuedQuantity(ledger,{...demand,members:[member]},exceptId))),0);
+}
+
+export { validOrderGroup } from './order-domain';

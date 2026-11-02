@@ -245,7 +245,9 @@ test("customer prints omit internal revisions and use clean payment separators",
   const doc = {...invoice(), revision: 3};
   const html = printing.billingPrintHtml(doc, [{...payment("receipt-test", 50), receiptNumber:"RCP-TEST"}], "customer");
   assert.doesNotMatch(html, /Amended|Revision 3|Â/);
-  assert.match(html, /&middot; RCP-TEST &middot; UPI/);
+  assert.match(html, /Payments received/);assert.doesNotMatch(html, /&middot; RCP-TEST &middot; UPI/);
   assert.match(html, /class="ackLine">Name:.*<\/span><span class="ackLine">Date:/);
   assert.equal(doc.revision, 3);
 });
+
+test('invoice payment summary combines same-day applied amounts without changing receipts or other invoices',()=>{const doc=invoice(),payments=[{...payment('cash',50),mode:'Cash',receiptNumber:'RCP-CASH'},{...payment('upi',70),mode:'UPI',receiptNumber:'RCP-UPI'},{...payment('later',10),date:'2026-09-27',receiptNumber:'RCP-LATER'},{...payment('other',999),invoiceId:'another-invoice',receiptNumber:'RCP-OTHER'}],before=JSON.stringify(payments),html=printing.billingPrintHtml(doc,payments,'customer');const history=html.match(/<section class="history"><b>Payments received<\/b>(.*?)<\/section>/s)[1];assert.equal((history.match(/<div>/g)||[]).length,2);assert.match(history,/120.00/);assert.match(history,/10.00/);assert.doesNotMatch(history,/999.00|RCP-/);assert.equal(JSON.stringify(payments),before);const receipt=printing.billingPrintHtml(doc,payments,'customer',payments[0]);assert.match(receipt,/RCP-CASH/);assert.doesNotMatch(receipt,/<b>Payments received<\/b>/);});

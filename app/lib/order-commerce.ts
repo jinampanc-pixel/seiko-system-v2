@@ -1,3 +1,4 @@
+import { recordInOrderGroup, validOrderGroup } from './order-domain';
 import { packingQuantities } from "./packing-label-model";
 import { orderRuleErrors, predicateState, specificationForRecord, recordRuleIssues, measurementRequired, type RulePredicate, workspaceColumns, type OrderRecord, type SeikoOrder } from "./order-domain";
 
@@ -143,7 +144,7 @@ export type OrderEvidence={id:string;name:string;mimeType:string;size:number;sto
 export type OrderProofLine={id:string;recordId:string;personId:string;person:string;details:string;productId:string;product:string;specifications:string;measurements:string;quantity:number;orderedQuantity:number};
 export type OrderConfirmation={id:string;at:string;by?:string;date:string;confirmedBy:string;method:"signed_copy"|"message";note:string;evidence:OrderEvidence[];orderNo:string;clientName:string;lines:OrderProofLine[]};
 export type DeliveryEvent={id:string;type:"dispatch"|"handover"|"acknowledge"|"close";date:string;at:string;by?:string;receiver:string;note:string;method?:"signed_copy"|"message";scope?:"batch"|"selected"|"person";quantities:Record<string,number>;evidence:OrderEvidence[]};
-export type DeliveryBatch={id:string;reference:string;at:string;by?:string;orderNo:string;clientName:string;lines:OrderProofLine[];priorHandovers?:{lineId:string;movementId:string;quantity:number;date:string;dateUnknown?:boolean}[];events:DeliveryEvent[]};
+export type DeliveryBatch={sourceGroup?:string;id:string;reference:string;at:string;by?:string;orderNo:string;clientName:string;lines:OrderProofLine[];priorHandovers?:{lineId:string;movementId:string;quantity:number;date:string;dateUnknown?:boolean}[];events:DeliveryEvent[]};
 export type OrderFulfilment={confirmations:OrderConfirmation[];batches:DeliveryBatch[]};
 export const fulfilmentOf=(order:SeikoOrder):OrderFulfilment=>order.commerce?.fulfilment||{confirmations:[],batches:[]};
 export function orderProofLines(order:SeikoOrder,remaining=false,includeCancelled=false):OrderProofLine[]{
@@ -161,13 +162,13 @@ export function orderProofLines(order:SeikoOrder,remaining=false,includeCancelle
 export function reservedDeliveryQuantity(order:SeikoOrder,recordId:string,productId:string,exceptId="") {return fulfilmentOf(order).batches.filter(b=>b.id!==exceptId&&!b.events.some(e=>e.type==='close')).reduce((n,b)=>n+b.lines.filter(l=>l.recordId===recordId&&l.productId===productId).reduce((sum,l)=>sum+Math.max(0,l.quantity-batchQuantity(b,'handover',l.id)),0),0);}
 export const batchQuantity=(batch:DeliveryBatch,type:DeliveryEvent['type'],lineId?:string)=>(type==='handover'?(batch.priorHandovers||[]).filter(h=>!lineId||h.lineId===lineId).reduce((n,h)=>n+h.quantity,0):0)+batch.events.filter(e=>e.type===type).reduce((n,e)=>n+(lineId?e.quantities[lineId]||0:Object.values(e.quantities).reduce((a,b)=>a+b,0)),0);
 /** Link saved movements without creating another supply event or inventing receipt evidence. */
-export function linkEarlierDelivery(order:SeikoOrder,reference:string):DeliveryBatch{
+export function linkEarlierDelivery(order:SeikoOrder,reference:string,group="all"):DeliveryBatch{
  const used=new Set(fulfilmentOf(order).batches.flatMap(b=>(b.priorHandovers||[]).map(h=>h.movementId)));
- const movements=commerceOf(order).deliveries.filter(d=>d.reference===reference&&d.kind!=='return'&&!d.batchId&&!used.has(d.id));
+ const movements=commerceOf(order).deliveries.filter(d=>d.reference===reference&&recordInOrderGroup(order,d.recordId,group)&&d.kind!=='return'&&!d.batchId&&!used.has(d.id));
  if(!movements.length)throw Error('No unlinked handovers match this reference.');
  const master=orderProofLines(order,false,true),lines:OrderProofLine[]=[],priorHandovers:NonNullable<DeliveryBatch['priorHandovers']>=[];
  for(const d of movements){let l=lines.find(l=>l.recordId===d.recordId&&l.productId===d.productId);if(!l){const m=master.find(m=>m.recordId===d.recordId&&m.productId===d.productId);if(!m)throw Error('Keep the earlier handover’s person and product in the order before linking it.');l={...m,quantity:0};lines.push(l);}l.quantity+=d.quantity;l.orderedQuantity=Math.max(l.orderedQuantity,l.quantity);priorHandovers.push({lineId:l.id,movementId:d.id,quantity:d.quantity,date:d.date,...(d.dateUnknown?{dateUnknown:true}:{})});}
- return {id:crypto.randomUUID(),reference,at:new Date().toISOString(),orderNo:order.details.orderNo,clientName:order.details.clientName,lines,priorHandovers,events:[]};
+ return {sourceGroup:group,id:crypto.randomUUID(),reference,at:new Date().toISOString(),orderNo:order.details.orderNo,clientName:order.details.clientName,lines,priorHandovers,events:[]};
 }
 export function confirmationIsCurrent(order:SeikoOrder,confirmation:OrderConfirmation){const current=orderProofLines(order);return order.details.orderNo===confirmation.orderNo&&order.details.clientName===confirmation.clientName&&JSON.stringify(current)===JSON.stringify(confirmation.lines);}
 export function appendDeliveryEvent(order:SeikoOrder,batchId:string,event:DeliveryEvent):SeikoOrder{
@@ -178,7 +179,7 @@ export function appendDeliveryEvent(order:SeikoOrder,batchId:string,event:Delive
  return {...order,commerce:{...c,deliveries:[...c.deliveries,...movements],fulfilment:{...f,batches:f.batches.map(b=>b.id===batchId?{...b,events:[...b.events,event]}:b)}}};
 }
 export function appendDeliveryBatch(order:SeikoOrder,batch:DeliveryBatch):SeikoOrder{
- const f=fulfilmentOf(order),existing=f.batches.find(b=>b.id===batch.id);if(existing){const content=(b:DeliveryBatch)=>JSON.stringify({reference:b.reference,lines:b.lines,priorHandovers:b.priorHandovers});if(content(existing)!==content(batch))throw Error('This prepared delivery is already saved with different details.');return order;}return {...order,commerce:{...commerceOf(order),fulfilment:{...f,batches:[...f.batches,batch]}}};
+ const f=fulfilmentOf(order),existing=f.batches.find(b=>b.id===batch.id);if(existing){const content=(b:DeliveryBatch)=>JSON.stringify({sourceGroup:b.sourceGroup,reference:b.reference,lines:b.lines,priorHandovers:b.priorHandovers});if(content(existing)!==content(batch))throw Error('This prepared delivery is already saved with different details.');return order;}return {...order,commerce:{...commerceOf(order),fulfilment:{...f,batches:[...f.batches,batch]}}};
 }
 export function appendOrderConfirmation(order:SeikoOrder,value:OrderConfirmation):SeikoOrder{
  const f=fulfilmentOf(order),existing=f.confirmations.find(c=>c.id===value.id);if(existing){const content=(c:OrderConfirmation)=>JSON.stringify({date:c.date,confirmedBy:c.confirmedBy,method:c.method,note:c.note,evidence:c.evidence,orderNo:c.orderNo,clientName:c.clientName,lines:c.lines});if(content(existing)!==content(value))throw Error('This confirmation is already saved with different details.');return order;}return {...order,commerce:{...commerceOf(order),fulfilment:{...f,confirmations:[...f.confirmations,value]}}};
@@ -205,11 +206,13 @@ export function validateFulfilment(order:SeikoOrder,previous?:SeikoOrder):string
  const eventIds=new Set<string>();
  for(const b of f.batches){
   const before=old.batches.find(x=>x.id===b.id);
+  if(b.sourceGroup!==undefined&&!validOrderGroup(b.sourceGroup))return "Choose a valid source group.";
+  if(!before&&b.sourceGroup&&Array.isArray(b.lines)&&b.lines.some(l=>!recordInOrderGroup(order,l.recordId,b.sourceGroup)))return "Prepare items from the selected source group only.";
   if(!validText(b.id,128)||!b.id||!validText(b.reference,240)||!b.reference.trim()||!Array.isArray(b.lines)||!b.lines.length||b.lines.length>10000||b.lines.some(l=>!line(l))||new Set(b.lines.map(l=>l.id)).size!==b.lines.length||!Array.isArray(b.events)||b.events.length>500)return 'Choose valid order items and quantities for this delivery.';
   if(before&&(JSON.stringify({...b,events:[]})!==JSON.stringify({...before,events:[]})||before.events.some((e,i)=>JSON.stringify(e)!==JSON.stringify(b.events[i]))))return 'Saved delivery items and events cannot be rewritten. Record the next action instead.';
   if(b.priorHandovers!==undefined&&(!Array.isArray(b.priorHandovers)||!b.priorHandovers.length||b.priorHandovers.length>10000))return 'Choose existing handover movements to link.';
   if(previous&&!before&&b.priorHandovers){
-   let expected:DeliveryBatch;try{expected=linkEarlierDelivery(previous,b.reference);}catch{return 'Earlier handovers changed or were already linked. Refresh this order.';}
+   let expected:DeliveryBatch;try{expected=linkEarlierDelivery(previous,b.reference,b.sourceGroup||"all");}catch{return 'Earlier handovers changed or were already linked. Refresh this order.';}
    if(b.events.length||JSON.stringify(b.lines)!==JSON.stringify(expected.lines)||JSON.stringify(b.priorHandovers)!==JSON.stringify(expected.priorHandovers)||b.orderNo!==order.details.orderNo||b.clientName!==order.details.clientName)return 'Link the exact earlier handover records from this order.';
   }else if(previous&&!before&&(b.orderNo!==order.details.orderNo||b.clientName!==order.details.clientName||b.events.length||b.lines.some(l=>!master.some(m=>m.id===l.id&&sameLine(l,m))||l.quantity>Math.max(0,l.orderedQuantity-deliveredQuantity(order,l.recordId,l.productId)-reservedDeliveryQuantity(order,l.recordId,l.productId,b.id)))))return 'Prepare delivery quantities from the current pending order items.';
   let dispatched=false,closed=false;const handed:Record<string,number>={},ack:Record<string,number>={};
@@ -228,3 +231,9 @@ export function validateFulfilment(order:SeikoOrder,previous?:SeikoOrder):string
  for(const i of commerceOf(order).issues)if(i.deliveryId){const d=commerceOf(order).deliveries.find(d=>d.id===i.deliveryId&&d.kind!=='return');if(!d||d.recordId!==i.recordId||i.productId&&d.productId!==i.productId)return 'Link the case to a delivery for the same person and product.';}
  return '';
 }
+
+export function groupPricingQuote(order:SeikoOrder,basis:"eligible"|"delivered"="eligible",group="all"){
+ const quote=pricingQuote(order,basis);if(group==="all")return quote;const units=quote.units.filter(u=>recordInOrderGroup(order,u.recordId,group));return {...quote,units,excluded:quote.excluded.filter(u=>recordInOrderGroup(order,u.recordId,group)),total:cents(units.reduce((n,u)=>n+u.amount,0)),billablePeople:new Set(units.filter(u=>u.recordId!=="order").map(u=>u.recordId)).size};
+}
+
+export { recordInOrderGroup, validOrderGroup, orderGroupOptions } from './order-domain';

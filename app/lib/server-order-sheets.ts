@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { orderSheetColumns, orderSheetRows, readOrderSheet, sheetInitialRequests, sheetCell, prepareSheetPersonEdit, sheetLayoutRequests, sheetCountRequests, type SheetPersonEdit } from "./order-sheet-model";
+import { orderSheetColumns, orderSheetRows, readOrderSheet, sheetInitialRequests, sheetCell, prepareSheetPersonEdit, prepareSheetGroupEdit, type SheetGroupEdit, sheetLayoutRequests, sheetCountRequests, type SheetPersonEdit } from "./order-sheet-model";
 import type { SeikoOrder } from "./order-domain";
 import type { Actor } from "./server-erp-auth";
 type DB=Pick<NonNullable<typeof env.DB>,"prepare"|"batch">;
@@ -169,4 +169,9 @@ export async function restoreSheetPerson(db:DB,actor:Actor,id:string,recordId:st
   if(!table.some((r,i)=>i>=3&&r[0]===recordId))await google(token,base+':batchUpdate',{requests:[{appendCells:{sheetId:link.people_sheet_id,rows:[{values:keys.map(key=>archived.enteredValues?.[key]||sheetCell(archived.cells[key]??''))}],fields:'userEnteredValue'}}]});
   await storeDeletedPerson(db,actor,{...archived,restoredAt:new Date().toISOString()});return await syncOrderSheet(db,actor,id,true,token,lease);
  }catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
+}
+
+export async function saveSheetGroup(db:DB,actor:Actor,id:string,edit:SheetGroupEdit){
+ const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError("Connect this order’s Google Sheet before grouping entries.");const lease=await claim(db,id,actor);
+ try{const source=await orderRow(db,id),token=await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(link.spreadsheet_id)}`;const result=await google(token,base+"/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING");let plan:ReturnType<typeof prepareSheetGroupEdit>;try{plan=prepareSheetGroupEdit(source.order,result.values||[],edit);}catch(e){throw new SheetError((e as Error).message);}await google(token,base+":batchUpdate",{requests:plan.map(u=>({updateCells:{start:{sheetId:link.people_sheet_id,rowIndex:u.row,columnIndex:u.column},rows:[{values:[sheetCell(u.value)]}],fields:"userEnteredValue"}}))});return await syncOrderSheet(db,actor,id,true,token,lease);}catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
 }

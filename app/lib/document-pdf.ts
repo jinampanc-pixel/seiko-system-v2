@@ -11,7 +11,10 @@ export async function createDocumentPdf(html:string,copies?:BillingCopies):Promi
  const frame=document.createElement("iframe");frame.title="Preparing PDF";frame.setAttribute("aria-hidden","true");frame.style.cssText="position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;pointer-events:none";
  const loaded=new Promise<void>((resolve,reject)=>{frame.onload=()=>resolve();frame.onerror=()=>reject(Error("PDF preparation failed."));});frame.srcdoc=html;document.body.append(frame);
  try{
- await loaded;const doc=await readyDocument(frame,copies);const [{default:html2canvas},{jsPDF}]=await Promise.all([import("html2canvas"),import("jspdf")]);
+ await loaded;
+ // Screen preview borders must not spill a thin footer onto another PDF page.
+ const exportStyle=frame.contentDocument!.createElement("style");exportStyle.textContent=".copy{border:0!important}";frame.contentDocument!.head.append(exportStyle);
+ const doc=await readyDocument(frame,copies);const [{default:html2canvas},{jsPDF}]=await Promise.all([import("html2canvas"),import("jspdf")]);
  const pdf=new jsPDF({unit:"mm",format:"a4",compress:true});let count=0;
  const elements=doc.body.classList.contains("both")?[doc.body]:Array.from(doc.querySelectorAll<HTMLElement>(".copy"));if(!elements.length)elements.push(doc.body);
  for(const element of elements){const rect=element.getBoundingClientRect(),height=Math.ceil(Math.max(element.scrollHeight,rect.height)),width=Math.round(rect.width),pageHeight=width*297/210;let offset=0;

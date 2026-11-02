@@ -1,8 +1,8 @@
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
-import { commerceOf, pricingQuote, pricingDelta, pricingInvoiceLines, cents, validateCommerce } from "../../../lib/order-commerce";
+import { commerceOf, groupPricingQuote, recordInOrderGroup, validOrderGroup, pricingQuote, pricingDelta, pricingInvoiceLines, cents, validateCommerce } from "../../../lib/order-commerce";
 import type { SeikoOrder } from "../../../lib/order-domain";
-import { documentTotals, paymentsForInvoice, allocateOrderPayments, validateBillingDocument, type SeikoCommercialDocument, type SeikoPaymentRecord } from "../../../lib/seiko-billing";
+import { documentTotals, validBillingDate, paymentsForInvoice, allocateOrderPayments, validateBillingDocument, type SeikoCommercialDocument, type SeikoPaymentRecord } from "../../../lib/seiko-billing";
 import { invoiceLinesMatch } from "../../../lib/invoice-order-brief";
 import { billingSnapshotError } from "../../../lib/billing-profile";
 import type { BillingProfile } from "../../../lib/billing-profile";
@@ -13,9 +13,10 @@ export async function POST(request:Request){
  const origin=request.headers.get("origin");if(origin&&origin!==new URL(request.url).origin)return fail("Invalid origin.",403);
  const actor=await authenticateActor(request);if(!actor)return fail("Sign in required.",401);
  if(!await authorizePermission(actor,"seiko","financials.view"))return fail("Billing access required.",403);
- let b:{operation?:string;orderId?:string;basis?:"eligible"|"delivered";token?:string;invoiceId?:string;reason?:string;date?:string;taxMode?:"gst"|"non_gst";document?:SeikoCommercialDocument};
+ let b:{group?:string;baselineGroup?:string;updateInvoiceId?:string;sectionLabel?:string;sectionDate?:string;operation?:string;orderId?:string;basis?:"eligible"|"delivered";token?:string;invoiceId?:string;reason?:string;date?:string;taxMode?:"gst"|"non_gst";document?:SeikoCommercialDocument};
  try{const reader=request.body?.getReader();let text="",bytes=0;const decoder=new TextDecoder();if(reader)for(;;){const p=await reader.read();if(p.done)break;bytes+=p.value.byteLength;if(bytes>1024*1024){await reader.cancel();return fail("Request too large.",413);}text+=decoder.decode(p.value,{stream:true});}b=JSON.parse(text);}catch{return fail("Invalid request.");}
  if(!["review","link","apply"].includes(b.operation||"")||typeof b.orderId!=="string"||!b.orderId||b.orderId.length>128||b.basis&&!['eligible','delivered'].includes(b.basis))return fail("Choose an order and billing basis.");
+ if(b.group!==undefined&&!validOrderGroup(b.group)||b.baselineGroup!==undefined&&!validOrderGroup(b.baselineGroup))return fail("Choose a valid order group.");
  const management=await authorizePermission(actor,"seiko","billing.invoices.manage");const canManage=Boolean(management);if(b.operation!=="review"&&!canManage)return fail("Invoice management permission required.",403);
  if(!env.DB)return fail("Shared storage unavailable.",503);const db=env.DB.withSession("first-primary");
  try{
@@ -32,15 +33,16 @@ export async function POST(request:Request){
  const order=JSON.parse(row.document_json) as SeikoOrder;if(!commerceOf(order).rules.length)return fail("Save order pricing before reviewing billing.");const problem=validateCommerce(order);if(problem)return fail(problem);
  const rows:DocRow[]=(await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE json_extract(data,'$.orderId')=? AND json_extract(data,'$.kind')='invoice' AND cancelled=0 AND json_extract(data,'$.deletedAt') IS NULL ORDER BY sequence").bind(b.orderId).all<DocRow>()).results;
  const docs:SeikoCommercialDocument[]=rows.map(decode);const taxMode=docs[0]?.taxMode||b.taxMode||"non_gst";if(!["gst","non_gst"].includes(taxMode))return fail("Choose a valid tax register.");
- const quote=pricingQuote(order,b.basis||"eligible");quote.units=quote.units.map(u=>({...u,taxRate:taxMode==="gst"?u.taxRate:0,key:u.key.replace(/:tax[\d.]+$/,`:tax${taxMode==="gst"?u.taxRate:0}`)}));
+ const fullQuote=pricingQuote(order,b.basis||"eligible"),quote=groupPricingQuote(order,b.basis||"eligible",b.group||"all");quote.units=quote.units.map(u=>({...u,taxRate:taxMode==="gst"?u.taxRate:0,key:u.key.replace(/:tax[\d.]+$/,`:tax${taxMode==="gst"?u.taxRate:0}`)}));
  const booked=docs.flatMap(d=>[...(d.pricingSnapshot?.units||[]),...(d.credits||[]).flatMap(c=>c.units)]);
- const delta=pricingDelta(quote.units,booked);
+ const delta=pricingDelta(quote.units,booked.filter(u=>recordInOrderGroup(order,u.recordId,b.group||"all")));
  const lock=await db.prepare("SELECT version FROM seiko_order_billing_locks WHERE order_id=?").bind(b.orderId).first<{version:number}>();
- const token=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify([row.document_json,rows,b.basis||"eligible",taxMode,lock?.version||0]))))).map(n=>n.toString(16).padStart(2,"0")).join("");
+ const token=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify([row.document_json,rows,b.basis||"eligible",taxMode,b.group||"all",b.baselineGroup||"all",lock?.version||0]))))).map(n=>n.toString(16).padStart(2,"0")).join("");
  const paymentRows:{sequence:number;data:string}[]=(await db.prepare("SELECT sequence,data FROM seiko_billing_payments WHERE json_extract(data,'$.orderId')=? OR invoice_id IN (SELECT id FROM seiko_billing_documents WHERE json_extract(data,'$.orderId')=?)").bind(b.orderId,b.orderId).all<{sequence:number;data:string}>()).results;
  const payments=allocateOrderPayments(docs,paymentRows.map(r=>({...JSON.parse(r.data),receiptNumber:JSON.parse(r.data).receiptNumber||`RCP-${JSON.parse(r.data).date.slice(0,4)}-${String(r.sequence).padStart(5,"0")}`} as SeikoPaymentRecord)));
- const totals={agreed:cents(quote.units.reduce((n,u)=>n+u.amount*(1+u.taxRate/100),0)),invoiced:cents(docs.reduce((n,d)=>n+documentTotals(d).originalTotal,0)),credits:cents(docs.reduce((n,d)=>n+documentTotals(d).creditTotal,0)),received:cents(payments.reduce((n,p)=>n+p.amount,0)),outstanding:cents(docs.reduce((n,d)=>n+Math.max(0,documentTotals(d).total-paymentsForInvoice(payments,d.id)),0)),customerCredit:cents(docs.reduce((n,d)=>n+Math.max(0,paymentsForInvoice(payments,d.id)-documentTotals(d).total),0))};
- if(b.operation==="review")return Response.json({ok:true,token,taxMode,quote,delta,documents:docs.map(d=>({id:d.id,number:d.number,total:documentTotals(d).total,mapped:Boolean(d.pricingSnapshot),credits:d.credits||[]})),totals,canManage},{headers:{"Cache-Control":"no-store"}});
+ const totals={agreed:cents(fullQuote.units.reduce((n,u)=>n+u.amount*(1+(taxMode==="gst"?u.taxRate:0)/100),0)),invoiced:cents(docs.reduce((n,d)=>n+documentTotals(d).originalTotal,0)),credits:cents(docs.reduce((n,d)=>n+documentTotals(d).creditTotal,0)),received:cents(payments.reduce((n,p)=>n+p.amount,0)),outstanding:cents(docs.reduce((n,d)=>n+Math.max(0,documentTotals(d).total-paymentsForInvoice(payments,d.id)),0)),customerCredit:cents(docs.reduce((n,d)=>n+Math.max(0,paymentsForInvoice(payments,d.id)-documentTotals(d).total),0))};
+ const baselinePreview=groupPricingQuote(order,b.basis||"eligible",b.baselineGroup||"all");
+ if(b.operation==="review")return Response.json({ok:true,baseline:{people:baselinePreview.billablePeople,total:cents(baselinePreview.units.reduce((n,u)=>n+u.amount*(1+(taxMode==="gst"?u.taxRate:0)/100),0))},token,taxMode,quote,delta,documents:docs.map(d=>({id:d.id,number:d.number,total:documentTotals(d).total,mapped:Boolean(d.pricingSnapshot),credits:d.credits||[]})),totals,canManage},{headers:{"Cache-Control":"no-store"}});
  if(b.token!==token)return fail("Order or invoices changed. Review the current differences again.",409);
  if(!b.reason?.trim()||b.reason.length>2000)return fail("Record the reason for this billing review.");
  const claimToken=crypto.randomUUID();const claim=()=>db.prepare("INSERT INTO seiko_order_billing_locks(order_id,version,token) VALUES(?,1,?) ON CONFLICT(order_id) DO UPDATE SET version=version+1,token=excluded.token WHERE version=?").bind(b.orderId,claimToken,lock?.version||0);
@@ -48,7 +50,8 @@ export async function POST(request:Request){
  const now=new Date().toISOString(),date=b.date||now.slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date)))return fail("Choose a valid adjustment date.");
  if(b.operation==="link"){
   const target=rows.find(r=>r.id===b.invoiceId),doc=target&&decode(target);if(!target||!doc||doc.pricingSnapshot)return fail("Select an unmapped invoice.");
-  const available=pricingDelta(quote.units,booked).filter(u=>u.amount>0);const units=[...available];const residual=cents(documentTotals(doc).originalSubtotal-units.reduce((n,u)=>n+u.amount,0));
+  const baseline=groupPricingQuote(order,b.basis||"eligible",b.baselineGroup||"all");baseline.units=baseline.units.map(u=>({...u,taxRate:taxMode==="gst"?u.taxRate:0,key:u.key.replace(/:tax[\d.]+$/,`:tax${taxMode==="gst"?u.taxRate:0}`)}));
+  const available=pricingDelta(baseline.units,booked).filter(u=>u.amount>0);const units=[...available];const residual=cents(documentTotals(doc).originalSubtotal-units.reduce((n,u)=>n+u.amount,0));
   const taxDifference=cents(documentTotals(doc).tax-units.reduce((n,u)=>n+u.amount*u.taxRate/100,0));
   if(doc.taxMode==="gst"&&(!residual&&Math.abs(taxDifference)>.01||residual&&(!Number.isFinite(taxDifference/residual)||taxDifference/residual<0||taxDifference/residual>1)))return fail("Match the historical GST rates and roster before linking this invoice. Its tax difference cannot be inferred safely.");
   if(residual)units.push({key:`legacy:${doc.id}`,ruleId:"legacy",recordId:"order",description:"Historical invoice difference to review",quantity:0,rate:residual,amount:residual,taxRate:doc.taxMode==="gst"?taxDifference/residual*100:0,hsnSac:""});
@@ -61,6 +64,15 @@ export async function POST(request:Request){
  const negative=delta.filter(u=>u.amount<0),positive=delta.filter(u=>u.amount>0),zero=delta.filter(u=>u.amount===0);
  if(b.document&&(negative.length||!invoiceLinesMatch(pricingInvoiceLines(positive),b.document.lines)))return fail("Invoice quantities or rates do not match the latest unbilled order prices. Review the order brief; use order billing for reductions.",409);
  if(b.document&&b.document.taxMode!==taxMode)return fail("Use the tax register of this order’s existing invoices.",409);
+ if(b.updateInvoiceId){
+  if(b.document||negative.length)return fail("Updating an original invoice supports additions only. Review reductions as credits.",409);
+  const target=rows.find(r=>r.id===b.updateInvoiceId),doc=target&&decode(target);if(!target||!doc?.pricingSnapshot||doc.archivedAt)return fail("Choose an active linked invoice to update.",409);
+  const label=b.sectionLabel?.trim()||"Additional supply";if(label.length>120||b.sectionDate!==undefined&&!validBillingDate(b.sectionDate))return fail("Choose a valid addition heading and optional date.");
+  const lines=pricingInvoiceLines(positive).map(line=>({...line,id:crypto.randomUUID()}));if(!lines.length)return fail("There are no additional charges to append.");lines[0]={...lines[0],section:{label,...(b.sectionDate?{date:b.sectionDate}:{})}} as typeof lines[number];
+  const saved:SeikoCommercialDocument={...doc,number:"",lines:[...doc.lines,...lines],pricingSnapshot:{...doc.pricingSnapshot,orderUpdatedAt:order.updatedAt,units:[...doc.pricingSnapshot.units,...positive,...zero]},updatedAt:now,amendedAt:now,amendedBy:actor.email,revision:(doc.revision||0)+1};const problem=validateBillingDocument(saved);if(problem)return fail(problem);
+  const json=JSON.stringify(saved),results=await db.batch([claim(),db.prepare(`UPDATE seiko_billing_documents SET data=?,total_paise=? WHERE id=? AND data=? AND EXISTS(SELECT 1 FROM erp_orders WHERE id=? AND business_id='seiko' AND document_json=?) AND ${owned}`).bind(json,Math.round(documentTotals(saved).total*100),target.id,target.data,b.orderId,row.document_json,b.orderId,claimToken),db.prepare(`INSERT INTO erp_audit_events(id,business_id,entity_type,entity_id,action,version,actor_user_id,actor_email,at,snapshot_json) SELECT ?,'seiko','billing-document',?,'append-order-addition',?,?,?,?,? WHERE EXISTS(SELECT 1 FROM seiko_billing_documents WHERE id=? AND data=?) AND ${owned}`).bind(crypto.randomUUID(),target.id,saved.revision,actor.userId,actor.email,now,JSON.stringify({before:doc,after:saved,group:b.group||"all",reason:b.reason}),target.id,json,b.orderId,claimToken)]);
+  if(results.some((r:{meta?:{changes?:number}})=>!r.meta?.changes))return fail("Order or invoice changed. Review again before applying additions.",409);return Response.json({ok:true,message:"Original invoice updated with an additional supply section. Its number, earlier lines and receipts are preserved.",invoiceId:doc.id});
+ }
  const creditBase=cents(-negative.reduce((n,u)=>n+u.amount,0));
  const updates:{id:string;before:string;next:string;paise:number}[]=[],creditUnits=new Map<string,typeof negative>();
  for(const unit of negative){let remaining=-unit.amount,quantity=unit.quantity;

@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { authenticateActor, authorizePermission } from '../../../lib/server-erp-auth';
-import { processedQuantity, productionDemand, reserveMembers, validateRelease, type ProductionHandoff, type ProductionLedger, type ProductionOrder } from '../../../lib/production-handoffs';
+import { validOrderGroup, processedQuantity, productionDemand, reserveMembers, validateRelease, type ProductionHandoff, type ProductionLedger, type ProductionOrder } from '../../../lib/production-handoffs';
 
 const collection = 'production-handoffs-v1';
 const reply = (message:string,status=400,code?:string) => Response.json({ok:false,message,...(code?{code}:{})},{status,headers:{'Cache-Control':'no-store'}});
@@ -64,7 +64,8 @@ export async function POST(request:Request) {
       const previous=ledger.handoffs.find(item=>item.id===input.id);
       if(previous && previous.status!=='Draft')return reply('Released handoffs are fixed. Create an additional handoff for changes.',409);
       if(!['normal','rework','extra'].includes(input.purpose)||typeof input.reason!=='string')return reply('Invalid handoff purpose.');
-      const demand=productionDemand(orders);const seen=new Set<string>();
+      if(input.sourceGroups&&(typeof input.sourceGroups!=='object'||Array.isArray(input.sourceGroups)||Object.entries(input.sourceGroups).some(([id,group])=>!ids.includes(id)||!validOrderGroup(group))))return reply('Choose valid source order groups.');
+      const demand=productionDemand(orders,input.sourceGroups);const seen=new Set<string>();
       const allocations=[];
       for(const row of input.allocations){
         const source=demand.find(item=>item.key===row.key);
@@ -74,14 +75,14 @@ export async function POST(request:Request) {
       }
       const layIds=new Set<string>();
       for(const lay of input.lays){if(typeof lay.id!=='string'||!lay.id||layIds.has(lay.id)||['pattern','fabric','width','stretch','grain','direction','checks'].some(key=>typeof lay[key as keyof typeof lay]!=='string')||typeof lay.confirmed!=='boolean')return reply('Invalid cutting lay.');layIds.add(lay.id);}
-      target={id:input.id,number:previous?.number||`PH-${String((await db.prepare("SELECT COUNT(*) AS total FROM jinam_shared_records WHERE scope=? AND collection=? AND id!='ledger'").bind(business,collection).first<{total:number}>())!.total+1).padStart(5,'0')}`,name:input.name.trim(),status:'Draft',purpose:input.purpose,reason:input.reason,allocations,lays:input.lays,events:[],createdAt:previous?.createdAt||now,history:[...(previous?.history||[]),{at:now,actor:actor.email,action:'Draft saved'}]};
+      target={id:input.id,number:previous?.number||`PH-${String((await db.prepare("SELECT COUNT(*) AS total FROM jinam_shared_records WHERE scope=? AND collection=? AND id!='ledger'").bind(business,collection).first<{total:number}>())!.total+1).padStart(5,'0')}`,name:input.name.trim(),status:'Draft',...(input.sourceGroups?{sourceGroups:input.sourceGroups}:{}),purpose:input.purpose,reason:input.reason,allocations,lays:input.lays,events:[],createdAt:previous?.createdAt||now,history:[...(previous?.history||[]),{at:now,actor:actor.email,action:'Draft saved'}]};
       if(previous)ledger.handoffs=ledger.handoffs.map(item=>item.id===target!.id?target!:item);else ledger.handoffs.push(target);
       if(body.release){try{validateRelease(target,ledger,demand);reserveMembers(target,ledger,demand);}catch(error){return reply((error as Error).message,409);}guards.push(...orders.filter(item=>target!.allocations.some(row=>row.orderId===item.order.orderId)));target.status="Released";target.history.push({at:now,actor:actor.email,action:"Released to production"});}
     }else{
       target=ledger.handoffs.find(item=>item.id===body.id);if(!target)return reply('Handoff not found.',404);
       if(body.operation==='release'){
         if(target.status!=='Draft')return reply('Only a draft can be released.',409);
-        try{const demand=productionDemand(orders);validateRelease(target,ledger,demand);reserveMembers(target,ledger,demand);}catch(error){return reply((error as Error).message,409);}
+        try{const demand=productionDemand(orders,target.sourceGroups);validateRelease(target,ledger,demand);reserveMembers(target,ledger,demand);}catch(error){return reply((error as Error).message,409);}
         guards.push(...orders.filter(item=>target!.allocations.some(row=>row.orderId===item.order.orderId)));
         target.status='Released';
       }else if(body.operation==='event'){

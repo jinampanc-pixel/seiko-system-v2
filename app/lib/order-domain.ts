@@ -251,3 +251,19 @@ export function usesStructuredRules(order:SeikoOrder){return order.products.some
 
 /** Rule inputs are saved values, never other calculated rule results. */
 export function ruleSourceFields(order:SeikoOrder):OrderField[]{return [...(order.fields||[]),...(order.products||[]).flatMap(p=>p.specifications.filter(s=>s.mode==="per_person"&&s.role!=="asset").map(s=>({id:"spec:"+s.id,name:p.name+" / "+s.name,type:"text" as const,options:[],required:false}))),...(order.measurements||[]).filter(m=>m.appliesTo.some(id=>order.products.some(p=>p.id===id))).flatMap(m=>(m.shared?[{id:"measurement:"+m.id+":shared",name:(m.appliesTo.length===1?(order.products.find(p=>p.id===m.appliesTo[0])?.name||"Product"):"Shared")+" / "+m.name}]:m.appliesTo.map(id=>({id:"measurement:"+m.id+":product:"+id,name:(order.products.find(p=>p.id===id)?.name||"Product")+" / "+m.name}))).map(f=>({...f,type:m.type,options:[],required:false})))];}
+
+
+/** One order-owned grouping key is shared by entry, production, billing and delivery. */
+export function orderGroupKey(batch:string){return batch.trim()?"batch:"+batch.trim():"original";}
+export function recordInOrderGroup(order:SeikoOrder,recordId:string,group="all"){
+ if(group==="all")return true;
+ if(recordId==="order"||recordId==="order-total")return group==="original";
+ if(!order.records.some(r=>r.recordId===recordId))return false;
+ return orderGroupKey(order.commerce?.people[recordId]?.batch||"")===group;
+}
+export function orderGroupOptions(order:SeikoOrder){
+ const counts=new Map<string,number>();for(const r of order.records){const key=orderGroupKey(order.commerce?.people[r.recordId]?.batch||"");counts.set(key,(counts.get(key)||0)+1);}
+ return [{key:"all",label:"Whole order",count:order.records.length},{key:"original",label:"Original / ungrouped",count:counts.get("original")||0},...[...counts].filter(([key])=>key.startsWith("batch:")).map(([key,count])=>({key,label:key.slice(6),count}))];
+}
+export function orderGroupLabel(group:string){return group==="all"?"Whole order":group==="original"?"Original / ungrouped":group.startsWith("batch:")?group.slice(6):"Unknown group";}
+export function validOrderGroup(group:unknown){return typeof group==="string"&&(group==="all"||group==="original"||group.startsWith("batch:")&&group.slice(6).trim()===group.slice(6)&&group.length>6&&group.length<=126);}

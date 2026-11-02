@@ -132,3 +132,11 @@ export function sheetCountRequests(order:SeikoOrder,cols:SheetColumn[],summarySh
  requests.push({autoResizeDimensions:{dimensions:{sheetId:summarySheetId,dimension:"ROWS",startIndex:0,endIndex:5+calculated.length}}});
  return requests;
 }
+
+export type SheetGroupEdit={recordIds:string[];batch:string;expected:Record<string,string>};
+export function prepareSheetGroupEdit(order:SeikoOrder,table:unknown[][],edit:SheetGroupEdit){
+ if(!edit||!Array.isArray(edit.recordIds)||!edit.recordIds.length||edit.recordIds.length>500||new Set(edit.recordIds).size!==edit.recordIds.length||typeof edit.batch!=="string"||edit.batch.length>120||edit.batch!==edit.batch.trim()||!edit.expected||typeof edit.expected!=="object")throw Error("Select 1–500 entries and a group name up to 120 characters.");
+ const keys=(table[0]||[]).map(String),identity=keys.indexOf(RECORD_KEY),column=keys.indexOf("_batch");if(identity<0||column<0)throw Error("Update the sheet columns before grouping entries.");
+ const ids=new Set(order.records.map(r=>r.recordId)),rows=new Map<string,{row:unknown[];index:number}[]>();table.slice(3).forEach((row,i)=>{const id=String(row[identity]);rows.set(id,[...(rows.get(id)||[]),{row,index:i+3}]);});
+ return edit.recordIds.map(id=>{if(typeof id!=="string"||!ids.has(id))throw Error("A selected entry changed. Refresh and select the group again.");const matches=rows.get(id)||[];if(matches.length!==1)throw Error("A selected entry is missing or duplicated in Sheets. Sync before grouping it.");const {row,index}=matches[0],current=String(row[column]??"");if(current!==edit.expected[id]&&current!==edit.batch)throw Error("An entry moved groups on another device. Refresh before applying this selection.");return {row:index,column,value:edit.batch};});
+}

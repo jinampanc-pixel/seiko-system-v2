@@ -108,6 +108,7 @@ function load(path, imports = {}) {
     });
     const productionDomain=load('app/lib/production-handoffs.ts',{'./order-domain':domain,'./packing-label-model':load('app/lib/packing-label-model.ts',{'./order-domain':domain})});
     const production=load('app/api/erp/production/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/production-handoffs':productionDomain});
+    const activity=load('app/api/erp/activity/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth});
     const labels = load('app/api/erp/labels/route.ts', { 'cloudflare:workers': { env: { DB: db } }, '../../../lib/server-erp-auth': auth });
     await page.route('**/api/erp/artwork?*',async route=>{
       const request=new Request(route.request().url(),{method:route.request().method(),headers:route.request().headers(),...(route.request().method()==='POST'?{body:route.request().postDataBuffer()}: {})});
@@ -119,7 +120,7 @@ function load(path, imports = {}) {
       const response=await billingProfile.GET(new Request(route.request().url()));
       await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});
     });
-    for (const [path, api] of [['search',search],['people',people],['order-billing',orderBilling],['billing-profile', billingProfile], ['billing', billing], ['clients', clients], ['labels', labels], ['production',production]]) {
+    for (const [path, api] of [['activity',activity],['search',search],['people',people],['order-billing',orderBilling],['billing-profile', billingProfile], ['billing', billing], ['clients', clients], ['labels', labels], ['production',production]]) {
       await page.route(`**/api/erp/${path}`, async route => {
         const response = await api.POST(new Request(`${base}/api/erp/${path}`, { method: 'POST', body: route.request().postData() }));
         await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
@@ -197,7 +198,7 @@ function load(path, imports = {}) {
     if(process.argv.includes('--dialog-ux')){await require('./dialog-interactions-browser.cjs')({page,navigate,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-rules')){await require('./order-rules-browser.cjs')({page,seed,navigate,order,sqlite,domain,sheetModel:load('app/lib/order-sheet-model.ts',{'./order-domain':domain})});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--responsive-audit')){await require('./responsive-audit-browser.cjs')({page,navigate,billing,base});assert.deepEqual(errors,[]);return;}
-    if(process.argv.includes('--google-sheets')){await require('./google-sheets-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--google-sheets')){try{await require('./google-sheets-browser.cjs')({page,seed,navigate,order,sqlite,base});}catch(e){fs.mkdirSync('../../outputs',{recursive:true});fs.writeFileSync('../../outputs/sheets-failure.html',await page.content());await page.screenshot({path:'../../outputs/sheets-failure.png',fullPage:true});throw e;}assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-delivery')){try { await require('./order-delivery-browser.cjs')({page,seed,navigate,order,sqlite}); } catch(error) { fs.mkdirSync('../../outputs',{recursive:true});require('node:fs').writeFileSync('../../outputs/delivery-failure.html',await page.content()); await page.screenshot({path:'../../outputs/delivery-failure.png',fullPage:true}); throw error; }assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-service')){await require('./order-service-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--production-pagination')){await require('./production-pagination-browser.cjs')({page,seed,navigate});assert.deepEqual(errors,[]);return;}

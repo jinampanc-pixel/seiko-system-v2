@@ -1,4 +1,5 @@
 "use client";
+import { recordOutput } from "./lib/output-activity";
 import { sharedMeasurementValues } from "./lib/order-domain";
 import { writeLabelStorage, removeLabelStorage } from "./lib/label-storage";
 /* eslint-disable @typescript-eslint/no-unused-vars -- old cutting-template readers remain during local data migration */
@@ -170,7 +171,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, backL
     initialPurpose?: LabelPurpose | null;
     initialSourceMode?: SourceMode;
 }) {
-  const printVerified=async()=>{try{if(order)await ensureOrderSheetFreshForOutput(order);window.print();}catch(e){window.alert((e as Error).message);}};
+  const printVerified=async()=>{try{if(order)await ensureOrderSheetFreshForOutput(order);await recordOutput({businessId,kind:"labels",id:order?.orderId||"standalone",title:"Label sheet"},"print-requested",document.querySelector(".labelDesigner")?.outerHTML||document.querySelector("main")?.outerHTML);window.print();}catch(e){window.alert((e as Error).message);}};
     const [purpose, setPurpose] = useState<LabelPurpose | null>(order ? initialPurpose : "production");
     const defaultSourceMode: SourceMode = initialSourceMode || (initialPurpose === "packing" ? "person" : initialPurpose === "inventory" ? "product" : "person_product");
     const [sourceMode, setSourceModeState] = useState<SourceMode>(defaultSourceMode);

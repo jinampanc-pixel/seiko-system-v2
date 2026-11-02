@@ -1,4 +1,5 @@
 "use client";
+import { recordOutput } from "./lib/output-activity";
 
 import { useEffect } from "react";
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
@@ -141,6 +142,7 @@ async function labelOnlyPrint(copies = 1) {
   const cleanup = () => { window.removeEventListener("beforeprint", before); removeNativePrintSurface(); };
   window.addEventListener("beforeprint", before, { once: true });
   window.addEventListener("afterprint", cleanup, { once: true });
+  try{await recordOutput({businessId:activeBusiness(),kind:"labels",id:source?.orderId||"standalone",title:"Label print sheet"},"print-requested",runtime.root.outerHTML);}catch(e){cleanup();showPrintNotice((e as Error).message);return false;}
   window.print();
   window.setTimeout(() => {
     if (!beforePrintSeen && document.querySelector(".labelNativePrintRoot")) {

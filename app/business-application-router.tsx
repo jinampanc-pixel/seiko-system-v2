@@ -11,7 +11,7 @@ export function BusinessApplicationRouter({ children }: { children: ReactNode })
   const { businessId } = useAccess();
   const pathname = usePathname();
 
-  if (pathname === "/backups") return <>{children}</>;
+  if ((pathname === "/backups" || pathname === "/activity")) return <>{children}</>;
 
   if (businessId === "veyn-health") return <VeynApplication/>;
   if (businessId === "meth") return <MethApplication/>;

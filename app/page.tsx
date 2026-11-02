@@ -400,6 +400,7 @@ function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessNam
   return <div className="themeScrim" style={themeVariables(theme) as CSSProperties} role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className="themePanel" role="dialog" aria-modal="true" aria-labelledby="theme-title">
     <div className="themeHead"><div><p className="eyebrow">SYSTEM SETTINGS</p><h2 id="theme-title">Settings · {businessName}</h2><p className="settingsIntro">Manage appearance, users and access from one settings area.</p></div><button onClick={onClose} aria-label="Close settings">×</button></div>
     <nav className="settingsModuleNav" aria-label="Settings modules">
+      {can("audit.view")&&<a href={"/activity?business="+encodeURIComponent(businessId)}>Activity history</a>}
       {membership?.role === "owner" && <a href="/backups">Backup &amp; recovery</a>}
       <button type="button" className={section === "appearance" ? "active" : ""} onClick={() => setSection("appearance")}><small>1</small><span>Appearance</span></button>
       {can("users.manage")&&<button type="button" className={section === "users" ? "active" : ""} onClick={() => setSection("users")}><span>Users & access</span></button>}

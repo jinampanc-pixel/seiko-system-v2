@@ -1,0 +1,7 @@
+"use client";
+import { useState } from 'react';
+import { orderGroupOptions, orderGroupLabel, type SeikoOrder } from './lib/order-domain';
+export function OrderGroupPicker({order,value,onChange,disabled=false,allowNew=false,label="Work on"}:{order:SeikoOrder;value:string;onChange:(group:string)=>void;disabled?:boolean;allowNew?:boolean;label?:string}){
+ const [naming,setNaming]=useState(false),[name,setName]=useState('');const groups=orderGroupOptions(order);if(!groups.some(g=>g.key===value))groups.push({key:value,label:orderGroupLabel(value),count:0});
+ return <div className="orderGroupPicker"><label>{label}<select aria-label={label} value={naming?'new':value} disabled={disabled} onChange={e=>{if(e.target.value==='new')setNaming(true);else{setNaming(false);onChange(e.target.value);}}}>{groups.map(g=><option key={g.key} value={g.key}>{g.label} · {g.count} entries</option>)}{allowNew&&<option value="new">New addition…</option>}</select></label>{naming&&<div className="phase2Actions"><label>Addition name<input maxLength={120} disabled={disabled} value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Addition 1" onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();if(name.trim()){onChange('batch:'+name.trim());setNaming(false);setName('');}}}}/></label><button type="button" className="secondary" disabled={disabled||!name.trim()} onClick={()=>{onChange('batch:'+name.trim());setNaming(false);setName('');}}>Use addition</button><button type="button" className="secondary" onClick={()=>setNaming(false)}>Cancel</button></div>}</div>;
+}

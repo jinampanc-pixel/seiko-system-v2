@@ -1,4 +1,5 @@
 "use client";
+import { recordOutput } from "./lib/output-activity";
 import { writeLabelStorage } from "./lib/label-storage";
 
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
@@ -410,7 +411,7 @@ export function LabelDesigner({ businessId, canManageSizes, order, onBack, initi
 }) {
   const purpose: LabelPurpose = initialPurpose || "production";
   const actualOrder = order || null;
-  const printVerified=async()=>{try{if(actualOrder)await ensureOrderSheetFreshForOutput(actualOrder);window.print();}catch(e){window.alert((e as Error).message);}};
+  const printVerified=async()=>{try{if(actualOrder)await ensureOrderSheetFreshForOutput(actualOrder);await recordOutput({businessId,kind:"labels",id:actualOrder?.orderId||"standalone",title:"Label sheet"},"print-requested",document.querySelector("main")?.outerHTML);window.print();}catch(e){window.alert((e as Error).message);}};
   const [representation, setRepresentation] = useState<Representation>(purpose === "packing" ? "package" : purpose === "inventory" ? "product_group" : "item");
   const [packagePlan, setPackagePlan] = useState<PackagePlan>("person");
   const [groupKeys, setGroupKeys] = useState<string[]>(purpose === "inventory" ? ["product", "size"] : ["product", "size"]);

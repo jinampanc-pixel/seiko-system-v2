@@ -1,4 +1,5 @@
 "use client";
+import { recordOutput } from "./lib/output-activity";
 import { writeLabelStorage } from "./lib/label-storage";
 
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
@@ -468,8 +469,8 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
     setPrintReady(true);
     await document.fonts.ready;
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-    window.print(); setPrintBusy(false);
-  }, [order]);
+    try{await recordOutput({businessId,kind:"labels",id:order.orderId,title:"Packing labels"},"print-requested",document.querySelector("main")?.outerHTML);window.print();}catch(e){setNotice((e as Error).message);}setPrintBusy(false);
+  }, [order,businessId]);
   useEffect(() => {
     const request = () => { if (selectedRows.length && items.length) void print(); };
     window.addEventListener("jinam:packing:print", request);
