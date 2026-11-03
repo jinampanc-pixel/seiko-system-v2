@@ -35,7 +35,9 @@ function savedTasks(businessId: string): SavedLabelTask[] {
 }
 function enhanceOrderSearch() {
   const select = document.querySelector<HTMLSelectElement>(".labelCreateOrderChoice .labelCreateField:first-child select");
-  if (!select || select.dataset.searchReady) return;
+  if (!select) return;
+  if (select.disabled) { select.parentElement?.querySelector(".labelOrderSearch")?.remove(); select.classList.remove("labelOrderNativeSelect"); return; }
+  if (select.dataset.searchReady) return;
   select.dataset.searchReady = "true";
   select.classList.add("labelOrderNativeSelect");
   const wrapper = document.createElement("div"); wrapper.className = "labelOrderSearch";
@@ -131,8 +133,13 @@ function buildPrintSurface(copies = 1) {
   document.head.appendChild(style); return { root, preset, count: labels.length };
 }
 async function labelOnlyPrint(copies = 1) {
-  const page=document.querySelector<HTMLElement>("[data-source-order-id]");const source=readOrderCache(activeBusiness()).find(o=>o.orderId===page?.dataset.sourceOrderId);
-  if(source?.googleSheet){try{if(page?.dataset.sourceOrderVersion!==source.updatedAt)throw Error("The source records changed. Reopen this label selection before printing.");await ensureOrderSheetFreshForOutput(source);}catch(e){showPrintNotice((e as Error).message);return false;}}
+  const page=document.querySelector<HTMLElement>(".labelDesignerPage[data-source-order-id]");
+  const cached=readOrderCache(activeBusiness());
+  let declared:Array<{id:string;version:string}>;
+  try{declared=page?.dataset.sourceOrders ? JSON.parse(page.dataset.sourceOrders) : page?.dataset.sourceOrderId ? [{id:page.dataset.sourceOrderId,version:page.dataset.sourceOrderVersion || ""}] : [];}catch{showPrintNotice("Source orders could not be verified. Reopen this label selection.");return false;}
+  const sourceIds=new Set([...document.querySelectorAll<HTMLElement>(".labelDesignerPage .printSheet .printedLabel[data-source-order-id]")].map(label=>label.dataset.sourceOrderId));
+  const sources=declared.filter(item=>!sourceIds.size || sourceIds.has(item.id)).map(item=>({snapshot:item,source:cached.find(order=>order.orderId===item.id)}));
+  try{for(const {snapshot,source} of sources){if(!source || snapshot.version!==source.updatedAt)throw Error("The source records changed. Reopen this label selection before printing.");await ensureOrderSheetFreshForOutput(source);}}catch(e){showPrintNotice((e as Error).message);return false;}
 
   const runtime = buildPrintSurface(copies); if (!runtime) return false;
   document.body.appendChild(runtime.root);
@@ -142,7 +149,7 @@ async function labelOnlyPrint(copies = 1) {
   const cleanup = () => { window.removeEventListener("beforeprint", before); removeNativePrintSurface(); };
   window.addEventListener("beforeprint", before, { once: true });
   window.addEventListener("afterprint", cleanup, { once: true });
-  try{await recordOutput({businessId:activeBusiness(),kind:"labels",id:source?.orderId||"standalone",title:"Label print sheet"},"print-requested",runtime.root.outerHTML);}catch(e){cleanup();showPrintNotice((e as Error).message);return false;}
+  try{for(const {source} of sources)await recordOutput({businessId:activeBusiness(),kind:"labels",id:source!.orderId,title:"Label print sheet"},"print-requested",runtime.root.outerHTML);}catch(e){cleanup();showPrintNotice((e as Error).message);return false;}
   window.print();
   window.setTimeout(() => {
     if (!beforePrintSeen && document.querySelector(".labelNativePrintRoot")) {
