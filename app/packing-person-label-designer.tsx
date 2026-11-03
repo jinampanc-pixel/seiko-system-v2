@@ -1,4 +1,5 @@
 "use client";
+import { labelSources } from "./lib/label-sources";
 import { recordOutput } from "./lib/output-activity";
 import { writeLabelStorage } from "./lib/label-storage";
 
@@ -50,6 +51,9 @@ type PersonRecord = {
   group: string;
   values: Record<string, string | number>;
   sourceIndex: number;
+  sourceOrderId?: string;
+  sourceOrderNo?: string;
+  sourceClient?: string;
   packageText: string;
   packageLines: string[];
   packageProducts: string[];
@@ -58,6 +62,7 @@ type SavedTask = {
   id: string;
   name: string;
   orderId: string;
+  orderIds?: string[];
   orderNo: string;
   client: string;
   createdAt: string;
@@ -218,7 +223,7 @@ export function buildPersonRecords(order: SeikoOrder, rules: PresentationRules, 
       id: record.recordId,
       name: String(record.values[`field:${firstField?.id}`] || record.personId || record.recordId),
       group: String(record.values[`field:${secondField?.id}`] || ""),
-      values: record.values,
+      values: { ...record.values, person_id: record.personId, ...Object.fromEntries(order.products.filter(product => included.includes(product.id) && (quantities.get(record.recordId)?.[product.id] || 0) > 0).flatMap(product => product.specifications.filter(spec => spec.role !== "asset").map(spec => [`spec:${spec.id}`, specificationForRecord(spec,record)]))) },
       sourceIndex,
       packageText: packagePresentation.layoutMode === "inline" ? lines.join(packagePresentation.delimiter || " / ") : lines.join("\n"),
       packageLines: lines,
@@ -227,8 +232,23 @@ export function buildPersonRecords(order: SeikoOrder, rules: PresentationRules, 
   }).filter(record => eligible.has(record.id));
 }
 
+export function buildSourcePersonRecords(sourceModel: ReturnType<typeof labelSources>, rules: PresentationRules, packagePresentation: PackagePresentation): PersonRecord[] {
+  return sourceModel.sources.flatMap(source => {
+    const sourceRules = Object.fromEntries(source.products.map(product => {
+      const rule = rules[sourceModel.productId(source,product.id)] || defaultRule(source,product);
+      return [product.id, { ...rule, primaryMeasurementId: source.measurements.find(m => sourceModel.measurementId(source,m.id) === rule.primaryMeasurementId)?.id || "",
+        measurementModes: Object.fromEntries(source.measurements.map(m => [m.id, rule.measurementModes[sourceModel.measurementId(source,m.id)]])),
+        measurementAliases: Object.fromEntries(source.measurements.map(m => [m.id, rule.measurementAliases[sourceModel.measurementId(source,m.id)]])),
+        specificationModes: Object.fromEntries(product.specifications.map(spec => [spec.id, rule.specificationModes[sourceModel.specificationId(source,spec.id)]])),
+        specificationAliases: Object.fromEntries(product.specifications.map(spec => [spec.id, rule.specificationAliases[sourceModel.specificationId(source,spec.id)]])),
+      }];
+    })) as PresentationRules;
+    return buildPersonRecords(source,sourceRules,packagePresentation).map(record => ({...record,id:sourceModel.scoped(source,record.id),values:sourceModel.values(source,record.values),sourceOrderId:source.orderId,sourceOrderNo:source.details.orderNo,sourceClient:source.details.clientName}));
+  });
+}
+
 function fieldLabel(order: SeikoOrder, key: InfoKey) {
-  if (key === "client") return "Client / school";
+  if (key === "client") return "Client";
   if (key === "package_contents") return "Package contents";
   if (key.startsWith("package_row:")) return `Package row ${Number(key.split(":")[1]) + 1}`;
   if (key === "trace_person_position") return "Label number / total";
@@ -238,18 +258,18 @@ function fieldLabel(order: SeikoOrder, key: InfoKey) {
 }
 
 function fieldValue(order: SeikoOrder, record: PersonRecord, key: InfoKey, index: number, total: number) {
-  if (key === "client") return order.details.clientName;
+  if (key === "client") return record.sourceClient ?? order.details.clientName;
   if (key === "package_contents") return record.packageText;
   if (key.startsWith("package_row:")) return record.packageLines[Number(key.split(":")[1])] || "";
-  if (key === "trace_person_position") return `${index + 1} of ${total}`;
-  if (key === "order") return order.details.orderNo;
+  if (key === "trace_person_position") return index < 0 ? "—" : `${index + 1} of ${total}`;
+  if (key === "order") return record.sourceOrderNo ?? order.details.orderNo;
   return String(record.values[key] ?? "");
 }
 
 function defaultItems(order: SeikoOrder): LabelItem[] {
   const name = order.fields[0];
   const group = order.fields[1];
-  const items: LabelItem[] = [{ id: crypto.randomUUID(), field: "client", label: "Client / school", printedLabel: "Client / school", x: 1.8, y: 1.3, w: 32, h: 3.2, font: 6.5, showLabel: false, bold: true }];
+  const items: LabelItem[] = [{ id: crypto.randomUUID(), field: "client", label: "Client", printedLabel: "Client", x: 1.8, y: 1.3, w: 32, h: 3.2, font: 6.5, showLabel: false, bold: true }];
   if (name) items.push({ id: crypto.randomUUID(), field: `field:${name.id}`, label: name.name, printedLabel: name.name, x: 1.8, y: 5, w: 31, h: 5.6, font: 11, showLabel: false, bold: true });
   if (group) items.push({ id: crypto.randomUUID(), field: `field:${group.id}`, label: group.name, printedLabel: group.name, x: 34, y: 4.8, w: 14, h: 6, font: 13, showLabel: false, bold: true });
   items.push({ id: crypto.randomUUID(), field: PACKAGE_FIELD, label: "Package contents", printedLabel: "Package contents", x: 1.8, y: 11.5, w: 46.4, h: 11.6, font: 7.25, showLabel: false, bold: false });
@@ -339,9 +359,11 @@ function packageBounds(items: LabelItem[]) {
   };
 }
 
-export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabel }: {
-  businessId: string; canManageSizes: boolean; order: SeikoOrder; onBack?: () => void; backLabel?: string;
+export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, sourceOrders, onBack, backLabel }: {
+  businessId: string; canManageSizes: boolean; order: SeikoOrder; sourceOrders?: SeikoOrder[]; onBack?: () => void; backLabel?: string;
 }) {
+  const sourceModel = useMemo(() => labelSources(sourceOrders?.length ? sourceOrders : [primaryOrder]), [sourceOrders, primaryOrder]);
+  const order = sourceModel.schema;
   const [openedTask] = useState<SavedTask | undefined>(() => {
     try {
       const id = sessionStorage.getItem(openTaskKey(businessId));
@@ -350,8 +372,8 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   });
   const [rules, setRules] = useState(() => openedTask?.presentationRules ? mergeRules(order, openedTask.presentationRules) : loadRules(businessId, order));
   const [packagePresentation, setPackagePresentation] = useState(() => openedTask?.packagePresentation || loadPackagePresentation(businessId, order.orderId));
-  const quantities = useMemo(() => packingQuantities(order), [order]);
-  const records = useMemo(() => buildPersonRecords(order, rules, packagePresentation, quantities), [order, rules, packagePresentation, quantities]);
+  const quantities = useMemo(() => new Map(sourceModel.sources.flatMap(source => [...packingQuantities(source)].map(([id,values]) => [sourceModel.scoped(source,id),Object.fromEntries(Object.entries(values).map(([id,qty]) => [sourceModel.productId(source,id),qty]))] as const))), [sourceModel]);
+  const records = useMemo(() => buildSourcePersonRecords(sourceModel,rules,packagePresentation), [sourceModel,rules,packagePresentation]);
   const [items, rawSetItems] = useState<LabelItem[]>(() => openedTask ? migrateItems(order, openedTask.items) : defaultItems(order).map(constrainBox));
   const itemsRef = useRef(items);
   useLayoutEffect(() => { itemsRef.current = items; }, [items]);
@@ -368,14 +390,23 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   const undo = () => { if (!past.length) return; const next = past[past.length - 1]; setFuture(old => [items, ...old]); setPast(old => old.slice(0, -1)); itemsRef.current = next; rawSetItems(next); };
   const redo = () => { if (!future.length) return; const next = future[0]; setPast(old => [...old, items]); setFuture(old => old.slice(1)); itemsRef.current = next; rawSetItems(next); };
   const [excluded, setExcluded] = useState<string[]>(() => openedTask ? records.filter(record => !openedTask.selectedRows.includes(record.id)).map(record => record.id) : []);
-  const selectedRows = records.filter(record => !excluded.includes(record.id)).map(record => record.id);
-  const selectedRecords = records.filter(record => !excluded.includes(record.id));
+  const selectedRecords = useMemo(() => {const omitted=new Set(excluded);return records.filter(record => !omitted.has(record.id));},[records,excluded]);
+  const selectedRows = useMemo(() => selectedRecords.map(record => record.id),[selectedRecords]);
+  const selectedPositions = useMemo(() => new Map(selectedRecords.map((record,index) => [record.id,index])),[selectedRecords]);
   const [previewId, setPreviewId] = useState("");
   const current = records.find(record => record.id === previewId) || records[0];
   const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState([{field: "", value: ""}]);
+  const filterOptions = [{id:"source_order",name:"Order"},{id:"person_id",name:"Person / record ID"},...order.fields.filter(field => field.name.trim()).map(field => ({id:`field:${field.id}`,name:field.name})),...sourceModel.columns.filter(column => /^(measurement:|spec:)/.test(column.id)).filter((column,index,all) => all.findIndex(item => item.id === column.id) === index).map(column => ({id:column.id,name:`${column.groupLabel} · ${column.label}`}))];
+  const filterRecordValue = (record: PersonRecord, key: string) => key === "source_order" ? `${record.sourceOrderNo} · ${record.sourceClient}` : String(record.values[key] ?? "").trim();
+  const filterValues = (key: string) => [...new Set(records.map(record => filterRecordValue(record,key)).filter(Boolean))].sort((a,b) => a.localeCompare(b,undefined,{numeric:true}));
   const [scrollTop, setScrollTop] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
-  const visibleRecords = useMemo(() => records.filter(record => `${record.name} ${record.group} ${record.packageProducts.join(" ")}`.toLowerCase().includes(query.trim().toLowerCase())), [records, query]);
+  const visibleRecords = records.filter(record => filters.every(filter => !filter.field || !filter.value || filterRecordValue(record,filter.field) === filter.value) && `${record.id} ${record.sourceOrderNo} ${record.sourceClient} ${Object.values(record.values).join(" ")} ${record.name} ${record.packageProducts.join(" ")}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const visibleIds = new Set(visibleRecords.map(record => record.id));
+  const matchingSelected = visibleRecords.filter(record => !excluded.includes(record.id)).length;
+  const selectMatching = (only = false) => setExcluded(old => only ? records.filter(record => !visibleIds.has(record.id)).map(record => record.id) : old.filter(id => !visibleIds.has(id)));
+  const resetList = () => { setScrollTop(0); if (listRef.current) listRef.current.scrollTop = 0; };
   const start = Math.max(0, Math.min(Math.floor(scrollTop / 56) - 2, visibleRecords.length - 1));
   const windowRecords = visibleRecords.slice(start, start + 12);
   const eligibilityKey = records.map(record => record.id).join("|");
@@ -389,7 +420,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   const [infoOpen, setInfoOpen] = useState(false);
   const [draftItems, setDraftItems] = useState<LabelItem[]>([]);
   const infoButton = useRef<HTMLButtonElement>(null);
-  const infoDrawer = useRef<HTMLElement>(null);
+  const infoDrawer = useRef<HTMLDivElement>(null);
   const [recordDetail, setRecordDetail] = useState<{ record: PersonRecord; top: number; left: number } | null>(null);
   const closeInfo = () => { setInfoOpen(false); infoButton.current?.focus(); };
   useEffect(() => { if (infoOpen) infoDrawer.current?.querySelector<HTMLButtonElement>("button")?.focus(); }, [infoOpen]);
@@ -405,7 +436,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
     if (!current || !items.some(item => !item.textSized)) return;
     const next = items.map(item => {
       if (item.textSized) return item;
-      const value = fieldValue(order, current, item.field, records.indexOf(current), records.length);
+      const value = fieldValue(order, current, item.field, (selectedPositions.get(current.id) ?? -1), selectedRecords.length);
       const text = item.showLabel && value ? `${item.printedLabel}: ${value}` : value;
       const ctx = document.createElement("canvas").getContext("2d")!;
       const fitted = measureLabelText(text, item.font, item.w, item.h, (line, pt) => { ctx.font = `${item.bold ? 700 : 400} ${pt * 96 / 72}px Arial`; return ctx.measureText(line).width; });
@@ -413,7 +444,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
       return constrainBox({ ...item, textSized: true, font: fitted.font, w: metric.width * 25.4 / 96, h: metric.height * 25.4 / 96 });
     });
     itemsRef.current = next; rawSetItems(next);
-  }, [items, current, order, records]);
+  }, [items, current, order, selectedRecords, selectedPositions]);
   const [presentationOpen, setPresentationOpen] = useState(false);
   const [draftRules, setDraftRules] = useState(rules);
   const [draftPresentation, setDraftPresentation] = useState(packagePresentation);
@@ -421,11 +452,11 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   const [printBusy, setPrintBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [activeTaskId, setActiveTaskId] = useState(openedTask?.id || "");
-  const drawerRef = useRef<HTMLElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
   const customizeRef = useRef<HTMLButtonElement>(null);
   const draftProducts = order.products.filter(product => product.name.trim() && draftRules[product.id]?.included);
-  const predicted = eligiblePackingIds(quantities, draftProducts.map(product => product.id), draftPresentation.matchMode).length;
-  const draftExample = useMemo(() => presentationOpen ? buildPersonRecords(order, draftRules, draftPresentation, quantities)[0] : undefined, [presentationOpen, order, draftRules, draftPresentation, quantities]);
+  const predicted = sourceModel.sources.reduce((total,source) => total + eligiblePackingIds(packingQuantities(source),source.products.filter(product => draftRules[sourceModel.productId(source,product.id)]?.included).map(product => product.id),draftPresentation.matchMode).length,0);
+  const draftExample = useMemo(() => presentationOpen ? buildSourcePersonRecords(sourceModel,draftRules,draftPresentation)[0] : undefined, [presentationOpen, draftRules, draftPresentation, sourceModel]);
   const updateRule = (id: string, change: Partial<ProductRule>) => setDraftRules(old => ({ ...old, [id]: { ...old[id], ...change } }));
   const closeDrawer = () => { setPresentationOpen(false); customizeRef.current?.focus(); };
   useEffect(() => { if (presentationOpen) drawerRef.current?.querySelector<HTMLButtonElement>("button")?.focus(); }, [presentationOpen]);
@@ -438,7 +469,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
     window.addEventListener("beforeprint", prepare); window.addEventListener("afterprint", done);
     return () => { window.removeEventListener("beforeprint", prepare); window.removeEventListener("afterprint", done); };
   }, []);
-  const infoOptions = [{ key: "client", label: "Client / school" }, ...order.fields.filter(field => field.name.trim()).map(field => ({ key: `field:${field.id}`, label: field.name })), { key: PACKAGE_FIELD, label: "Package contents" }, { key: "trace_person_position", label: "Label number / total" }, { key: "order", label: "Order number" }];
+  const infoOptions = [{ key: "client", label: "Client" }, ...order.fields.filter(field => field.name.trim()).map(field => ({ key: `field:${field.id}`, label: field.name })), { key: PACKAGE_FIELD, label: "Package contents" }, { key: "trace_person_position", label: "Label number / total" }, { key: "order", label: "Order number" }];
   const toggleInfo = (field: InfoKey) => {
     if (draftItems.some(item => field === PACKAGE_FIELD ? isPackageField(item.field) : item.field === field)) { setDraftItems(draftItems.filter(item => field === PACKAGE_FIELD ? !isPackageField(item.field) : item.field !== field)); return; }
     const label = fieldLabel(order, field);
@@ -454,7 +485,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
     closeDrawer();
   };
   const saveSet = () => {
-    const task: SavedTask = { id: activeTaskId || crypto.randomUUID(), name: `Packing batch · ${order.details.clientName} · ${selectedRows.length} labels`, orderId: order.orderId, orderNo: order.details.orderNo, client: order.details.clientName, createdAt: new Date().toISOString(), purpose: "packing", sourceMode: "person", outputMode: "combined", presetId: "pixra-109", items, selectedRows, personPackagePlan: "together", includedProducts: order.products.filter(product => rules[product.id]?.included).map(product => product.id), packageGroupBy: "product", packageCounts: {}, customerUpdates: false, presentationRules: rules, packagePresentation, designerKind: "packing-person-v4" };
+    const task: SavedTask = { id: activeTaskId || crypto.randomUUID(), name: `Packing batch · ${order.details.clientName} · ${selectedRows.length} labels`, orderId: primaryOrder.orderId, orderIds: sourceModel.sources.map(source => source.orderId), orderNo: order.details.orderNo, client: order.details.clientName, createdAt: new Date().toISOString(), purpose: "packing", sourceMode: "person", outputMode: "combined", presetId: "pixra-109", items, selectedRows, personPackagePlan: "together", includedProducts: order.products.filter(product => rules[product.id]?.included).map(product => product.id), packageGroupBy: "product", packageCounts: {}, customerUpdates: false, presentationRules: rules, packagePresentation, designerKind: "packing-person-v4" };
     const tasks = JSON.parse(localStorage.getItem(taskKey(businessId)) || "[]") as SavedTask[];
     writeLabelStorage(taskKey(businessId), JSON.stringify([...tasks.filter(item => item.id !== task.id), task])); setActiveTaskId(task.id); setNotice("Label set saved on this device; shared save pending.");
   };
@@ -465,19 +496,19 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
   };
   const print = useCallback(async () => {
     setPrintBusy(true);
-    try{await ensureOrderSheetFreshForOutput(order);}catch(e){setNotice((e as Error).message);setPrintBusy(false);setPrintReady(false);return;}
+    try{for (const source of sourceModel.sources) await ensureOrderSheetFreshForOutput(source);}catch(e){setNotice((e as Error).message);setPrintBusy(false);setPrintReady(false);return;}
     setPrintReady(true);
     await document.fonts.ready;
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-    try{await recordOutput({businessId,kind:"labels",id:order.orderId,title:"Packing labels"},"print-requested",document.querySelector("main")?.outerHTML);window.print();}catch(e){setNotice((e as Error).message);}setPrintBusy(false);
-  }, [order,businessId]);
+    try{for (const source of sourceModel.sources.filter(source => selectedRecords.some(record => record.sourceOrderId === source.orderId))) await recordOutput({businessId,kind:"labels",id:source.orderId,title:"Packing labels"},"print-requested",document.querySelector("main")?.outerHTML);window.print();}catch(e){setNotice((e as Error).message);}setPrintBusy(false);
+  }, [sourceModel,selectedRecords,businessId]);
   useEffect(() => {
     const request = () => { if (selectedRows.length && items.length) void print(); };
     window.addEventListener("jinam:packing:print", request);
     return () => window.removeEventListener("jinam:packing:print", request);
   }, [selectedRows.length, items.length, print]);
   const renderItem = (item: LabelItem, record: PersonRecord) => {
-    const value = fieldValue(order, record, item.field, records.indexOf(record), records.length);
+    const value = fieldValue(order, record, item.field, (selectedPositions.get(record.id) ?? -1), selectedRecords.length);
     const text = item.showLabel && value ? `${item.printedLabel}: ${value}` : value;
     return <FitText text={text} preferredPt={item.font} bold={item.bold} widthMm={item.w} heightMm={item.h} align={item.align}/>;
   };
@@ -498,12 +529,12 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
     <section className="physicalInfo physicalPackageSummary"><div><h3>Information on the label</h3><p>{items.map(item => item.label).join(" · ") || "No fields selected"}</p><small>{items.length} fields · choose what appears and how it is named</small></div><button ref={infoButton} aria-label="Customize label information" onClick={() => { setDraftItems(items.map(item => ({ ...item }))); setInfoOpen(true); }}>Customize</button></section>
     <section className="physicalPackageSummary"><div><h3>Package contents</h3><p>{order.products.filter(product => rules[product.id]?.included).map(product => product.name).join(" + ") || "No products selected"} · <b>{records.length} eligible labels</b></p><small>{packagePresentation.matchMode === "any" ? "Any selected product: one label per person, showing only products they ordered." : "All selected products: a person must have quantity greater than zero for every selected product."}</small></div><button ref={customizeRef} onClick={() => { setDraftRules(mergeRules(order, rules)); setDraftPresentation({ ...packagePresentation }); setPresentationOpen(true); }}>Customize</button></section>
     <div className="physicalWorkspace"><main className="physicalMain">
-      <div className="physicalPreviewNav"><button disabled={!current || records.indexOf(current) === 0} onClick={() => setPreviewId(records[records.indexOf(current) - 1].id)}>Previous</button><b>{current ? `${records.indexOf(current) + 1} of ${records.length} · ${current.name}` : "No eligible people"}</b><button disabled={!current || records.indexOf(current) >= records.length - 1} onClick={() => setPreviewId(records[records.indexOf(current) + 1].id)}>Next</button></div>
+      <div className="physicalPreviewNav"><button disabled={!current || records.indexOf(current) === 0} onClick={() => setPreviewId(records[records.indexOf(current) - 1].id)}>Previous</button><b>{current ? `${current.name} · ${selectedRecords.includes(current) ? `Label ${(selectedPositions.get(current.id) ?? -1) + 1} of ${selectedRecords.length}` : "Not selected"}` : "No eligible people"}</b><button disabled={!current || records.indexOf(current) >= records.length - 1} onClick={() => setPreviewId(records[records.indexOf(current) + 1].id)}>Next</button></div>
       <PhysicalLabelCanvas items={items} onChange={setItems} onGesture={active => { if (active) gesture.current = itemsRef.current; else { if (gesture.current && JSON.stringify(gesture.current) !== JSON.stringify(itemsRef.current)) { const before = gesture.current; setPast(old => [...old.slice(-99), before]); } gesture.current = null; } }} renderItem={item => current ? renderItem(item, current) : null}>
         <button disabled={!past.length} onClick={undo}>Undo</button><button disabled={!future.length} onClick={redo}>Redo</button>
       </PhysicalLabelCanvas>
       <p className="physicalTextWarning">Highlighted text is very small. Your chosen size is preserved in the PDF.</p>
-    </main><aside className="physicalRecords"><h3>{selectedRows.length} labels selected</h3><p>{records.length} eligible people · {order.records.length} source records</p><button disabled={!records.length} onClick={() => setExcluded(selectedRows.length === records.length ? records.map(record => record.id) : [])}>{selectedRows.length === records.length ? "Clear all" : "Select all"}</button><input aria-label="Find label records" placeholder="Find eligible person, class or product" value={query} onChange={event => { setQuery(event.target.value); setScrollTop(0); if (listRef.current) listRef.current.scrollTop = 0; }}/><small>{visibleRecords.length} matching eligible people</small>
+    </main><aside className="physicalRecords"><h3>{selectedRows.length} labels selected</h3><p>{records.length} eligible people · {order.records.length} source records</p><button disabled={!records.length} onClick={() => setExcluded(selectedRows.length === records.length ? records.map(record => record.id) : [])}>{selectedRows.length === records.length ? "Clear all" : "Select all"}</button>{filters.map((filter,index) => <div className="physicalRecordFilters" key={index}><label>Filter by<select aria-label={`Label filter field${index ? ` ${index+1}` : ""}`} value={filter.field} onChange={event => { setFilters(old => old.map((item,i) => i === index ? {field:event.target.value,value:""} : item)); resetList(); }}><option value="">Any field</option>{filterOptions.map(field => <option key={field.id} value={field.id}>{field.name}</option>)}</select></label><label>Value<select aria-label={`Label filter value${index ? ` ${index+1}` : ""}`} disabled={!filter.field} value={filter.value} onChange={event => { setFilters(old => old.map((item,i) => i === index ? {...item,value:event.target.value} : item)); resetList(); }}><option value="">All values</option>{filterValues(filter.field).map(value => <option key={value} value={value}>{value}</option>)}</select></label>{index > 0 && <button aria-label={`Remove label filter ${index+1}`} onClick={() => setFilters(old => old.filter((_,i) => i !== index))}>×</button>}</div>)}<button onClick={() => setFilters(old => [...old,{field:"",value:""}])}>+ Filter</button><input aria-label="Find label records" placeholder="Name, ID or other details" value={query} onChange={event => { setQuery(event.target.value); resetList(); }}/><small>{visibleRecords.length} matching · {matchingSelected} selected here · {selectedRows.length} total</small><div className="physicalSelectionActions"><button disabled={!visibleRecords.length} onClick={() => selectMatching(true)}>Only matching</button><button disabled={!visibleRecords.length || matchingSelected === visibleRecords.length} onClick={() => selectMatching()}>Add matching</button></div>
       <div className="physicalRecordList" ref={listRef} onScroll={event => { setScrollTop(event.currentTarget.scrollTop); setRecordDetail(null); }}><div style={{ height: visibleRecords.length * 56, position: "relative" }}>{windowRecords.map((record, index) => <div className="physicalRecord" key={record.id} style={{ position: "absolute", top: (start + index) * 56, height: 56 }}><input aria-label={`Select ${record.name}`} type="checkbox" checked={!excluded.includes(record.id)} onChange={event => setExcluded(old => event.target.checked ? old.filter(id => id !== record.id) : [...old, record.id])}/><button onPointerEnter={event => { if (event.pointerType === "touch") return; const box = event.currentTarget.getBoundingClientRect(); setRecordDetail({ record, top: Math.max(8, Math.min(window.innerHeight - 240, box.top)), left: Math.max(8, box.left - 292) }); }} onPointerLeave={() => setRecordDetail(null)} onFocus={event => { const box = event.currentTarget.getBoundingClientRect(); setRecordDetail({ record, top: Math.max(8, Math.min(window.innerHeight - 240, box.top)), left: Math.max(8, box.left - 292) }); }} onBlur={() => setRecordDetail(null)} aria-describedby={recordDetail?.record.id === record.id ? "packing-record-details" : undefined} aria-label={`Preview ${record.name}`} onClick={() => setPreviewId(record.id)} aria-pressed={current?.id === record.id}><b>{record.name}</b><small>{record.group} · {record.packageProducts.join(", ")}</small></button></div>)}</div></div>
       {!records.length && <p>Select a product combination with eligible people.</p>}
     </aside></div>
@@ -516,7 +547,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
       const matching = (item: LabelItem) => option.key === PACKAGE_FIELD ? isPackageField(item.field) : item.field === option.key;
       const item = draftItems.find(matching);
       const change = (patch: Partial<LabelItem>) => setDraftItems(draftItems.map(other => matching(other) ? { ...other, ...patch } : other));
-      const sample = current ? fieldValue(order, current, option.key as InfoKey, records.indexOf(current), records.length) : "";
+      const sample = current ? fieldValue(order, current, option.key as InfoKey, (selectedPositions.get(current.id) ?? -1), selectedRecords.length) : "";
       return <div key={option.key} className={item ? "enabled" : ""}><label className="physicalFieldToggle"><input type="checkbox" checked={!!item} onChange={() => toggleInfo(option.key as InfoKey)}/><b>{option.label}</b></label><p className="physicalFieldExample">{sample || "No value in this record"}</p>{item && <div className="physicalFieldSettings"><label><input type="checkbox" checked={item.showLabel} onChange={e => change({ showLabel: e.target.checked })}/>Print field name</label>{item.showLabel && <label>Printed field name<input aria-label={`${option.label} printed caption`} value={item.printedLabel} onChange={e => change({ printedLabel: e.target.value })}/></label>}<label><input type="checkbox" checked={item.bold} onChange={e => change({ bold: e.target.checked })}/>Bold text</label></div>}</div>;
     })}</div></div><footer><div><b>{draftItems.length} fields selected</b><small>Changes apply to every label in this set.</small></div><button onClick={closeInfo}>Cancel</button><button className="primary" onClick={() => { setItems(draftItems); closeInfo(); }}>Apply</button></footer></div></div>}
     {/* Dialog keyboard handler traps Tab within its focusable controls. */}
@@ -525,7 +556,7 @@ export function PackingPersonLabelDesigner({ businessId, order, onBack, backLabe
       if (event.key !== "Tab") return; const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button,input,select,summary,[tabindex='0']")).filter(node => node.getClientRects().length && !(node as HTMLButtonElement).disabled); const first = controls[0], last = controls[controls.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }}><header><h3>Package contents</h3><button onClick={closeDrawer}>Cancel</button></header><div className="physicalDrawerBody"><fieldset className="physicalMatchChoices"><legend>Include people with</legend>{([["any", "Any selected product"], ["all", "All selected products"]] as const).map(([mode, label]) => <label key={mode}><input type="radio" name="packing-product-match" value={mode} checked={(draftPresentation.matchMode || "all") === mode} onChange={() => setDraftPresentation(old => ({ ...old, matchMode: mode }))}/><span>{label}</span></label>)}</fieldset><p>{draftPresentation.matchMode === "any" ? "Include anyone who ordered at least one checked product. Each person gets one label showing only their ordered products from this selection." : "Include only people who ordered every checked product."} Pieces and people below are totals for the whole order.</p><div className="physicalProductChoices">{order.products.filter(product => product.name.trim()).map(product => {
       const values = [...quantities.values()].map(row => row[product.id] || 0); const people = values.filter(qty => qty > 0).length; const pieces = values.reduce((a, b) => a + b, 0);
-      return <label key={product.id}><input type="checkbox" checked={draftRules[product.id]?.included ?? true} onChange={event => updateRule(product.id, { included: event.target.checked })}/><b>{product.name}</b><span>{pieces} pieces · {people} people</span></label>;
+      return <label key={product.id}><input type="checkbox" checked={draftRules[product.id]?.included ?? true} onChange={event => updateRule(product.id, { included: event.target.checked })}/><b>{product.name}{sourceModel.multiple && <small> · {sourceModel.sources.find(source => source.products.some(item => sourceModel.productId(source,item.id) === product.id))?.details.orderNo}</small>}</b><span>{pieces} pieces · {people} people</span></label>;
     })}</div><div className="physicalLayoutOptions"><label>Product layout<select value={draftPresentation.layoutMode} onChange={e => setDraftPresentation(old => ({ ...old, layoutMode: e.target.value as PackageLayoutMode }))}><option value="flow">Flow rows</option><option value="inline">Inline</option><option value="separate">Separate movable rows</option></select></label>{draftPresentation.layoutMode === "inline" && <label>Separator<input value={draftPresentation.delimiter} onChange={e => setDraftPresentation(old => ({ ...old, delimiter: e.target.value }))}/></label>}</div>
       <div className="physicalPackageExample"><b>Formatting preview{draftExample ? ` · ${draftExample.name}` : ""}</b><p>{draftExample?.packageText || "No person matches this product selection and matching rule."}</p><small>{draftPresentation.layoutMode === "separate" ? "Each product becomes its own movable text box on the canvas." : "Products share one text box on the canvas."}</small></div>
       <div className="packingPresentationRules">{order.products.filter(product => product.name.trim()).map(product => { const rule = draftRules[product.id] || defaultRule(order, product); const measurements = order.measurements.filter(item => item.appliesTo.includes(product.id) && item.name.trim()); const specs = product.specifications.filter(item => item.name.trim() && item.role !== "asset"); return <details key={product.id}><summary><b>{product.name} formatting</b><span>{rule.alias || product.name}</span></summary><div className="packingRuleBody"><label><span>Printed product name</span><input value={rule.alias} onChange={event => updateRule(product.id, { alias: event.target.value })}/></label><label><span>Format</span><select value={rule.displayMode} onChange={event => updateRule(product.id, { displayMode: event.target.value as DisplayMode })}><option value="name_details">Name: details</option><option value="name_space_details">Name details</option><option value="details_only">Details only</option><option value="name_only">Name only</option></select></label><label><span>Primary measurement</span><select value={rule.primaryMeasurementId} onChange={event => updateRule(product.id, { primaryMeasurementId: event.target.value })}><option value="">None</option>{measurements.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="packingCheck"><input type="checkbox" checked={rule.showQuantity} onChange={event => updateRule(product.id, { showQuantity: event.target.checked })}/><span>Show quantity</span></label>{measurements.length > 0 && <div className="packingDetailRules"><b>Measurements</b>{measurements.map(measurement => <div className="packingMeasurementRow" key={measurement.id}><input aria-label={`${measurement.name} printed name`} value={rule.measurementAliases[measurement.id] || measurement.name} onChange={event => updateRule(product.id, { measurementAliases: { ...rule.measurementAliases, [measurement.id]: event.target.value } })}/><select aria-label={`${measurement.name} display rule`} value={rule.measurementModes[measurement.id] || "never"} onChange={event => updateRule(product.id, { measurementModes: { ...rule.measurementModes, [measurement.id]: event.target.value as ConditionalMode } })}><option value="never">Never</option><option value="when_present">When present</option><option value="always">Always</option></select></div>)}</div>}{specs.length > 0 && <div className="packingDetailRules"><b>Attributes / specifications</b>{specs.map(spec => <div className="packingMeasurementRow" key={spec.id}><input aria-label={`${spec.name} printed name`} value={rule.specificationAliases[spec.id] || spec.name} onChange={event => updateRule(product.id, { specificationAliases: { ...rule.specificationAliases, [spec.id]: event.target.value } })}/><select aria-label={`${spec.name} display rule`} value={rule.specificationModes[spec.id] || "never"} onChange={event => updateRule(product.id, { specificationModes: { ...rule.specificationModes, [spec.id]: event.target.value as ConditionalMode } })}><option value="never">Never</option><option value="when_present">When present</option><option value="always">Always</option></select></div>)}</div>}</div></details>; })}</div>

@@ -155,6 +155,8 @@ export default function CreateLabelsPage() {
   const [purposeId, setPurposeId] = useState("production");
   const [representationId, setRepresentationId] = useState("production-item");
   const [orderId, setOrderId] = useState("");
+  const [contextOrderId,setContextOrderId] = useState("");
+  const [additionalOrderIds,setAdditionalOrderIds] = useState<string[]>([]);
   const orders = useCachedOrders(businessId).filter(order => !order.archived);
   const [started, setStarted] = useState(false);
   const [manage, setManage] = useState<"purpose" | "representation" | null>(null);
@@ -168,7 +170,7 @@ export default function CreateLabelsPage() {
     const requestedPurpose = params.get("purpose") || "production";
     const requestedOrder = params.get("order") || "";
     const fallbackTheme = defaultThemeFor(business);
-    setBusinessId(business); setOrderId(requestedOrder);
+    setBusinessId(business); setOrderId(requestedOrder); setContextOrderId(requestedOrder);
     try { const savedTheme = localStorage.getItem(businessStorageKey(business, "theme-v2")); setTheme(savedTheme ? JSON.parse(savedTheme) as BusinessTheme : fallbackTheme); } catch { setTheme(fallbackTheme); }
     loadSharedConfiguration(business).then(({ config: loaded, canManage: owner }) => {
       setConfig(loaded); setCanManage(owner);
@@ -183,6 +185,7 @@ export default function CreateLabelsPage() {
   }, []);
 
   const selectedOrder = useMemo(() => orders.find(order => order.orderId === orderId) || null, [orderId, orders]);
+  const selectedOrders = useMemo(() => selectedOrder ? [selectedOrder,...orders.filter(order => order.orderId !== orderId && additionalOrderIds.includes(order.orderId))] : [], [selectedOrder,orders,orderId,additionalOrderIds]);
   const purposes = config.purposes.filter(item => item.enabled);
   const selectedPurpose = config.purposes.find(item => item.id === purposeId) || purposes[0] || DEFAULT_CONFIG.purposes[0];
   const representations = config.representations.filter(item => item.purposeId === selectedPurpose.id && item.enabled);
@@ -208,19 +211,20 @@ export default function CreateLabelsPage() {
   if (started && selectedOrder) {
     const nativePackingPerson = selectedPurpose.behavior === "packing" && selectedRepresentation.sourceMode === "person";
     return <div className="labelCreateApp app" data-label-source={selectedRepresentation.sourceMode} style={themeVariables(theme) as CSSProperties}>
-      <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>{nativePackingPerson ? <PackingPersonLabelDesigner businessId={businessId} order={selectedOrder} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => setStarted(false)}/> : <LabelDesigner businessId={businessId} order={selectedOrder} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => setStarted(false)}/>}</div>
+      <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>{nativePackingPerson ? <PackingPersonLabelDesigner businessId={businessId} order={selectedOrder} sourceOrders={selectedOrders} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => setStarted(false)}/> : <LabelDesigner businessId={businessId} order={selectedOrder} sourceOrders={selectedOrders} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => setStarted(false)}/>}</div>
     </div>;
   }
 
   return <div className="labelCreateApp app" style={themeVariables(theme) as CSSProperties}><div className="surface">
     <header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>
     <main className="labelCreateRoute">
-      <section className="labelCreateRouteHead"><div><button type="button" className="secondary contextBackButton appBackControl" onClick={() => { if (window.history.length > 1) window.history.back(); else window.location.href = `/?business=${businessId}`; }}>{selectedOrder ? "← Back to Order" : "← Back to Labels"}</button><p className="eyebrow">LABEL CREATION</p><h1>Create labels</h1><p>Choose the order, choose why the label is needed, then decide what one label represents.</p></div></section>
+      <section className="labelCreateRouteHead"><div><button type="button" className="secondary contextBackButton appBackControl" onClick={() => { if (window.history.length > 1) window.history.back(); else window.location.href = `/?business=${businessId}`; }}>{selectedOrder ? "← Back to Order" : "← Back to Labels"}</button><p className="eyebrow">LABEL CREATION</p><h1>Create labels</h1><p>Choose the source orders, purpose and what each label represents.</p></div></section>
       <section className="panel labelCreateOrderChoice">
-        <div className="labelCreateField"><label><span>1 · Order</span><select value={orderId} onChange={event => setOrderId(event.target.value)}><option value="">Choose an order…</option>{orders.map(order => <option key={order.orderId} value={order.orderId}>{order.details.orderNo} — {order.details.clientName || "Unnamed client"}</option>)}</select></label></div>
+        <div className="labelCreateField"><label><span>1 · Order</span><select disabled={!!contextOrderId} value={orderId} onChange={event => {setOrderId(event.target.value);setAdditionalOrderIds([]);}}><option value="">Choose an order…</option>{orders.map(order => <option key={order.orderId} value={order.orderId}>{order.details.orderNo} — {order.details.clientName || "Unnamed client"}</option>)}</select></label></div>
         <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>2 · Purpose</span></div><ManagedDropdown value={selectedPurpose.id} options={purposes} disabled={!selectedOrder} canManage={canManage} manageLabel="Manage purposes…" onChange={changePurpose} onManage={() => setManage("purpose")}/>{manage === "purpose" && canManage && <ConfigurationEditor kind="purpose" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>
         <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>3 · Label represents</span></div><ManagedDropdown value={selectedRepresentation.id} options={representations} disabled={!selectedOrder || !representations.length} canManage={canManage} manageLabel="Manage representations…" onChange={setRepresentationId} onManage={() => setManage("representation")}/>{manage === "representation" && canManage && <ConfigurationEditor kind="representation" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>
       </section>
+      {selectedOrder && !contextOrderId && <details className="panel labelSourceOrders"><summary>Include other orders · {selectedOrders.length} selected</summary><div>{orders.filter(order => order.orderId !== orderId).map(order => <label key={order.orderId}><input type="checkbox" checked={additionalOrderIds.includes(order.orderId)} onChange={event => setAdditionalOrderIds(current => event.target.checked ? [...current,order.orderId] : current.filter(id => id !== order.orderId))}/>{order.details.orderNo} · {order.details.clientName}</label>)}</div></details>}
       {saveError && <p className="labelConfigurationError">{saveError}</p>}
       <div className="labelCreateRouteActions"><button className="primary" disabled={!selectedOrder || !representations.length} onClick={() => selectedOrder && setStarted(true)}>Continue to designer</button></div>
     </main>

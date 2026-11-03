@@ -42,6 +42,7 @@ import "../../app/packing-workspace-audit.css";
 import "../../app/packing-workflow-final.css";
 import "../../app/seiko-stable.css";
 import { useState } from "react";
+import { LabelDesigner } from "../../app/label-designer";
 import { LabelLauncher } from "../../app/page";
 import { SavedLabelWorkspace } from "../../app/saved-label-workspace";
 import { SharedLabelStorage } from "../../app/shared-label-storage";
@@ -64,8 +65,15 @@ const order = {
   fields:[{id:"name",name:"Name",type:"text",options:[],required:false},{id:"class",name:"Class",type:"text",options:[],required:false},{id:"gender",name:"Gender",type:"text",options:[],required:false}],measurements:[],
   records:fixture.quantities.map((row,index)=>({recordId:`person-${index}`,personId:`P-${index}`,values:Object.fromEntries([["field:name",`Person ${index+1}`],["field:class",index % 3 === 0 ? "12 Art" : "6"],["field:gender","Sample"],...fixture.products.map((id,i)=>[`product:${id}:qty`,row[i]])])})),revisions:[],updatedAt:""
 };
+if (new URLSearchParams(location.search).has("selection")) order.records = Array.from({length: 50}, (_, index) => ({recordId:`person-${index}`,personId:`P-${index}`,values:Object.fromEntries([["field:name",`Person ${index+1}`],["field:class", index < 42 ? "3" : index < 44 ? "BV" : index === 44 ? "8A" : "13"],["field:gender",index % 2 ? "Female" : "Male"],...fixture.products.map(id => [`product:${id}:qty`,1])])}));
+const multi = new URLSearchParams(location.search).has("multi");
+const secondOrder = structuredClone(order);
+secondOrder.orderId="another-order";secondOrder.details.orderNo="TEST-B";secondOrder.details.clientName="Factory B";
+secondOrder.fields=secondOrder.fields.map(field => ({...field,id:`other-${field.id}`}));
+secondOrder.records=secondOrder.records.slice(0,2).map((record,index)=>({...record,values:Object.fromEntries(Object.entries(record.values).map(([key,value])=>[key.startsWith("field:")?`field:other-${key.slice(6)}`:key,key==="field:name"?`Worker B${index+1}`:value]))}));
+const labelOrders=multi?[order as unknown as SeikoOrder,secondOrder as unknown as SeikoOrder]:[order as unknown as SeikoOrder];
 window.print=()=>{(window as Window & { printCalls?: number }).printCalls=((window as Window & { printCalls?: number }).printCalls||0)+1;};
-if (!new URLSearchParams(location.search).has("orders")) localStorage.setItem("jinam:seiko:orders-v1", JSON.stringify([order]));
+if (!new URLSearchParams(location.search).has("orders")) localStorage.setItem("jinam:seiko:orders-v1", JSON.stringify(labelOrders));
 function CenterTest() { const [selected,setSelected]=useState<SeikoOrder | null>(null); return selected ? <SavedLabelWorkspace businessId="seiko" order={selected} onBack={()=>setSelected(null)}/> : <LabelLauncher businessId="seiko" onOpen={order=>setSelected(order)} onOpenOrders={()=>{}}/>; }
-const surface = (new URLSearchParams(location.search).has("label-orders") ? <><CreateLabelsPage/><LabelFinalization/></> : new URLSearchParams(location.search).has("center") ? <CenterTest/> : new URLSearchParams(location.search).has("orders") ? <AccessProvider><Orders businessId="seiko"/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/></AccessProvider> : new URLSearchParams(location.search).has("task") ? <SavedLabelPrintPage/> : <div className="businessAppShell"><main className="businessAppMain"><PackingPersonLabelDesigner businessId="seiko" order={order as unknown as SeikoOrder} canManageSizes={false}/></main></div> );
+const surface = (new URLSearchParams(location.search).has("items") ? <LabelDesigner businessId="seiko" order={order as unknown as SeikoOrder} sourceOrders={labelOrders} initialPurpose="production" initialSourceMode="person_product" canManageSizes={false}/> : new URLSearchParams(location.search).has("label-orders") ? <><CreateLabelsPage/><LabelFinalization/></> : new URLSearchParams(location.search).has("center") ? <CenterTest/> : new URLSearchParams(location.search).has("orders") ? <AccessProvider><Orders businessId="seiko"/><OrderSetupPolish/><OrderSetupFinalize/><OrderCompactUx/></AccessProvider> : new URLSearchParams(location.search).has("task") ? <SavedLabelPrintPage/> : <div className="businessAppShell"><main className="businessAppMain"><PackingPersonLabelDesigner businessId="seiko" order={order as unknown as SeikoOrder} sourceOrders={labelOrders} canManageSizes={false}/></main></div> );
 createRoot(document.getElementById("root")!).render(new URLSearchParams(location.search).has("shared") ? <SharedLabelStorage business="seiko" enabled>{surface}</SharedLabelStorage> : surface);

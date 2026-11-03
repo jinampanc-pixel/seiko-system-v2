@@ -191,7 +191,7 @@ test("label output can be code only, information only or combined", () => {
   assert.match(labelDesigner, /backLabel \|\| "← Back"/);
   assert.match(labelDesigner, /labelFieldOptions/);
   assert.match(labelDesigner, /spec:\$\{spec\.id\}/);
-  assert.match(labelDesigner, /Find person, product, class, group or any order field/);
+  assert.match(labelDesigner, /Find person, product or any order field/);
   assert.match(labelDesigner, /recordFilterBar/);
   assert.match(labelDesigner, /Select all/);
   assert.match(labelDesigner, /recordList/);

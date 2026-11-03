@@ -18,6 +18,7 @@ function load(path, imports = {}, expose = "") {
 const domain = load("../app/lib/order-domain.ts", { "./order-statuses": load("../app/lib/order-statuses.ts") });
 const model = load("../app/lib/packing-label-model.ts", { "./order-domain": domain });
 const designer = load("../app/packing-person-label-designer.tsx", {
+  "./lib/label-sources": load("../app/lib/label-sources.ts", {"./order-domain":domain}),
   "./lib/output-activity": {recordOutput:async()=>{}},
   "./lib/label-storage": load("../app/lib/label-storage.ts"), react: {}, "react-dom": {}, "react/jsx-runtime": {}, "./physical-label-canvas": {},
   "./physical-label-editor.css": {}, "./lib/physical-output": load("../app/lib/physical-output.ts"),
@@ -69,4 +70,30 @@ test("new fields occupy a free bounded area when space is available", () => {
   const next = designer.freePlacement(existing, "field:name");
   assert.ok(next.x >= existing[0].x + existing[0].w || next.y >= existing[0].y + existing[0].h);
   assert.ok(next.x + next.w <= 50 && next.y + next.h <= 25);
+});
+
+
+test("multiple uniform orders keep original identities, clients and arbitrary person fields", () => {
+  const first=fixture(), second=fixture(); first.orderId="factory-a"; second.orderId="factory-b";
+  first.details={clientName:"Factory A",orderNo:"A"}; second.details={clientName:"Factory B",orderNo:"B"};
+  first.fields=[{id:"name",name:"Name",type:"text"},{id:"dept-a",name:"Department",type:"text"}];
+  second.fields=[{id:"other-name",name:"Name",type:"text"},{id:"dept-b",name:"Department",type:"text"}];
+  first.records[0].values["field:dept-a"]="Cutting";
+  second.records[0].values["field:other-name"]="Worker B";second.records[0].values["field:dept-b"]="Packing";
+  first.products[0].specifications=[{...domain.blankSpecification("colour"),id:"colour",name:"Main colour",defaultValue:"Blue"}];
+  const before=JSON.stringify([first,second]);
+  const sources=load("../app/lib/label-sources.ts",{"./order-domain":domain}).labelSources([first,second]);
+  assert.equal(sources.schema.fields.length,2);
+  assert.equal(sources.fieldId(first,"dept-a"),sources.fieldId(second,"dept-b"));
+  const rules=designer.mergeRules(sources.schema);
+  const rows=designer.buildSourcePersonRecords(sources,rules,{matchMode:"all",layoutMode:"flow",delimiter:" / "});
+  assert.equal(rows.length,2); assert.equal(new Set(rows.map(row=>row.id)).size,2);
+  assert.equal(rows[0].values[`spec:${sources.specificationId(first,"colour")}`],"Blue");
+  assert.equal(rows[0].sourceClient,"Factory A");assert.equal(rows[1].sourceClient,"Factory B");
+  assert.equal(rows[1].values[`field:${sources.fieldId(first,"dept-a")}`],"Packing");
+  assert.match(rows[0].packageText,/shirt: M/);assert.match(rows[1].packageText,/shirt: M/);
+  const onlyFirst=designer.mergeRules(sources.schema);
+  for(const product of second.products)onlyFirst[sources.productId(second,product.id)].included=false;
+  assert.equal(designer.buildSourcePersonRecords(sources,onlyFirst,{matchMode:"all",layoutMode:"flow",delimiter:" / "}).length,1);
+  assert.equal(JSON.stringify([first,second]),before);
 });

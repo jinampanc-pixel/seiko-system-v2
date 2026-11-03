@@ -46,10 +46,10 @@ test("workspace column widths and display preferences are persisted", () => {
   assert.match(orderCss, /\.workspaceRowNumberCol\{width:44px!important\}/);
 });
 
-test("label Value filter is writable and fuzzy-searches resolved values", () => {
+test("label Value filter matches exact resolved values without matching other groups", () => {
   assert.match(labels, /type="search" list="label-record-filter-values"/);
   assert.match(labels, /Type to filter values/);
-  assert.match(labels, /\.toLowerCase\(\)\.includes\(filterNeedle\)/);
+  assert.match(labels, /\.toLowerCase\(\) === filterNeedle/);
 });
 
 test("person package layouts use configured product fields and record-resolved applicability", () => {
