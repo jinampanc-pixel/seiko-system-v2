@@ -27,3 +27,11 @@
 .physicalRecordFilters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:12px}.physicalRecordFilters label{display:grid;gap:4px;font-size:12px;min-width:0}.physicalRecordFilters select{width:100%}.physicalSelectionActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 
 .labelSourceOrders{padding:12px;margin-top:12px}.labelSourceOrders>div{display:grid;gap:8px;max-height:260px;overflow:auto;padding:12px 0}.labelSourceOrders label,.labelProductSelection label{display:flex;gap:8px;align-items:center}.labelProductSelection{display:flex;flex-wrap:wrap;gap:16px;padding:14px}.physicalRecordFilters:has(>button){grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
+
+.physicalViewControls,.physicalElementControls,.physicalFilterControls{border:1px solid var(--line,#c8d5df);border-radius:7px;margin:10px 0;background:var(--paper,#fff)}
+.physicalViewControls>summary,.physicalElementControls>summary,.physicalFilterControls>summary{cursor:pointer;padding:9px 12px;font-size:12px;font-weight:600;min-height:36px}
+.physicalViewControls .physicalTools{padding:10px 12px;justify-content:flex-start;gap:10px}.physicalTools>span{display:flex;gap:8px}
+.physicalViewControls .physicalHint{padding:0 12px 10px;margin:0}.physicalElementControls .physicalInspector{padding:0 12px 12px;gap:10px}.physicalElementControls .physicalInspector label{flex:0 1 95px}.physicalElementControls .physicalInspector input,.physicalElementControls .physicalInspector select{width:100%}
+.physicalFilterBody{padding:0 12px 12px;display:grid;gap:10px}.physicalFilterBody .physicalRecordFilters{margin:0;align-items:end}.physicalFilterBody .physicalRecordFilters label{gap:5px}.physicalFilterBody select{height:38px;padding:6px;line-height:1.2}.physicalFilterBody>.physicalSelectionActions{margin:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.physicalFilterBody button{font-size:12px;white-space:normal}.physicalRecords>small{display:block;line-height:1.5}.physicalRecords>input{margin:12px 0 8px}.physicalEmptySelection{padding:12px;border-left:3px solid var(--gold,#c3a16e);background:var(--paper,#fbf6ee)}
+
+.physicalFilterBody .physicalRecordFilters{grid-template-columns:minmax(0,1fr);padding:10px;border:1px solid var(--line,#c8d5df);border-radius:6px;gap:8px}.physicalFilterBody .physicalRecordFilters>button{justify-self:end}
