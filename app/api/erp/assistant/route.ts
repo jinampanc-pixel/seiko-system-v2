@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       const day = new Date().toISOString().slice(0, 10);
       const budget = await db.prepare("INSERT INTO erp_assistant_budget(day,reserved_neurons) VALUES(?,?) ON CONFLICT(day) DO UPDATE SET reserved_neurons=reserved_neurons+excluded.reserved_neurons WHERE reserved_neurons+excluded.reserved_neurons<=? RETURNING reserved_neurons").bind(day, ASSISTANT_CALL_RESERVATION, ASSISTANT_DAILY_BUDGET).first();
       if (!budget) return json({ ok: false, conversationId, message: "The assistant's free daily allowance is reserved. You can continue using Seiko normally; AI resets at 05:30 IST." }, 429);
-      const result = await config.AI.run(ASSISTANT_MODEL, { messages, max_completion_tokens: ASSISTANT_MAX_OUTPUT_TOKENS, temperature: 0.1, response_format: { type: "json_object" }, chat_template_kwargs: { enable_thinking: false } }) as { response?: string; choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+      const result = await config.AI.run(ASSISTANT_MODEL, { messages, max_completion_tokens: ASSISTANT_MAX_OUTPUT_TOKENS, temperature: 0.1, response_format: { type: "json_object" }, chat_template_kwargs: { enable_thinking: false } }) as { response?: string; choices?: { finish_reason?: string; message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; completion_tokens_details?: { reasoning_tokens?: number } } };
       const inputTokens = result.usage?.prompt_tokens, outputTokens = result.usage?.completion_tokens;
       if (Number.isInteger(inputTokens) && Number.isInteger(outputTokens) && inputTokens! >= 0 && outputTokens! >= 0) {
         // Published GLM-4.7-Flash rates, with a 20% margin and 10-neuron floor.
@@ -92,7 +92,13 @@ export async function POST(request: Request) {
         await db.prepare("UPDATE erp_assistant_budget SET reserved_neurons=reserved_neurons-? WHERE day=?").bind(ASSISTANT_CALL_RESERVATION - charged, day).run();
       }
       const raw = result.choices?.[0]?.message?.content || result.response;
-      const step = parseAssistantStep(raw);
+      let step: Record<string, unknown>;
+      try { step = parseAssistantStep(raw); }
+      catch {
+        // Owner-only, bounded diagnostics in the response; never log or persist model text.
+        const diagnostic = membership.role === "owner" ? [{ tool: "Incomplete draft diagnostic", checkedAt: new Date().toISOString(), data: { finishReason: result.choices?.[0]?.finish_reason || "Not supplied", outputCharacters: raw?.length || 0, inputTokens: inputTokens ?? null, outputTokens: outputTokens ?? null, reasoningTokens: result.usage?.completion_tokens_details?.reasoning_tokens ?? null, beginning: raw?.slice(0, 350) || "", ending: raw?.slice(-350) || "", note: "Incomplete model output, not a saved record or reliable business fact." } }] : [];
+        return json({ ok: false, conversationId, message: "The assistant's draft was incomplete. Nothing was saved. Please retry or narrow the request.", sources: [...sources, ...diagnostic] }, 422);
+      }
       if (step.kind === "answer") {
         const answer = String(step.message || "Please clarify what you want to do.").slice(0, 16000);
         await append("assistant", answer, conversationId);
@@ -112,7 +118,8 @@ export async function POST(request: Request) {
         const prepared = await prepareAssistantAction(ctx, String(step.tool), args), proposalId = crypto.randomUUID();
         const reviewMessage = String(step.message || "Please review these proposed changes.");
         await db.prepare("INSERT INTO erp_assistant_proposals(id,business_id,user_id,conversation_id,tool,payload,review,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(proposalId, business, ownerKey, conversationId, prepared.tool, JSON.stringify(prepared.payload), JSON.stringify(prepared.review), new Date().toISOString(), new Date(Date.now() + 30 * 60000).toISOString()).run();
-        await append("assistant", "UNSAVED PROPOSAL: " + reviewMessage + "\n" + JSON.stringify({ tool: prepared.tool, review: prepared.review }), conversationId);
+        // Keep the compact plan/patches for corrections, not a second verbose expansion of the order.
+        await append("assistant", "UNSAVED PROPOSAL: " + reviewMessage + "\n" + JSON.stringify({ tool: prepared.tool, args, provisionalOrderNo: (prepared.payload.order as { details?: { orderNo?: string } } | undefined)?.details?.orderNo }), conversationId);
         return json({ ok: true, conversationId, message: reviewMessage, proposal: { id: proposalId, tool: prepared.tool, review: prepared.review }, sources });
       } catch (error) {
         messages.push({ role: "assistant", content: JSON.stringify(step) }, { role: "user", content: "VALIDATION ERROR. Nothing saved: " + (error as Error).message });

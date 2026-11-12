@@ -4,17 +4,17 @@ export type AssistantPatch = { path: string; value: unknown };
 export type AssistantMessage = { role: "user" | "assistant"; content: string };
 export const ASSISTANT_MODEL = "@cf/zai-org/glm-4.7-flash";
 export const ASSISTANT_MAX_INPUT_BYTES = 80000;
-export const ASSISTANT_MAX_OUTPUT_TOKENS = 8192;
-// Conservative reservation: <=80K UTF-8 input bytes + 8K output tokens, including reasoning.
+export const ASSISTANT_MAX_OUTPUT_TOKENS = 16384;
+// Conservative reservation: <=80K UTF-8 input bytes + 16K output tokens, including reasoning.
 // No refund on failed requests or missing usage. This is an app budget, not an account-wide billing control.
-export const ASSISTANT_CALL_RESERVATION = 1000;
+export const ASSISTANT_CALL_RESERVATION = 1500;
 export const ASSISTANT_DAILY_BUDGET = 8000;
 
 function object(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 export function parseAssistantStep(raw: unknown): Record<string, unknown> {
-  if (typeof raw !== "string" || raw.length > 100000) throw new Error("The assistant returned an incomplete response. Please retry.");
+  if (typeof raw !== "string" || raw.length > 200000) throw new Error("The assistant returned an incomplete response. Please retry.");
   const text = raw.replace(/<think>[\s\S]*?<\/think>/g, "").trim().replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
   let step: unknown;
   try { step = JSON.parse(text); } catch { throw new Error("The assistant's draft was incomplete. Nothing was saved. Please retry with a smaller set of changes."); }

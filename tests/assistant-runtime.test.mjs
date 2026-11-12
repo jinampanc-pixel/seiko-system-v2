@@ -17,7 +17,7 @@ const prompt = load('app/lib/assistant-prompt.ts');
 function fixture() {
   return { ...structuredClone(prompt.assistantOrderExample), orderId: 'test-order-0001', status: 'Draft', archived: false, details: { ...prompt.assistantOrderExample.details, clientName: 'TEST GARMENT CLIENT', contactNumber: '+910000000000', orderNo: '2099-01-001', orderDate: '2099-01-01', attnRequired: false }, updatedAt: '2099-01-01T00:00:00.000Z' };
 }
-function harness({ steps = [], active = true, permission = true, user = 'test-owner-0001' } = {}) {
+function harness({ steps = [], active = true, permission = true, user = 'test-owner-0001', role = 'owner' } = {}) {
   const sqlite = new DatabaseSync(':memory:'); sqlite.exec(fs.readFileSync('migrations/0010_business_assistant.sql','utf8'));
   sqlite.exec('CREATE TABLE fixture_orders(id TEXT PRIMARY KEY, document_json TEXT)');
   sqlite.prepare('INSERT INTO fixture_orders VALUES(?,?)').run('test-order-0001',JSON.stringify(fixture()));
@@ -31,7 +31,7 @@ function harness({ steps = [], active = true, permission = true, user = 'test-ow
   };
   const api = load('app/api/erp/assistant/route.ts', {
     'cloudflare:workers': { env: { DB: db, ASSISTANT_FREE_PLAN_CONFIRMED: active ? 'true' : 'false', AI: { async run() { calls.ai++; return { choices: [{ message: { content: JSON.stringify(steps.shift() || { kind:'answer',message:'Test answer' }) } }] }; } } } },
-    '../../../lib/server-erp-auth': { authenticateActor: async () => user ? { userId: user, email:'test@example.invalid' } : null, authorizeBusiness: async () => permission ? { role:'owner' } : null },
+    '../../../lib/server-erp-auth': { authenticateActor: async () => user ? { userId: user, email:'test@example.invalid' } : null, authorizeBusiness: async () => permission ? { role } : null },
     '../../../lib/access-control': { permissionsForRole: () => scope.permissions }, '../../../lib/assistant-prompt': prompt, '../../../lib/assistant-domain': assistant, '../../../lib/server-assistant-tools': tools,
   });
   const request = async (body, headers = {}) => { const response = await api.POST(new Request('https://test.invalid/api/erp/assistant', { method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify({businessId:'seiko',...body}) })); return { status:response.status, ...await response.json() }; };
@@ -71,8 +71,9 @@ test('a changed permission set cannot replay a previous proposal or receipt', as
   assert.equal(result.status,404);assert.equal(h.calls.writes,0);h.sqlite.close();
 });
 test('daily reservation is atomic and stops model calls at the configured cap', async () => {
-  const h=harness();for(let i=0;i<8;i++)assert.equal((await h.request({operation:'chat',message:'Hello'})).ok,true);
-  assert.equal((await h.request({operation:'chat',message:'One more'})).status,429);assert.equal(h.calls.ai,8);assert.equal(h.calls.writes,0);h.sqlite.close();
+  const count=Math.floor(assistant.ASSISTANT_DAILY_BUDGET/assistant.ASSISTANT_CALL_RESERVATION);
+  const h=harness();for(let i=0;i<count;i++)assert.equal((await h.request({operation:'chat',message:'Hello'})).ok,true);
+  assert.equal((await h.request({operation:'chat',message:'One more'})).status,429);assert.equal(h.calls.ai,count);assert.equal(h.calls.writes,0);h.sqlite.close();
 });
 test('business reads can produce an answer without any business write', async () => {
   const h=harness({steps:[{kind:'read',tool:'orders',args:{orderIds:['test-order-0001']}},{kind:'answer',message:'The test order is Draft.'}]});
@@ -80,6 +81,17 @@ test('business reads can produce an answer without any business write', async ()
 });
 test('invalid model output cannot become a mutation', () => {
   for(const raw of ['not json','{"kind":"execute","tool":"delete_all"}','[]'])assert.throws(()=>assistant.parseAssistantStep(raw));
+});
+test('incomplete completions fail closed and expose only bounded owner diagnostics without persisting model text', async () => {
+  for(const role of ['owner','viewer']){
+    const h=harness({role,steps:['not a valid action']});
+    const result=await h.request({operation:'chat',message:'Fictional diagnostic test'});
+    assert.equal(result.status,422);assert.equal(result.ok,false);assert.equal(h.calls.writes,0);
+    assert.equal(result.sources.length,role==='owner'?1:0);
+    assert.equal(h.sqlite.prepare("SELECT COUNT(*) AS n FROM erp_assistant_messages WHERE role='assistant'").get().n,0);
+    if(role==='owner')assert.ok(result.sources[0].data.beginning.length<=350);
+    h.sqlite.close();
+  }
 });
 test('order patches preserve unrelated measurements, prices and records, and reject metadata/prototype changes', () => {
   const original=fixture();original.records=[{recordId:'r1',personId:'P-0001',values:{'field:f-name':'TEST PERSON','measurement:m-length:product:p-shirt':'28/24'}}];
