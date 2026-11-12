@@ -10,6 +10,7 @@ const assistant=load('app/lib/assistant-domain.ts',{'./order-domain':domain});
 const prompt=load('app/lib/assistant-prompt.ts');
 test('real edit tool proposes from authoritative order and preserves its version and untouched data',async()=>{
   const order={...structuredClone(prompt.assistantOrderExample),orderId:'test-existing-order',status:'Draft',archived:false,details:{...prompt.assistantOrderExample.details,clientName:'TEST CLIENT',contactNumber:'0000000000',orderNo:'2099-01-001',attnRequired:false},updatedAt:'2099-01-01',records:[{recordId:'r1',personId:'P-0001',values:{'field:f-name':'TEST PERSON'}}]};
+  order.products[0].specifications[0].groupRules=[{match:'misleading old label',conditions:[{fieldId:'f-name',match:'actual group'}],conditionMode:'all',value:'Blue'}];
   const original=JSON.stringify(order);let writes=0;
   const orders={POST:async request=>{const body=await request.json();if(body.operation==='list')return Response.json({ok:true,data:{orders:[{order,version:7}]}});writes++;assert.equal(body.expectedVersion,7);return Response.json({ok:false,message:'Order changed on another device'},{status:409});}};
   const stub={POST:async()=>Response.json({ok:true})};
@@ -23,6 +24,8 @@ test('real edit tool proposes from authoritative order and preserves its version
   const setup=await tools.readAssistantTool(ctx,'order_setup',{orderId:'2099-01-001'});
   assert.equal(setup.personCount,1);assert.equal(setup.version,7);assert.equal(setup.records,undefined);
   assert.match(setup.note,/No fresh Google Sheets/);
+  assert.equal(setup.products[0].specifications[0].groupRules[0].match,undefined);
+  assert.equal(setup.interpretation.garments[0].specifications[0].rules[0].conditions[0].values,'actual group');
   const found=await tools.readAssistantTool(ctx,'search',{query:'Example Academy, Fictional Village'});
   assert.equal(found.related.length,1);assert.equal(found.related[0].id,'candidate');assert.ok(searched.includes('Example'));assert.match(found.note,/candidates/);
   const added=await tools.prepareAssistantAction(ctx,'add_order_specifications',{orderId:order.orderId,productName:'Shirt',specifications:[{name:'Logo',value:'Required; artwork awaiting confirmation',role:'asset'},{name:'Logo status',value:'Awaiting design',role:'attribute'}]});

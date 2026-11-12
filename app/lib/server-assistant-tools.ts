@@ -51,7 +51,11 @@ export async function readAssistantTool(ctx: ToolContext, tool: string, args: Ar
     const row = await currentOrder(ctx, args.orderId);
     const actor = await authenticateActor(ctx.request);
     const order = ctx.business === "seiko" && !await authorizePermission(actor!, ctx.business, "financials.view") ? redactCommercialPrices(row.order) : row.order;
-    return { orderId: order.orderId, version: row.version, details: order.details, status: order.status, fields: order.fields, products: order.products, measurements: order.measurements, pricing: order.commerce?.rules || [], personCount: order.records.length, note: "Authoritative saved order setup only. No fresh Google Sheets person measurements, deliveries, production or balances are asserted. Student records are not returned." };
+    // Legacy match labels can contradict the real multi-condition predicate.
+    // Return the actual conditions, plus a deterministic readable interpretation.
+    const predicate = <T extends { conditions?: unknown[]; match?: string }>(rule: T) => rule.conditions?.length ? { ...rule, match: undefined } : rule;
+    const products = order.products.map(p => ({ ...p, quantityGroupRules: p.quantityGroupRules.map(predicate), specifications: p.specifications.map(s => ({ ...s, groupRules: s.groupRules.map(predicate) })) }));
+    return { orderId: order.orderId, version: row.version, details: order.details, status: order.status, fields: order.fields, products, measurements: order.measurements, pricing: (order.commerce?.rules || []).map(predicate), interpretation: assistantOrderReview(order), personCount: order.records.length, note: "Authoritative saved order setup only. No fresh Google Sheets person measurements, deliveries, production or balances are asserted. Student records are not returned. Only specifications actually present in products exist; user statements and old conversation proposals are not saved data. Conditions define recipient groups; interpretation resolves their field names." };
   }
   if (tool === "orders") {
     if (args.orderIds) return call(ctx, orders, { operation: "list", orderIds: args.orderIds });
