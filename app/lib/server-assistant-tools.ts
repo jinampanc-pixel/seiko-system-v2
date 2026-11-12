@@ -8,6 +8,7 @@ import { POST as billingReview } from "../api/erp/order-billing/route";
 import { POST as trace } from "../api/seiko/route";
 import { authenticateActor, authorizePermission } from "./server-erp-auth";
 import { compactOrderPlanExample } from "./assistant-prompt";
+import { redactCommercialPrices } from "./order-commerce";
 import { compileAssistantOrderPlan } from "./assistant-order-plan";
 import { assistantOrderReview, assertAssistantOrder, patchAssistantOrder, type AssistantPatch } from "./assistant-domain";
 import { ORDER_STATUSES, saveRevision, type SeikoOrder } from "./order-domain";
@@ -26,13 +27,32 @@ async function call(ctx: ToolContext, handler: (r: Request) => Promise<Response>
 }
 async function currentOrder(ctx: ToolContext, orderId: unknown) {
   if (typeof orderId !== "string" || !orderId || orderId.length > 150) throw new Error("Choose an order first.");
-  const result = await call(ctx, orders, { operation: "list", orderIds: [orderId] });
-  const row = result.data.orders.find((e: { order: SeikoOrder }) => e.order.orderId === orderId);
+  const actor = await authenticateActor(ctx.request);
+  if (!actor || !await authorizePermission(actor, ctx.business, "orders.view")) throw new Error("Order-view permission required.");
+  // Setup is authoritative in D1. Do not require Sheets or claim person data is fresh.
+  // The full snapshot stays server-side for versioned patches preserving every record.
+  const stored = await env.DB!.prepare("SELECT document_json,version FROM erp_orders WHERE business_id=? AND (id=? OR order_no=?) AND json_extract(document_json,'$.deletedAt') IS NULL").bind(ctx.business, orderId, orderId).first<{ document_json: string; version: number }>();
+  const row = stored ? { order: JSON.parse(stored.document_json) as SeikoOrder, version: stored.version } : null;
   if (!row) throw new Error("Order not found.");
   return row as { order: SeikoOrder; version: number };
 }
 export async function readAssistantTool(ctx: ToolContext, tool: string, args: Args): Promise<unknown> {
-  if (tool === "search") return call(ctx, search, { query: args.query, page: args.page || 1 });
+  if (tool === "search") {
+    const result = await call(ctx, search, { query: args.query, page: args.page || 1 });
+    if (result.results?.length || result.related?.length || Number(args.page || 1) !== 1) return result;
+    // A long name is an exact substring search, not an AND/OR search. Retry a few
+    // distinctive words independently; these remain candidates, never identity proof.
+    const words = [...new Set(String(args.query || "").split(/[\s,;]+/).filter(w => w.length >= 4 && !/^(school|primary|contact|person|vidhyalay|vidyalay|and)$/i.test(w)))].slice(0, 3);
+    if (words.length < 2) return result;
+    const attempts = await Promise.all(words.map(query => call(ctx, search, { query, page: 1 })));
+    return { ...result, fallbackQueries: words, related: [...new Map(attempts.flatMap(a => a.related || []).map(r => [r.kind + ":" + r.id, r])).values()], results: [...new Map(attempts.flatMap(a => a.results || []).map(r => [r.recordId || r.id || JSON.stringify(r), r])).values()], hasMore: attempts.some(a => a.hasMore), note: "Fallback matches are candidates. Compare client/contact/order identifiers before concluding identity or absence." };
+  }
+  if (tool === "order_setup") {
+    const row = await currentOrder(ctx, args.orderId);
+    const actor = await authenticateActor(ctx.request);
+    const order = ctx.business === "seiko" && !await authorizePermission(actor!, ctx.business, "financials.view") ? redactCommercialPrices(row.order) : row.order;
+    return { orderId: order.orderId, version: row.version, details: order.details, status: order.status, fields: order.fields, products: order.products, measurements: order.measurements, pricing: order.commerce?.rules || [], personCount: order.records.length, note: "Authoritative saved order setup only. No fresh Google Sheets person measurements, deliveries, production or balances are asserted. Student records are not returned." };
+  }
   if (tool === "orders") {
     if (args.orderIds) return call(ctx, orders, { operation: "list", orderIds: args.orderIds });
     const result = await call(ctx, orders, { operation: "list", limit: Math.min(25, Number(args.limit) || 10), afterId: args.afterId || "" });
@@ -86,11 +106,12 @@ export async function prepareAssistantAction(ctx: ToolContext, tool: string, arg
     const row = await currentOrder(ctx, args.orderId);
     if (tool === "order_status") {
       if (!(ORDER_STATUSES as readonly unknown[]).includes(args.status)) throw new Error("Choose a valid order status.");
-      return { tool, payload: { orderId: args.orderId, status: args.status, expectedVersion: row.version }, review: { orderNo: row.order.details.orderNo, client: row.order.details.clientName, previousStatus: row.order.status, newStatus: args.status } };
+      return { tool, payload: { orderId: row.order.orderId, status: args.status, expectedVersion: row.version }, review: { orderNo: row.order.details.orderNo, client: row.order.details.clientName, previousStatus: row.order.status, newStatus: args.status } };
     }
     const order = patchAssistantOrder(row.order, args.patches as AssistantPatch[]);
     if (JSON.stringify(order.commerce?.rules) !== JSON.stringify(row.order.commerce?.rules) && !await authorizePermission(actor, ctx.business, "billing.invoices.manage")) throw new Error("Pricing-management permission required.");
-    return { tool, payload: { order: saveRevision(order, "Updated through reviewed assistant proposal"), expectedVersion: row.version }, review: { orderNo: order.details.orderNo, client: order.details.clientName, changes: (args.patches as AssistantPatch[]).map(p => ({ ...p })), resultingOrder: assistantOrderReview(order) } };
+    const visibleOrder = ctx.business === "seiko" && !await authorizePermission(actor, ctx.business, "financials.view") ? redactCommercialPrices(order) : order;
+    return { tool, payload: { order: saveRevision(order, "Updated through reviewed assistant proposal"), expectedVersion: row.version }, review: { orderNo: order.details.orderNo, client: order.details.clientName, changes: (args.patches as AssistantPatch[]).map(p => ({ ...p })), resultingOrder: assistantOrderReview(visibleOrder) } };
   }
   if (tool === "production_action") {
     if (!await authorizePermission(actor, ctx.business, "production.manage")) throw new Error("Production management permission required.");

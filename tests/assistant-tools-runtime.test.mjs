@@ -13,11 +13,18 @@ test('real edit tool proposes from authoritative order and preserves its version
   const original=JSON.stringify(order);let writes=0;
   const orders={POST:async request=>{const body=await request.json();if(body.operation==='list')return Response.json({ok:true,data:{orders:[{order,version:7}]}});writes++;assert.equal(body.expectedVersion,7);return Response.json({ok:false,message:'Order changed on another device'},{status:409});}};
   const stub={POST:async()=>Response.json({ok:true})};
+  const searched=[];
+  const lookup={POST:async request=>{const {query}=await request.json();searched.push(query);return Response.json({ok:true,results:[],related:query==='Example'?[{id:'candidate',kind:'Order',title:'2099-01-001'}]:[],hasMore:false});}};
   const tools=load('app/lib/server-assistant-tools.ts',{
-    'cloudflare:workers':{env:{}},'../api/erp/orders/route':orders,'../api/erp/search/route':stub,'../api/erp/people/route':stub,'../api/erp/production/route':stub,'../api/erp/billing/route':stub,'../api/erp/order-billing/route':stub,'../api/seiko/route':stub,
-    './server-erp-auth':{authenticateActor:async()=>({userId:'owner'}),authorizePermission:async()=>({role:'owner'})},'./assistant-prompt':prompt,'./assistant-order-plan':load('app/lib/assistant-order-plan.ts'),'./assistant-domain':assistant,'./order-domain':domain,'./seiko-billing':{},
+    'cloudflare:workers':{env:{DB:{prepare:()=>({bind:()=>({first:async()=>({document_json:JSON.stringify(order),version:7})})})}}},'../api/erp/orders/route':orders,'../api/erp/search/route':lookup,'../api/erp/people/route':stub,'../api/erp/production/route':stub,'../api/erp/billing/route':stub,'../api/erp/order-billing/route':stub,'../api/seiko/route':stub,
+    './server-erp-auth':{authenticateActor:async()=>({userId:'owner'}),authorizePermission:async()=>({role:'owner'})},'./assistant-prompt':prompt,'./assistant-order-plan':load('app/lib/assistant-order-plan.ts'),'./order-commerce':{redactCommercialPrices:o=>o},'./assistant-domain':assistant,'./order-domain':domain,'./seiko-billing':{},
   });
   const ctx={request:new Request('https://test.invalid'),business:'seiko',userId:'owner'};
+  const setup=await tools.readAssistantTool(ctx,'order_setup',{orderId:'2099-01-001'});
+  assert.equal(setup.personCount,1);assert.equal(setup.version,7);assert.equal(setup.records,undefined);
+  assert.match(setup.note,/No fresh Google Sheets/);
+  const found=await tools.readAssistantTool(ctx,'search',{query:'Example Academy, Fictional Village'});
+  assert.equal(found.related.length,1);assert.equal(found.related[0].id,'candidate');assert.ok(searched.includes('Example'));assert.match(found.note,/candidates/);
   const prepared=await tools.prepareAssistantAction(ctx,'edit_order',{orderId:order.orderId,patches:[{path:'/products/0/specifications/0/defaultValue',value:'Navy blue'}]});
   assert.equal(writes,0);assert.equal(JSON.stringify(order),original);assert.equal(prepared.payload.expectedVersion,7);assert.equal(prepared.payload.order.records[0].values['field:f-name'],'TEST PERSON');
   await assert.rejects(()=>tools.executeAssistantAction(ctx,prepared),/changed on another device/);assert.equal(writes,1);assert.equal(JSON.stringify(order),original);
