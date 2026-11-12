@@ -7,7 +7,7 @@ import { POST as billing } from "../api/erp/billing/route";
 import { POST as billingReview } from "../api/erp/order-billing/route";
 import { POST as trace } from "../api/seiko/route";
 import { authenticateActor, authorizePermission } from "./server-erp-auth";
-import { assistantOrderExample, compactOrderPlanExample } from "./assistant-prompt";
+import { compactOrderPlanExample } from "./assistant-prompt";
 import { compileAssistantOrderPlan } from "./assistant-order-plan";
 import { assistantOrderReview, assertAssistantOrder, patchAssistantOrder, type AssistantPatch } from "./assistant-domain";
 import { ORDER_STATUSES, saveRevision, type SeikoOrder } from "./order-domain";
@@ -62,7 +62,7 @@ export async function readAssistantTool(ctx: ToolContext, tool: string, args: Ar
     const actor = await authenticateActor(ctx.request);
     if (!actor || !await authorizePermission(actor, ctx.business, "orders.view")) throw new Error("Order-view permission required.");
     const options = await env.DB!.prepare("SELECT key,value_json FROM erp_preferences WHERE business_id=? AND key IN ('order-suggestions-v1','business-library-v1')").bind(ctx.business).all();
-    return { compactPlanExample: compactOrderPlanExample, schemaNotes: assistantOrderExample.schemaNotes, options: options.results };
+    return { compactPlanExample: compactOrderPlanExample, options: options.results };
   }
   if (tool === "memories") return (await env.DB!.prepare("SELECT id,content FROM erp_assistant_memories WHERE business_id=? AND user_id=? ORDER BY created_at LIMIT 50").bind(ctx.business, ctx.userId).all()).results;
   throw new Error("That business lookup is not connected yet.");
