@@ -9,6 +9,7 @@ import { useAccess } from "./access-control";
 import { BillingProfileEditor, requestBillingProfile, type ProfileState } from "./billing-profile-editor";
 import { callSeiko } from "./lib/seiko-api";
 import { Orders } from "./orders";
+import { BusinessAssistant } from "./business-assistant";
 import { SavedLabelWorkspace } from "./saved-label-workspace";
 import { Production } from "./production-workspace";
 import { type SeikoOrder } from "./lib/order-domain";
@@ -48,6 +49,7 @@ export default function Home() {
   const {can:canPermission}=useAccess();
   const {module,setModule,back:moduleBack,reset:resetNavigation,restore:restoreModule,backLabel:moduleBackLabel}=useModuleNavigation();
   const [newOrderRequest, setNewOrderRequest] = useState(0);
+  const [assistantOrderId, setAssistantOrderId] = useState<string>();
   const [productionOrderId,setProductionOrderId]=useState<string|undefined>();
   const [online, setOnline] = useState(true);
   const [pending, setPending] = useState(0);
@@ -151,13 +153,14 @@ export default function Home() {
       {themeOpen && createPortal(<ThemeCustomizer key={businessId} businessName={membership?.businessName || "Business"} theme={activeTheme} onSave={saveTheme} onClose={() => setThemeOpen(false)} />,document.body)}
       <main>{(["scan","trace","inventory","sales","delivery"] as Module[]).includes(module)&&<div className="moduleBackRow"><button type="button" className="appBackControl" onClick={moduleBack}>{moduleBackLabel}</button></div>}
         {module === "home" && <Overview membership={membership} onOpen={next => { setNewOrderRequest(0); setServiceOrder(null); setModule(next); }} />}
-        {module === "orders" && canAccess(membership, "orders") && <Orders key={`${businessId}:${serviceOrder?.orderId||labelOrder?.orderId || "center"}:${newOrderRequest}`} initialService={Boolean(serviceOrder)} onServiceBack={()=>{setServiceOrder(null);restoreModule(serviceOriginModule);window.dispatchEvent(new Event("seiko:resume-billing"));}} homeLabel={moduleBackLabel} onHome={() => requestAppNavigation(()=>{ setNewOrderRequest(0); setServiceOrder(null); setLabelOrder(null); moduleBack(); setNavOpen(false); })} startNewOrder={newOrderRequest > 0} businessId={businessId} initialOrder={serviceOrder||labelOrder} canManageSuggestions={membership?.role === "owner" || membership?.role === "admin"} onOpenLabelBatches={order => { setLabelOrder(null); setLabelPurpose(null); setLabelBatchOrder(order); setModule("labels"); }}/>}
+        {module === "orders" && canAccess(membership, "orders") && <Orders onAssistantContext={setAssistantOrderId} key={`${businessId}:${serviceOrder?.orderId||labelOrder?.orderId || "center"}:${newOrderRequest}`} initialService={Boolean(serviceOrder)} onServiceBack={()=>{setServiceOrder(null);restoreModule(serviceOriginModule);window.dispatchEvent(new Event("seiko:resume-billing"));}} homeLabel={moduleBackLabel} onHome={() => requestAppNavigation(()=>{ setNewOrderRequest(0); setServiceOrder(null); setLabelOrder(null); moduleBack(); setNavOpen(false); })} startNewOrder={newOrderRequest > 0} businessId={businessId} initialOrder={serviceOrder||labelOrder} canManageSuggestions={membership?.role === "owner" || membership?.role === "admin"} onOpenLabelBatches={order => { setLabelOrder(null); setLabelPurpose(null); setLabelBatchOrder(order); setModule("labels"); }}/>}
         {module === "labels" && canAccess(membership, "labels") && (labelOrder ? <SavedLabelWorkspace key={`${businessId}:${labelOrder.orderId}:${labelPurpose || "choose"}`} businessId={businessId} order={labelOrder} initialPurpose={labelPurpose} backLabel="← Back to Labels" onBack={() => { setLabelOrder(null); setLabelPurpose(null); }} canManageSizes={membership?.role === "owner" || membership?.role === "admin"}/> : <LabelLauncher onBack={moduleBack} backLabel={moduleBackLabel} businessId={businessId} focusedOrder={labelBatchOrder} onOpen={(order, purpose) => { setLabelBatchOrder(null); setLabelOrder(order); setLabelPurpose(purpose); }} onOpenOrders={() => { setLabelBatchOrder(null); setModule("orders"); }}/>)}
         {module === "scan" && canAccess(membership, "scan") && <Scanner businessId={businessId} queueKey={queueKey} onPending={setPending} />}
         {module === "trace" && canAccess(membership, "trace") && <Trace />}
         {module === "production" && canAccess(membership, "production") && <Production key={`${businessId}:${productionOrderId||"all"}`} businessId={businessId} initialOrderId={productionOrderId} onHome={moduleBack} backLabel={moduleBackLabel} canManage={membership?.role === "owner" || membership?.role === "admin"}/>}
         {(["inventory", "sales", "delivery"] as Module[]).includes(module) && <section className="page"><div className="panel"><p className="eyebrow">{title(module).toUpperCase()}</p><h2>{title(module)}</h2><p>{module === "inventory" ? "Manage stock, materials and inventory label batches here." : "This module will be configured after the main navigation and home screen are finalised."}</p></div></section>}
       </main>
+      <BusinessAssistant key={businessId} businessId={businessId} module={module} orderId={module === "orders" ? assistantOrderId : productionOrderId} onOpenOrder={order => requestAppNavigation(() => { setServiceOrder(null); setLabelOrder(order); setNewOrderRequest(0); setModule("orders"); setNavOpen(false); })}/>
     </div>
   </div>;
 }

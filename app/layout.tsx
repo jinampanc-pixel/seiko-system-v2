@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./business-assistant.css";
 import "./logo-fixes.css";
 import "./label-designer.css";
 import "./label-designer-polish.css";

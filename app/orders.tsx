@@ -34,7 +34,7 @@ function loadOrders(businessId: string): SeikoOrder[] {
   try { return readOrderCache(businessId).map(order => ({ ...order, details: { ...order.details, attnRequired: order.details.attnRequired ?? false }, products: order.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [], specifications: product.specifications.map(spec => ({ ...spec, attachments: spec.attachments || [] })) })) })); } catch { return []; }
 }
 
-export function Orders({ businessId, canManageSuggestions = false, initialOrder = null, startNewOrder = false, initialService=false, homeLabel="← Back to Home", onServiceBack, onHome, onOpenLabelBatches }: { businessId: string; canManageSuggestions?: boolean; initialOrder?: SeikoOrder|null; startNewOrder?: boolean; initialService?:boolean; homeLabel?:string; onServiceBack?:()=>void; onHome?: () => void; onOpenLabelBatches?: (order: SeikoOrder) => void }) {
+export function Orders({ onAssistantContext, businessId, canManageSuggestions = false, initialOrder = null, startNewOrder = false, initialService=false, homeLabel="← Back to Home", onServiceBack, onHome, onOpenLabelBatches }: { onAssistantContext?: (orderId: string | undefined) => void; businessId: string; canManageSuggestions?: boolean; initialOrder?: SeikoOrder|null; startNewOrder?: boolean; initialService?:boolean; homeLabel?:string; onServiceBack?:()=>void; onHome?: () => void; onOpenLabelBatches?: (order: SeikoOrder) => void }) {
   const { membership } = useAccess();
   const [busy, setBusy] = useState(false);
   const [entryPerson,setEntryPerson]=useState<string|null>(null);
@@ -55,6 +55,7 @@ export function Orders({ businessId, canManageSuggestions = false, initialOrder 
   const [view, setView] = useState<View>(initialService?"service":initialOrder || startNewOrder ? "setup" : "center");
   const [setupReturnView, setSetupReturnView] = useState<"center" | "workspace" | "service">("center");
   const [current, setCurrent] = useState<SeikoOrder | null>(() => initialOrder ? { ...initialOrder, products: initialOrder.products.map(product => ({ ...product, quantityGroupRules: product.quantityGroupRules || [] })) } : startNewOrder ? createOrder() : null);
+  useEffect(() => { onAssistantContext?.(view === "center" ? undefined : current?.orderId); return () => onAssistantContext?.(undefined); }, [current?.orderId, view, onAssistantContext]);
   const [serviceGroup,setServiceGroup]=useState("all");
   const [serviceOrigin,setServiceOrigin]=useState<"center"|"workspace"|"billing">(initialService?"billing":"center");
   const [workspaceOrigin,setWorkspaceOrigin]=useState<"center"|"service">("center");
