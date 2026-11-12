@@ -168,7 +168,9 @@ async function upsertOrder(
   expectedVersion: number | null | undefined,
   access: OrderWriteAccess,
 ) {
-  const parsed = validateOrder(candidate);
+  // Commercial validation needs the stored snapshot to distinguish preserved
+  // historical settings from newly introduced invalid data. It runs below.
+  const parsed = validateOrder(candidate, true);
   if (!parsed.ok) return error("INVALID_ORDER", parsed.message, 400);
 
   const { orderId, orderNo } = parsed;
@@ -185,7 +187,7 @@ async function upsertOrder(
   if(JSON.stringify(candidate?.googleSheet)!==JSON.stringify(previous?.googleSheet))return error("SHEET_LINK_PROTECTED","Google Sheet links are managed by the sheet connection workflow.",409);
   if(previous?.googleSheet){const people=(o:SeikoOrder)=>Object.entries(o.commerce?.people||{}).map(([id,p])=>[id,p.state,p.batch||"",p.readySize||""]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));if(JSON.stringify(candidate?.records)!==JSON.stringify(previous.records)||JSON.stringify(people(candidate as SeikoOrder))!==JSON.stringify(people(previous)))return error("SHEET_RECORDS_READ_ONLY","Person records are maintained in Google Sheets. Sync the sheet before saving other order changes.",409);}
   const now = new Date().toISOString();
-  if(candidate?.commerce||current&&JSON.parse(current.document_json).commerce){const commercialProblem=validateCommerce(candidate as unknown as SeikoOrder,current?JSON.parse(current.document_json):{...candidate,commerce:{rules:[],people:{},deliveries:[],issues:[]}} as unknown as SeikoOrder);if(commercialProblem)return error("INVALID_COMMERCIAL_DETAILS",commercialProblem,400);}
+  if(candidate?.commerce||current&&JSON.parse(current.document_json).commerce||Array.isArray((candidate as unknown as SeikoOrder)?.products)){const commercialProblem=validateCommerce(candidate as unknown as SeikoOrder,current?JSON.parse(current.document_json):{...candidate,commerce:{rules:[],people:{},deliveries:[],issues:[]}} as unknown as SeikoOrder);if(commercialProblem)return error("INVALID_COMMERCIAL_DETAILS",commercialProblem,400);}
   if(businessId==='seiko'&&candidate?.commerce?.fulfilment){
     const existingEvidence=new Map((previous?fulfilmentEvidence(previous):[]).map(e=>[e.id,JSON.stringify(e)]));
     for(const evidence of fulfilmentEvidence(candidate as SeikoOrder)){
@@ -351,7 +353,7 @@ async function mutateOrder(db: OrderDb, businessId: string, actor: { userId: str
   return Response.json({ ok: true, data: { order: document, version: changed.version, updatedAt: now, updatedBy: actor.email } });
 }
 
-function validateOrder(candidate: OrderLike | undefined): { ok: true; orderId: string; orderNo: string } | { ok: false; message: string } {
+function validateOrder(candidate: OrderLike | undefined, deferCommerce = false): { ok: true; orderId: string; orderNo: string } | { ok: false; message: string } {
   const orderId = typeof candidate?.orderId === "string" ? candidate.orderId.trim() : "";
   const orderNo = typeof candidate?.details?.orderNo === "string" ? candidate.details.orderNo.trim() : "";
   if (!orderId || orderId.length > 128) return { ok: false, message: "Order ID is missing or invalid." };
@@ -364,7 +366,7 @@ function validateOrder(candidate: OrderLike | undefined): { ok: true; orderId: s
   } catch {
     return { ok: false, message: "Order data is invalid." };
   }
-  if(candidate?.commerce||Array.isArray((candidate as unknown as SeikoOrder)?.products)){const problem=validateCommerce(candidate as unknown as SeikoOrder);if(problem)return {ok:false,message:problem};}
+  if(!deferCommerce&&(candidate?.commerce||Array.isArray((candidate as unknown as SeikoOrder)?.products))){const problem=validateCommerce(candidate as unknown as SeikoOrder);if(problem)return {ok:false,message:problem};}
   return { ok: true, orderId, orderNo };
 }
 

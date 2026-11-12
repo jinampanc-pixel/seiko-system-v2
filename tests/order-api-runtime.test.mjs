@@ -85,6 +85,13 @@ test('order commands enforce versions, business scope, owner deletion, financial
     assert.equal((await call({ operation: 'list' })).data.orders.length, 0);
     const audit = sqlite.prepare("SELECT snapshot_json FROM erp_audit_events WHERE entity_id = ? ORDER BY version DESC LIMIT 1").get(order.orderId);
     assert.equal(JSON.parse(audit.snapshot_json).deletedBy, 'owner@example.invalid');
+    const legacy={orderId:'legacy-setup',details:{orderNo:'LEGACY-002'},status:'Active',archived:false,fields:[],products:[{id:'shirt',name:'Shirt',quantityMode:'same_for_all',defaultQuantity:1,quantityGroupRules:[],specifications:[]}],records:[],measurements:[],commerce:{rules:[],people:{},deliveries:[],issues:[]}};
+    assert.equal((await call({operation:'upsert',order:legacy})).status,200);
+    legacy.commerce.people.old={state:'awaiting',reason:''};
+    sqlite.prepare('UPDATE erp_orders SET document_json=? WHERE id=?').run(JSON.stringify(legacy),legacy.orderId);
+    legacy.products[0].specifications.push({id:'logo',name:'Logo',role:'asset',mode:'same_for_all',defaultValue:'Awaiting file',groupRules:[],required:true,attachments:[]});
+    const updated=await call({operation:'upsert',order:legacy,expectedVersion:1});assert.equal(updated.status,200,JSON.stringify(updated));assert.deepEqual(updated.data.order.commerce.people,legacy.commerce.people);
+    legacy.commerce.people.old.reason='Rewritten';assert.equal((await call({operation:'upsert',order:legacy,expectedVersion:2})).code,'INVALID_COMMERCIAL_DETAILS');
   } finally { sqlite.close(); }
 });
 
