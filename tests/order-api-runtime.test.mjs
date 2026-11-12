@@ -86,6 +86,8 @@ test('order commands enforce versions, business scope, owner deletion, financial
     const audit = sqlite.prepare("SELECT snapshot_json FROM erp_audit_events WHERE entity_id = ? ORDER BY version DESC LIMIT 1").get(order.orderId);
     assert.equal(JSON.parse(audit.snapshot_json).deletedBy, 'owner@example.invalid');
     const legacy={orderId:'legacy-setup',details:{orderNo:'LEGACY-002'},status:'Active',archived:false,fields:[],products:[{id:'shirt',name:'Shirt',quantityMode:'same_for_all',defaultQuantity:1,quantityGroupRules:[],specifications:[]}],records:[],measurements:[],commerce:{rules:[],people:{},deliveries:[],issues:[]}};
+    const plain=structuredClone(legacy);plain.orderId='plain-setup';plain.details.orderNo='PLAIN-003';delete plain.commerce;
+    const plainResult=await call({operation:'upsert',order:plain});assert.equal(plainResult.status,200,JSON.stringify(plainResult));
     assert.equal((await call({operation:'upsert',order:legacy})).status,200);
     legacy.commerce.people.old={state:'awaiting',reason:''};
     sqlite.prepare('UPDATE erp_orders SET document_json=? WHERE id=?').run(JSON.stringify(legacy),legacy.orderId);
