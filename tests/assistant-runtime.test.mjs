@@ -22,6 +22,7 @@ function harness({ steps = [], active = true, permission = true, user = 'test-ow
   sqlite.exec('CREATE TABLE fixture_orders(id TEXT PRIMARY KEY, document_json TEXT)');
   sqlite.prepare('INSERT INTO fixture_orders VALUES(?,?)').run('test-order-0001',JSON.stringify(fixture()));
   const calls = { ai: 0, writes: 0, reads: 0 };
+  const scope = { permissions: ['orders.view'] };
   const db = { withSession() { return this; }, prepare(sql) { let values = []; const statement = sqlite.prepare(sql); return { bind(...args) { values = args; return this; }, async first() { return statement.get(...values) || null; }, async all() { return { results: statement.all(...values) }; }, async run() { return statement.run(...values); } }; } };
   const tools = {
     readAssistantTool: async (_ctx, tool) => { calls.reads++; return tool === 'memories' ? [] : { order: fixture(), version: 1 }; },
@@ -31,10 +32,10 @@ function harness({ steps = [], active = true, permission = true, user = 'test-ow
   const api = load('app/api/erp/assistant/route.ts', {
     'cloudflare:workers': { env: { DB: db, ASSISTANT_FREE_PLAN_CONFIRMED: active ? 'true' : 'false', AI: { async run() { calls.ai++; return { choices: [{ message: { content: JSON.stringify(steps.shift() || { kind:'answer',message:'Test answer' }) } }] }; } } } },
     '../../../lib/server-erp-auth': { authenticateActor: async () => user ? { userId: user, email:'test@example.invalid' } : null, authorizeBusiness: async () => permission ? { role:'owner' } : null },
-    '../../../lib/assistant-prompt': prompt, '../../../lib/assistant-domain': assistant, '../../../lib/server-assistant-tools': tools,
+    '../../../lib/access-control': { permissionsForRole: () => scope.permissions }, '../../../lib/assistant-prompt': prompt, '../../../lib/assistant-domain': assistant, '../../../lib/server-assistant-tools': tools,
   });
   const request = async (body, headers = {}) => { const response = await api.POST(new Request('https://test.invalid/api/erp/assistant', { method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify({businessId:'seiko',...body}) })); return { status:response.status, ...await response.json() }; };
-  return { sqlite, calls, request, tools };
+  return { sqlite, calls, request, tools, scope };
 }
 
 test('assistant draft preserves existing business data until explicit confirmation; duplicate confirmation executes once', async () => {
@@ -58,9 +59,16 @@ test('proposal ownership, cancellation, expiry and superseding prevent accidenta
   const p=await h.request({operation:'chat',message:'Remember my preference'});
   const command={operation:'confirm',conversationId:p.conversationId,proposalId:p.proposal.id};
   h.sqlite.prepare("UPDATE erp_assistant_proposals SET user_id='someone-else'").run();assert.equal((await h.request(command)).status,404);assert.equal(h.calls.writes,0);
-  h.sqlite.prepare("UPDATE erp_assistant_proposals SET user_id='test-owner-0001'").run();
+  h.sqlite.prepare("UPDATE erp_assistant_proposals SET user_id=?").run('test-owner-0001:["orders.view"]');
   await h.request({operation:'chat',conversationId:p.conversationId,message:'Actually, use another preference'});
   assert.equal((await h.request(command)).status,409);assert.equal(h.calls.writes,0);h.sqlite.close();
+});
+test('a changed permission set cannot replay a previous proposal or receipt', async () => {
+  const h=harness({steps:[{kind:'propose',tool:'remember',args:{content:'Test preference'},message:'Review'}]});
+  const p=await h.request({operation:'chat',message:'Remember this test preference'});
+  h.scope.permissions=[];
+  const result=await h.request({operation:'confirm',conversationId:p.conversationId,proposalId:p.proposal.id});
+  assert.equal(result.status,404);assert.equal(h.calls.writes,0);h.sqlite.close();
 });
 test('daily reservation is atomic and stops model calls at the configured cap', async () => {
   const h=harness();for(let i=0;i<8;i++)assert.equal((await h.request({operation:'chat',message:'Hello'})).ok,true);

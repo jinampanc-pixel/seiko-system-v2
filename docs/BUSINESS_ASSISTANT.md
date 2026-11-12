@@ -22,7 +22,7 @@ The registry is deliberately extensible. Unsupported actions are reported as uns
 
 ## Memory and privacy
 
-Conversation history, pending actions and explicitly approved preferences use new `erp_assistant_*` tables. Memory is private to the actor and business, inspectable and removable through review. It is not automatic model training. Only explicitly requested stable terminology/preferences should be saved. Changing facts must be reread from business records. Voice recognition uses the browser's speech service and microphone permission; text can be reviewed before submission. No mic starts on opening the panel.
+Conversation history, pending actions and explicitly approved preferences use new `erp_assistant_*` tables. Their owner key combines the actor ID with the current effective permission set, preventing old financial history/proposals/receipts from being reused after permissions change. Memory is private to that actor, permission scope and business, inspectable and removable through review. It is not automatic model training. Only explicitly requested stable terminology/preferences should be saved. Changing facts must be reread from business records. Voice recognition uses the browser's speech service and microphone permission; text can be reviewed before submission. No mic starts on opening the panel.
 
 ## Validation and rollout
 

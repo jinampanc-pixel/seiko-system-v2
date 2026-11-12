@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizeBusiness } from "../../../lib/server-erp-auth";
+import { permissionsForRole } from "../../../lib/access-control";
 import { assistantInstructions } from "../../../lib/assistant-prompt";
 import { ASSISTANT_CALL_RESERVATION, ASSISTANT_DAILY_BUDGET, ASSISTANT_MAX_INPUT_BYTES, ASSISTANT_MAX_OUTPUT_TOKENS, ASSISTANT_MODEL, parseAssistantStep } from "../../../lib/assistant-domain";
 import { executeAssistantAction, prepareAssistantAction, readAssistantTool, type PreparedAction } from "../../../lib/server-assistant-tools";
@@ -22,23 +23,27 @@ export async function POST(request: Request) {
     const actor = await authenticateActor(request);
     if (!actor) return json({ ok: false, message: "Sign in required." }, 401);
     const body = await readBody(request), business = String(body.businessId || "");
-    if (!/^[a-zA-Z0-9_-]{2,64}$/.test(business) || !await authorizeBusiness(actor, business)) return json({ ok: false, message: "Business access required." }, 403);
+    if (!/^[a-zA-Z0-9_-]{2,64}$/.test(business)) return json({ ok: false, message: "Business access required." }, 403);
+    const membership = await authorizeBusiness(actor, business);
+    if (!membership) return json({ ok: false, message: "Business access required." }, 403);
     const db = env.DB?.withSession("first-primary");
     if (!db) return json({ ok: false, message: "Shared storage is unavailable." }, 503);
-    const ctx = { request, business, userId: actor.userId };
+    // History, memory and receipts cannot carry finance or other restricted data across a role change.
+    const ownerKey = actor.userId + ":" + JSON.stringify([...permissionsForRole(membership.role, membership.permissions)].sort());
+    const ctx = { request, business, userId: ownerKey };
     const config = env as unknown as Configuration;
     if (body.operation === "status") return json({ ok: true, enabled: Boolean(config.AI && config.ASSISTANT_FREE_PLAN_CONFIRMED === "true"), message: config.ASSISTANT_FREE_PLAN_CONFIRMED === "true" ? "Changes always require your review." : "AI activation is waiting for verification of the free Cloudflare plan. Your business records are unaffected." });
     if (body.operation === "memories") return json({ ok: true, memories: await readAssistantTool(ctx, "memories", {}) });
     if (body.operation === "forget_proposal") {
       const conversationId = id(body.conversationId) ? body.conversationId : crypto.randomUUID();
       const prepared = await prepareAssistantAction(ctx, "forget", { id: body.memoryId }), proposalId = crypto.randomUUID();
-      await db.prepare("UPDATE erp_assistant_proposals SET state='superseded' WHERE business_id=? AND user_id=? AND conversation_id=? AND state='pending'").bind(business, actor.userId, conversationId).run();
-      await db.prepare("INSERT INTO erp_assistant_proposals(id,business_id,user_id,conversation_id,tool,payload,review,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(proposalId, business, actor.userId, conversationId, prepared.tool, JSON.stringify(prepared.payload), JSON.stringify(prepared.review), new Date().toISOString(), new Date(Date.now() + 30 * 60000).toISOString()).run();
+      await db.prepare("UPDATE erp_assistant_proposals SET state='superseded' WHERE business_id=? AND user_id=? AND conversation_id=? AND state='pending'").bind(business, ownerKey, conversationId).run();
+      await db.prepare("INSERT INTO erp_assistant_proposals(id,business_id,user_id,conversation_id,tool,payload,review,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(proposalId, business, ownerKey, conversationId, prepared.tool, JSON.stringify(prepared.payload), JSON.stringify(prepared.review), new Date().toISOString(), new Date(Date.now() + 30 * 60000).toISOString()).run();
       return json({ ok: true, conversationId, proposal: { id: proposalId, tool: prepared.tool, review: prepared.review } });
     }
     if (body.operation === "confirm" || body.operation === "cancel") {
       if (!id(body.proposalId) || !id(body.conversationId)) return json({ ok: false, message: "Choose a valid proposal." }, 400);
-      const row = await db.prepare("SELECT * FROM erp_assistant_proposals WHERE id=? AND business_id=? AND user_id=? AND conversation_id=?").bind(body.proposalId, business, actor.userId, body.conversationId).first<{ id: string; tool: string; payload: string; review: string; state: string; result: string; expires_at: string }>();
+      const row = await db.prepare("SELECT * FROM erp_assistant_proposals WHERE id=? AND business_id=? AND user_id=? AND conversation_id=?").bind(body.proposalId, business, ownerKey, body.conversationId).first<{ id: string; tool: string; payload: string; review: string; state: string; result: string; expires_at: string }>();
       if (!row) return json({ ok: false, message: "Proposal not found." }, 404);
       if (row.state === "done") return json({ ok: true, message: "This action was already saved.", receipt: JSON.parse(row.result) });
       if (row.state !== "pending" || row.expires_at < new Date().toISOString()) return json({ ok: false, message: "This proposal is no longer pending. Ask for a fresh review." }, 409);
@@ -66,8 +71,8 @@ export async function POST(request: Request) {
     const message = String(body.message || "").trim();
     if (!message || message.length > 16000) return json({ ok: false, message: "Enter a message up to 16,000 characters." }, 400);
     const conversationId = id(body.conversationId) ? body.conversationId : crypto.randomUUID();
-    await db.prepare("UPDATE erp_assistant_proposals SET state='superseded' WHERE business_id=? AND user_id=? AND conversation_id=? AND state='pending'").bind(business, actor.userId, conversationId).run();
-    const history = (await db.prepare("SELECT role,content FROM erp_assistant_messages WHERE business_id=? AND user_id=? AND conversation_id=? ORDER BY created_at DESC,id DESC LIMIT 12").bind(business, actor.userId, conversationId).all<{ role: string; content: string }>()).results.reverse();
+    await db.prepare("UPDATE erp_assistant_proposals SET state='superseded' WHERE business_id=? AND user_id=? AND conversation_id=? AND state='pending'").bind(business, ownerKey, conversationId).run();
+    const history = (await db.prepare("SELECT role,content FROM erp_assistant_messages WHERE business_id=? AND user_id=? AND conversation_id=? ORDER BY sequence DESC LIMIT 12").bind(business, ownerKey, conversationId).all<{ role: string; content: string }>()).results.reverse();
     await append("user", message, conversationId);
     const memories = await readAssistantTool(ctx, "memories", {});
     const context = { module: String((body.context as { module?: string })?.module || "").slice(0, 100), orderId: String((body.context as { orderId?: string })?.orderId || "").slice(0, 150) };
@@ -106,7 +111,7 @@ export async function POST(request: Request) {
       try {
         const prepared = await prepareAssistantAction(ctx, String(step.tool), args), proposalId = crypto.randomUUID();
         const reviewMessage = String(step.message || "Please review these proposed changes.");
-        await db.prepare("INSERT INTO erp_assistant_proposals(id,business_id,user_id,conversation_id,tool,payload,review,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(proposalId, business, actor.userId, conversationId, prepared.tool, JSON.stringify(prepared.payload), JSON.stringify(prepared.review), new Date().toISOString(), new Date(Date.now() + 30 * 60000).toISOString()).run();
+        await db.prepare("INSERT INTO erp_assistant_proposals(id,business_id,user_id,conversation_id,tool,payload,review,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(proposalId, business, ownerKey, conversationId, prepared.tool, JSON.stringify(prepared.payload), JSON.stringify(prepared.review), new Date().toISOString(), new Date(Date.now() + 30 * 60000).toISOString()).run();
         await append("assistant", "UNSAVED PROPOSAL: " + reviewMessage + "\n" + JSON.stringify({ tool: prepared.tool, review: prepared.review }), conversationId);
         return json({ ok: true, conversationId, message: reviewMessage, proposal: { id: proposalId, tool: prepared.tool, review: prepared.review }, sources });
       } catch (error) {
@@ -116,7 +121,7 @@ export async function POST(request: Request) {
     return json({ ok: false, conversationId, message: "I need more detail to complete that accurately. Please narrow the request; no business changes were saved.", sources }, 422);
 
     async function append(role: string, content: string, conversationId: string) {
-      await db!.prepare("INSERT INTO erp_assistant_messages(id,business_id,user_id,conversation_id,role,content,created_at) VALUES(?,?,?,?,?,?,?)").bind(crypto.randomUUID(), business, actor!.userId, conversationId, role, content, new Date().toISOString()).run();
+      await db!.prepare("INSERT INTO erp_assistant_messages(id,business_id,user_id,conversation_id,role,content,created_at) VALUES(?,?,?,?,?,?,?)").bind(crypto.randomUUID(), business, ownerKey, conversationId, role, content, new Date().toISOString()).run();
     }
   } catch (error) {
     return json({ ok: false, message: "The assistant could not complete this request. " + ((error as Error).message || "Retry when connected.") }, 503);
