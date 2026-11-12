@@ -16,7 +16,8 @@ function object(value: unknown): value is Record<string, unknown> {
 export function parseAssistantStep(raw: unknown): Record<string, unknown> {
   if (typeof raw !== "string" || raw.length > 100000) throw new Error("The assistant returned an incomplete response. Please retry.");
   const text = raw.replace(/<think>[\s\S]*?<\/think>/g, "").trim().replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
-  const step: unknown = JSON.parse(text);
+  let step: unknown;
+  try { step = JSON.parse(text); } catch { throw new Error("The assistant's draft was incomplete. Nothing was saved. Please retry with a smaller set of changes."); }
   if (!object(step) || !["answer", "read", "propose"].includes(String(step.kind))) throw new Error("The assistant could not form a valid action. Nothing was changed.");
   return step;
 }

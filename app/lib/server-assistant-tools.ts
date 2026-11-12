@@ -7,7 +7,8 @@ import { POST as billing } from "../api/erp/billing/route";
 import { POST as billingReview } from "../api/erp/order-billing/route";
 import { POST as trace } from "../api/seiko/route";
 import { authenticateActor, authorizePermission } from "./server-erp-auth";
-import { assistantOrderExample } from "./assistant-prompt";
+import { assistantOrderExample, compactOrderPlanExample } from "./assistant-prompt";
+import { compileAssistantOrderPlan } from "./assistant-order-plan";
 import { assistantOrderReview, assertAssistantOrder, patchAssistantOrder, type AssistantPatch } from "./assistant-domain";
 import { ORDER_STATUSES, saveRevision, type SeikoOrder } from "./order-domain";
 import { documentTotals, invoiceOutstanding, roundMoney, type SeikoCommercialDocument, type SeikoPaymentRecord } from "./seiko-billing";
@@ -61,7 +62,7 @@ export async function readAssistantTool(ctx: ToolContext, tool: string, args: Ar
     const actor = await authenticateActor(ctx.request);
     if (!actor || !await authorizePermission(actor, ctx.business, "orders.view")) throw new Error("Order-view permission required.");
     const options = await env.DB!.prepare("SELECT key,value_json FROM erp_preferences WHERE business_id=? AND key IN ('order-suggestions-v1','business-library-v1')").bind(ctx.business).all();
-    return { example: assistantOrderExample, options: options.results };
+    return { compactPlanExample: compactOrderPlanExample, schemaNotes: assistantOrderExample.schemaNotes, options: options.results };
   }
   if (tool === "memories") return (await env.DB!.prepare("SELECT id,content FROM erp_assistant_memories WHERE business_id=? AND user_id=? ORDER BY created_at LIMIT 50").bind(ctx.business, ctx.userId).all()).results;
   throw new Error("That business lookup is not connected yet.");
@@ -72,7 +73,7 @@ export async function prepareAssistantAction(ctx: ToolContext, tool: string, arg
   if (!actor) throw new Error("Sign in required.");
   if (tool === "create_order") {
     if (!await authorizePermission(actor, ctx.business, "orders.create")) throw new Error("Order creation permission required.");
-    const input = args.order as SeikoOrder;
+    const input = args.plan ? compileAssistantOrderPlan(args.plan) : args.order as SeikoOrder;
     if (!input || input.records?.length || input.googleSheet || input.products?.some(p => p.specifications?.some(s => s.attachments?.length)) || input.commerce?.deliveries?.length || input.commerce?.issues?.length || Object.keys(input.commerce?.people || {}).length) throw new Error("New orders must start with an empty person workspace and no fulfilment records or attachments.");
     const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
     const seq = await env.DB!.prepare("SELECT MAX(CAST(substr(order_no,9) AS INTEGER)) AS n FROM erp_orders WHERE business_id=?").bind(ctx.business).first<{ n: number }>();

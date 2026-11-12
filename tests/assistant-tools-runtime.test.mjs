@@ -15,7 +15,7 @@ test('real edit tool proposes from authoritative order and preserves its version
   const stub={POST:async()=>Response.json({ok:true})};
   const tools=load('app/lib/server-assistant-tools.ts',{
     'cloudflare:workers':{env:{}},'../api/erp/orders/route':orders,'../api/erp/search/route':stub,'../api/erp/people/route':stub,'../api/erp/production/route':stub,'../api/erp/billing/route':stub,'../api/erp/order-billing/route':stub,'../api/seiko/route':stub,
-    './server-erp-auth':{authenticateActor:async()=>({userId:'owner'}),authorizePermission:async()=>({role:'owner'})},'./assistant-prompt':prompt,'./assistant-domain':assistant,'./order-domain':domain,'./seiko-billing':{},
+    './server-erp-auth':{authenticateActor:async()=>({userId:'owner'}),authorizePermission:async()=>({role:'owner'})},'./assistant-prompt':prompt,'./assistant-order-plan':load('app/lib/assistant-order-plan.ts'),'./assistant-domain':assistant,'./order-domain':domain,'./seiko-billing':{},
   });
   const ctx={request:new Request('https://test.invalid'),business:'seiko',userId:'owner'};
   const prepared=await tools.prepareAssistantAction(ctx,'edit_order',{orderId:order.orderId,patches:[{path:'/products/0/specifications/0/defaultValue',value:'Navy blue'}]});
