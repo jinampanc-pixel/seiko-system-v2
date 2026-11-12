@@ -101,17 +101,32 @@ export async function prepareAssistantAction(ctx: ToolContext, tool: string, arg
     assertAssistantOrder(order);
     return { tool, payload: { order: saveRevision(order, "Created through reviewed assistant proposal"), expectedVersion: null }, review: assistantOrderReview(order) };
   }
-  if (tool === "edit_order" || tool === "order_status") {
+  if (tool === "edit_order" || tool === "add_order_specifications" || tool === "order_status") {
     if (!await authorizePermission(actor, ctx.business, "orders.edit")) throw new Error("Order editing permission required.");
     const row = await currentOrder(ctx, args.orderId);
     if (tool === "order_status") {
       if (!(ORDER_STATUSES as readonly unknown[]).includes(args.status)) throw new Error("Choose a valid order status.");
       return { tool, payload: { orderId: row.order.orderId, status: args.status, expectedVersion: row.version }, review: { orderNo: row.order.details.orderNo, client: row.order.details.clientName, previousStatus: row.order.status, newStatus: args.status } };
     }
-    const order = patchAssistantOrder(row.order, args.patches as AssistantPatch[]);
+    let patches = args.patches as AssistantPatch[];
+    if (tool === "add_order_specifications") {
+      const matches = row.order.products.map((p, index) => ({ p, index })).filter(({ p }) => p.id === args.productId || p.name.toLocaleLowerCase() === String(args.productName || "").trim().toLocaleLowerCase());
+      if (matches.length !== 1) throw new Error("Choose one exact garment from the saved setup.");
+      if (!Array.isArray(args.specifications) || !args.specifications.length || args.specifications.length > 20) throw new Error("Supply up to 20 named specifications.");
+      const { p, index } = matches[0], names = new Set(p.specifications.map(s => s.name.trim().toLocaleLowerCase()));
+      const additions = args.specifications.map(s => {
+        if (!s || typeof s.name !== "string" || !s.name.trim() || s.name.length > 150 || typeof s.value !== "string" || !s.value.trim() || s.value.length > 2000 || !["colour", "pattern", "attribute", "asset"].includes(s.role || "attribute")) throw new Error("Each added specification needs a name, value and valid role.");
+        const key = s.name.trim().toLocaleLowerCase();
+        if (names.has(key)) throw new Error("That specification already exists. Compare its saved value before proposing a replacement.");
+        names.add(key);
+        return { id: crypto.randomUUID(), name: s.name.trim(), defaultValue: s.value.trim(), role: s.role || "attribute", mode: "same_for_all", required: s.required !== false, groupRules: [], attachments: [] };
+      });
+      patches = [{ path: `/products/${index}/specifications`, value: [...p.specifications, ...additions] }];
+    }
+    const order = patchAssistantOrder(row.order, patches);
     if (JSON.stringify(order.commerce?.rules) !== JSON.stringify(row.order.commerce?.rules) && !await authorizePermission(actor, ctx.business, "billing.invoices.manage")) throw new Error("Pricing-management permission required.");
     const visibleOrder = ctx.business === "seiko" && !await authorizePermission(actor, ctx.business, "financials.view") ? redactCommercialPrices(order) : order;
-    return { tool, payload: { order: saveRevision(order, "Updated through reviewed assistant proposal"), expectedVersion: row.version }, review: { orderNo: order.details.orderNo, client: order.details.clientName, changes: (args.patches as AssistantPatch[]).map(p => ({ ...p })), resultingOrder: assistantOrderReview(visibleOrder) } };
+    return { tool: "edit_order", payload: { order: saveRevision(order, "Updated through reviewed assistant proposal"), expectedVersion: row.version }, review: { orderNo: order.details.orderNo, client: order.details.clientName, changes: patches.map(p => ({ ...p })), resultingOrder: assistantOrderReview(visibleOrder) } };
   }
   if (tool === "production_action") {
     if (!await authorizePermission(actor, ctx.business, "production.manage")) throw new Error("Production management permission required.");

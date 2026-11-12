@@ -25,6 +25,12 @@ test('real edit tool proposes from authoritative order and preserves its version
   assert.match(setup.note,/No fresh Google Sheets/);
   const found=await tools.readAssistantTool(ctx,'search',{query:'Example Academy, Fictional Village'});
   assert.equal(found.related.length,1);assert.equal(found.related[0].id,'candidate');assert.ok(searched.includes('Example'));assert.match(found.note,/candidates/);
+  const added=await tools.prepareAssistantAction(ctx,'add_order_specifications',{orderId:order.orderId,productName:'Shirt',specifications:[{name:'Logo',value:'Required; artwork awaiting confirmation',role:'asset'},{name:'Logo status',value:'Awaiting design',role:'attribute'}]});
+  assert.equal(added.tool,'edit_order');assert.equal(added.payload.expectedVersion,7);
+  assert.deepEqual(JSON.parse(JSON.stringify(added.payload.order.products[0].specifications[0])),order.products[0].specifications[0]);
+  assert.equal(added.payload.order.products[0].specifications.length,3);assert.equal(added.payload.order.products[0].specifications[1].required,true);
+  assert.equal(added.payload.order.records[0].personId,'P-0001');assert.equal(JSON.stringify(order),original);
+  await assert.rejects(()=>tools.prepareAssistantAction(ctx,'add_order_specifications',{orderId:order.orderId,productName:'Shirt',specifications:[{name:'Body colour',value:'Changed'}]}),/already exists/);
   const prepared=await tools.prepareAssistantAction(ctx,'edit_order',{orderId:order.orderId,patches:[{path:'/products/0/specifications/0/defaultValue',value:'Navy blue'}]});
   assert.equal(writes,0);assert.equal(JSON.stringify(order),original);assert.equal(prepared.payload.expectedVersion,7);assert.equal(prepared.payload.order.records[0].values['field:f-name'],'TEST PERSON');
   await assert.rejects(()=>tools.executeAssistantAction(ctx,prepared),/changed on another device/);assert.equal(writes,1);assert.equal(JSON.stringify(order),original);
