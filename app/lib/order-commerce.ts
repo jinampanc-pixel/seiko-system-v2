@@ -126,7 +126,17 @@ export function validateCommerce(order:SeikoOrder, previous?:SeikoOrder):string 
   if(!Array.isArray(c.rules)||!Array.isArray(c.deliveries)||!Array.isArray(c.issues)||!c.people||typeof c.people!=="object")return "Invalid order commercial details.";
   if(c.rules.length>100||c.deliveries.length>10000||c.issues.length>3000)return "Commercial record limit reached.";
   if(new Set(c.rules.map(r=>r.id)).size!==c.rules.length||c.rules.some(r=>!r.id||!r.name?.trim()||!["package","product","fixed"].includes(r.mode)||!Number.isFinite(r.rate)||r.rate<0||r.rate>1e9||cents(r.rate)!==r.rate||!Number.isFinite(r.taxRate)||r.taxRate<0||r.taxRate>100||!Array.isArray(r.contents)||(r.mode!=="fixed"&&!r.contents.length)||new Set(r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])])).size!==r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])]).length||r.mode==="product"&&r.contents.length!==1||r.contents.some(x=>![x.productId,...(x.alternatives||[])].every(id=>order.products.some(p=>p.id===id))||!Number.isInteger(x.quantity)||x.quantity<=0)||(!r.conditions?.length&&r.fieldId&&(!order.fields.some(f=>f.id===r.fieldId)||!r.match?.trim()))))return "Complete every price rule, product, group and rate.";
-  for(const [id,p] of Object.entries(c.people)){if(!order.records.some(r=>r.recordId===id)||!["active","awaiting","hold","cancelled"].includes(p.state)||p.state!=="active"&&!p.reason?.trim()||p.overrideReason!==undefined&&!p.overrideReason.trim()||Object.values(p.rateOverrides||{}).some(n=>!Number.isFinite(n)||n<0||n>1e9||cents(n)!==n))return "Use valid person states, prices and reasons.";}
+  for(const [id,p] of Object.entries(c.people)){
+    const record=order.records.find(r=>r.recordId===id),label=record?.personId||id;
+    if(!record)return `Person settings ${label} no longer match a student row. Restore the matching row before saving.`;
+    if(!p||!["active","awaiting","hold","cancelled"].includes(p.state))return `Choose a valid state for person ${label}.`;
+    // Sheets supplies Awaiting without a reason. It remains ineligible regardless
+    // of reason; only a hold/cancellation requires a separate explanation.
+    if(["hold","cancelled"].includes(p.state)&&(typeof p.reason!=="string"||!p.reason.trim()))return `Record the ${p.state} reason for person ${label}.`;
+    // An empty optional override is unset, never permission to bill.
+    if(p.overrideReason!==undefined&&typeof p.overrideReason!=="string")return `Use a text billing override reason for person ${label}.`;
+    if(Object.values(p.rateOverrides||{}).some(n=>!Number.isFinite(n)||n<0||n>1e9||cents(n)!==n))return `Use valid nonnegative prices with at most two decimal places for person ${label}.`;
+  }
   const fulfilmentProblem=validateFulfilment(order,previous);if(fulfilmentProblem)return fulfilmentProblem;
   const old=previous?.commerce;
   if(old&&[...old.deliveries,...old.issues].some(x=>x.recordId!=="order"&&!order.records.some(r=>r.recordId===x.recordId)))return "Preserve people with delivery or query history. Cancel them in People & eligibility instead of deleting their row.";
