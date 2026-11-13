@@ -3,11 +3,30 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import * as jsxRuntime from 'react/jsx-runtime';
 const load=(path,imports={})=>{const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:n=>{assert.ok(imports[n],n);return imports[n];},crypto,structuredClone,Response,Request,Headers,Intl});return exports;};
 const statuses=load('app/lib/order-statuses.ts');
 const domain=load('app/lib/order-domain.ts',{'./order-statuses':statuses});
 const assistant=load('app/lib/assistant-domain.ts',{'./order-domain':domain});
 const prompt=load('app/lib/assistant-prompt.ts');
+
+test('proposal review displays nested recipient conditions before confirmation',()=>{
+  const exports={};
+  const compiled=ts.transpileModule(fs.readFileSync('app/assistant-review.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+  vm.runInNewContext(compiled,{exports,require:name=>{assert.equal(name,'react/jsx-runtime');return jsxRuntime;}});
+  const order={...structuredClone(prompt.assistantOrderExample),orderId:'review-test',records:[],fields:[{id:'class',name:'Class / Section'},{id:'gender',name:'Gender'}]};
+  order.products[0].specifications[0].groupRules=[{conditionMode:'all',conditions:[{fieldId:order.fields[0].id,match:'11,12'},{fieldId:order.fields[1].id,match:'Male'}],value:'Blue Milange'}];
+  const html=renderToStaticMarkup(createElement(exports.AssistantReview,{value:{resultingOrder:assistant.assistantOrderReview(order)}}));
+  assert.ok(html.includes(`${order.fields[0].name}: 11,12`));
+  assert.ok(html.includes(`${order.fields[1].name}: Male`));
+  assert.match(html,/Blue Milange/);
+  assert.doesNotMatch(html,/Expand the order/);
+  // The generic depth guard still applies to unrelated oversized payloads.
+  const guarded=renderToStaticMarkup(createElement(exports.AssistantReview,{value:{nested:{}},depth:9}));
+  assert.match(guarded,/Expand the order/);
+});
 test('real edit tool proposes from authoritative order and preserves its version and untouched data',async()=>{
   const order={...structuredClone(prompt.assistantOrderExample),orderId:'test-existing-order',status:'Draft',archived:false,details:{...prompt.assistantOrderExample.details,clientName:'TEST CLIENT',contactNumber:'0000000000',orderNo:'2099-01-001',attnRequired:false},updatedAt:'2099-01-01',records:[{recordId:'r1',personId:'P-0001',values:{'field:f-name':'TEST PERSON'}}]};
   order.products[0].specifications[0].groupRules=[{match:'misleading old label',conditions:[{fieldId:'f-name',match:'actual group'}],conditionMode:'all',value:'Blue'}];

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAccess } from "./access-control";
 import { acceptSharedOrder, type OrderEnvelope } from "./lib/order-commands";
+import { AssistantReview as Review } from "./assistant-review";
 
 type Proposal = { id: string; tool: string; review: unknown };
 type Entry = { role: "user" | "assistant"; text: string; sources?: { tool: string; data: unknown; checkedAt: string }[] };
@@ -99,12 +100,4 @@ export function BusinessAssistant({ businessId, module, orderId, onOpenOrder }: 
       <form onSubmit={send}><label htmlFor="assistantMessage">Your request</label><textarea id="assistantMessage" ref={field} value={input} onChange={event => setInput(event.target.value)} maxLength={16000} rows={3} placeholder="Speak or type in your own language…"/><div className="assistantCompose"><select aria-label="Voice language" value={language} disabled={listening} onChange={event => setLanguage(event.target.value)}><option value="gu-IN">ગુજરાતી</option><option value="hi-IN">हिन्दी</option><option value="en-IN">English</option></select><button type="button" disabled={busy} aria-pressed={listening} onClick={microphone}>{listening ? "Stop mic" : "Microphone"}</button><button disabled={busy || !enabled || !input.trim()} type="submit">Send</button></div></form>
     </section>}
   </>;
-}
-
-function Review({ value, depth = 0 }: { value: unknown; depth?: number }) {
-  if (value === null || value === undefined || value === "") return <span>—</span>;
-  if (typeof value !== "object") return <span>{String(value)}</span>;
-  if (depth > 8) return <span>Expand the order in Seiko for further detail.</span>;
-  if (Array.isArray(value)) return value.length ? <ul>{value.map((item, index) => <li key={index}><Review value={item} depth={depth + 1}/></li>)}</ul> : <span>None</span>;
-  return <dl>{Object.entries(value).map(([key, item]) => <div key={key}><dt>{key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, s => s.toUpperCase())}</dt><dd><Review value={item} depth={depth + 1}/></dd></div>)}</dl>;
 }
