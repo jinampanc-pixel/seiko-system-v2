@@ -138,7 +138,7 @@ test('acknowledged orders survive quota failure without evicting drafts or losin
   const globals = { localStorage: storage, window: { dispatchEvent: event => events.push(event.type) }, CustomEvent: class { constructor(type) { this.type = type; } } };
   const domain = { orderStoreKey: business => `jinam:${business}:orders-v1`, normalizeProductMeasurements: order => order };
   const cache = load('app/lib/order-cache.ts', { './order-domain': domain }, globals);
-  const commands = load('app/lib/order-commands.ts', { './order-domain': domain, './order-cache': cache }, {
+  const commands = load('app/lib/order-commands.ts', { './order-domain': domain, './order-cache': cache, './order-setup-save': load('app/lib/order-setup-save.ts') }, {
     ...globals, fetch: async () => Response.json({ok:true, data:{order:{orderId:'saved',records:[{name:'persisted'}]},version:2}}),
   });
   commands.orderVersions('seiko').set('saved', 1);
@@ -176,6 +176,7 @@ test('a newer poll version cannot authorize overwriting an older workspace revis
   const commands = load('app/lib/order-commands.ts', {
     './order-domain': {normalizeProductMeasurements: order => order},
     './order-cache': {readOrderCache: () => [], writeOrderCache: () => {}},
+    './order-setup-save': load('app/lib/order-setup-save.ts'),
   }, {fetch: async (_url, options) => {
     const body = JSON.parse(options.body); operations.push(body.operation);
     return Response.json({ok:true,data:{orders:[{order:{orderId:'one',updatedAt:'newer-server-revision',records:[{name:'retained'}]},version:8}]}});
@@ -183,6 +184,48 @@ test('a newer poll version cannot authorize overwriting an older workspace revis
   commands.orderVersions('seiko').set('one', 8);
   await assert.rejects(commands.saveSharedOrder('seiko', {orderId:'one',records:[]}, 'older-workspace-revision'), /changed in another window or device/);
   assert.equal(operations.join(','), 'list');
+});
+
+test('setup save reads a snapshot and rebases only edited setup sections onto current people and history', async () => {
+  const base={orderId:'setup',details:{orderNo:'TEST-SETUP'},fields:[],products:[{id:'shirt',colour:'Blue'}],measurements:[],records:[{recordId:'old-person'}],updatedAt:'old',revisions:[],commerce:{rules:[{rate:300}],people:{},deliveries:[],issues:[]}};
+  const draft=structuredClone(base);draft.products[0].colour='Peach';draft.commerce.rules[0].rate=320;
+  const latest=structuredClone(base);latest.updatedAt='new';latest.records.push({recordId:'sheet-person'});latest.commerce.people['sheet-person']={state:'awaiting'};latest.revisions.push({revision:1,reason:'Sheets sync'});latest.status='Production';
+  const operations=[];let payload;
+  const commands=load('app/lib/order-commands.ts',{
+    './order-domain':{normalizeProductMeasurements:o=>o},
+    './order-cache':{readOrderCache:()=>[],writeOrderCache:()=>{}},
+    './order-setup-save':load('app/lib/order-setup-save.ts'),
+  },{window:{dispatchEvent(){}},CustomEvent:class{},fetch:async(_url,options)=>{
+    const body=JSON.parse(options.body);operations.push(body.operation);
+    if(body.operation==='snapshot')return Response.json({ok:true,data:{orders:[{order:latest,version:9}]}});
+    payload=body;return Response.json({ok:true,data:{order:body.order,version:10}});
+  }});
+  const saved=await commands.saveSharedOrderSetup('seiko',draft,base);
+  assert.equal(operations.join(','),'snapshot,upsert');assert.equal(payload.expectedVersion,9);
+  assert.equal(saved.products[0].colour,'Peach');assert.equal(saved.commerce.rules[0].rate,320);
+  assert.equal(saved.records.length,2);assert.equal(saved.commerce.people['sheet-person'].state,'awaiting');assert.equal(saved.status,'Production');
+  assert.equal(saved.revisions[0].reason,'Sheets sync');assert.equal(saved.revisions.at(-1).reason,'Order definition updated');
+  const conflicting=structuredClone(latest);conflicting.products[0].colour='Red';
+  const merge=load('app/lib/order-setup-save.ts').mergeOrderSetup;
+  assert.throws(()=>merge(base,draft,conflicting),/products changed/);
+  const differentPrice=structuredClone(latest);differentPrice.commerce.rules[0].rate=350;
+  assert.throws(()=>merge(base,draft,differentPrice),/pricing changed/);
+  const priceOnly=structuredClone(base);priceOnly.commerce.rules[0].rate=320;
+  assert.equal(merge(base,priceOnly,conflicting).products[0].colour,'Red');
+});
+
+test('saved-order snapshots do not sync Sheets or mutate the version, and still require view permission', async () => {
+  const order={orderId:'sheet-order',googleSheet:{id:'linked-sheet'},records:[],updatedAt:'saved-time'};
+  let allowed=true;
+  const db={withSession(){return this;},prepare(sql){assert.match(sql,/SELECT id, document_json/);return {bind(){return this;},async all(){return {results:[{document_json:JSON.stringify(order),version:7,updated_at:'saved-time',updated_by_email:'test@example.invalid'}]};}};}};
+  const api=load('app/api/erp/orders/route.ts',{
+    'cloudflare:workers':{env:{DB:db}},'../../../lib/order-statuses':load('app/lib/order-statuses.ts'),
+    '../../../lib/server-erp-auth':{authenticateActor:async()=>({userId:'test'}),authorizePermission:async()=>allowed?{role:'owner'}:null},
+  });
+  const request=()=>api.POST(new Request('https://test.invalid/api/erp/orders',{method:'POST',body:JSON.stringify({operation:'snapshot',businessId:'seiko',orderIds:['sheet-order']})}));
+  const response=await request();assert.equal(response.status,200);
+  const data=await response.json();assert.equal(data.data.orders[0].version,7);assert.equal(data.data.orders[0].order.updatedAt,'saved-time');
+  allowed=false;assert.equal((await request()).status,403);
 });
 
 test('1,000 orders: bounded pages, targeted reads and permission boundaries retain every record', async t => {

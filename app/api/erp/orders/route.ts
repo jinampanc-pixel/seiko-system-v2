@@ -17,7 +17,7 @@ type OrderLike = {
 };
 
 type RequestBody = {
-  operation?: "list" | "versions" | "upsert" | "import-local" | "audit" | "status" | "archive" | "delete";
+  operation?: "list" | "snapshot" | "versions" | "upsert" | "import-local" | "audit" | "status" | "archive" | "delete";
   businessId?: string;
   order?: OrderLike;
   orders?: OrderLike[];
@@ -79,12 +79,12 @@ export async function POST(request: Request) {
       );
     }
 
-    if (operation === "list") {
+    if (operation === "list" || operation === "snapshot") {
       if (!await authorizePermission(actor, businessId, "orders.view")) return forbidden();
       if (body.orderIds !== undefined && (!Array.isArray(body.orderIds) || body.orderIds.length > 25 || body.orderIds.some(id => typeof id !== "string" || !id || id.length > 200))) return error("INVALID_ORDER_IDS", "Select up to 25 orders.", 400);
       if (body.limit !== undefined && (!Number.isInteger(body.limit) || body.limit < 1 || body.limit > 25)) return error("INVALID_PAGE", "Choose a page size from 1 to 25.", 400);
       if (body.afterId !== undefined && (typeof body.afterId !== "string" || body.afterId.length > 200 || body.limit === undefined)) return error("INVALID_PAGE", "Choose a valid order page.", 400);
-      if(businessId==="seiko"&&body.orderIds?.length){for(const id of body.orderIds){const row=await db.prepare("SELECT document_json FROM erp_orders WHERE id=? AND business_id='seiko'").bind(id).first<{document_json:string}>();if(row&&JSON.parse(row.document_json).googleSheet){try{await (await import("../../../lib/server-order-sheets")).syncOrderSheet(db,actor,id,false);}catch(e){return error("GOOGLE_SHEET_SYNC_REQUIRED",(e as Error).message,409);}}}}
+      if(operation==="list"&&businessId==="seiko"&&body.orderIds?.length){for(const id of body.orderIds){const row=await db.prepare("SELECT document_json FROM erp_orders WHERE id=? AND business_id='seiko'").bind(id).first<{document_json:string}>();if(row&&JSON.parse(row.document_json).googleSheet){try{await (await import("../../../lib/server-order-sheets")).syncOrderSheet(db,actor,id,false);}catch(e){return error("GOOGLE_SHEET_SYNC_REQUIRED",(e as Error).message,409);}}}}
       return visible(await listOrders(db, businessId, body));
     }
     if (operation === "versions") {

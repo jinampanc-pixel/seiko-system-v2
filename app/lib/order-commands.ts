@@ -1,5 +1,6 @@
 import { normalizeProductMeasurements, type OrderStatus, type SeikoOrder } from "./order-domain";
 import { readOrderCache, writeOrderCache } from "./order-cache";
+import { mergeOrderSetup } from "./order-setup-save";
 
 export type OrderEnvelope = { order: SeikoOrder; version: number; updatedAt: string; updatedBy: string };
 type Result<T> = { ok: true; data: T } | { ok: false; code: string; message: string; data?: unknown };
@@ -69,6 +70,20 @@ export async function saveSharedOrder(businessId: string, order: SeikoOrder, bas
     expectedVersion = existing.version;
   } else expectedVersion = await versionFor(businessId, order.orderId);
   const result = await requestOrders<OrderEnvelope>({ operation: "upsert", businessId, order: normalizeProductMeasurements(order), expectedVersion });
+  if (!result.ok) throw new Error(result.message);
+  return acceptSharedOrder(businessId, result.data);
+}
+
+export async function saveSharedOrderSetup(businessId: string, draft: SeikoOrder, base: SeikoOrder) {
+  // Reading saved setup must not run a Google sync or mutate its own revision.
+  const listed = await requestOrders<{ orders: OrderEnvelope[] }>({ operation: "snapshot", businessId, orderIds: [draft.orderId] });
+  if (!listed.ok) throw new Error(listed.message);
+  const latest = listed.data.orders.find(item => item.order.orderId === draft.orderId);
+  if (!latest) throw new Error("This order is no longer available. Your changes remain open.");
+  const merged = mergeOrderSetup(base, draft, latest.order);
+  const now = new Date().toISOString();
+  const order = { ...merged, updatedAt: now, revisions: [...(merged.revisions || []), { revision: (merged.revisions?.length || 0) + 1, at: now, reason: "Order definition updated", recordCount: merged.records.length }] };
+  const result = await requestOrders<OrderEnvelope>({ operation: "upsert", businessId, order, expectedVersion: latest.version });
   if (!result.ok) throw new Error(result.message);
   return acceptSharedOrder(businessId, result.data);
 }
