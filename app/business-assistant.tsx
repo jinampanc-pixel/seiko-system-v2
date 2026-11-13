@@ -32,7 +32,7 @@ export function BusinessAssistant({ businessId, module, orderId, onOpenOrder }: 
   async function show() {
     setOpen(true);
     try { const result = await request({ operation: "status" }); setEnabled(Boolean(result.enabled)); setNotice(result.message || ""); }
-    catch { setNotice("Assistant connection is unavailable. Your app remains available."); }
+    catch { setNotice("Jinam is temporarily unavailable. Your app remains available."); }
   }
   async function send(event: FormEvent) {
     event.preventDefault(); if (!input.trim() || busy || !enabled) return;
@@ -84,14 +84,14 @@ export function BusinessAssistant({ businessId, module, orderId, onOpenOrder }: 
   }
   if (!session) return null;
   return <>
-    {!open && <button className="assistantLauncher" onClick={show} aria-label="Open business assistant">✦ Assistant</button>}
-    {open && <section className="businessAssistant" role="dialog" aria-modal="false" aria-label="Business assistant">
-      <header><div><strong>Seiko assistant</strong><small>{orderId ? "Using the open order as context" : "Your business, in your words"}</small></div><button aria-label="Close assistant" onClick={() => { recognition.current?.abort(); setOpen(false); }}>×</button></header>
+    {!open && <button className="assistantLauncher" onClick={show} aria-label="Open Jinam assistant">✦ Jinam</button>}
+    {open && <section className="businessAssistant" role="dialog" aria-modal="false" aria-label="Jinam assistant">
+      <header><div><strong>Jinam</strong><small>{orderId ? "Using the open order as context" : "Your business, in your words"}</small></div><button aria-label="Close Jinam assistant" onClick={() => { recognition.current?.abort(); setOpen(false); }}>×</button></header>
       <div className="assistantToolbar"><button disabled={busy} onClick={() => { setEntries([]); setConversationId(""); setProposal(null); setSavedOrder(null); setNotice("New conversation. Existing business records are unchanged."); }}>New conversation</button><button disabled={busy} onClick={showMemories}>Memory</button></div>
       {memoryOpen && <section className="assistantMemories" aria-label="Approved business memories"><p>Preferences and terminology you approved for your account in this business.</p>{memories.length ? memories.map(memory => <div key={memory.id}><p>{memory.content}</p><button disabled={busy} onClick={() => forget(memory.id)}>Review removal</button></div>) : <p>No saved memories.</p>}</section>}
       <div className="assistantConversation" aria-live="polite" aria-busy={busy}>
         {!entries.length && <p>Tell me what you need. I can look up business records, prepare orders and changes, and remember preferences you approve.</p>}
-        {entries.map((entry, index) => <article className={`assistantEntry ${entry.role}`} key={index}><small>{entry.role === "user" ? "You" : "Assistant"}</small><p>{entry.text}</p>{Boolean(entry.sources?.length) && <details><summary>Details checked ({entry.sources!.length})</summary>{entry.sources!.map((source, i) => <div key={i}><small>{source.tool} · {new Date(source.checkedAt).toLocaleString()}</small><Review value={source.data}/></div>)}</details>}</article>)}
+        {entries.map((entry, index) => <article className={`assistantEntry ${entry.role}`} key={index}><small>{entry.role === "user" ? "You" : "Jinam"}</small><p>{entry.text}</p>{Boolean(entry.sources?.length) && <details><summary>Details checked ({entry.sources!.length})</summary>{entry.sources!.map((source, i) => <div key={i}><small>{source.tool} · {new Date(source.checkedAt).toLocaleString()}</small><Review value={source.data}/></div>)}</details>}</article>)}
         {busy && <p role="status">Working with Seiko’s records…</p>}
         {proposal && <section className="assistantProposal" aria-label="Review proposed changes"><h3>Review before saving</h3><p>These changes have not been saved.</p><Review value={proposal.review}/><div className="assistantActions"><button disabled={busy} onClick={() => decide(false)}>Discard</button><button disabled={busy} onClick={() => decide(true)}>Confirm and save</button></div></section>}
         {savedOrder && <button onClick={() => { onOpenOrder(savedOrder); setOpen(false); }}>Open saved order {savedOrder.details.orderNo}</button>}
