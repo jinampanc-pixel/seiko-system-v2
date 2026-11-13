@@ -1,4 +1,6 @@
 "use client";
+import { CloseIcon } from "./ui-icons";
+
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -168,7 +170,7 @@ function RequirementEditor({
     <section className="veynEditor" role="dialog" aria-modal="true" aria-label="VÉYN requirement editor">
       <header className="veynEditorHead">
         <div><p className="eyebrow">{order.details.orderNo}</p><h2>{order.details.institutionName || "New requirement"}</h2></div>
-        <button type="button" className="iconButton" onClick={onCancel} aria-label="Close">×</button>
+        <button title="Close" type="button" className="iconButton uiIconButton uiCloseButton" onClick={onCancel} aria-label="Close"><CloseIcon/></button>
       </header>
 
       <div className="veynEditorBody">

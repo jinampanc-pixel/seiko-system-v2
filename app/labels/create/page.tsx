@@ -1,4 +1,6 @@
 "use client";
+import { CloseIcon } from "./../../ui-icons";
+
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LabelDesigner } from "../../label-designer";
@@ -136,7 +138,7 @@ function ConfigurationEditor({ kind, config, purposeId, onChange, onClose }: { k
     <div className="labelManagedRows">{rows.map(item => <div className={`labelManagedRow ${!item.enabled ? "isHidden" : ""}`} key={item.id}>
       <input value={item.label} onChange={event => updateLabel(item.id, event.target.value)}/>
       <button type="button" className="labelManagedToggle" onClick={() => toggle(item.id)}>{item.enabled ? "Hide" : "Show"}</button>
-      <button type="button" className="labelManagedRemove" onClick={() => remove(item.id)} aria-label={`Remove ${item.label}`}>×</button>
+      <button title={`Remove ${item.label}`} type="button" className="labelManagedRemove uiIconButton" onClick={() => remove(item.id)} aria-label={`Remove ${item.label}`}><CloseIcon/></button>
     </div>)}</div>
     <div className="labelManagedAdd">
       <input placeholder={kind === "purpose" ? "New purpose" : "New representation"} value={draftName} onChange={event => setDraftName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); add(); } }}/>

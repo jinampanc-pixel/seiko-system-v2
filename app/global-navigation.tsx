@@ -1,4 +1,6 @@
 "use client";
+import { CloseIcon } from "./ui-icons";
+
 /* Exact business logos are intentionally rendered as supplied assets. */
 /* eslint-disable @next/next/no-img-element */
 
@@ -123,7 +125,7 @@ function StandaloneNavigation({ businesses, businessId, onBusinessChange }: {
       <button className="menuBackdrop" aria-label="Close menu" onClick={() => setOpen(false)}/>
       <nav className="moduleMenu globalStandaloneMenu" aria-label="Modules">
         <BusinessNavigator businesses={businesses} businessId={businessId} onChange={onBusinessChange}/>
-        <div className="moduleMenuHead"><b>Menu</b><button onClick={() => setOpen(false)} aria-label="Close menu">×</button></div>
+        <div className="moduleMenuHead"><b>Menu</b><button title="Close menu" type="button" className="uiIconButton uiCloseButton" onClick={() => setOpen(false)} aria-label="Close menu"><CloseIcon/></button></div>
         {visible.map(item => <button type="button" className={`nav ${item.intent === "labels" ? "active" : ""}`} key={item.intent} onClick={() => goToRoot(item.intent)}>
           <span>{item.icon}</span><small>{item.label}</small>
         </button>)}

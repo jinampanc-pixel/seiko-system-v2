@@ -1,4 +1,6 @@
 "use client";
+import { CloseIcon, ChatIcon } from "./ui-icons";
+
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAccess } from "./access-control";
 import { acceptSharedOrder, type OrderEnvelope } from "./lib/order-commands";
@@ -84,9 +86,9 @@ export function BusinessAssistant({ businessId, module, orderId, onOpenOrder }: 
   }
   if (!session) return null;
   return <>
-    {!open && <button className="assistantLauncher" onClick={show} aria-label="Open Jinam assistant">✦ Jinam</button>}
+    {!open && <button type="button" className="assistantLauncher primary" onClick={show} aria-label="Open Jinam assistant" title="Open Jinam assistant"><ChatIcon/><span>Jinam</span></button>}
     {open && <section className="businessAssistant" role="dialog" aria-modal="false" aria-label="Jinam assistant">
-      <header><div><strong>Jinam</strong><small>{orderId ? "Using the open order as context" : "Your business, in your words"}</small></div><button aria-label="Close Jinam assistant" onClick={() => { recognition.current?.abort(); setOpen(false); }}>×</button></header>
+      <header><div><strong>Jinam</strong><small>{orderId ? "Using the open order as context" : "Your business, in your words"}</small></div><button title="Close Jinam assistant" type="button" className="uiIconButton uiCloseButton" aria-label="Close Jinam assistant" onClick={() => { recognition.current?.abort(); setOpen(false); }}><CloseIcon/></button></header>
       <div className="assistantToolbar"><button disabled={busy} onClick={() => { setEntries([]); setConversationId(""); setProposal(null); setSavedOrder(null); setNotice("New conversation. Existing business records are unchanged."); }}>New conversation</button><button disabled={busy} onClick={showMemories}>Memory</button></div>
       {memoryOpen && <section className="assistantMemories" aria-label="Approved business memories"><p>Preferences and terminology you approved for your account in this business.</p>{memories.length ? memories.map(memory => <div key={memory.id}><p>{memory.content}</p><button disabled={busy} onClick={() => forget(memory.id)}>Review removal</button></div>) : <p>No saved memories.</p>}</section>}
       <div className="assistantConversation" aria-live="polite" aria-busy={busy}>

@@ -1,4 +1,6 @@
 "use client";
+import { CloseIcon } from "./ui-icons";
+
 import { SharedLabelStorage } from "./shared-label-storage";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -277,7 +279,7 @@ function AccessPanel({ onClose }: { onClose: () => void }) {
     <section className="accessPanel" role="dialog" aria-modal="true" aria-label="Account and access">
       <header className="accessPanelHeader">
         <div><p className="eyebrow">{businessName.toUpperCase()}</p><h2>Account & access</h2><p>{session?.user.displayName} · {session?.user.email}</p></div>
-        <button className="iconButton" onClick={onClose} aria-label="Close">×</button>
+        <button title="Close" type="button" className="iconButton uiIconButton uiCloseButton" onClick={onClose} aria-label="Close"><CloseIcon/></button>
       </header>
       <div className="accessTabs">
         <button className={tab === "mine" ? "active" : ""} onClick={() => setTab("mine")}>My access</button>
@@ -381,7 +383,7 @@ function MembershipEditor({ businessId, currentUser, actorRole, user, onCancel, 
     <div className="membershipEditor" role="dialog" aria-modal="true" aria-label={user ? `Edit ${user.displayName || user.email}` : "Add user"}>
       <div className="membershipEditorHead">
         <div><p className="eyebrow">{user ? "EDIT USER" : "NEW USER"}</p><h3>{user ? user.displayName || user.email : "Add user"}</h3></div>
-        <button className="iconButton" onClick={onCancel} aria-label="Close user editor">×</button>
+        <button title="Close user editor" type="button" className="iconButton uiIconButton uiCloseButton" onClick={onCancel} aria-label="Close user editor"><CloseIcon/></button>
       </div>
 
       <div className="membershipEditorBody">

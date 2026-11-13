@@ -1,5 +1,21 @@
 /* Shared form-control rules. Brand accent follows the active business theme. */
 
+/* Shared action geometry; page-specific cards and menu rows retain their layouts. */
+button{line-height:1.3;vertical-align:middle}
+:is(.primary,.secondary){display:inline-flex;align-items:center;justify-content:center;gap:8px;max-width:100%;white-space:normal;line-height:1.3!important;text-align:center;vertical-align:middle}
+:is(.primary,.secondary)>svg{display:block;flex:none}
+button.uiIconButton{display:inline-flex!important;align-items:center!important;justify-content:center!important;flex:0 0 auto;box-sizing:border-box;min-width:36px!important;width:36px;min-height:36px!important;height:36px;padding:0!important;line-height:1!important;border-radius:8px!important;color:inherit!important;vertical-align:middle}
+button.uiIconButton>svg{display:block;flex:none;width:20px;height:20px;pointer-events:none}
+button.uiCloseButton{width:40px;height:40px;min-width:40px!important;min-height:40px!important;border:1px solid transparent;background:transparent;box-shadow:none;margin:0;align-self:flex-start}
+button.uiCloseButton:hover:not(:disabled){background:color-mix(in srgb,currentColor 8%,transparent)}
+button.uiIconButton:focus-visible{outline:2px solid var(--gold,#c3a06c);outline-offset:2px}
+button.uiIconButton:disabled{cursor:default;opacity:.5}
+:is(.phase2Editor,.accessPanel,.membershipEditor,.billingPreview)>header{gap:16px;align-items:flex-start}
+:is(.phase2Editor,.accessPanel,.membershipEditor,.billingPreview)>header>:first-child{min-width:0;overflow-wrap:anywhere}
+:is(.phase2Editor,.accessPanel,.membershipEditor,.billingPreview)>header>.uiCloseButton{margin-left:auto}
+:is(.labelManagedRemove,.labelV2FieldRemove).uiIconButton{min-width:28px!important;width:28px;min-height:28px!important;height:28px}
+@media(max-width:700px){button.uiCloseButton{width:44px;height:44px;min-width:44px!important;min-height:44px!important}}
+
 .app input[type="checkbox"],
 .app input[type="radio"],
 .labelCreateApp input[type="checkbox"],

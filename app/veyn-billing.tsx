@@ -1,4 +1,6 @@
 "use client";
+import { CloseIcon } from "./ui-icons";
+
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Permission } from "./lib/access-control";
@@ -224,7 +226,7 @@ function CommercialEditor({
 }) {
   return <div className="veynModalBackdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onCancel(); }}>
     <section className="veynEditor veynCommercialEditor" role="dialog" aria-modal="true" aria-label="Commercial document editor">
-      <header className="veynEditorHead"><div><p className="eyebrow">{editorTitle(editor.kind).toUpperCase()}</p><h2>{documentNumber(editor)}</h2></div><button type="button" className="iconButton" onClick={onCancel} aria-label="Close">×</button></header>
+      <header className="veynEditorHead"><div><p className="eyebrow">{editorTitle(editor.kind).toUpperCase()}</p><h2>{documentNumber(editor)}</h2></div><button title="Close" type="button" className="iconButton uiIconButton uiCloseButton" onClick={onCancel} aria-label="Close"><CloseIcon/></button></header>
       <div className="veynEditorBody">
         {editor.kind === "quotation" && <QuotationForm value={editor.value} onChange={value => onChange({ ...editor, value })}/>} 
         {editor.kind === "po" && <PurchaseOrderForm value={editor.value} onChange={value => onChange({ ...editor, value })}/>} 

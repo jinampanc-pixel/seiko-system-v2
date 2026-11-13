@@ -2,7 +2,7 @@
 
 import { useUnsavedNavigation } from "./app-navigation";
 import "./seiko-billing-stage2.css";
-import { TrashIcon } from "./ui-icons";
+import { TrashIcon, CloseIcon } from "./ui-icons";
 import { InvoiceOrderBrief } from "./invoice-order-brief";
 import { invoiceLinesMatch, orderBrief } from "./lib/invoice-order-brief";
 import { DocumentViewer } from "./document-viewer";
@@ -208,4 +208,4 @@ function PaymentDetailsEditor({ supplier, canManage, onChange }: { supplier: Non
   <label className="phase2Check"><input type="checkbox" checked={Boolean(supplier.showQr)} disabled={!supplier.paymentQr} onChange={e=>onChange({...supplier,showQr:e.target.checked})}/>Include payment QR scanner</label>{supplier.paymentQr&&<img className="billingAssetPreview" src={supplier.paymentQr} alt="Saved UPI QR preview"/>}
   </section>;
 }
-function BillingModal({ title, busy, children, onCancel, onSave }: { title: string; busy: boolean; children: React.ReactNode; onCancel: () => void; onSave: () => void }) { return <div className="phase2Scrim billingFormScrim"><form className="phase2Editor" role="dialog" aria-modal="true" aria-label={title} onSubmit={event => { event.preventDefault(); if (!busy) onSave(); }}><header><h2>{title}</h2><button type="button" disabled={busy} onClick={onCancel} aria-label="Close">×</button></header><fieldset className="phase2EditorBody billingFormBody" disabled={busy}>{children}</fieldset><footer><button type="button" className="secondary" disabled={busy} onClick={onCancel}>Cancel</button><button type="submit" className="primary" disabled={busy}>{busy ? "Saving…" : "Save"}</button></footer></form></div>; }
+function BillingModal({ title, busy, children, onCancel, onSave }: { title: string; busy: boolean; children: React.ReactNode; onCancel: () => void; onSave: () => void }) { return <div className="phase2Scrim billingFormScrim"><form className="phase2Editor" role="dialog" aria-modal="true" aria-label={title} onSubmit={event => { event.preventDefault(); if (!busy) onSave(); }}><header><h2>{title}</h2><button title="Close" className="uiIconButton uiCloseButton" type="button" disabled={busy} onClick={onCancel} aria-label="Close"><CloseIcon/></button></header><fieldset className="phase2EditorBody billingFormBody" disabled={busy}>{children}</fieldset><footer><button type="button" className="secondary" disabled={busy} onClick={onCancel}>Cancel</button><button type="submit" className="primary" disabled={busy}>{busy ? "Saving…" : "Save"}</button></footer></form></div>; }

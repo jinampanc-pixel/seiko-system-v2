@@ -220,4 +220,4 @@
 .homeOrderScroll .homeOrderOperationalMeta{grid-template-columns:60px 60px minmax(100px,1fr)!important}
 .homeOrderScroll .homeOrderOpen{min-width:0;overflow:hidden}
 .homeOrderScroll .homeOrderOpen span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media(max-width:900px){.homeOrderScroll .homeOrderOperationalRow{height:216px!important;min-height:216px!important;grid-template-columns:1fr!important;gap:0!important}.homeOrderScroll .homeOrderOperationalMeta{padding:0 10px!important}.seikoDashboardActivityFilters label{width:100%}}
+@media(max-width:1100px){.homeOrderScroll .homeOrderOperationalRow{height:216px!important;min-height:216px!important;grid-template-columns:1fr!important;gap:0!important}.homeOrderScroll .homeOrderOperationalMeta{padding:0 10px!important}.seikoDashboardActivityFilters label{width:100%}}

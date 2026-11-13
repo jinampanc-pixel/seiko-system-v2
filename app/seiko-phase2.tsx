@@ -1,4 +1,6 @@
 "use client";
+import { CloseIcon } from "./ui-icons";
+
 
 import { requestAppNavigation } from "./app-navigation";
 import { useDialogInteractions } from "./dialog-interactions";
@@ -179,7 +181,7 @@ function TemplateManager({ templates, onChange }: { templates: SeikoTemplateSet;
 
 function LibraryFrame({ query,setQuery,archived,setArchived,onAdd,addLabel,children }: { query:string;setQuery:(v:string)=>void;archived:boolean;setArchived:(v:boolean)=>void;onAdd:()=>void;addLabel:string;children:React.ReactNode }) { return <div className="phase2Workspace"><div className="phase2Toolbar"><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search library"/><label className="phase2Check"><input type="checkbox" checked={archived} onChange={event=>setArchived(event.target.checked)}/>Archived</label><button className="primary" onClick={onAdd}>+ {addLabel}</button></div><section className="phase2LibraryList">{children}</section></div>; }
 function LibraryRow({ title,meta,archived,onEdit,onArchive }: { title:string;meta:string;archived:boolean;onEdit:()=>void;onArchive:()=>void }) { return <article className="phase2LibraryRow"><div><b>{title}</b><small>{meta || "No additional details"}</small></div><div><button className="secondary" onClick={onEdit}>Edit</button><button className="secondary" onClick={onArchive}>{archived ? "Restore" : "Archive"}</button></div></article>; }
-function Editor({ title,onCancel,onSave,children }: { title:string;onCancel:()=>void;onSave:()=>void;children:React.ReactNode }) { return <div className="phase2Scrim"><section className="phase2Editor" role="dialog" aria-modal="true" aria-label={title}><header><h2>{title}</h2><button type="button" aria-label="Close" onClick={onCancel}>×</button></header><div className="phase2EditorBody">{children}</div><footer><button className="secondary" onClick={onCancel}>Cancel</button><button className="primary" onClick={onSave}>Save</button></footer></section></div>; }
+function Editor({ title,onCancel,onSave,children }: { title:string;onCancel:()=>void;onSave:()=>void;children:React.ReactNode }) { return <div className="phase2Scrim"><section className="phase2Editor" role="dialog" aria-modal="true" aria-label={title}><header><h2>{title}</h2><button title="Close" className="uiIconButton uiCloseButton" type="button" aria-label="Close" onClick={onCancel}><CloseIcon/></button></header><div className="phase2EditorBody">{children}</div><footer><button className="secondary" onClick={onCancel}>Cancel</button><button className="primary" onClick={onSave}>Save</button></footer></section></div>; }
 function Input({ label,value,onChange }: { label:string;value:string;onChange:(value:string)=>void }) { return <label>{label}<input value={value} onChange={event=>onChange(event.target.value)}/></label>; }
 function NumberInput({ label,value,onChange }: { label:string;value:number;onChange:(value:number)=>void }) { return <label>{label}<input type="number" min="0" step="0.01" value={value} onChange={event=>onChange(Number(event.target.value))}/></label>; }
 function Empty({ text }: { text:string }) { return <div className="phase2Empty">{text}</div>; }

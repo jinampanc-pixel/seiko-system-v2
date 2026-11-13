@@ -14,10 +14,10 @@ body[data-seiko-palette="true"] :is(.phase2TableHead,.workspaceTable thead th,.b
 body[data-seiko-palette="true"] :is(.billingStatusBadge,.status,.accessRoleBadge,[class*="status-"],.setupErrors,.accessError,.billingError,.saveError,.dangerText,.orderMenuDanger,.membershipCredentialState,.orderSaveConfirmation){color:var(--navy)!important;background:var(--paper)!important;border-color:var(--gold)!important}
 body[data-seiko-palette="true"] :is(.liveDot,.credentialStateDot,.accessStatusDot){background:var(--gold)!important;color:var(--navy)!important}
 body[data-seiko-palette="true"] :is(.readiness,.readiness.ready,.readiness.incomplete,.membershipLoginStatus){background:var(--paper)!important;color:var(--navy)!important;border:1px solid var(--gold)!important}
-body[data-seiko-palette="true"] :is(p,small,h1,h2,h3,h4,label,summary,span,strong,b,em,a){color:var(--navy)!important}
+/* Text inherits its surface colour so inverse headers and controls stay readable. */
 body[data-seiko-palette="true"] :is(button.primary,a.primary) :is(span,b,strong,small){color:var(--paper)!important}
 body[data-seiko-palette="true"] .workspaceTable thead :is(th,span,small){background:var(--navy)!important;color:var(--paper)!important;border-color:var(--gold)!important}
-body[data-seiko-palette="true"] :is(.eyebrow,small,.muted,.ruleHelp,.phase2TableRow small,.orderRow small,.settingsIntro,.themeMessage){color:var(--navy)!important}
+body[data-seiko-palette="true"] :is(.eyebrow,.muted,.ruleHelp,.phase2TableRow small,.orderRow small,.settingsIntro,.themeMessage){color:var(--navy)!important}
 body[data-seiko-palette="true"] :is(.billingDocumentFilters button.primary,.settingsModuleNav button.active,.accessTabs button.active,.nav.active){background:var(--gold)!important;color:var(--navy)!important}
 body[data-seiko-palette="true"] :is(.workspaceTable td,.orderRow,.phase2TableRow,.phase2Table,.phase2Toolbar,.phase2Metrics article,.themePanel,.accessPanel,.membershipEditor,.setupSection){border-color:var(--gold)!important}
 .measurementProductLinks{position:relative;min-width:0;font-size:12px}.measurementProductLinks summary{cursor:pointer;color:var(--navy);padding:8px;border:1px solid var(--gold);border-radius:6px;white-space:normal}
