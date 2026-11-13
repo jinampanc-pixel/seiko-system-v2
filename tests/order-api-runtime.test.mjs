@@ -41,6 +41,35 @@ test('order API returns JSON when authentication or session initialization fails
   }
 });
 
+test('a failed permission lookup is retryable and never cached as missing edit permission', async () => {
+  let unavailable = true, lookups = 0;
+  const db = { withSession() { return this; }, prepare() { return { bind() { return this; }, async all() {
+    lookups++;
+    if (unavailable) throw new Error('Temporary D1 failure');
+    return { results: [{ business_id: 'seiko', role: 'owner', modules_json: null }] };
+  } }; } };
+  const actor = { userId: 'permission-test', email: 'permission@example.invalid' };
+  const access = load('app/lib/access-control.ts');
+  const auth = load('app/lib/server-erp-auth.ts', {
+    'cloudflare:workers': { env: { DB: db } },
+    './access-control': access,
+    './server-password-auth': { getSessionIdentity: async () => null, isExplicitlySignedOut: () => false },
+  });
+  const api = load('app/api/erp/orders/route.ts', {
+    'cloudflare:workers': { env: { DB: db } },
+    '../../../lib/order-statuses': load('app/lib/order-statuses.ts'),
+    '../../../lib/server-erp-auth': { ...auth, authenticateActor: async () => actor },
+  });
+  const response = await api.POST(new Request('https://test.invalid/api/erp/orders', { method: 'POST', body: JSON.stringify({ operation: 'upsert', businessId: 'seiko' }) }));
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, 'ERP_STORAGE_ERROR');
+  unavailable = false;
+  assert.equal((await auth.authorizePermission(actor, 'seiko', 'orders.edit')).role, 'owner');
+  assert.equal(lookups, 2, 'retry must immediately recheck storage rather than cache a denial');
+  assert.equal(await auth.authorizePermission(actor, 'other-business', 'orders.edit'), null);
+  assert.equal(lookups, 2, 'successful membership lookups can still be cached');
+});
+
 test('order commands enforce versions, business scope, owner deletion, financial protection and tombstones', async () => {
   const sqlite = new DatabaseSync(':memory:');
   try {

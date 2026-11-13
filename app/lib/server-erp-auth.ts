@@ -128,7 +128,9 @@ async function membershipsFromD1(actor: Actor): Promise<Membership[]> {
     return memberships;
   } catch (cause) {
     console.error("D1 membership lookup failed", cause);
-    return [];
+    // A storage failure is not an authoritative denial. Propagate it so callers
+    // return a retryable service error and getActorMemberships never caches it.
+    throw new Error("Business access could not be checked. Please retry; your changes remain open.", { cause });
   }
 }
 
