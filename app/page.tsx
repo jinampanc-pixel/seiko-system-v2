@@ -41,7 +41,7 @@ const operations = [
 ];
 
 const previewBusinesses: BusinessMembership[] = [
-  normalizeMembership({ businessId: "seiko", businessName: "Seiko", logoUrl: "/brands/seiko-logo-transparent.png", role: "owner", modules: ["home", "orders", "labels", "scan", "trace", "production", "inventory", "sales", "delivery", "admin"], theme: THEME_PRESETS.seiko }),
+  normalizeMembership({ businessId: "seiko", businessName: "Seiko", logoUrl: "/brands/seiko-logo-approved.webp", role: "owner", modules: ["home", "orders", "labels", "scan", "trace", "production", "inventory", "sales", "delivery", "admin"], theme: THEME_PRESETS.seiko }),
   normalizeMembership({ businessId: "veyn-health", businessName: "Veyn Health", logoUrl: "/brands/veyn-health-logo.png", role: "owner", modules: ["home", "labels", "scan", "trace", "production", "sales", "delivery", "admin"], theme: THEME_PRESETS.veyn }),
   normalizeMembership({ businessId: "meth", businessName: "MeTh", logoUrl: "/brands/meth-logo.jpg", role: "owner", modules: ["home", "labels", "scan", "trace", "production", "sales", "delivery", "admin"], theme: THEME_PRESETS.meth }),
   normalizeMembership({ businessId: "veyn-view", businessName: "Veyn Health · Read only", logoUrl: "/brands/veyn-health-logo.png", role: "viewer", modules: ["home", "trace"], theme: THEME_PRESETS.veyn }),

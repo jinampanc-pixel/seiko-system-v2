@@ -45,7 +45,7 @@ const CATALOG: Record<string, BusinessCatalogEntry> = {
   seiko: {
     businessId: "seiko",
     businessName: "Seiko",
-    logoUrl: "/brands/seiko-logo-transparent.png",
+    logoUrl: "/brands/seiko-logo-approved.webp",
     themeKey: "seiko",
     app: "seiko-operations",
     // Billing is now a working SEIKO-specific workflow; unfinished legacy placeholders remain hidden.

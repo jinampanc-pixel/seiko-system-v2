@@ -96,7 +96,7 @@ function load(path, imports = {}) {
     const page = await browser.newPage({acceptDownloads:true}); const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const session = { user: { displayName: 'Smoke Owner', email: 'smoke@example.invalid' }, businesses: [{
-      businessId: 'seiko', businessName: 'SEIKO', role: 'owner',
+      businessId: 'seiko', businessName: 'SEIKO', logoUrl: load('app/lib/business-catalog.ts').businessCatalogEntry('seiko').logoUrl, role: 'owner',
       modules: ['home', 'orders', 'labels', 'scan', 'trace', 'production', 'billing', 'admin'],
     }] };
     await page.route('**/api/erp/session', route => route.fulfill({ json: { ok: true, data: session } }));

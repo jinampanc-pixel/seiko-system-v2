@@ -24,7 +24,7 @@ const fallbackBusinesses: BusinessMembership[] = [
   normalizeMembership({
     businessId: "seiko",
     businessName: "Seiko",
-    logoUrl: "/brands/seiko-logo-transparent.png",
+    logoUrl: "/brands/seiko-logo-approved.webp",
     role: "owner",
     modules: ["home", "orders", "labels", "scan", "trace", "production", "inventory", "sales", "delivery", "admin"],
     theme: THEME_PRESETS.seiko,

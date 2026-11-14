@@ -18,7 +18,7 @@ type LabelConfiguration = { purposes: PurposeDefinition[]; representations: Repr
 type PreferenceResponse = { ok: boolean; data?: { value?: LabelConfiguration | null; canManage?: boolean }; message?: string };
 
 const BUSINESS_LOGOS: Record<string, string> = {
-  seiko: "/brands/seiko-logo-transparent.png",
+  seiko: "/brands/seiko-logo-approved.webp",
   "veyn-health": "/brands/veyn-health-logo.png",
   meth: "/brands/meth-logo.jpg",
 };
