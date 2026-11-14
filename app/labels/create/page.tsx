@@ -190,7 +190,6 @@ export function LabelCreateWorkspace({context,onClose,onDesigning}: {context?: L
     });
   }, []);
 
-  useEffect(() => { onDesigning?.(started); }, [started,onDesigning]);
 
   const selectedOrder = useMemo(() => orders.find(order => order.orderId === orderId) || null, [orderId, orders]);
   const selectedOrders = useMemo(() => selectedOrder ? [selectedOrder,...orders.filter(order => order.orderId !== orderId && additionalOrderIds.includes(order.orderId))] : [], [selectedOrder,orders,orderId,additionalOrderIds]);
@@ -219,7 +218,7 @@ export function LabelCreateWorkspace({context,onClose,onDesigning}: {context?: L
   if (started && selectedOrder) {
     const nativePackingPerson = selectedPurpose.behavior === "packing" && selectedRepresentation.sourceMode === "person";
     return <div className="labelCreateApp app" data-label-source={selectedRepresentation.sourceMode} style={themeVariables(theme) as CSSProperties}>
-      <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>{nativePackingPerson ? <PackingPersonLabelDesigner businessId={businessId} order={selectedOrder} sourceOrders={selectedOrders} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => setStarted(false)}/> : <LabelDesigner businessId={businessId} order={selectedOrder} sourceOrders={selectedOrders} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => setStarted(false)}/>}</div>
+      <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>{nativePackingPerson ? <PackingPersonLabelDesigner businessId={businessId} order={selectedOrder} sourceOrders={selectedOrders} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => { onDesigning?.(false); setStarted(false); }}/> : <LabelDesigner businessId={businessId} order={selectedOrder} sourceOrders={selectedOrders} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => { onDesigning?.(false); setStarted(false); }}/>}</div>
     </div>;
   }
 
@@ -234,7 +233,7 @@ export function LabelCreateWorkspace({context,onClose,onDesigning}: {context?: L
       </section>
       {selectedOrder && !contextOrderId && <details className="panel labelSourceOrders"><summary>Include other orders · {selectedOrders.length} selected</summary><div>{orders.filter(order => order.orderId !== orderId).map(order => <label key={order.orderId}><input type="checkbox" checked={additionalOrderIds.includes(order.orderId)} onChange={event => setAdditionalOrderIds(current => event.target.checked ? [...current,order.orderId] : current.filter(id => id !== order.orderId))}/>{order.details.orderNo} · {order.details.clientName}</label>)}</div></details>}
       {saveError && <p className="labelConfigurationError">{saveError}</p>}
-      <div className="labelCreateRouteActions"><button className="primary" disabled={!selectedOrder || !representations.length} onClick={() => selectedOrder && setStarted(true)}>Continue to designer</button></div>
+      <div className="labelCreateRouteActions"><button className="primary" disabled={!selectedOrder || !representations.length} onClick={() => { if(selectedOrder) { onDesigning?.(true); setStarted(true); } }}>Continue to designer</button></div>
     </main>
   </div></div>;
 }
