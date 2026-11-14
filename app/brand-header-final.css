@@ -78,7 +78,7 @@
   object-fit:contain!important;
   object-position:left center!important;
   transform:none!important;
-  mix-blend-mode:multiply!important;
+  mix-blend-mode:darken!important;
 }
 
 /* véyn health: the repository asset is now the exact trimmed transparent

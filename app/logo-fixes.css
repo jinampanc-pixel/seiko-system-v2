@@ -165,4 +165,4 @@
 }
 
 /* Keep the approved ivory-backed artwork seamless on the app paper surfaces. */
-img[src="/brands/seiko-logo-approved.webp"]{mix-blend-mode:multiply!important}
+img[src="/brands/seiko-logo-approved.webp"]{mix-blend-mode:darken!important}
