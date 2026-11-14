@@ -165,7 +165,7 @@ function load(path, imports = {}) {
       await list.getByText('No orders match your search or filters.').waitFor();
       await home.getByLabel('Search Home orders').fill('');
       await page.setViewportSize({width:390,height:844});
-      await page.waitForFunction(()=>document.querySelector('.homeOrderScroll article')?.getBoundingClientRect().height===216);
+      await page.waitForFunction(()=>document.querySelector('.homeOrderScroll article')?.getBoundingClientRect().height===184);
       assert.ok(await list.locator('article').count()<=9);
       if(process.env.SEIKO_HOME_SCREENSHOT){await home.locator('.homeOrderSearch').scrollIntoViewIfNeeded();await page.screenshot({path:process.env.SEIKO_HOME_SCREENSHOT,fullPage:false});}
       await page.setViewportSize({width:1280,height:900});
