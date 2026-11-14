@@ -198,8 +198,10 @@ export function LabelLauncher({businessId,focusedOrder,onOpen,onOpenOrders,onBac
   const [batchFilter,setBatchFilter]=useState<"all"|SavedLabelBatch["purpose"]>("all");
   const [sourceView,setSourceView]=useState<"orders"|"products">("orders");
   const [createPurpose,setCreatePurpose]=useState<SavedLabelBatch["purpose"]>("production");
+  const [labelRevision,setLabelRevision]=useState(0);
+  useEffect(()=>{const refresh=()=>setLabelRevision(value=>value+1);window.addEventListener("jinam:label-storage",refresh);window.addEventListener("storage",refresh);return()=>{window.removeEventListener("jinam:label-storage",refresh);window.removeEventListener("storage",refresh);};},[]);
   const orders=useCachedOrders(businessId);
-  const batches=useMemo(()=>{if(typeof window==="undefined")return[];try{return JSON.parse(localStorage.getItem(`jinam:${businessId}:labels:tasks-v1`)||"[]") as SavedLabelBatch[]}catch{return[]}},[businessId]);
+  const batches=useMemo(()=>{if(typeof window==="undefined")return[];try{return JSON.parse(localStorage.getItem(`jinam:${businessId}:labels:tasks-v1`)||"[]") as SavedLabelBatch[]}catch{return[]}},[businessId,labelRevision]);
   const visible=orders.filter(order=>!order.archived&&(!focusedOrder||order.orderId===focusedOrder.orderId)&&`${order.details.orderNo} ${order.details.clientName} ${order.details.clientType} ${order.status}`.toLowerCase().includes(query.toLowerCase()));
   const allowedPurposes=focusedOrder?([['production','Production'],['packing','Packing']] as const):([['production','Production'],['packing','Packing'],['inventory','Inventory']] as const);
   const visibleBatches=batches.filter(batch=>(!focusedOrder||batch.orderId===focusedOrder.orderId)&&(batchFilter==="all"||batch.purpose===batchFilter)&&`${batch.name} ${batch.orderNo} ${batch.client} ${packingBatchType(batch)}`.toLowerCase().includes(batchQuery.toLowerCase()));

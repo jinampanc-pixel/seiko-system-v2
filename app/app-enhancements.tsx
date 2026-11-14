@@ -1,5 +1,6 @@
 "use client";
 
+import { LabelCreateDialog } from "./label-create-dialog";
 import { ErpOrderSync } from "./erp-order-sync";
 import { ErpSyncNotice } from "./erp-sync-notice";
 import { OwnerDropdownUx } from "./owner-dropdown-ux";
@@ -31,6 +32,7 @@ import { MethServerSync } from "./meth-server-sync";
 
 export function AppEnhancements() {
   return <>
+    <LabelCreateDialog/>
     <ErpOrderSync />
     <ErpSyncNotice />
     <OwnerDropdownUx />

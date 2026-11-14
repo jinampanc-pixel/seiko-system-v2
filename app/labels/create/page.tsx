@@ -8,6 +8,8 @@ import { PackingPersonLabelDesigner } from "../../packing-person-label-designer"
 import { useCachedOrders } from "../../lib/use-cached-orders";
 import { businessStorageKey, THEME_PRESETS, themeVariables, type BusinessTheme } from "../../lib/foundation";
 
+import type { LabelCreationContext } from "../../lib/label-creation";
+
 type LabelBehavior = "production" | "packing" | "inventory";
 type SourceMode = "person_product" | "person" | "product" | "group" | "order";
 type PurposeDefinition = { id: string; label: string; behavior: LabelBehavior; enabled: boolean; builtin?: boolean };
@@ -148,7 +150,9 @@ function ConfigurationEditor({ kind, config, purposeId, onChange, onClose }: { k
   </div>;
 }
 
-export default function CreateLabelsPage() {
+export default function CreateLabelsPage() { return <LabelCreateWorkspace/>; }
+
+export function LabelCreateWorkspace({context,onClose,onDesigning}: {context?: LabelCreationContext;onClose?: ()=>void;onDesigning?: (value:boolean)=>void}) {
   const [ready, setReady] = useState(false);
   const [businessId, setBusinessId] = useState("seiko");
   const [theme, setTheme] = useState<BusinessTheme>(THEME_PRESETS.seiko);
@@ -168,9 +172,9 @@ export default function CreateLabelsPage() {
     const params = new URLSearchParams(window.location.search);
     let savedBusiness: string | null = null;
     try { savedBusiness = localStorage.getItem("jinam:selected-business"); } catch { /* Shared orders work without browser storage. */ }
-    const business = params.get("business") || savedBusiness || "seiko";
-    const requestedPurpose = params.get("purpose") || "production";
-    const requestedOrder = params.get("order") || "";
+    const business = context?.businessId || params.get("business") || savedBusiness || "seiko";
+    const requestedPurpose = context?.purpose || params.get("purpose") || "production";
+    const requestedOrder = context?.orderId || params.get("order") || "";
     const fallbackTheme = defaultThemeFor(business);
     setBusinessId(business); setOrderId(requestedOrder); setContextOrderId(requestedOrder);
     try { const savedTheme = localStorage.getItem(businessStorageKey(business, "theme-v2")); setTheme(savedTheme ? JSON.parse(savedTheme) as BusinessTheme : fallbackTheme); } catch { setTheme(fallbackTheme); }
@@ -185,6 +189,8 @@ export default function CreateLabelsPage() {
       setReady(true);
     });
   }, []);
+
+  useEffect(() => { onDesigning?.(started); }, [started,onDesigning]);
 
   const selectedOrder = useMemo(() => orders.find(order => order.orderId === orderId) || null, [orderId, orders]);
   const selectedOrders = useMemo(() => selectedOrder ? [selectedOrder,...orders.filter(order => order.orderId !== orderId && additionalOrderIds.includes(order.orderId))] : [], [selectedOrder,orders,orderId,additionalOrderIds]);
@@ -220,7 +226,7 @@ export default function CreateLabelsPage() {
   return <div className="labelCreateApp app" style={themeVariables(theme) as CSSProperties}><div className="surface">
     <header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>
     <main className="labelCreateRoute">
-      <section className="labelCreateRouteHead"><div><button type="button" className="secondary contextBackButton appBackControl" onClick={() => { if (window.history.length > 1) window.history.back(); else window.location.href = `/?business=${businessId}`; }}>{selectedOrder ? "← Back to Order" : "← Back to Labels"}</button><p className="eyebrow">LABEL CREATION</p><h1>Create labels</h1><p>Choose the source orders, purpose and what each label represents.</p></div></section>
+      <section className="labelCreateRouteHead"><div><button type="button" className="secondary contextBackButton appBackControl" onClick={() => { if (onClose) onClose(); else if (window.history.length > 1) window.history.back(); else window.location.href = `/?business=${businessId}`; }}>{selectedOrder ? "← Back to Order" : "← Back to Labels"}</button><p className="eyebrow">LABEL CREATION</p><h1>Create labels</h1><p>Choose the source orders, purpose and what each label represents.</p></div></section>
       <section className="panel labelCreateOrderChoice">
         <div className="labelCreateField"><label><span>1 · Order</span><select disabled={!!contextOrderId} value={orderId} onChange={event => {setOrderId(event.target.value);setAdditionalOrderIds([]);}}><option value="">Choose an order…</option>{orders.map(order => <option key={order.orderId} value={order.orderId}>{order.details.orderNo} — {order.details.clientName || "Unnamed client"}</option>)}</select></label></div>
         <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>2 · Purpose</span></div><ManagedDropdown value={selectedPurpose.id} options={purposes} disabled={!selectedOrder} canManage={canManage} manageLabel="Manage purposes…" onChange={changePurpose} onManage={() => setManage("purpose")}/>{manage === "purpose" && canManage && <ConfigurationEditor kind="purpose" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>

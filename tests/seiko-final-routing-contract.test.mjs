@@ -27,7 +27,7 @@ test("Home chooser implementation still routes setup workspace and labels explic
   assert.match(source, /openLabels\(orderNo\)/);
   assert.match(source, /Edit setup/);
   assert.match(source, /Create labels/);
-  assert.match(source, /\/labels\/create\?business=/);
+  assert.match(source, /openLabelCreation/);
 });
 
 test("setup routing implementation keeps a workspace fallback instead of silently failing", () => {

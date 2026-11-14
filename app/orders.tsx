@@ -1,4 +1,5 @@
 "use client";
+import { openLabelCreation } from "./lib/label-creation";
 import { requestAppNavigation, useUnsavedNavigation } from "./app-navigation";
 import { ProductQuantitySetup } from "./product-quantity-setup";
 import { recipientChoices, simpleRecipient } from "./lib/product-recipients";
@@ -177,7 +178,7 @@ export function Orders({ onAssistantContext, businessId, canManageSuggestions = 
         <button onClick={() => setHandoverOrder(structuredClone(order))}>Student handover list / PDF</button><button onClick={() => openOrderFinancialAction(order.orderId, "challan")}>Create delivery challan</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "quotation")}>Create quotation</button>
         {businessId==="seiko"&&<button onClick={()=>{setCurrent(structuredClone(order));setServiceGroup("all");setServiceOrigin("center");setServicePerson("");setView("service");}}>Order management</button>}{membership?.modules.includes("production")&&<button onClick={()=>window.dispatchEvent(new CustomEvent("seiko:production-order",{detail:order.orderId}))}>Production handoff</button>}<p className="orderMenuGroupLabel">Setup & labels</p><button onClick={() => { setupBase.current=structuredClone(order); setCurrent(structuredClone(order)); setSetupReturnView("center"); setView("setup"); }}>Edit setup</button>
-        <button onClick={() => { window.location.href = `/labels/create?business=${encodeURIComponent(businessId)}&order=${encodeURIComponent(order.orderId)}`; }}>Create labels</button>
+        <button onClick={() => { openLabelCreation({businessId,orderId:order.orderId}); }}>Create labels</button>
         <p className="orderMenuGroupLabel">Manage order</p><button disabled={busy} onClick={() => void archiveOrder(order)}>{order.archived ? "Restore order" : "Archive order"}</button>
         {membership?.role === "owner" && <button disabled={busy} className="dangerText" onClick={() => deleteOrder(order)}>Delete order</button>}
       </div></details>

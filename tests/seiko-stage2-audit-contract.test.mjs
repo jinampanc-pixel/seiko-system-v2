@@ -47,7 +47,8 @@ test("group quantity UI and domain both use default quantity plus exceptions", (
 test("Home metrics switch one configurable operational list and status changes do not open orders", () => {
   assert.match(home, /HOME_KEY = "jinam:seiko:home-config-v3"/);
   assert.match(home, /Customize dashboard/);
-  assert.match(home, /showActiveOrders/);
+  assert.match(home, /defaultFocus/);
+  assert.match(home, /Starting order view/);
   assert.match(home, /activeOrderPageSize/);
   assert.match(home, /workMode/);
   assert.match(home, /setWorkMode\(metric\.key\)/);

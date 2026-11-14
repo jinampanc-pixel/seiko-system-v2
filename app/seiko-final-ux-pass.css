@@ -87,14 +87,6 @@
 .moduleMenu{padding-top:10px!important}
 
 /* Home: compact informational metrics and bottom-right customization. */
-.seikoOperationalDashboard{position:relative!important;padding-bottom:52px!important}
-.seikoOperationalDashboard .seikoDashboardMetrics{gap:7px!important;margin:8px 0 12px!important}
-.seikoOperationalDashboard .seikoMetricReadout{min-height:58px!important;padding:8px 10px!important;gap:2px!important;grid-template-columns:1fr auto!important;grid-template-rows:auto auto!important;align-items:center!important}
-.seikoOperationalDashboard .seikoMetricReadout small{grid-column:1;font-size:8px!important}
-.seikoOperationalDashboard .seikoMetricReadout strong{grid-column:2;grid-row:1/3;font-size:20px!important;line-height:1!important}
-.seikoOperationalDashboard .seikoMetricReadout span{grid-column:1;font-size:8.5px!important;line-height:1.15!important}
-.seikoOperationalDashboard .seikoDashboardHeadActions{position:absolute!important;right:0!important;bottom:0!important;z-index:2}
-.seikoOperationalDashboard .seikoDashboardHeadActions button{min-height:34px!important;padding:0 11px!important}
 
 /* Order destination chooser from Home. */
 .finalOrderChooserLayer{position:fixed;inset:0;z-index:14000;display:grid;place-items:center;padding:20px;background:rgba(16,45,73,.42)}
@@ -121,5 +113,4 @@
   .packingWorkflowDesigner .packingRuleBody{grid-template-columns:1fr!important}
   .packingWorkflowDesigner .packingMeasurementRow{grid-template-columns:1fr!important}.packingWorkflowDesigner .packingMeasurementRow select{width:100%!important}
   .packingWorkflowDesigner .packingInspectorBar{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-  .seikoOperationalDashboard .seikoDashboardMetrics{grid-template-columns:1fr!important}
 }

@@ -9,10 +9,6 @@
 .moduleMenu.reviewStableMenu>.moduleMenuSettings .nav{min-height:44px!important;height:44px!important}
 
 /* Home customize action truly belongs at the bottom-right of the dashboard. */
-.seikoOperationalDashboard{padding-bottom:18px!important}
-.seikoOperationalDashboard .seikoDashboardHeadActions{position:static!important;inset:auto!important}
-.seikoOperationalDashboard>.reviewDashboardFooter{display:flex!important;justify-content:flex-end!important;align-items:center!important;margin-top:18px!important;padding-top:12px!important;border-top:1px solid var(--line)!important}
-.seikoOperationalDashboard>.reviewDashboardFooter>button{min-height:34px!important;padding:0 12px!important}
 
 /* Order Center: back row first, normal left-aligned title, new-order action at right. */
 .ordersPage>.reviewOrderBackRow{display:flex!important;align-items:center!important;margin:0 0 6px!important;min-height:26px!important}

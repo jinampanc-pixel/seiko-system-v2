@@ -1,4 +1,5 @@
 "use client";
+import { openLabelCreation } from "./lib/label-creation";
 
 import { useEffect } from "react";
 import { startDomEnhancement } from "./lib/dom-enhancement";
@@ -41,12 +42,8 @@ function currentWorkspaceOrderId(menu: HTMLElement) {
   }
 }
 
-function openCreateTab(purpose?: LabelPurpose, orderId?: string) {
-  const params = new URLSearchParams();
-  params.set("business", selectedBusiness());
-  if (purpose) params.set("purpose", purpose);
-  if (orderId) params.set("order", orderId);
-  window.open(`/labels/create?${params.toString()}`, "_blank");
+function openCreateWorkspace(purpose?: LabelPurpose, orderId?: string) {
+  openLabelCreation({businessId:selectedBusiness(),purpose,orderId});
 }
 
 function makePurposeGroup(title: string, action: "create" | "print", menu: HTMLElement, printButton: HTMLButtonElement) {
@@ -67,7 +64,7 @@ function makePurposeGroup(title: string, action: "create" | "print", menu: HTMLE
     button.textContent = label;
     button.addEventListener("click", () => {
       if (action === "create") {
-        openCreateTab(purpose, currentWorkspaceOrderId(menu));
+        openCreateWorkspace(purpose, currentWorkspaceOrderId(menu));
       } else {
         sessionStorage.setItem(PRINT_PURPOSE_KEY, purpose);
         printButton.click();
@@ -140,8 +137,8 @@ function enhanceLabelLauncher() {
       create.type = "button";
       create.className = "primary labelCreateNewTab";
       create.textContent = "+ Create labels";
-      create.title = "Open label creation in a new tab";
-      create.addEventListener("click", () => openCreateTab());
+      create.title = "Create labels in this workspace";
+      create.addEventListener("click", () => openCreateWorkspace());
       headActions.appendChild(create);
     }
 

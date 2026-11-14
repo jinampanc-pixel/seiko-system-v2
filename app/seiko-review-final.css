@@ -11,10 +11,8 @@
 .moduleMenu.reviewFinalMenu>.moduleMenuSettings .nav{height:42px!important;min-height:42px!important}
 
 /* Home: the customize action is the final control after the complete Home content. */
-.seikoOperationalDashboard{padding-bottom:8px!important}
 .overview>.reviewFinalDashboardFooter,.reviewFinalDashboardHost>.reviewFinalDashboardFooter{display:flex!important;justify-content:flex-end!important;align-items:center!important;margin-top:14px!important;padding:12px 0 18px!important;border-top:1px solid var(--line)!important;min-height:58px!important}
 .overview>.reviewFinalDashboardFooter button,.reviewFinalDashboardHost>.reviewFinalDashboardFooter button{min-height:34px!important;padding:0 12px!important}
-.seikoOperationalDashboard .seikoDashboardHeadActions:empty{display:none!important}
 
 /* Order Center: back is its own row; title and new order return to normal header geometry. */
 .ordersPage>.reviewFinalBackRow{display:flex!important;align-items:center!important;min-height:26px!important;margin:0 0 7px!important}

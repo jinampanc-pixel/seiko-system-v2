@@ -141,11 +141,10 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
     await page.getByLabel('SEIKO billing').getByRole('button', { name: '← Back', exact: true }).click(); await page.locator('.orderCenterHead').waitFor(); await navigate('Orders');
   }
-  await page.route('**/labels/create?*', route => route.fulfill({ contentType: 'text/html', body: '<h1>Label route fixture</h1>' }));
-  await action('SMOKE-001', 'Create labels');
-  await page.waitForURL('**/labels/create?*');
-  const labelUrl = new URL(page.url()); assert.equal(labelUrl.searchParams.get('order'), order.orderId); assert.equal(labelUrl.searchParams.get('business'), 'seiko');
-  await page.goto(`${base}/tests/packing-browser/smoke.html`); await navigate('Orders');
+  const previousUrl=page.url();await action('SMOKE-001', 'Create labels');
+  const labelDialog=page.getByRole('dialog',{name:'Label workspace',exact:true});await labelDialog.getByRole('heading',{name:'Create labels',exact:true}).waitFor();
+  assert.equal(await labelDialog.locator('.labelCreateOrderChoice select').first().inputValue(),order.orderId);assert.equal(page.url(),previousUrl);
+  await labelDialog.getByRole('button',{name:'Close label workspace',exact:true}).click();await labelDialog.waitFor({state:'detached'});
   await action('SMOKE-001', 'Edit setup');
   await page.locator('.orderSetup').waitFor();
   await page.reload(); await navigate('Orders');

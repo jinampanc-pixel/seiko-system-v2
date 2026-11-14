@@ -1,4 +1,5 @@
 "use client";
+import { openLabelCreation } from "./lib/label-creation";
 
 import { useEffect } from "react";
 import type { SeikoOrder } from "./lib/order-domain";
@@ -79,7 +80,7 @@ function openSetup(orderNo: string) {
 function openLabels(orderNo: string) {
   const order = readOrders().find(item => item.details.orderNo === orderNo);
   if (order?.orderId) {
-    window.location.assign(`/labels/create?business=${encodeURIComponent(currentBusiness())}&order=${encodeURIComponent(order.orderId)}`);
+    openLabelCreation({businessId:currentBusiness(),orderId:order.orderId});
     return;
   }
   clickOrdersModule();
