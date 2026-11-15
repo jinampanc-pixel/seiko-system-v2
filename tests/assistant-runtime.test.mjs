@@ -103,3 +103,14 @@ test('order patches preserve unrelated measurements, prices and records, and rej
 test('text measurement headings support optional length/waist notation without fabricating readings', () => {
   const order=fixture();assistant.assertAssistantOrder(order);assert.equal(order.measurements[0].type,'text');assert.equal(order.records.length,0);
 });
+
+test('aggregate answer returns directly from the verified tool, without another model call or any business write',async()=>{
+ const h=harness({steps:[{kind:'read',tool:'order_counts',args:{query:'MS Doswada',products:['TP','TS'],filters:[{field:'Class',match:'6'}]}}]});
+ h.tools.readAssistantTool=async(_ctx,tool)=>tool==='memories'?[]:{ok:true,answer:'Verified complete count: 50 people ordered both.',coverage:'Complete order snapshot'};
+ const result=await h.request({operation:'chat',message:'How many Class6 in MS Doswada ordered TP and TS?'});
+ assert.equal(result.ok,true);assert.equal(result.message,'Verified complete count: 50 people ordered both.');assert.equal(h.calls.ai,1);assert.equal(h.calls.writes,0);h.sqlite.close();
+});
+test('unfinished colon-only clarification is repaired instead of shown to the user',async()=>{
+ const h=harness({steps:[{kind:'answer',message:'I need the following information:'},{kind:'answer',message:'Which of the two matching orders should I use: 001 or 002?'}]});
+ const r=await h.request({operation:'chat',message:'Check this school'});assert.equal(r.ok,true);assert.match(r.message,/001 or 002/);assert.equal(h.calls.ai,2);h.sqlite.close();
+});

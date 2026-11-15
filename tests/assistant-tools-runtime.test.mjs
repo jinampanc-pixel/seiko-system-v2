@@ -37,7 +37,7 @@ test('real edit tool proposes from authoritative order and preserves its version
   const lookup={POST:async request=>{const {query}=await request.json();searched.push(query);return Response.json({ok:true,results:[],related:query==='Example'?[{id:'candidate',kind:'Order',title:'2099-01-001'}]:[],hasMore:false});}};
   const tools=load('app/lib/server-assistant-tools.ts',{
     'cloudflare:workers':{env:{DB:{prepare:()=>({bind:()=>({first:async()=>({document_json:JSON.stringify(order),version:7})})})}}},'../api/erp/orders/route':orders,'../api/erp/search/route':lookup,'../api/erp/people/route':stub,'../api/erp/production/route':stub,'../api/erp/billing/route':stub,'../api/erp/order-billing/route':stub,'../api/seiko/route':stub,
-    './server-erp-auth':{authenticateActor:async()=>({userId:'owner'}),authorizePermission:async()=>({role:'owner'})},'./assistant-prompt':prompt,'./assistant-order-plan':load('app/lib/assistant-order-plan.ts'),'./order-commerce':{redactCommercialPrices:o=>o},'./assistant-domain':assistant,'./order-domain':domain,'./seiko-billing':{},
+    './server-erp-auth':{authenticateActor:async()=>({userId:'owner'}),authorizePermission:async()=>({role:'owner'})},'./assistant-prompt':prompt,'./assistant-order-plan':load('app/lib/assistant-order-plan.ts'),'./order-commerce':{redactCommercialPrices:o=>o},'./assistant-queries':load('app/lib/assistant-queries.ts',{'./order-domain':domain}),'./assistant-domain':assistant,'./order-domain':domain,'./seiko-billing':{},
   });
   const ctx={request:new Request('https://test.invalid'),business:'seiko',userId:'owner'};
   const setup=await tools.readAssistantTool(ctx,'order_setup',{orderId:'2099-01-001'});
@@ -69,4 +69,22 @@ test('fictional class/gender order preserves the agreed package quantities and p
   assert.equal(domain.quantityForRecord(order.products[1],record('5','Female')),0);
   assert.equal(domain.quantityForRecord(order.products[2],record('8','Female')),1);
   assert.equal(domain.quantityForRecord(order.products[2],record('7','Female')),2);
+});
+
+test('count tool resolves misspelling, reads one live snapshot, returns no student rows and enforces business permissions',async()=>{
+ const order={orderId:'aggregate-test',status:'Active',details:{orderNo:'TEST-001',clientName:'M S Dosvada'},googleSheet:{id:'test-sheet'},fields:[{id:'name',name:'Name'},{id:'class',name:'Class / Section'}],measurements:[],products:['T-Shirt','Track Pant'].map((name,i)=>({id:'p'+i,name,quantityMode:'same_for_all',defaultQuantity:1,quantityGroupRules:[],specifications:[]})),records:[]};
+ const snapshot={...order,records:Array.from({length:80},(_,i)=>({recordId:'r'+i,personId:'P'+i,values:{'field:name':'Test person '+i,'field:class':i<60?'6':'7'}}))};
+ let allowed=true,reads=0,snapshots=0,broken=false;
+ const stub={POST:async()=>{throw Error('Unrelated person, finance or search API must not be called');}};
+ const exports=load('app/lib/server-assistant-tools.ts',{
+  'cloudflare:workers':{env:{DB:{prepare(){return {bind(...args){reads++;assert.equal(args[0],'seiko');return {all:async()=>({results:[{id:order.orderId,order_no:order.details.orderNo,status:order.status,client:order.details.clientName,person_count:0}]}),first:async()=>({document_json:JSON.stringify(order),version:7})};}};}}}},
+  '../api/erp/orders/route':stub,'../api/erp/search/route':stub,'../api/erp/people/route':stub,'../api/erp/production/route':stub,'../api/erp/billing/route':stub,'../api/erp/order-billing/route':stub,'../api/seiko/route':stub,
+  './server-erp-auth':{authenticateActor:async()=>({userId:'owner'}),authorizePermission:async()=>allowed},'./assistant-prompt':prompt,'./assistant-order-plan':load('app/lib/assistant-order-plan.ts'),'./order-commerce':{},'./assistant-domain':assistant,'./order-domain':domain,'./seiko-billing':{},
+  './assistant-queries':load('app/lib/assistant-queries.ts',{'./order-domain':domain}),'./server-order-sheets':{readOrderSheetSnapshot:async()=>{snapshots++;if(broken)throw Error('Sheets unavailable');return {order:snapshot,checkedAt:'test-time',source:'Validated live Google Sheet snapshot'};}},
+ });
+ const ctx={request:new Request('https://test.invalid'),business:'seiko',userId:'owner'};
+ const result=await exports.readAssistantTool(ctx,'order_counts',{query:'MS Doswada',products:['TS','TP'],filters:[{field:'Class',match:'6'}]});
+ assert.equal(result.allSelectedProductsPeople,60);assert.equal(result.matchedPeople,60);assert.equal(snapshots,1);assert.equal(result.records,undefined);assert.equal(result.source,'Validated live Google Sheet snapshot');assert.match(result.answer,/60 people/);assert.equal(order.records.length,0);
+ broken=true;await assert.rejects(()=>exports.readAssistantTool(ctx,'order_counts',{orderId:order.orderId,products:['TP']}),/Sheets unavailable/);
+ allowed=false;const before=reads;await assert.rejects(()=>exports.readAssistantTool(ctx,'order_counts',{query:'MS Doswada',products:['TP']}),/permission/);assert.equal(reads,before);
 });

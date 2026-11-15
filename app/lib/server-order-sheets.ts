@@ -175,3 +175,20 @@ export async function saveSheetGroup(db:DB,actor:Actor,id:string,edit:SheetGroup
  const link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError("Connect this order’s Google Sheet before grouping entries.");const lease=await claim(db,id,actor);
  try{const source=await orderRow(db,id),token=await accessToken(db),base=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(link.spreadsheet_id)}`;const result=await google(token,base+"/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING");let plan:ReturnType<typeof prepareSheetGroupEdit>;try{plan=prepareSheetGroupEdit(source.order,result.values||[],edit);}catch(e){throw new SheetError((e as Error).message);}await google(token,base+":batchUpdate",{requests:plan.map(u=>({updateCells:{start:{sheetId:link.people_sheet_id,rowIndex:u.row,columnIndex:u.column},rows:[{values:[sheetCell(u.value)]}],fields:"userEnteredValue"}}))});return await syncOrderSheet(db,actor,id,true,token,lease);}catch(e){await release(db,id,lease,(e as Error).message);throw e;}finally{await release(db,id,lease);}
 }
+
+/** Validated live snapshot for aggregate reads: never writes identities, cells or app records. */
+export async function readOrderSheetSnapshot(db:DB,id:string){
+ const source=await orderRow(db,id),link=await orderSheetLink(db,id);
+ if(!link?.spreadsheet_id)throw new SheetError("The linked Google Sheet is unavailable; no current count was calculated.");
+ const deleted=new Set((await deletedSheetPeople(db,id)).map(p=>p.recordId));
+ const importOrder={...source.order,records:source.order.records.filter(r=>!deleted.has(r.recordId))};
+ const token=await accessToken(db),base="https://sheets.googleapis.com/v4/spreadsheets/"+encodeURIComponent(link.spreadsheet_id);
+ const result=await google(token,base+"/values/People?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING");
+ const table:unknown[][]=(result.values||[]).map((row:unknown[],index:number)=>index>=3&&deleted.has(String(row[0]))?[]:row);
+ if(table.some(row=>row.some(v=>typeof v==="string"&&/^#(REF!|VALUE!|DIV\/0!|N\/A|ERROR!|NAME\?|NUM!)/.test(v))))throw new SheetError("Resolve formula errors in People before counting. No app records were changed.");
+ const order=readOrderSheet(importOrder,table,()=>crypto.randomUUID()).order;
+ const latest=await orderRow(db,id);
+ const setup=(o:SeikoOrder)=>JSON.stringify([o.fields,o.products,o.measurements,o.commerce?.rules]);
+ if(setup(latest.order)!==setup(source.order))throw new SheetError("Order setup changed during the count. Retry to use the latest recipient rules.");
+ return {order,checkedAt:new Date().toISOString(),source:"Validated live Google Sheet snapshot"};
+}

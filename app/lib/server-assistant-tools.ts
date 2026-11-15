@@ -14,6 +14,8 @@ import { assistantOrderReview, assertAssistantOrder, patchAssistantOrder, type A
 import { ORDER_STATUSES, saveRevision, type SeikoOrder } from "./order-domain";
 import { documentTotals, invoiceOutstanding, roundMoney, type SeikoCommercialDocument, type SeikoPaymentRecord } from "./seiko-billing";
 
+import { findOrderCandidates, countOrderPeople, countAnswer, type CountFilter } from "./assistant-queries";
+
 type Args = Record<string, unknown>;
 type ToolContext = { request: Request; business: string; userId: string };
 export type PreparedAction = { tool: string; payload: Args; review: unknown };
@@ -37,6 +39,32 @@ async function currentOrder(ctx: ToolContext, orderId: unknown) {
   return row as { order: SeikoOrder; version: number };
 }
 export async function readAssistantTool(ctx: ToolContext, tool: string, args: Args): Promise<unknown> {
+  if (tool === "find_orders") {
+    const actor = await authenticateActor(ctx.request);
+    if (!actor || !await authorizePermission(actor, ctx.business, "orders.view")) throw new Error("Order-view permission required.");
+    const query = String(args.query || "").trim();
+    if (query.length < 3 || query.length > 120) throw new Error("Supply a client name or order number of 3–120 characters.");
+    const rows = await env.DB!.prepare("SELECT id,order_no,status,json_extract(document_json,'$.details.clientName') client,json_array_length(document_json,'$.records') person_count FROM erp_orders WHERE business_id=? AND json_extract(document_json,'$.deletedAt') IS NULL ORDER BY id LIMIT 5001").bind(ctx.business).all<{id:string;order_no:string;status:string;client:string;person_count:number}>();
+    if (rows.results.length > 5000) throw new Error("This business has more than 5,000 orders. Search using a specific order number.");
+    return { ok: true, ...findOrderCandidates(rows.results.map(r => ({orderId:r.id,orderNo:r.order_no,client:r.client,status:r.status,personCount:r.person_count})),query), note: "Spacing, punctuation, v/w spelling variants and close misspellings are candidate matches. A unique normalized full-name/order-number match wins; similar or multiple client/order matches require selection. Stored names are unchanged." };
+  }
+  if (tool === "order_counts") {
+    let orderId = args.orderId;
+    if (!orderId) {
+      const found = await readAssistantTool(ctx,"find_orders",{query:args.query}) as {matchedOrderId?:string};
+      if (!found.matchedOrderId) return {ok:false,requiresOrderSelection:true,lookup:found,message:"Choose a matching order before counting; no partial or guessed count was calculated."};
+      orderId = found.matchedOrderId;
+    }
+    const row = await currentOrder(ctx,orderId);
+    let order = row.order, checkedAt = new Date().toISOString(), source = "Complete saved app order snapshot";
+    if (ctx.business === "seiko" && order.googleSheet) {
+      const sheets = await import("./server-order-sheets");
+      const snapshot = await sheets.readOrderSheetSnapshot(env.DB!,order.orderId);
+      order = snapshot.order; checkedAt = snapshot.checkedAt; source = snapshot.source;
+    }
+    const counts = countOrderPeople(order,args.products as string[],(args.filters || []) as CountFilter[]);
+    return {ok:true,...counts,checkedAt,source,answer:countAnswer(counts,checkedAt)};
+  }
   if (tool === "search") {
     const result = await call(ctx, search, { query: args.query, page: args.page || 1 });
     if (result.results?.length || result.related?.length || Number(args.page || 1) !== 1) return result;

@@ -62,3 +62,16 @@ test('a production claim racing deletion preserves the person and can restore it
 test('an explicitly deleted row cleared in Sheets can be removed despite stale app field values',async()=>{const r=runtime();try{await r.connect();await r.post({operation:'create'});const p=r.people();p.values[3]=p.values[3].map((v,i)=>i<2?v:'');assert.equal((await r.post({operation:'sync'})).status,409);const result=await r.post({operation:'delete-person',edit:{recordId:'original-person',expected:{'field:name':'Original student'},changes:{}}});assert.equal(result.status,200,JSON.stringify(result));assert.equal(r.saved().records.length,0);assert.equal(p.values.length,3);assert.equal(result.deletedPeople.length,1);const restored=await r.post({operation:'restore-person',edit:{recordId:'original-person'}});assert.equal(restored.status,200,JSON.stringify(restored));assert.equal(r.saved().records[0].values['field:name'],'Original student','undo restores the last confirmed person even when their Sheet row was cleared');}finally{r.sqlite.close();}});
 
 test('one group save updates selected Sheet batch cells and the canonical order together',async()=>{const r=runtime();try{await r.connect();await r.service.createOrderSheet(r.db,r.actor,r.order.orderId);const table=r.people().values,keys=table[0],ids=r.saved().records.map(p=>p.recordId),before=JSON.stringify(table.map(row=>row.filter((_,i)=>i!==keys.indexOf('_batch'))));await r.service.saveSheetGroup(r.db,r.actor,r.order.orderId,{recordIds:ids,batch:'Second visit',expected:Object.fromEntries(ids.map(id=>[id,'']))});assert.ok(ids.every(id=>r.saved().commerce.people[id].batch==='Second visit'));assert.equal(JSON.stringify(r.people().values.map(row=>row.filter((_,i)=>i!==keys.indexOf('_batch')))),before);const current=r.people().values;current[3][keys.indexOf('_batch')]='Edited in Sheets';await assert.rejects(()=>r.service.saveSheetGroup(r.db,r.actor,r.order.orderId,{recordIds:ids,batch:'Third visit',expected:Object.fromEntries(ids.map(id=>[id,'Second visit']))}),/another device/);assert.equal(r.people().values[3][keys.indexOf('_batch')],'Edited in Sheets');}finally{r.sqlite.close();}});
+
+test('aggregate snapshot reads all live Sheet edits and additions without writing cells or canonical records',async()=>{
+ const r=runtime();try{await r.connect();await r.post({operation:'create'});const people=r.people(),keys=people.values[0],row=people.values[3].slice();
+ row[0]='';row[1]='';row[keys.indexOf('field:name')]='New unsynchronized person';people.values.push(row);
+ people.values[3][keys.indexOf('field:name')]='Live edited name';const canonical=JSON.stringify(r.saved()),table=JSON.stringify(people.values),start=r.calls.length;
+ const snapshot=await r.service.readOrderSheetSnapshot(r.db,r.order.orderId);
+ assert.equal(snapshot.order.records.length,2);assert.equal(snapshot.order.records[0].values['field:name'],'Live edited name');
+ assert.equal(snapshot.order.records[1].values['field:name'],'New unsynchronized person');
+ assert.equal(JSON.stringify(r.saved()),canonical);assert.equal(JSON.stringify(people.values),table);
+ assert.ok(r.calls.slice(start).every(c=>!c.url.includes(':batchUpdate')));
+ r.fail(true);await assert.rejects(()=>r.service.readOrderSheetSnapshot(r.db,r.order.orderId));assert.equal(JSON.stringify(r.saved()),canonical);
+ }finally{r.sqlite.close();}
+});
