@@ -45,3 +45,14 @@ test('sheet headings match app measurement ownership and unused exception column
 test('sheet totals exclude empty-name placeholders and whitespace, even when default quantities exist',()=>{const o=order();o.fields=[o.fields[1],o.fields[0]];const cols=model.orderSheetColumns(o),requests=model.sheetCountRequests(o,cols),rows=requests.find(r=>r.updateCells).updateCells.rows,formulas=rows.map(r=>r.values[1].userEnteredValue.formulaValue);assert.match(formulas[0],/LEN\(TRIM\('People'!G4:G&""\)\)>0/,'counts use the actual Name column, not the first person field');assert.ok(formulas.every(f=>f.includes('SUMPRODUCT')&&f.includes('LEN(TRIM(')));assert.match(formulas[1],/LOWER\(TRIM\(/,'status comparisons ignore case and spaces');assert.ok(formulas.slice(2).every(f=>f.includes('IFERROR(')&&f.includes('*1,0)')));});
 
 test('bulk grouping changes only batch cells and rejects conflicts before any update',()=>{const o=order(),t=table(o),before=JSON.stringify(t),edit={recordIds:['one','two'],batch:'Second visit',expected:{one:'',two:''}};const plan=model.prepareSheetGroupEdit(o,t,edit);assert.equal(plan.length,2);assert.ok(plan.every(p=>p.column===t[0].indexOf('_batch')&&p.value==='Second visit'));assert.equal(JSON.stringify(t),before);t[4][t[0].indexOf('_batch')]='Another visit';assert.throws(()=>model.prepareSheetGroupEdit(o,t,edit),/another device/);t[4][t[0].indexOf('_batch')]='Second visit';assert.equal(model.prepareSheetGroupEdit(o,t,edit).length,2);assert.throws(()=>model.prepareSheetGroupEdit(o,t,{...edit,recordIds:['one','one']}),/Select/);});
+
+test('compound text measurements round-trip through Sheets without losing slash or changing existing numeric readings',()=>{
+ const o=order();o.measurements[0].name='Length / Waist (when required)';o.measurements[0].type='text';
+ const cols=model.orderSheetColumns(o),key='measurement:waist:shared';
+ assert.equal(cols.find(c=>c.id===key).numeric,false);
+ const t=table(o);t[3][t[0].indexOf(key)]='26/34';t[4][t[0].indexOf(key)]='36/34';
+ const result=model.readOrderSheet(o,t,()=> 'unused').order;
+ assert.equal(result.records[0].values[key],'26/34');assert.equal(result.records[1].values[key],'36/34');
+ const again=table(result);assert.equal(again[3][again[0].indexOf(key)],'26/34');
+ assert.equal(o.records[0].values[key],28);assert.equal(result.records[0].recordId,o.records[0].recordId);
+});

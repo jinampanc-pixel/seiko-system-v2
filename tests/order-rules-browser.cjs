@@ -27,8 +27,13 @@ module.exports=async({page,seed,navigate,order,sqlite,domain,sheetModel})=>{
   assert.equal(await card.getByLabel('Default qty',{exact:true}).count(),0,'simple assignment hides zero/default machinery');
   assert.equal(await card.getByLabel('Quantity rule',{exact:true}).count(),0,'simple assignment needs no quantity policy');
  }
+ const formatCard=setup.locator('.productPolicy').first();await formatCard.locator('.productCardSummary').click();
+ await formatCard.locator('.measurementProductLinks>summary').click();
+ await formatCard.getByLabel('Measurement format',{exact:true}).selectOption('text');
+ assert.equal(await formatCard.getByLabel('Measurement format',{exact:true}).inputValue(),'text');
+ await layout('measurement-text-format');
  await layout('simple-recipients');
- const lastCard=setup.locator('.productPolicy').last();await lastCard.getByLabel('Who receives it?',{exact:true}).selectOption('rules');
+ const lastCard=setup.locator('.productPolicy').last();await lastCard.locator('.productCardSummary').click();await lastCard.getByLabel('Who receives it?',{exact:true}).selectOption('rules');
  assert.equal(await lastCard.getByLabel('Group quantity',{exact:true}).inputValue(),'1');
  await lastCard.getByLabel('Who receives it?',{exact:true}).selectOption({label:'Gender: Female'});
  let rejectSetup=true;await page.route('**/api/erp/orders',async route=>{const body=route.request().postDataJSON();if(rejectSetup&&body.operation==='upsert'&&body.order?.orderId===fixture.orderId){rejectSetup=false;return route.fulfill({status:503,json:{ok:false,code:'TEST_SAVE_FAILURE',message:'Setup save was not confirmed'}});}return route.fallback();});

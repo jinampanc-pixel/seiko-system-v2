@@ -47,6 +47,23 @@ export function patchAssistantOrder(original: SeikoOrder, patches: AssistantPatc
     const old = original.products.flatMap(p => p.specifications).find(s => s.id === spec.id);
     if (JSON.stringify(spec.attachments || []) !== JSON.stringify(old?.attachments || [])) throw new Error("Manage artwork attachments through the existing upload workflow.");
   }
+  // Quantities are executable rules, never descriptive garment attributes.
+  for (const product of next.products) for (const spec of product.specifications) {
+    const old = original.products.find(p => p.id === product.id)?.specifications.find(s => s.id === spec.id);
+    if ((!old || old.name !== spec.name) && /^(quantity|qty|pieces|units|count)(\s+(per|each|for)\b|$)/i.test(spec.name.trim())) throw new Error("Change garment quantity rules and matching package contents, not a quantity specification.");
+  }
+  for (const product of next.products) {
+    const old = original.products.find(p => p.id === product.id);
+    for (const rule of product.quantityGroupRules) {
+      const signature = (r: { conditions?: { fieldId: string; match: string }[]; conditionMode?: string; fieldId?: string; match?: string }) => JSON.stringify([r.conditionMode || "all", (r.conditions || [{ fieldId: r.fieldId || "", match: r.match || "" }]).map(c => [c.fieldId, c.match.trim().toLowerCase()]).sort()]);
+      const previous = old?.quantityGroupRules.find(r => signature(r) === signature(rule));
+      if (!previous || previous.quantity === rule.quantity) continue;
+      for (const price of next.commerce?.rules || []) {
+        const item = price.contents.find(c => c.productId === product.id);
+        if (price.mode === "package" && signature(price) === signature(rule) && item && item.quantity !== rule.quantity) throw new Error("Update matching package contents to agree with the changed garment quantity. Preserve the agreed package rate unless explicitly changed.");
+      }
+    }
+  }
   assertAssistantOrder(next);
   return next;
 }
@@ -68,6 +85,9 @@ export function assertAssistantOrder(value: unknown): asserts value is SeikoOrde
     }
   }
   for (const measurement of order.measurements) { id(measurement.id); if (typeof measurement.name !== "string" || !measurement.name.trim() || !["text", "number"].includes(measurement.type) || !["Optional", "When present", "Always"].includes(measurement.requiredMode) || !Array.isArray(measurement.appliesTo) || measurement.appliesTo.some(p => !order.products.some(x => x.id === p))) throw new Error("Measurements must reference existing garments and valid entry types."); }
+  for (const measurement of order.measurements) {
+    if (measurement.type === "number" && /\blength\s*\/\s*waist\b/i.test(measurement.name)) throw new Error("Length / Waist entries such as 26/34 require Text measurement format, not Number.");
+  }
   const errors = validateOrder(order);
   if (errors.length) throw new Error(errors.join(" "));
 }
@@ -80,7 +100,7 @@ export function assistantOrderReview(order: SeikoOrder) {
   return {
     order: order.details,
     personFields: order.fields.map(f => f.name),
-    garments: order.products.map(p => ({ name: p.name, quantityMode: p.quantityMode.replaceAll("_", " "), defaultQuantity: p.defaultQuantity, quantityRules: p.quantityGroupRules.map(r => ({ ...condition(r), quantity: r.quantity })), specifications: p.specifications.map(s => ({ name: s.name, value: s.defaultValue, assignment: s.mode.replaceAll("_", " "), rules: s.groupRules.map(r => ({ ...condition(r), value: r.value })) })), measurements: order.measurements.filter(m => m.appliesTo.includes(p.id)).map(m => ({ name: m.name, type: m.type, required: m.requiredMode })) })),
+    garments: order.products.map(p => ({ name: p.name, quantityMode: p.quantityMode.replaceAll("_", " "), defaultQuantity: p.defaultQuantity, ...(p.quantityMode === "by_group" ? { outsideGroupsQuantity: p.defaultQuantity } : {}), quantityRules: p.quantityGroupRules.map(r => ({ ...condition(r), quantity: r.quantity })), specifications: p.specifications.map(s => ({ name: s.name, value: s.defaultValue, assignment: s.mode.replaceAll("_", " "), rules: s.groupRules.map(r => ({ ...condition(r), value: r.value })) })), measurements: order.measurements.filter(m => m.appliesTo.includes(p.id)).map(m => ({ name: m.name, type: m.type, required: m.requiredMode })) })),
     pricing: (order.commerce?.rules || []).map(r => ({ description: r.name, chargeBy: r.mode, rate: r.rate, taxRate: r.taxRate, ...condition(r), contents: r.contents.map(c => ({ garment: order.products.find(p => p.id === c.productId)?.name || "Unknown garment", quantity: c.quantity })) })),
     personCount: order.records.length,
   };

@@ -55,3 +55,30 @@ test('large industrial plan and per-group specifications work without school ass
   const p={details:{clientName:'TEST FACTORY',contactNumber:'0000000000',clientType:'Corporate / Industrial'},fields:[{key:'department',name:'Department'},{key:'designation',name:'Designation'}],products:Array.from({length:40},(_,i)=>({key:'product'+i,name:'Work garment '+i,quantity:{default:0,groups:[{when:{department:'Assembly',designation:'Operator'},quantity:2}]},specifications:{Colour:{mode:'by_group',groups:[{when:{department:'Assembly'},value:'Blue'},{when:{department:'Warehouse'},value:'Grey'}]}},measurements:[{name:'Length',type:'number'}]})),prices:[]};
   const order=compile(p);guard.assertAssistantOrder(order);assert.equal(order.products.length,40);assert.equal(order.fields.some(f=>/class|gender/i.test(f.name)),false);
 });
+
+test('length/waist setup rejects numeric-only format and preserves slash values as text',()=>{
+ const p=complex();p.products[0].measurements=[{name:'Length / Waist (when required)',type:'number'}];
+ assert.throws(()=>guard.assertAssistantOrder(compile(p)),/require Text/);
+ p.products[0].measurements[0].type='text';const order=compile(p);guard.assertAssistantOrder(order);
+ order.records=[{recordId:'test-slash',personId:'TEST',values:{['measurement:'+order.measurements[0].id+':product:'+order.products[0].id]:'26/34'}}];
+ guard.assertAssistantOrder(order);assert.equal(Object.values(order.records[0].values)[0],'26/34');
+});
+test('a quantity correction cannot be replaced by a descriptive specification',()=>{
+ const order=compile(complex()),p=order.products[8];
+ assert.throws(()=>guard.patchAssistantOrder(order,[{path:'/products/8/specifications',value:[...p.specifications,{id:'test-qty-spec',name:'Quantity per girl',role:'attribute',mode:'same_for_all',defaultValue:'1',groupRules:[],required:true,attachments:[]}]}]),/quantity rules/);
+});
+test('quantity correction updates the applicable package, preserves rates and individual exceptions',()=>{
+ const order=compile(complex()),p=order.products[8],rule=structuredClone(p.quantityGroupRules);rule[0].quantity=1;
+ order.records=[{recordId:'exception',personId:'TEST',values:{['product:'+p.id+':assigned_qty']:0}}];
+ const change={path:'/products/8/quantityGroupRules',value:rule};
+ assert.throws(()=>guard.patchAssistantOrder(order,[change]),/package contents/);
+ const contents=structuredClone(order.commerce.rules[3].contents);contents.find(c=>c.productId===p.id).quantity=1;
+ const next=guard.patchAssistantOrder(order,[change,{path:'/commerce/rules/3/contents',value:contents}]);
+ assert.equal(next.commerce.rules[3].rate,1100);assert.equal(JSON.stringify(next.records),JSON.stringify(order.records));
+ assert.equal(domain.quantityForRecord(next.products[8],next.records[0]),0);
+ const fields=Object.fromEntries(next.fields.map(f=>[f.name,f.id]));
+ for(const c of ['BV','1','2','3','4','5','6','7','8'])for(const gender of ['Male','Female']){
+  const record={recordId:'matrix',personId:'TEST',values:{['field:'+fields['Class / Section']]:c,['field:'+fields.Gender]:gender}};
+  assert.equal(domain.quantityForRecord(next.products[8],record),gender==='Female'&&Number(c)>=5?1:0);
+ }
+});

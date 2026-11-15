@@ -34,6 +34,7 @@ export function ProductQuantitySetup({ order, product, onChange, nameControl, re
         <option value="same_for_all">Same quantity for everyone</option><option value="by_group">Different quantity by group</option><option value="per_person">Enter for each person</option><option value="default_with_exceptions">Same normally; allow changes</option><option value="order_total">One total quantity</option>
       </select></label>
       {product.quantityMode === 'by_group' && <details className="groupRules quantityGroupRules" open><summary>Set quantities by group</summary>
+        <p>Outside these groups: {product.defaultQuantity} each. Set Default qty to 0 when only the listed groups receive this product.</p>
         {(product.quantityGroupRules || []).map((rule, index) => <div key={index}>
           <RuleConditions fields={ruleSourceFields(order)} rule={rule} legacyFieldId={product.quantityGroupFieldId} onChange={patch => onChange({ ...product, quantityGroupRules: product.quantityGroupRules.map((item, i) => i === index ? { ...item, ...patch } : item) })}/>
           <input aria-label="Group quantity" type="number" min="0" placeholder="Quantity" value={rule.quantity ?? ''} onChange={event => onChange({ ...product, quantityGroupRules: product.quantityGroupRules.map((item, i) => i === index ? { ...item, quantity: Number(event.target.value) } : item) })}/>
