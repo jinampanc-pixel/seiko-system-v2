@@ -46,3 +46,18 @@ test('complex and legacy quantity policies are never silently flattened by simpl
  assert.equal(recipients.simpleRecipient({...legacy,defaultQuantity:1},available),null);
  assert.equal(recipients.simpleRecipient({...legacy,quantityGroupRules:[{match:'Other',quantity:1}]},available),null);
 });
+
+test('person-detail recipients are independent of fixed, group and per-person quantities across entry, Sheets and production',()=>{
+ const o=fixture(),p={...d.blankProduct(),id:'pinafore',name:'Pinafore',defaultQuantity:2,recipientWhen:when(['gender','Female, F'])};o.products=[p];o.measurements=[];o.commerce.rules=[];
+ const entry=load('app/lib/measurement-entry-grid.ts'),female={recordId:'female',personId:'F',values:{'field:name':'Test girl','field:gender':'F','field:class':'7'}},male={recordId:'male',personId:'M',values:{'field:name':'Test boy','field:gender':'Male','field:class':'7','product:pinafore:assigned_qty':9}};o.records=[female,male];
+ const snapshot=JSON.stringify(o);assert.equal(d.quantityForRecord(p,female),2);assert.equal(d.quantityForRecord(p,male),0);
+ assert.equal(entry.missingEntryGroups(o,{'field:name':'Unresolved'})[0].id,'gender');assert.equal(d.usesStructuredRules(o),true);
+ const q=commerce.assignedQuantities(o);assert.equal(q.get(female.recordId)[p.id],2);assert.equal(q.get(male.recordId)?.[p.id]||0,0);
+ const tableRows=table(o),resolved=tableRows[0].indexOf('product:pinafore:resolved_qty');assert.equal(tableRows[3][resolved],2);assert.equal(tableRows[4][resolved],0);
+ const demand=production.productionDemand([{order:o,version:1}]);assert.equal(demand.reduce((n,r)=>n+r.quantity,0),2);assert.equal(JSON.stringify(o),snapshot);
+ p.quantityMode='per_person';female.values['product:pinafore:assigned_qty']=3;assert.equal(d.quantityForRecord(p,female),3);assert.equal(d.quantityForRecord(p,male),0);
+ p.quantityMode='by_group';p.quantityGroupRules=[{match:'',quantity:4,...when(['class','7'])}];delete female.values['product:pinafore:assigned_qty'];assert.equal(d.quantityForRecord(p,female),4);assert.equal(d.quantityForRecord(p,male),0);
+ p.recipientWhen=when(['gender','Female, F'],['class','5-8']);female.values['field:class']='4';assert.equal(d.quantityForRecord(p,female),0);female.values['field:class']='7';assert.equal(d.quantityForRecord(p,female),4);assert.equal(d.orderRuleErrors(o).length,0);
+ p.recipientWhen=when(['missing-field','Female']);assert.ok(d.orderRuleErrors(o).some(e=>e.includes('recipients')));
+ p.recipientWhen=when(['gender','Female']);p.quantityMode='order_total';assert.ok(d.orderRuleErrors(o).some(e=>e.includes('order totals')));
+});

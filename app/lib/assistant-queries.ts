@@ -1,4 +1,4 @@
-import { groupRuleMatches, quantityForRecord, resolveRuleValue, type SeikoOrder } from "./order-domain";
+import { predicateState, groupRuleMatches, quantityForRecord, resolveRuleValue, type SeikoOrder } from "./order-domain";
 
 /** Search normalization is only for finding candidates, never for changing stored names. */
 export function searchKey(value: string): string {
@@ -69,6 +69,7 @@ export function countOrderPeople(order: SeikoOrder, requested: string[], filters
   for (const record of included) {
     let unresolved = false;
     const quantities = products.map(p => {
+      if(p.recipientWhen){const state=predicateState(p.recipientWhen,record);if(state!=="match"){if(state==="pending")unresolved=true;return 0;}}
       const override = ["assigned_qty", "qty_override", "qty"].some(key => String(record.values[`product:${p.id}:${key}`] ?? "").trim() !== "");
       if (!override && p.quantityMode === "by_group" && resolveRuleValue(p.quantityGroupRules, record, p.quantityGroupFieldId, r => r.quantity, p.defaultQuantity).state !== "ready") unresolved = true;
       return quantityForRecord(p, record);

@@ -30,7 +30,7 @@ export function patchAssistantOrder(original: SeikoOrder, patches: AssistantPatc
     if (!object(patch) || typeof patch.path !== "string" || patch.path.length > 400) throw new Error("Invalid change path.");
     const parts = patch.path.split("/").slice(1).map(p => p.replace(/~1/g, "/").replace(/~0/g, "~"));
     if (!patch.path.startsWith("/") || parts.some(p => !p || ["__proto__", "prototype", "constructor"].includes(p))) throw new Error("Invalid change path.");
-    const allowed = /^(details\/(clientName|clientType|contactPerson|contactNumber|shipTo|billTo|remarks|deliveryDate)|products\/\d+\/(name|defaultQuantity|quantityMode|quantityGroupRules|specifications)(\/.*)?|measurements(\/.*)?|fields(\/.*)?|commerce\/rules(\/.*)?|records\/\d+\/values\/[^/]+)$/.test(parts.join("/"));
+    const allowed = /^(details\/(clientName|clientType|contactPerson|contactNumber|shipTo|billTo|remarks|deliveryDate)|products\/\d+\/(name|defaultQuantity|quantityMode|quantityGroupRules|recipientWhen|specifications)(\/.*)?|measurements(\/.*)?|fields(\/.*)?|commerce\/rules(\/.*)?|records\/\d+\/values\/[^/]+)$/.test(parts.join("/"));
     if (!allowed) throw new Error("This change must be made through its dedicated business action.");
     let target: unknown = next;
     for (const part of parts.slice(0, -1)) {
@@ -100,7 +100,7 @@ export function assistantOrderReview(order: SeikoOrder) {
   return {
     order: order.details,
     personFields: order.fields.map(f => f.name),
-    garments: order.products.map(p => ({ name: p.name, quantityMode: p.quantityMode.replaceAll("_", " "), defaultQuantity: p.defaultQuantity, ...(p.quantityMode === "by_group" ? { outsideGroupsQuantity: p.defaultQuantity } : {}), quantityRules: p.quantityGroupRules.map(r => ({ ...condition(r), quantity: r.quantity })), specifications: p.specifications.map(s => ({ name: s.name, value: s.defaultValue, assignment: s.mode.replaceAll("_", " "), rules: s.groupRules.map(r => ({ ...condition(r), value: r.value })) })), measurements: order.measurements.filter(m => m.appliesTo.includes(p.id)).map(m => ({ name: m.name, type: m.type, required: m.requiredMode })) })),
+    garments: order.products.map(p => ({ name: p.name, recipientConditions: p.recipientWhen ? condition(p.recipientWhen) : undefined, quantityMode: p.quantityMode.replaceAll("_", " "), defaultQuantity: p.defaultQuantity, ...(p.quantityMode === "by_group" ? { outsideGroupsQuantity: p.defaultQuantity } : {}), quantityRules: p.quantityGroupRules.map(r => ({ ...condition(r), quantity: r.quantity })), specifications: p.specifications.map(s => ({ name: s.name, value: s.defaultValue, assignment: s.mode.replaceAll("_", " "), rules: s.groupRules.map(r => ({ ...condition(r), value: r.value })) })), measurements: order.measurements.filter(m => m.appliesTo.includes(p.id)).map(m => ({ name: m.name, type: m.type, required: m.requiredMode })) })),
     pricing: (order.commerce?.rules || []).map(r => ({ description: r.name, chargeBy: r.mode, rate: r.rate, taxRate: r.taxRate, ...condition(r), contents: r.contents.map(c => ({ garment: order.products.find(p => p.id === c.productId)?.name || "Unknown garment", quantity: c.quantity })) })),
     personCount: order.records.length,
   };

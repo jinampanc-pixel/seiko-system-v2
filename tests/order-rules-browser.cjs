@@ -34,7 +34,9 @@ module.exports=async({page,seed,navigate,order,sqlite,domain,sheetModel})=>{
  await layout('measurement-text-format');
  await layout('simple-recipients');
  const lastCard=setup.locator('.productPolicy').last();await lastCard.locator('.productCardSummary').click();await lastCard.getByLabel('Who receives it?',{exact:true}).selectOption('rules');
- assert.equal(await lastCard.getByLabel('Group quantity',{exact:true}).inputValue(),'1');
+ await lastCard.locator('.productRecipientRules').getByLabel('Condition 2 detail',{exact:true}).selectOption('class');
+ await lastCard.locator('.productRecipientRules').getByLabel('Condition 2 matching values',{exact:true}).fill('9-11');
+ assert.equal(await lastCard.getByLabel('Quantity each',{exact:true}).inputValue(),'1','recipient conditions preserve quantity');
  await lastCard.getByLabel('Who receives it?',{exact:true}).selectOption({label:'Gender: Female'});
  let rejectSetup=true;await page.route('**/api/erp/orders',async route=>{const body=route.request().postDataJSON();if(rejectSetup&&body.operation==='upsert'&&body.order?.orderId===fixture.orderId){rejectSetup=false;return route.fulfill({status:503,json:{ok:false,code:'TEST_SAVE_FAILURE',message:'Setup save was not confirmed'}});}return route.fallback();});
  await page.getByRole('button',{name:'Open workspace',exact:true}).click();await page.getByRole('alert').filter({hasText:'Setup save was not confirmed'}).waitFor();assert.ok(await setup.isVisible(),'failed setup save keeps editable setup open');assert.equal(await lastCard.getByLabel('Who receives it?',{exact:true}).inputValue(),JSON.stringify(['gender','Female']));
@@ -47,5 +49,25 @@ module.exports=async({page,seed,navigate,order,sqlite,domain,sheetModel})=>{
   assert.deepEqual(rows,gender==='Male'?['Shirt','Male Pant']:['Kurti','Female Pant']);
  }
  await layout('unnamed-female-entry');await entry.getByRole('button',{name:'Cancel entry',exact:true}).click();
+ // Text-only details must drive recipients independently of quantity methods.
+ fixture.fields=['name','class','gender'].map(id=>({...domain.field(id==='name'?'Name':id==='class'?'Class':'Gender'),id,type:'text',options:[]}));
+ fixture.products=['Shirt','Pinafore','Track Pant'].map((name,i)=>({...domain.blankProduct(),id:'text-'+i,name,defaultQuantity:i===1?2:1}));fixture.measurements=[];fixture.records=[];fixture.commerce={rules:[],people:{},deliveries:[],issues:[]};persist();
+ await page.reload();await navigate('Orders');await page.locator('.orderRow').filter({hasText:'RULES-001'}).locator('.orderCenterInfo').click();
+ const shirt=setup.locator('.productPolicy').nth(0),pinafore=setup.locator('.productPolicy').nth(1);
+ await shirt.getByLabel('Who receives it?',{exact:true}).selectOption('field:gender');await shirt.getByLabel('Recipient matching values',{exact:true}).fill('Male, M');
+ assert.equal(await shirt.getByLabel('Quantity each',{exact:true}).inputValue(),'1');
+ await shirt.getByRole('button',{name:'Quantity options',exact:true}).click();await shirt.getByLabel('Quantity rule',{exact:true}).selectOption('per_person');
+ assert.equal(await shirt.getByLabel('Recipient matching values',{exact:true}).inputValue(),'Male, M');
+ await shirt.getByLabel('Who receives it?',{exact:true}).selectOption('rules');await shirt.locator('.productRecipientRules').getByLabel('Condition 2 detail',{exact:true}).selectOption('class');await shirt.locator('.productRecipientRules').getByLabel('Condition 2 matching values',{exact:true}).fill('9-11');
+ await pinafore.locator('.productCardSummary').click();await pinafore.getByLabel('Who receives it?',{exact:true}).selectOption('field:gender');await pinafore.getByLabel('Recipient matching values',{exact:true}).fill('Female, F');
+ assert.equal(await pinafore.getByLabel('Quantity each',{exact:true}).inputValue(),'2');await layout('text-recipient-setup');
+ refreshSetup=true;await page.getByRole('button',{name:'Open workspace',exact:true}).click();await entry.getByRole('button',{name:'+ Add person',exact:true}).click();
+ await entry.getByRole('textbox',{name:'Name',exact:true}).fill('Recipient test');await entry.getByRole('textbox',{name:'Class',exact:true}).fill('9');await entry.getByRole('textbox',{name:'Gender',exact:true}).fill('M');
+ assert.deepEqual(await entry.locator('tbody th').allTextContents(),['Shirt','Track Pant']);
+ await entry.getByRole('textbox',{name:'Gender',exact:true}).fill('F');assert.deepEqual(await entry.locator('tbody th').allTextContents(),['Pinafore','Track Pant']);
+ await entry.getByRole('textbox',{name:'Gender',exact:true}).fill('M');await entry.getByRole('textbox',{name:'Class',exact:true}).fill('8');assert.deepEqual(await entry.locator('tbody th').allTextContents(),['Track Pant']);
+ await entry.getByRole('textbox',{name:'Class',exact:true}).fill('9');await entry.locator('details>summary').filter({hasText:'Individual exceptions'}).click();await entry.getByRole('spinbutton',{name:'Shirt quantity',exact:true}).fill('3');
+ await entry.getByRole('button',{name:'Save & close',exact:true}).click();await entry.getByRole('button',{name:'+ Add person',exact:true}).waitFor();
+ const savedRecipient=fixture.records.find(r=>r.values['field:name']==='Recipient test');assert.ok(savedRecipient);assert.equal(domain.quantityForRecord(fixture.products[0],savedRecipient),3);assert.equal(domain.quantityForRecord(fixture.products[1],savedRecipient),0);
  console.log('PASS: compound Class/Gender rules, simple product recipients, unnamed measurement entries, save-before-workspace with failed-save retention, automatic matching garments and responsive setup/workspace.');
 };

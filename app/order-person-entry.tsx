@@ -1,7 +1,7 @@
 "use client";
 import { useUnsavedNavigation } from "./app-navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { normalizeProductMeasurements, quantityForRecord, usesStructuredRules, specificationForRecord, recordRuleIssues, measurementRequired, ruleConditions, type SeikoOrder } from "./lib/order-domain";
+import { normalizeProductMeasurements, predicateState, quantityForRecord, usesStructuredRules, specificationForRecord, recordRuleIssues, measurementRequired, ruleConditions, type SeikoOrder } from "./lib/order-domain";
 import { orderSheetColumns, orderSheetRows, type SheetPersonEdit } from "./lib/order-sheet-model";
 import { entryDisplayColumns, missingEntryGroups, measurementEntryGrid } from "./lib/measurement-entry-grid";
 import { groupRuleValues } from "./lib/order-domain";
@@ -15,7 +15,7 @@ export function OrderPersonEntry({order,busy,canEdit,onSave,onDelete,initialPers
  const recoveryKey="jinam:seiko:person-save:"+order.orderId;
  const [saving,setSaving]=useState(false),[failedSave,setFailedSave]=useState<{edit:SheetPersonEdit;name:string}|null>(()=>{try{const saved=JSON.parse(localStorage.getItem(recoveryKey)||"null");return saved?.edit?.recordId&&saved.edit.changes&&saved.edit.expected?saved:null;}catch{return null;}}),[lastSaved,setLastSaved]=useState<{id:string;name:string}|null>(null);const savingRef=useRef(false);const entryBusy=busy&&!saving;
  const [speechField,setSpeechField]=useState(''),[mode,setMode]=useState('manual'),[language,setLanguage]=useState('en-IN'),form=useRef<HTMLFormElement>(null),speechTarget=useRef<HTMLInputElement|HTMLSelectElement|null>(null);
- const displayCols=entryDisplayColumns(normalized,cols);const allGroups=[...new Map(displayCols.filter(c=>!c.id.startsWith("_")&&c.groupId!=="record").map(c=>[c.groupId,c.groupLabel])).entries()];const groups=allGroups.filter(([id])=>!id.startsWith("product:")||Number(draft?.values[id+":assigned_qty"]||0)>0||normalized.products.some(p=>id==="product:"+p.id&&p.quantityMode==="per_person"));
+ const displayCols=entryDisplayColumns(normalized,cols);const allGroups=[...new Map(displayCols.filter(c=>!c.id.startsWith("_")&&c.groupId!=="record").map(c=>[c.groupId,c.groupLabel])).entries()];const groups=allGroups.filter(([id])=>!id.startsWith("product:")||Number(draft?.values[id+":assigned_qty"]||0)>0||normalized.products.some(p=>id==="product:"+p.id&&p.quantityMode==="per_person"&&(!p.recipientWhen||predicateState(p.recipientWhen,{recordId:draft?.id||"",personId:"",values:draft?.values||{}})==="match")));
  const speechColumn=cols.find(c=>c.id===speechField)||cols.find(c=>c.groupId==='record');const pending=draft?missingEntryGroups(normalized,draft.values):[];const specificationExceptions=new Set(normalized.products.flatMap(p=>p.specifications.filter(s=>['same_for_all','by_group'].includes(s.mode)).map(s=>'spec:'+s.id+':override')));const matrix=measurementEntryGrid(displayCols.filter(c=>!specificationExceptions.has(c.id)),groups);
  const missingRequired=draft?cols.filter(c=>c.groupId==="record"&&c.required&&!String(draft.values[c.id]??"").trim()):[];
  const neededMeasurements=draft?displayCols.filter(c=>{const m=normalized.measurements.find(m=>c.id.startsWith("measurement:"+m.id+":"));return m&&measurementRequired(m,{recordId:draft.id,personId:"",values:draft.values})&&m.appliesTo.some(id=>Number(draft.values["product:"+id+":assigned_qty"]||0)>0)&&!String(draft.values[c.id]??"").trim();}):[];

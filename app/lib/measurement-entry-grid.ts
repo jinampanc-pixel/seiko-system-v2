@@ -2,7 +2,7 @@ import type { SheetColumn } from './order-sheet-model';
 import { quantityForRecord, ruleConditions, predicateState, type SeikoOrder } from './order-domain';
 export function missingEntryGroups(order:SeikoOrder,values:Record<string,string|number>){
  const record={recordId:'entry',personId:'',values},ids=new Set<string>();
- for(const p of order.products){const rules=[...(p.quantityMode==='by_group'?p.quantityGroupRules.map(rule=>({rule,field:p.quantityGroupFieldId})):[]),...(quantityForRecord(p,record)>0?p.specifications.filter(s=>s.mode==='by_group'&&!String(values['spec:'+s.id+':override']??'').trim()).flatMap(s=>s.groupRules.map(rule=>({rule,field:s.groupFieldId}))):[])];for(const {rule,field}of rules)if(predicateState(rule,record,field)==='pending')for(const c of ruleConditions(rule,field))ids.add(c.fieldId.replace(/^field:/,''));}
+ for(const p of order.products){if(p.recipientWhen){const state=predicateState(p.recipientWhen,record);if(state!=='match'){if(state==='pending')for(const c of ruleConditions(p.recipientWhen))ids.add(c.fieldId.replace(/^field:/,''));continue;}}const rules=[...(p.quantityMode==='by_group'?p.quantityGroupRules.map(rule=>({rule,field:p.quantityGroupFieldId})):[]),...(quantityForRecord(p,record)>0?p.specifications.filter(s=>s.mode==='by_group'&&!String(values['spec:'+s.id+':override']??'').trim()).flatMap(s=>s.groupRules.map(rule=>({rule,field:s.groupFieldId}))):[])];for(const {rule,field}of rules)if(predicateState(rule,record,field)==='pending')for(const c of ruleConditions(rule,field))ids.add(c.fieldId.replace(/^field:/,''));}
  return order.fields.filter(f=>ids.has(f.id)&&!String(values['field:'+f.id]??'').trim());
 }
 /** Label slots align equivalent headings while each cell retains its own stable field ID. */

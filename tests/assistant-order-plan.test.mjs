@@ -82,3 +82,10 @@ test('quantity correction updates the applicable package, preserves rates and in
   assert.equal(domain.quantityForRecord(next.products[8],record),gender==='Female'&&Number(c)>=5?1:0);
  }
 });
+
+test('compact plan recipient conditions compile from person fields without changing quantity mode or count',()=>{
+ const p=complex();p.products[0].recipients={gender:'Female'};p.products[0].quantity=2;const order=compile(p);guard.assertAssistantOrder(order);
+ assert.equal(order.products[0].quantityMode,'same_for_all');assert.equal(order.products[0].defaultQuantity,2);assert.equal(order.products[0].recipientWhen.conditions[0].fieldId,order.fields.find(f=>f.name==='Gender').id);
+ const f=order.fields.find(f=>f.name==='Gender');assert.equal(domain.quantityForRecord(order.products[0],{recordId:'test',values:{['field:'+f.id]:'Male'}}),0);
+ p.products[0].recipients={unknown:'Female'};assert.throws(()=>compile(p),/unknown person field/);
+});

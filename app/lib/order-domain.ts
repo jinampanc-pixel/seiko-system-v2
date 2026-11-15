@@ -10,7 +10,7 @@ export type ManufacturingLink = { manufacturerBusinessId: string; sourceBusiness
 export type RuleCondition = { fieldId: string; match: string };
 export type RulePredicate = { conditions?: RuleCondition[]; conditionMode?: "all" | "any" };
 export type SpecificationPolicy = { id: string; name: string; role: "colour" | "pattern" | "attribute" | "asset"; mode: ValueMode; defaultValue: string; groupFieldId?: string; groupRules: Array<RulePredicate & { match: string; value: string }>; required: boolean; attachments: ArtworkAttachment[] };
-export type ProductPolicy = { id: string; name: string; sizeHeader: string; quantityMode: QuantityMode; defaultQuantity: number; orderTotal: number; quantityGroupFieldId?: string; quantityGroupRules: Array<RulePredicate & { match: string; quantity: number }>; specifications: SpecificationPolicy[]; manufacturingLink?: ManufacturingLink };
+export type ProductPolicy = { id: string; name: string; sizeHeader: string; recipientWhen?: RulePredicate; quantityMode: QuantityMode; defaultQuantity: number; orderTotal: number; quantityGroupFieldId?: string; quantityGroupRules: Array<RulePredicate & { match: string; quantity: number }>; specifications: SpecificationPolicy[]; manufacturingLink?: ManufacturingLink };
 /** Shared body measurements may apply to several products; legacy product measurements remain independent. */
 export type MeasurementPolicy = { id: string; name: string; type: "number" | "text"; appliesTo: string[]; shared?: boolean; requiredMode: "Optional" | "When present" | "Always"; requiredWhen?: RulePredicate };
 export type OrderRecord = { recordId: string; personId: string; values: Record<string, string | number>; held?: boolean };
@@ -174,6 +174,7 @@ export function specificationForRecord(spec:SpecificationPolicy,record:OrderReco
  return spec.defaultValue||"";
 }
 export function quantityForRecord(product: ProductPolicy, record: OrderRecord, firstRecord = false): number {
+ if(product.recipientWhen&&predicateState(product.recipientWhen,record)!=="match")return 0;
  if(product.quantityMode==="order_total")return firstRecord?Math.max(0,Number(product.orderTotal)||0):0;
  for(const key of ['product:'+product.id+':assigned_qty','product:'+product.id+':qty_override','product:'+product.id+':qty']){const v=record.values[key];if(nonblank(v)&&Number.isFinite(Number(v))&&Number(v)>=0)return Number(v);}
  if(product.quantityMode==="by_group"){const result=resolveRuleValue(product.quantityGroupRules||[],record,product.quantityGroupFieldId,r=>Number(r.quantity),Math.max(0,Number(product.defaultQuantity)||0));return result.state==="ready"?Math.max(0,result.value):0;}
@@ -183,6 +184,7 @@ export function measurementRequired(measurement:MeasurementPolicy,record:OrderRe
 export function recordRuleIssues(order:SeikoOrder,record:OrderRecord):string[]{
  const issues:string[]=[];
  for(const p of order.products){
+  if(p.recipientWhen){const state=predicateState(p.recipientWhen,record);if(state!=="match"){if(state==="pending")issues.push(p.name+" recipients: pending");continue;}}
   const explicit=['product:'+p.id+':qty_override','product:'+p.id+':assigned_qty','product:'+p.id+':qty'].some(k=>nonblank(record.values[k]));
   if(p.quantityMode==="by_group"&&!explicit){const r=resolveRuleValue(p.quantityGroupRules||[],record,p.quantityGroupFieldId,x=>Number(x.quantity),p.defaultQuantity);if(r.state!=="ready")issues.push(p.name+" quantity: "+r.state);}
   if(quantityForRecord(p,record)<=0)continue;
@@ -205,6 +207,7 @@ export function predicateErrors(order:SeikoOrder,rule:RulePredicate):string[]{
 export function orderRuleErrors(order:SeikoOrder):string[]{
  const errors:string[]=[];
  for(const p of order.products||[]){const sets=[{name:p.name+' quantity',rules:p.quantityMode==='by_group'?p.quantityGroupRules:[],field:p.quantityGroupFieldId,value:(r:RulePredicate & {match:string;quantity?:number;value?:string})=>r.quantity},...p.specifications.filter(s=>s.mode==='by_group').map(s=>({name:p.name+' / '+s.name,rules:s.groupRules,field:s.groupFieldId,value:(r:RulePredicate & {match:string;quantity?:number;value?:string})=>r.value}))];for(const set of sets){for(const r of set.rules)errors.push(...predicateErrors(order,r).map(e=>set.name+': '+e));for(let i=0;i<set.rules.length;i++)for(let j=i+1;j<set.rules.length;j++)if((set.rules[i].conditions?.length||set.rules[j].conditions?.length)&&set.value(set.rules[i])!==set.value(set.rules[j])&&predicatesOverlap(set.rules[i],set.field,set.rules[j],set.field))errors.push(set.name+': conflicting rules '+(i+1)+' and '+(j+1)+'. Make their conditions distinct.');}}
+ for(const p of order.products||[])if(p.recipientWhen){if(typeof p.recipientWhen!=='object'||!Array.isArray(p.recipientWhen.conditions)||!p.recipientWhen.conditions.length){errors.push(p.name+': complete the recipient conditions using Person details.');continue;}errors.push(...predicateErrors(order,p.recipientWhen).map(e=>p.name+' recipients: '+e));if(p.recipientWhen.conditions?.some(c=>!order.fields.some(f=>f.id===c.fieldId)))errors.push(p.name+' recipients must use Person details.');if(p.quantityMode==='order_total')errors.push(p.name+': order totals have no individual recipients. Choose Everyone or a per-person quantity method.');}
  const prices=order.commerce?.rules||[];for(const r of prices)errors.push(...predicateErrors(order,r).map(e=>r.name+': '+e));for(let i=0;i<prices.length;i++)for(let j=i+1;j<prices.length;j++){const a=prices[i],b=prices[j];if(!(a.conditions?.length||b.conditions?.length)||a.mode!==b.mode||a.mode==='fixed')continue;const ids=(r:typeof a)=>r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])]);if(ids(a).some(id=>ids(b).includes(id))&&predicatesOverlap(a,a.fieldId,b,b.fieldId))errors.push('Overlapping pricing conditions: '+a.name+' and '+b.name+'. Make their groups distinct.');}
  for(const m of order.measurements||[])if(m.requiredWhen)errors.push(...predicateErrors(order,m.requiredWhen).map(e=>m.name+': '+e));
  return [...new Set(errors)];
@@ -247,7 +250,7 @@ export function saveRevision(order: SeikoOrder, reason: string): SeikoOrder {
   return { ...normalized, status: normalized.status === "Draft" && normalized.records.length ? "Active" : normalized.status, updatedAt: now, revisions: [...normalized.revisions, { revision: normalized.revisions.length + 1, at: now, reason, recordCount: normalized.records.length }] };
 }
 
-export function usesStructuredRules(order:SeikoOrder){return order.products.some(p=>p.quantityGroupRules?.some(r=>r.conditions?.length)||p.specifications.some(s=>s.groupRules?.some(r=>r.conditions?.length)))||order.measurements.some(m=>m.requiredWhen?.conditions?.length)||Boolean(order.commerce?.rules.some(r=>r.conditions?.length));}
+export function usesStructuredRules(order:SeikoOrder){return order.products.some(p=>p.recipientWhen?.conditions?.length||p.quantityGroupRules?.some(r=>r.conditions?.length)||p.specifications.some(s=>s.groupRules?.some(r=>r.conditions?.length)))||order.measurements.some(m=>m.requiredWhen?.conditions?.length)||Boolean(order.commerce?.rules.some(r=>r.conditions?.length));}
 
 /** Rule inputs are saved values, never other calculated rule results. */
 export function ruleSourceFields(order:SeikoOrder):OrderField[]{return [...(order.fields||[]),...(order.products||[]).flatMap(p=>p.specifications.filter(s=>s.mode==="per_person"&&s.role!=="asset").map(s=>({id:"spec:"+s.id,name:p.name+" / "+s.name,type:"text" as const,options:[],required:false}))),...(order.measurements||[]).filter(m=>m.appliesTo.some(id=>order.products.some(p=>p.id===id))).flatMap(m=>(m.shared?[{id:"measurement:"+m.id+":shared",name:(m.appliesTo.length===1?(order.products.find(p=>p.id===m.appliesTo[0])?.name||"Product"):"Shared")+" / "+m.name}]:m.appliesTo.map(id=>({id:"measurement:"+m.id+":product:"+id,name:(order.products.find(p=>p.id===id)?.name||"Product")+" / "+m.name}))).map(f=>({...f,type:m.type,options:[],required:false})))];}

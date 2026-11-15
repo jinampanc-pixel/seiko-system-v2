@@ -39,7 +39,8 @@ test("group quantity UI and domain both use default quantity plus exceptions", (
   assert.match(orders, /<ProductQuantitySetup/);
   assert.match(quantitySetup, /min="0" placeholder="Quantity"/);
   assert.match(quantitySetup, /Who receives it\?/);
-  assert.match(quantitySetup, /Other rules/);
+  assert.match(quantitySetup, /Multiple conditions/);
+  assert.match(quantitySetup, /recipientWhen/);
   assert.doesNotMatch(setupPolish, /quantitySelect\.value === "by_group" \|\| quantitySelect\.value === "per_person"/);
   assert.match(setupFinalize, /Set the normal quantity once, then add only the groups that differ/);
 });

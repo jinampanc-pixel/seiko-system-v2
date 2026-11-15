@@ -48,7 +48,7 @@ export function compileAssistantOrderPlan(value: unknown): SeikoOrder {
       return { id: crypto.randomUUID(), name: text(name), role, mode: specMode, defaultValue: text(row.value, true), groupRules: rules, required: row.required !== false, attachments: [] };
     });
     for (const m of input.measurements ? list(input.measurements, 30) : []) measurements.push(measurement(m, [id]));
-    return { id, name: text(input.name), sizeHeader: text(input.sizeHeader || "Size"), quantityMode: mode, defaultQuantity: quantity(q.default), orderTotal: mode === "order_total" ? quantity(q.total) : 0, quantityGroupRules: groups.map(g => { const p = predicate(g.when, g.match); if (!p.conditions?.length) throw new Error("A quantity exception needs explicit conditions."); return { ...p, match: "", quantity: quantity(g.quantity) }; }), specifications };
+    return { id, name: text(input.name), ...(input.recipients ? { recipientWhen: predicate(input.recipients) } : {}), sizeHeader: text(input.sizeHeader || "Size"), quantityMode: mode, defaultQuantity: quantity(q.default), orderTotal: mode === "order_total" ? quantity(q.total) : 0, quantityGroupRules: groups.map(g => { const p = predicate(g.when, g.match); if (!p.conditions?.length) throw new Error("A quantity exception needs explicit conditions."); return { ...p, match: "", quantity: quantity(g.quantity) }; }), specifications };
   });
   for (const input of plan.sharedMeasurements ? list(plan.sharedMeasurements, 30) : []) {
     const row = obj(input), ids = list(row.products, 50).map(p => { const id = productMap.get(key(text(p))); if (!id) throw new Error("A shared measurement refers to an unknown garment."); return id; });
