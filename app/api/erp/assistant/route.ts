@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { authenticateActor, authorizeBusiness } from "../../../lib/server-erp-auth";
 import { permissionsForRole } from "../../../lib/access-control";
 import { assistantInstructions } from "../../../lib/assistant-prompt";
+import { countRequestScope } from "../../../lib/assistant-queries";
 import { ASSISTANT_CALL_RESERVATION, ASSISTANT_DAILY_BUDGET, ASSISTANT_MAX_INPUT_BYTES, ASSISTANT_MAX_OUTPUT_TOKENS, ASSISTANT_MODEL, parseAssistantStep } from "../../../lib/assistant-domain";
 import { executeAssistantAction, prepareAssistantAction, readAssistantTool, type PreparedAction } from "../../../lib/server-assistant-tools";
 
@@ -110,6 +111,7 @@ export async function POST(request: Request) {
       }
       const args = step.args && typeof step.args === "object" && !Array.isArray(step.args) ? step.args as Record<string, unknown> : {};
       if (step.kind === "read") {
+        if (step.tool === "order_counts" && countRequestScope(message, history) === "people") args.products = [];
         let data: unknown;
         try { data = await readAssistantTool(ctx, String(step.tool), args); } catch (error) { data = { ok: false, message: (error as Error).message }; }
         const serialized = JSON.stringify(data);

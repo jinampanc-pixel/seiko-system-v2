@@ -12,6 +12,7 @@ function load(path, imports = {}) {
 }
 const statuses = load('app/lib/order-statuses.ts');
 const domain = load('app/lib/order-domain.ts', { './order-statuses': statuses });
+const queries = load('app/lib/assistant-queries.ts', { './order-domain': domain });
 const assistant = load('app/lib/assistant-domain.ts', { './order-domain': domain });
 const prompt = load('app/lib/assistant-prompt.ts');
 function fixture() {
@@ -32,7 +33,7 @@ function harness({ steps = [], active = true, permission = true, user = 'test-ow
   const api = load('app/api/erp/assistant/route.ts', {
     'cloudflare:workers': { env: { DB: db, ASSISTANT_FREE_PLAN_CONFIRMED: active ? 'true' : 'false', AI: { async run() { calls.ai++; return { choices: [{ message: { content: JSON.stringify(steps.shift() || { kind:'answer',message:'Test answer' }) } }] }; } } } },
     '../../../lib/server-erp-auth': { authenticateActor: async () => user ? { userId: user, email:'test@example.invalid' } : null, authorizeBusiness: async () => permission ? { role } : null },
-    '../../../lib/access-control': { permissionsForRole: () => scope.permissions }, '../../../lib/assistant-prompt': prompt, '../../../lib/assistant-domain': assistant, '../../../lib/server-assistant-tools': tools,
+    '../../../lib/access-control': { permissionsForRole: () => scope.permissions }, '../../../lib/assistant-prompt': prompt, '../../../lib/assistant-queries': queries, '../../../lib/assistant-domain': assistant, '../../../lib/server-assistant-tools': tools,
   });
   const request = async (body, headers = {}) => { const response = await api.POST(new Request('https://test.invalid/api/erp/assistant', { method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify({businessId:'seiko',...body}) })); return { status:response.status, ...await response.json() }; };
   return { sqlite, calls, request, tools, scope };
@@ -113,4 +114,16 @@ test('aggregate answer returns directly from the verified tool, without another 
 test('unfinished colon-only clarification is repaired instead of shown to the user',async()=>{
  const h=harness({steps:[{kind:'answer',message:'I need the following information:'},{kind:'answer',message:'Which of the two matching orders should I use: 001 or 002?'}]});
  const r=await h.request({operation:'chat',message:'Check this school'});assert.equal(r.ok,true);assert.match(r.message,/001 or 002/);assert.equal(h.calls.ai,2);h.sqlite.close();
+});
+
+test('headcount removes model-invented garments and preserves class filters through an order selection',async()=>{
+ const h=harness({steps:[{kind:'answer',message:'Which order: 09-005 or 10-017?'},{kind:'read',tool:'order_counts',args:{query:'09-005',products:['TP','TS'],filters:[{field:'Class',match:'6'}]}}]});
+ const first=await h.request({operation:'chat',message:'HOW MANY PEOPLE IN CLASS 6 IN DOSVADA?'});
+ h.tools.readAssistantTool=async(_ctx,tool,args)=>{
+  if(tool==='memories')return [];
+  assert.equal(tool,'order_counts');assert.equal(args.products.length,0);assert.equal(args.filters[0].match,'6');
+  return {ok:true,answer:'M S Dosvada — Class 6: 44 people.'};
+ };
+ const r=await h.request({operation:'chat',conversationId:first.conversationId,message:'09-005'});
+ assert.equal(r.message,'M S Dosvada — Class 6: 44 people.');assert.doesNotMatch(r.message,/shirt|pant/i);assert.equal(h.calls.writes,0);h.sqlite.close();
 });

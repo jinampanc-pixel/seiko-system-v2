@@ -42,8 +42,24 @@ const productKey = (name: string) => {
 const fieldKey = (name: string) => /^(class|classsection|std|standard|grade)$/i.test(searchKey(name)) ? "class" : searchKey(name);
 const classValue = (value: string) => value.trim().match(/^(\d{1,2})(?:\s*[-/ ]?\s*[a-z]+)?$/i)?.[1] || value;
 export type CountFilter = { field: string; match: string };
-export function countOrderPeople(order: SeikoOrder, requested: string[], filters: CountFilter[] = []) {
-  if (!Array.isArray(requested) || !requested.length || requested.length > 12 || requested.some(p => typeof p !== "string" || p.length > 150)) throw new Error("Specify up to 12 garment names, such as TS and TP.");
+/** Only user requests establish garment intent; assistant replies cannot introduce it. */
+export function countRequestScope(message: string, history: {role:string;content:string}[] = []): "people" | "requested" {
+  const headcount = /\b(?:how many|count(?: of)?|total(?: number of)?)\s+(?:(?:the|all)\s+)?(?:people|students|persons|pupils|children|boys|girls|employees|staff)\b|(?:કેટલા|કેટલી)\s*(?:લોકો|વિદ્યાર્થી|બાળકો)|(?:कितने|कितनी)\s*(?:लोग|छात्र|विद्यार्थी|बच्चे)/iu;
+  // A headcount qualified by a requested item/action must keep that qualification.
+  // Unknown/custom products are deliberately not reduced to a fixed garment vocabulary.
+  const qualified = /\b(?:ordered?|receiv\w*|getting|gets?|wear\w*|need\w*|want\w*|with|without|have|has|having|for|pieces?|garments?|products?|tp|ts|shirt\w*|pant\w*)\b|મેળવ|ઓર્ડર|પહેર|શર્ટ|પેન્ટ|चाहिए|ऑर्डर|शर्ट|पैंट/iu;
+  // Short order selections and class-only follow-ups inherit the last user question.
+  const followup = /^(?:(?:order\s*)?\d{2,4}[-/]\d{2,3}(?:[-/]\d{2,3})?|(?:and\s+)?(?:class|std|grade)\s*\d{1,2}[a-z]?|(?:the\s+)?(?:first|second|that|this|same)\s*(?:one|order)?)\s*[?.!]*$/iu.test(message.trim());
+  if (followup) {
+    for (const item of [...history].reverse()) {
+      if (item.role !== "user") continue;
+      if (/how many|count|total|people|students|persons|કેટલા|કેટલી|વિદ્યાર્થી|कितने|कितनी|छात्र/iu.test(item.content)) return headcount.test(item.content) && !qualified.test(item.content) ? "people" : "requested";
+    }
+  }
+  return headcount.test(message) && !qualified.test(message) ? "people" : "requested";
+}
+export function countOrderPeople(order: SeikoOrder, requested: string[] = [], filters: CountFilter[] = []) {
+  if (!Array.isArray(requested) || requested.length > 12 || requested.some(p => typeof p !== "string" || !p.trim() || p.length > 150)) throw new Error("Specify up to 12 garment names, or omit products for a people count.");
   if (!Array.isArray(filters) || filters.length > 10) throw new Error("Supply up to 10 person-detail filters.");
   const products = requested.map(name => {
     const matches = order.products.filter(p => p.id === name || productKey(p.name) === productKey(name));
@@ -66,7 +82,7 @@ export function countOrderPeople(order: SeikoOrder, requested: string[], filters
   const included = rows.filter(r => !cancelled.includes(r));
   const totals = products.map(p => ({ productId: p.id, name: p.name, people: 0, pieces: 0 }));
   let allSelectedProductsPeople = 0, anySelectedProductsPeople = 0, unresolvedPeople = 0;
-  for (const record of included) {
+  for (const record of products.length ? included : []) {
     let unresolved = false;
     const quantities = products.map(p => {
       if(p.recipientWhen){const state=predicateState(p.recipientWhen,record);if(state!=="match"){if(state==="pending")unresolved=true;return 0;}}
@@ -79,10 +95,11 @@ export function countOrderPeople(order: SeikoOrder, requested: string[], filters
     if (quantities.every(q => q > 0)) allSelectedProductsPeople++;
     if (quantities.some(q => q > 0)) anySelectedProductsPeople++;
   }
-  return { orderId: order.orderId, orderNo: order.details.orderNo, client: order.details.clientName, filters: resolved.map(f => ({ field: f.field.name, match: f.match })), matchedPeople: included.length, excludedCancelledPeople: cancelled.length, unresolvedPeople, products: totals, allSelectedProductsPeople, anySelectedProductsPeople, coverage: "Complete order snapshot, not a search page or sample", basis: "Ordered quantities, including holds/awaiting entries; cancelled people excluded. This is not a delivery or production-readiness count." };
+  return { orderId: order.orderId, orderNo: order.details.orderNo, client: order.details.clientName, filters: resolved.map(f => ({ field: f.field.name, match: f.match })), matchedPeople: included.length, excludedCancelledPeople: cancelled.length, unresolvedPeople, products: totals, allSelectedProductsPeople, anySelectedProductsPeople, coverage: "Complete order snapshot, not a search page or sample", basis: products.length ? "Ordered quantities, including holds/awaiting entries; cancelled people excluded. This is not a delivery or production-readiness count." : "People matching the requested person details, including holds/awaiting entries; cancelled people excluded. Independent of garment assignments." };
 }
 export function countAnswer(result: ReturnType<typeof countOrderPeople>, asOf: string) {
   const scope = result.filters.map(f => f.field + " " + f.match).join(", ");
   const checked = Number.isNaN(Date.parse(asOf)) ? asOf : new Intl.DateTimeFormat("en-IN", {timeZone:"Asia/Kolkata",dateStyle:"medium",timeStyle:"short"}).format(new Date(asOf)) + " IST";
+  if (!result.products.length) return `${result.client} (${result.orderNo})${scope ? " — " + scope : ""}: ${result.matchedPeople} people.` + (result.excludedCancelledPeople ? `\nExcluded ${result.excludedCancelledPeople} cancelled people.` : "") + `\nChecked the complete order at ${checked}.`;
   return `${result.client} (${result.orderNo})${scope ? " — " + scope : ""}:\n` + result.products.map(p => `${p.name}: ${p.people} people, ${p.pieces} pieces.`).join("\n") + (result.products.length > 1 ? `\n${result.products.length === 2 ? "Both garments" : "All selected garments"}: ${result.allSelectedProductsPeople} people; at least one: ${result.anySelectedProductsPeople}.` : "") + (result.unresolvedPeople ? `\n${result.unresolvedPeople} people have unresolved quantity rules and are excluded from garment counts; those counts are lower bounds.` : "") + (result.excludedCancelledPeople ? `\nExcluded ${result.excludedCancelledPeople} cancelled people.` : "") + `\nChecked the complete order at ${checked}. Counts are ordered quantities, not deliveries.`;
 }

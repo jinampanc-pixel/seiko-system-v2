@@ -36,6 +36,25 @@ test('unknown garments, duplicate aliases and unknown filters cannot silently pr
  assert.throws(()=>queries.countOrderPeople(o,['TP'],[{field:'Missing detail',match:'6'}]),/Choose one detail/);
  o.products.push({...o.products[0],id:'duplicate',name:'TS'});assert.throws(()=>queries.countOrderPeople(o,['TS']),/Choose one garment/);
 });
+
+test('people-only counts include the whole class independently of garments or unresolved quantity rules',()=>{
+ const o=fixture();o.records=o.records.slice(0,44);o.products[0].quantityMode='by_group';o.products[0].quantityGroupRules=[{conditions:[{fieldId:'missing',match:'M'}],quantity:1}];
+ for(const [i,r] of o.records.entries()){r.values['field:class']='6';r.values['product:p0:assigned_qty']=i<7?1:0;r.values['product:p1:assigned_qty']=i<7?1:0;}
+ const r=queries.countOrderPeople(o,[],[{field:'Class',match:'6'}]);assert.equal(r.matchedPeople,44);assert.equal(r.products.length,0);assert.equal(r.unresolvedPeople,0);assert.equal(r.allSelectedProductsPeople,0);
+ const answer=queries.countAnswer(r,'test-time');assert.match(answer,/44 people/);assert.doesNotMatch(answer,/shirt|pant|garment|pieces|lower bounds|deliveries/i);
+ assert.equal(queries.countOrderPeople(o).matchedPeople,44);
+});
+
+test('user count intent survives order clarification without inheriting assistant-added garments',()=>{
+ const history=[{role:'user',content:'HOW MANY PEOPLE IN CLASS 6 IN DOSVADA?'},{role:'assistant',content:'Choose an order. Track Pant and T-shirt.'}];
+ assert.equal(queries.countRequestScope('09-005',history),'people');
+ assert.equal(queries.countRequestScope('How many students in Class 6?',[]),'people');
+ assert.equal(queries.countRequestScope('ધોરણ 6 માં કેટલા વિદ્યાર્થી છે?',[]),'people');
+ assert.equal(queries.countRequestScope('How many Class 6 ordered TP and TS?',[]),'requested');
+ history[0].content='How many Class 6 ordered TP and TS?';assert.equal(queries.countRequestScope('09-005',history),'requested');assert.equal(queries.countRequestScope('and class 7?',history),'requested');
+ assert.equal(queries.countRequestScope('How many people in Class 7?',history),'people');
+ for(const question of ['How many students ordered blazers?','How many students receive lab coats?','What is the outstanding balance?','Which orders are delayed?','Show the collar design for this order']) assert.equal(queries.countRequestScope(question,history),'requested',question);
+});
 test('unresolved group quantities are disclosed as lower bounds, and explicit individual exceptions win',()=>{
  const o=fixture();o.fields.push({id:'gender',name:'Gender'});o.products[0]={...o.products[0],quantityMode:'by_group',quantityGroupRules:[{match:'',quantity:1,conditions:[{fieldId:'gender',match:'M'}],conditionMode:'all'}]};
  o.records=o.records.slice(0,2);delete o.records[0].values['product:p0:assigned_qty'];
