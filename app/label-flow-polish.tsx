@@ -116,15 +116,14 @@ function enhanceLabelLauncher() {
     const head = page.querySelector<HTMLElement>(".labelLauncherHead");
     const eyebrow = head?.querySelector<HTMLElement>(".eyebrow");
     const heading = head?.querySelector<HTMLElement>("h2");
-    if (eyebrow) eyebrow.textContent = "LABEL CENTER";
-    if (heading) heading.textContent = "Labels & printing";
+    if (eyebrow && eyebrow.textContent !== "LABEL CENTER") eyebrow.textContent = "LABEL CENTER";
+    if (heading && heading.textContent !== "Labels & printing") heading.textContent = "Labels & printing";
 
     const orderCenter = head?.querySelector<HTMLButtonElement>("button.secondary");
     if (head && orderCenter) {
-      orderCenter.textContent = "← Back to Orders";
-      orderCenter.classList.add("contextBackButton");
-      const title = head.firstElementChild as HTMLElement | null;
-      if (title && orderCenter.parentElement !== title) title.prepend(orderCenter);
+      if(orderCenter.textContent !== "Orders")orderCenter.textContent = "Orders";
+      orderCenter.classList.remove("contextBackButton", "appBackControl");
+      if (orderCenter.parentElement !== head) head.appendChild(orderCenter);
     }
     let headActions = head?.querySelector<HTMLElement>(".labelLauncherHeadActions");
     if (head && !headActions) {
@@ -144,12 +143,12 @@ function enhanceLabelLauncher() {
 
     const library = page.querySelector<HTMLElement>(".labelBatchModule");
     const libraryHeading = library?.querySelector<HTMLElement>(".labelBatchModuleHead h3");
-    if (libraryHeading) libraryHeading.textContent = "Saved labels";
+    if (libraryHeading && libraryHeading.textContent !== "Saved labels") libraryHeading.textContent = "Saved labels";
     const libraryFilter = library?.querySelector<HTMLSelectElement>('select[aria-label="Filter label batches"]');
     if (libraryFilter) {
       ensurePurposeOption(libraryFilter, "inventory", "Inventory");
       const all = Array.from(libraryFilter.options).find(option => option.value === "all");
-      if (all) all.textContent = "All labels";
+      if (all && all.textContent !== "All labels") all.textContent = "All labels";
     }
     const librarySearch = library?.querySelector<HTMLInputElement>('input[aria-label="Find a saved label batch"]');
     if (librarySearch) librarySearch.placeholder = "Find saved label, order or client";

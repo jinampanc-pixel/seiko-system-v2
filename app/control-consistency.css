@@ -30,3 +30,5 @@ button.uiIconButton:disabled{cursor:default;opacity:.5}
   outline:2px solid color-mix(in srgb,var(--gold) 68%,white);
   outline-offset:2px;
 }
+
+.eventIcon.rejected{background:var(--paper,#fbf5ed);color:var(--navy,#173c5e);border:2px solid var(--gold,#c3a06c)}

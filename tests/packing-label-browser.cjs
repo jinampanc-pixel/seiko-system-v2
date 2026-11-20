@@ -45,7 +45,7 @@ const fs = require('node:fs');
  await page.getByRole('button',{name:'Auto-arrange'}).click();
  await page.getByRole('button',{name:'Fit',exact:true}).click();
  const preview=await page.locator('.physicalCanvas .physicalText').allTextContents();
- await page.getByRole('button',{name:'Print / PDF (63)',exact:true}).click();
+ await page.getByRole('button',{name:'Print (63)',exact:true}).click();
  await page.waitForFunction(()=>window.printCalls===1);
  assert.equal(await page.locator('.physicalPrintedLabel').count(),63);
  const printed=await page.locator('.physicalPrintedLabel').first().locator('.physicalText').allTextContents(); assert.deepEqual(printed,preview);

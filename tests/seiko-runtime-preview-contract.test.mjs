@@ -105,10 +105,11 @@ test("settings dialog has one React owner rather than overlapping injected modul
   assert.match(page, /settingsUsersModule/);
 });
 
-test("saved label sets expose distinct calibrated print and recorded PDF export actions", () => {
+test("saved label sets expose calibrated print and explicit shared list actions", () => {
   assert.match(listCenter, /Open \/ edit/);
   assert.match(listCenter, /print\.textContent="Print"/);
-  assert.match(listCenter, /pdf\.textContent="Save PDF"/);
+  assert.doesNotMatch(listCenter, /pdf\.textContent="Save PDF"/);
+  assert.match(listCenter, /confirm-printed/);
   assert.match(listCenter, /open-task-direct-action/);
   assert.match(listCenter, /labels:pdf-records-v1/);
   assert.match(labels, /open-task/);

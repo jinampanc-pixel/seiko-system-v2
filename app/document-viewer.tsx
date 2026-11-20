@@ -3,18 +3,100 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { readyDocument } from "./lib/document-pdf";
 import type { BillingCopies } from "./lib/seiko-billing-print";
 import "./document-viewer.css";
+import { ActionMenu } from "./action-menu";
+import { OutputRecordMenu } from "./output-record-menu";
+import "./outputs/outputs.css";
 import { recordOutput, type OutputContext, type OutputAction } from "./lib/output-activity";
-export function DocumentViewer({html,title,filename,copies,beforeOutput,activity}:{activity?:OutputContext;html:string;title:string;filename:string;copies?:BillingCopies;beforeOutput?:()=>Promise<unknown>}){
- const frame=useRef<HTMLIFrameElement>(null),url=useRef<string[]>([]),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[zoom,setZoom]=useState("fit"),[file,setFile]=useState<File|null>(null),[download,setDownload]=useState("");
- const scale=useCallback(()=>{const f=frame.current,d=f?.contentDocument;if(!f||!d?.body)return;d.body.style.zoom="1";const width=Math.max(794,d.body.scrollWidth);d.body.style.zoom=String(zoom==="fit"?Math.min(1,(f.clientWidth-2)/width):Number(zoom));},[zoom]);
- useEffect(()=>{scale();const observer=new ResizeObserver(scale);if(frame.current)observer.observe(frame.current);return()=>observer.disconnect();},[scale]);
- useEffect(()=>()=>{for(const owned of url.current)URL.revokeObjectURL(owned);},[]);
- useEffect(()=>{queueMicrotask(()=>{setFile(null);setDownload("");});},[html]);
- async function load(){setReady(false);setError("");try{if(frame.current)await readyDocument(frame.current,copies);scale();setReady(true);}catch(e){setError((e as Error).message);}}
- async function track(action:OutputAction){if(activity)await recordOutput(activity,action,html);}
- async function makePdf(){if(busy)return;setBusy(true);setError("");setFile(null);setDownload("");try{await beforeOutput?.();const {createDocumentPdf}=await import("./lib/document-pdf"),blob=await createDocumentPdf(html,copies);const objectUrl=URL.createObjectURL(blob);url.current.push(objectUrl);const name=filename.replace(/[^a-zA-Z0-9._-]/g,"_")+".pdf";await track("pdf-prepared");setFile(new File([blob],name,{type:"application/pdf"}));setDownload(objectUrl);}catch(e){const message=(e as Error).message;setError(/dynamically imported module|Loading chunk|Importing a module script failed/i.test(message)?"The app was updated while this page was open. Save any unfinished work, refresh the page, then reopen the document and prepare the PDF.":message);}finally{setBusy(false);}}
- function openDocument(print:boolean){const tab=window.open("","_blank");if(!tab){setError("Allow the document tab to open, then retry.");return;}tab.opener=null;tab.document.open();tab.document.write(html.replace('<head>','<head><meta name="viewport" content="width=794">'));tab.document.close();void(async()=>{try{await beforeOutput?.();const shell={contentDocument:tab.document} as HTMLIFrameElement;await readyDocument(shell,copies);await track(print?"print-requested":"document-opened");if(print){tab.focus();tab.print();}}catch(e){setError((e as Error).message);tab.close();}})();}
- async function downloadPdf(){try{await track("download-requested");const a=document.createElement("a");a.href=download;a.download=file!.name;a.click();}catch(e){setError((e as Error).message);}}
- async function share(){if(!file)return;try{await track("share-requested");await navigator.share({files:[file],title:filename});}catch(e){if((e as Error).name!=="AbortError")setError("Sharing is unavailable here. Use Download PDF or Open PDF instead.");}}
- return <div className="documentViewer"><div className="documentViewerActions"><button className="primary" type="button" disabled={!ready||busy} onClick={()=>void makePdf()}>{busy?"Preparing PDF…":"Prepare PDF"}</button><button className="secondary" type="button" disabled={!ready||busy} onClick={()=>openDocument(true)}>Print / Save PDF</button><button className="secondary" type="button" disabled={!ready||busy} onClick={()=>openDocument(false)}>Open full document</button><label>Preview zoom<select aria-label="Preview zoom" value={zoom} onChange={e=>setZoom(e.target.value)}><option value="fit">Fit screen</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></label></div>{error&&<p role="alert">{error}</p>}{file&&<div className="documentPdfReady" role="status"><b>PDF ready · {file.name}</b><a className="primary" href={download} download={file.name} onClick={e=>{e.preventDefault();void downloadPdf();}}>Download PDF</a><a className="secondary" href={download} target="_blank" rel="noopener noreferrer">Open PDF</a>{typeof navigator!=="undefined"&&navigator.canShare?.({files:[file]})&&<button className="secondary" type="button" onClick={()=>void share()}>Share / Save to Files</button>}<small>On iPhone, use Share / Save to Files or open the PDF and choose Save to Files.</small></div>}<iframe ref={frame} title={title} srcDoc={html} onLoad={()=>void load()}/></div>;
+
+export function DocumentViewer({ html, title, filename, copies, beforeOutput, activity, outputDisabled = false }: {
+  activity?: OutputContext; html: string; title: string; filename: string; outputDisabled?: boolean;
+  copies?: BillingCopies; beforeOutput?: () => Promise<unknown>;
+}) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const urls = useRef<string[]>([]);
+  const pending = useRef(false);
+  const [ready, setReady] = useState(false), [busy, setBusy] = useState("");
+  const [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const [zoom, setZoom] = useState("fit"), [file, setFile] = useState<File | null>(null);
+  const [download, setDownload] = useState("");
+  const scale = useCallback(() => {
+    const f = frame.current, doc = f?.contentDocument;
+    if (!f || !doc?.body) return;
+    doc.body.style.zoom = "1";
+    const width = Math.max(794, doc.body.scrollWidth);
+    doc.body.style.zoom = String(zoom === "fit" ? Math.min(1, (f.clientWidth - 2) / width) : Number(zoom));
+  }, [zoom]);
+  useEffect(() => { scale(); const observer = new ResizeObserver(scale); if (frame.current) observer.observe(frame.current); return () => observer.disconnect(); }, [scale]);
+  useEffect(() => () => { for (const url of urls.current) URL.revokeObjectURL(url); }, []);
+  useEffect(() => { queueMicrotask(() => { setFile(null); setDownload(""); setNotice(""); }); }, [html, copies, filename]);
+  async function load() {
+    setReady(false); setError("");
+    try { if (frame.current) await readyDocument(frame.current, copies); scale(); setReady(true); }
+    catch (e) { setError((e as Error).message); }
+  }
+  async function track(action: OutputAction) { if (activity) await recordOutput(activity, action, html); }
+  async function downloadPdf() {
+    if (pending.current) return;
+    pending.current = true; setBusy("download"); setError(""); setNotice("");
+    try {
+      await beforeOutput?.();
+      let nextFile = file, objectUrl = download;
+      if (!nextFile || !objectUrl) {
+        const { createDocumentPdf } = await import("./lib/document-pdf");
+        const blob = await createDocumentPdf(html, copies);
+        objectUrl = URL.createObjectURL(blob); urls.current.push(objectUrl);
+        nextFile = new File([blob], filename.replace(/[^a-zA-Z0-9._-]/g, "_") + ".pdf", { type: "application/pdf" });
+        await track("pdf-prepared"); setFile(nextFile); setDownload(objectUrl);
+      }
+      await track("download-requested");
+      const link = document.createElement("a"); link.href = objectUrl; link.download = nextFile.name; link.click();
+      setNotice("PDF download requested. Check your browser downloads.");
+    } catch (e) {
+      const message = (e as Error).message;
+      setError(/dynamically imported module|Loading chunk|Importing a module script failed/i.test(message)
+        ? "The app was updated. Save unfinished work, refresh, then reopen this document and download again." : message);
+    } finally { pending.current = false; setBusy(""); }
+  }
+  async function printDocument() {
+    if (pending.current) return;
+    pending.current = true; setBusy("print"); setError(""); setNotice("");
+    try {
+      await beforeOutput?.();
+      const f = frame.current, target = f?.contentWindow;
+      if (!f || !target) throw Error("The document is still loading. Try again shortly.");
+      const doc = await readyDocument(f, copies);
+      await track("print-requested");
+      doc.body.style.zoom = "1";
+      target.addEventListener("afterprint", scale, { once: true });
+      target.focus(); target.print();
+      setNotice("Print requested. Choose your printer in the browser dialog.");
+    } catch (e) { scale(); setError((e as Error).message); }
+    finally { pending.current = false; setBusy(""); }
+  }
+  function openDocument() {
+    const tab = window.open("", "_blank");
+    if (!tab) { setError("Allow the document tab to open, then retry."); return; }
+    tab.opener = null; tab.document.open(); tab.document.write(html.replace("<head>", '<head><meta name="viewport" content="width=794">')); tab.document.close();
+    void (async () => { try { await beforeOutput?.(); await readyDocument({ contentDocument: tab.document } as HTMLIFrameElement, copies); await track("document-opened"); } catch (e) { setError((e as Error).message); tab.close(); } })();
+  }
+  async function share() {
+    if (!file) return;
+    try { await track("share-requested"); await navigator.share({ files: [file], title: filename }); }
+    catch (e) { if ((e as Error).name !== "AbortError") setError("Sharing is unavailable here. Use Download PDF."); }
+  }
+  return <div className="documentViewer" aria-busy={Boolean(busy)}>
+    <div className="documentViewerActions">
+      <button className="primary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void printDocument()}>{busy === "print" ? "Opening print…" : "Print"}</button>
+      <button className="secondary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void downloadPdf()}>{busy === "download" ? "Downloading PDF…" : "Download PDF"}</button>
+      <label>Preview zoom<select aria-label="Preview zoom" value={zoom} onChange={e => setZoom(e.target.value)}><option value="fit">Fit screen</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></label>
+      {activity && !outputDisabled && <OutputRecordMenu context={activity} content={html} beforeSave={beforeOutput}/>}
+      <ActionMenu label="More options">
+        <button className="secondary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={openDocument}>Open document in new tab</button>
+        {file && <a className="secondary" href={download} target="_blank" rel="noopener noreferrer">Open downloaded PDF</a>}
+        {file && typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] }) && <button className="secondary" type="button" onClick={() => void share()}>Share PDF</button>}
+      </ActionMenu>
+    </div>
+    {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
+    <iframe ref={frame} title={title} srcDoc={html} onLoad={() => void load()}/>
+  </div>;
 }

@@ -11,7 +11,7 @@ function runtime(){
  sqlite.prepare("INSERT INTO erp_orders VALUES('order','seiko','ORDER-1','Active',0,?,3,'2026-10-30T10:00:00Z','owner','owner@example.invalid','2026-10-30T10:00:00Z','owner','owner@example.invalid')").run(JSON.stringify(source));
  let allowed=true,signedIn=true;
  const db={withSession(){return this;},prepare(sql){const s=sqlite.prepare(sql);let args=[];return {bind(...v){args=v;return this;},async first(){return s.get(...args)||null;},async all(){return {results:s.all(...args)};},async run(){return s.run(...args);}};}};
- const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync('app/api/erp/activity/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,Response,URL,TextDecoder,require:n=>n==='cloudflare:workers'?{env:{DB:db}}:{authenticateActor:async()=>signedIn?{userId:'real-user',email:'real@example.invalid',displayName:'Real user'}:null,authorizePermission:async()=>allowed}});
+ const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync('app/api/erp/activity/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,Response,URL,TextDecoder,require:n=>n==='cloudflare:workers'?{env:{DB:db}}:{authenticateActor:async()=>signedIn?{userId:'real-user',email:'real@example.invalid',displayName:'Real user'}:null,authorizePermission:async(_actor,business,permission)=>typeof allowed==="function"?allowed(business,permission):allowed}});
  const call=async(body,headers={})=>{const r=await exports.POST(new Request('https://erp.invalid/api/erp/activity',{method:'POST',headers,body:JSON.stringify(body)}));return {status:r.status,...await r.json()};};
  return {sqlite,api:exports,call,allow:v=>allowed=v,signIn:v=>signedIn=v};
 }
@@ -26,3 +26,20 @@ test('output activity uses authenticated actor and source version, is immutable 
 test('output activity rejects foreign origins, missing records, unsupported events and denied users',async()=>{const r=runtime();try{
  const event={businessId:'seiko',kind:'production',id:'missing',action:'pdf-prepared',eventId:crypto.randomUUID()};assert.equal((await r.call(event)).status,409);assert.equal((await r.call({...event,action:'physically-printed'})).status,400);assert.equal((await r.call(event,{origin:'https://other.invalid'})).status,403);r.allow(false);assert.equal((await r.call(event)).status,403);assert.equal((await r.api.GET(new Request('https://erp.invalid/api/erp/activity'))).status,403);r.signIn(false);assert.equal((await r.call(event)).status,401);
  }finally{r.sqlite.close();}});
+
+
+test('shared output lists require an explicit status and retain independent document references',async()=>{
+ const r=runtime();try{
+  const base={businessId:'seiko',kind:'order',id:'order',title:'Cutting summary',digest:'a'.repeat(64)};
+  const save=async(action,extra={})=>{const result=await r.call({...base,action,eventId:crypto.randomUUID(),...extra});assert.equal(result.status,200,JSON.stringify(result));};
+  const list=async(query='')=>{const response=await r.api.GET(new Request('https://erp.invalid/api/erp/activity?businessId=seiko&view=outputs'+query));return {status:response.status,...await response.json()};};
+  await save('print-requested');assert.equal((await list()).entries.length,0,'Opening print does not confirm physical printing or add a saved reference');
+  await save('queue-print');assert.equal((await list('&status=queue-print')).entries.length,1);
+  await save('confirm-printed');assert.equal((await list('&status=queue-print')).entries.length,0);let entries=(await list('&status=confirm-printed')).entries;assert.equal(entries.length,1);assert.equal(entries[0].actor,'real@example.invalid');assert.equal(entries[0].version,3);
+  await save('keep-record',{title:'Delivery note',digest:'b'.repeat(64)});assert.equal((await list()).entries.length,2);assert.equal((await list('&search=delivery')).entries.length,1);
+  await save('remove-from-list');assert.equal((await list()).entries.length,1);assert.equal(r.sqlite.prepare("SELECT count(*) AS n FROM erp_audit_events WHERE entity_type='output-order'").get().n,5,'History remains immutable when a reference leaves the list');
+  assert.equal((await list('&status=invalid')).status,400);
+  r.allow((business,permission)=>business==='seiko'&&permission==='labels.print');assert.equal((await list()).status,403,'Label output also requires order information access');
+  r.allow(false);assert.equal((await list()).status,403);r.signIn(false);assert.equal((await list()).status,401);
+ }finally{r.sqlite.close();}
+});

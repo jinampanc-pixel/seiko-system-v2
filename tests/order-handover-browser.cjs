@@ -24,7 +24,7 @@ module.exports = async ({ page, sqlite, order, seed, navigate }) => {
   assert.match(await preview.locator('body').innerText(),/Colour: Blue/);
   await dialog.getByLabel('Financial reference',{exact:true}).check();
   await dialog.getByLabel('Billing document').waitFor();
-  assert.equal(await dialog.getByRole('button',{name:'Print / Save PDF',exact:true}).isEnabled(),false,'Unselected financial data cannot silently print');
+  assert.equal(await dialog.getByRole('button',{name:'Print',exact:true}).isEnabled(),false,'Unselected financial data cannot silently print');
   await dialog.getByLabel('Billing document').selectOption(doc.id);
   await preview.getByText('Financial reference -',{exact:false}).waitFor();
   assert.match(await preview.locator('body').innerText(),/₹14,140.00/);
@@ -40,11 +40,11 @@ module.exports = async ({ page, sqlite, order, seed, navigate }) => {
   await row.locator('summary').click();await row.getByRole('button',{name:'Student handover list / PDF',exact:true}).click();
   await preview.locator('tr[data-record-id]').last().waitFor();
   assert.equal(await preview.locator('tr[data-record-id]').count(),101,'Order search does not trim print rows');
-  await dialog.getByRole('button',{name:'Print / Save PDF'}).waitFor({state:'visible'});
-  assert.equal(await dialog.getByRole('button',{name:'Print / Save PDF'}).isEnabled(),true);
+  await dialog.getByRole('button',{name:'Print'}).waitFor({state:'visible'});
+  assert.equal(await dialog.getByRole('button',{name:'Print'}).isEnabled(),true);
   const iframe=page.frames().find(frame=>frame!==page.mainFrame()&&frame.url()==='about:srcdoc');
   await iframe.evaluate(()=>{window.print=()=>{document.body.dataset.printed='yes';};});
-  await dialog.getByRole('button',{name:'Print / Save PDF'}).click();
+  await dialog.getByRole('button',{name:'Print'}).click();
   assert.equal(await preview.locator('body').getAttribute('data-printed'),'yes','Print button prints the complete report iframe');
   const stored=JSON.parse(sqlite.prepare('SELECT document_json FROM erp_orders WHERE id=?').get(sample.orderId).document_json);
   assert.equal(stored.status,'Active'); assert.equal(stored.records.length,101,'Preview never mutates order data');

@@ -129,7 +129,7 @@ function StandaloneNavigation({ businesses, businessId, onBusinessChange }: {
         {visible.map(item => <button type="button" className={`nav ${item.intent === "labels" ? "active" : ""}`} key={item.intent} onClick={() => goToRoot(item.intent)}>
           <span>{item.icon}</span><small>{item.label}</small>
         </button>)}
-        {canAccess(membership, "admin") && <div className="moduleMenuSettings"><a className="nav" href={"/activity?business="+encodeURIComponent(businessId)}><span>◷</span><small>Activity history</small></a>
+        {canAccess(membership, "admin") && <div className="moduleMenuSettings"><a className="nav" href={"/outputs?business="+encodeURIComponent(businessId)}><span>▣</span><small>Print &amp; saved list</small></a><a className="nav" href={"/activity?business="+encodeURIComponent(businessId)}><span>◷</span><small>Activity history</small></a>
           <button type="button" className="nav" onClick={() => goToRoot("settings")}><span>⚙</span><small>Settings</small></button>
         </div>}
       </nav>
@@ -226,7 +226,7 @@ export function GlobalNavigation() {
   };
 
   return <>
-    {menuHost && !standaloneLabels && createPortal(<>{can("audit.view")&&<a className="nav" href={"/activity?business="+encodeURIComponent(businessId)}><span>◷</span><small>Activity history</small></a>}<BusinessNavigator businesses={visibleBusinesses} businessId={businessId} onChange={changeBusiness}/></>, menuHost)}
+    {menuHost && !standaloneLabels && createPortal(<><a className="nav" href={"/outputs?business="+encodeURIComponent(businessId)}><span>▣</span><small>Print &amp; saved list</small></a>{can("audit.view")&&<a className="nav" href={"/activity?business="+encodeURIComponent(businessId)}><span>◷</span><small>Activity history</small></a>}<BusinessNavigator businesses={visibleBusinesses} businessId={businessId} onChange={changeBusiness}/></>, menuHost)}
     {createHeader && standaloneLabels && createPortal(<StandaloneNavigation businesses={visibleBusinesses} businessId={businessId} onBusinessChange={changeBusiness}/>, createHeader)}
   </>;
 }

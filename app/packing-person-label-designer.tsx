@@ -104,7 +104,7 @@ const PACKING_ROLL = PHYSICAL_OUTPUT_PROFILES.roll50x25TwoAcross;
 const LABEL_W = PACKING_OUTPUT.widthMm;
 const LABEL_H = PACKING_OUTPUT.heightMm;
 const PACKAGE_FIELD: InfoKey = "package_contents";
-const DEFAULT_PACKAGE_PRESENTATION: PackagePresentation = { layoutMode: "flow", delimiter: " / " };
+const DEFAULT_PACKAGE_PRESENTATION: PackagePresentation = { matchMode: "any", layoutMode: "flow", delimiter: " / " };
 const presentationKey = (businessId: string, orderId: string) => `jinam:${businessId}:packing-person-presentation:${orderId}`;
 const packagePresentationKey = (businessId: string, orderId: string) => `jinam:${businessId}:packing-person-package-layout:${orderId}`;
 const taskKey = (businessId: string) => `jinam:${businessId}:labels:tasks-v1`;
@@ -155,7 +155,7 @@ function loadPackagePresentation(businessId: string, orderId: string, referenceO
   if(referenceOnly)return {...DEFAULT_PACKAGE_PRESENTATION,matchMode:"any"};
   try {
     const saved = JSON.parse(readLabelStorage(packagePresentationKey(businessId, orderId)) || "null") as Partial<PackagePresentation> | null;
-    return { matchMode: saved?.matchMode === "any" ? "any" : "all", layoutMode: saved?.layoutMode === "inline" || saved?.layoutMode === "separate" ? saved.layoutMode : "flow", delimiter: saved?.delimiter || DEFAULT_PACKAGE_PRESENTATION.delimiter };
+    return { matchMode: saved ? (saved.matchMode === "any" ? "any" : "all") : "any", layoutMode: saved?.layoutMode === "inline" || saved?.layoutMode === "separate" ? saved.layoutMode : "flow", delimiter: saved?.delimiter || DEFAULT_PACKAGE_PRESENTATION.delimiter };
   } catch { return DEFAULT_PACKAGE_PRESENTATION; }
 }
 
@@ -528,7 +528,7 @@ export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, so
       if (event.key.toLowerCase() === "y") { event.preventDefault(); redo(); }
     }
   }}>
-    <header className="physicalHeader"><div>{onBack && <button onClick={onBack} className="appBackControl">{backLabel || "← Back"}</button>}<small>ORDER {order.details.orderNo} · PACKING</small><h2>Packing labels for {order.details.clientName}</h2><p>{referenceOnly?"Separate label list: sizes and quantities stay saved with this batch; live student records are unchanged.":"Choose a product combination, then arrange one label for every eligible person."}</p></div><div className="physicalActions"><button onClick={saveSet}>Save label set</button><button onClick={saveLayout}>Save layout</button><button className="primary" disabled={!selectedRows.length || !items.length || printBusy} onClick={print}>{printBusy ? "Preparing…" : `Print / PDF (${selectedRows.length})`}</button></div></header>
+    <header className="physicalHeader"><div>{onBack && <button onClick={onBack} className="appBackControl">{backLabel || "← Back"}</button>}<small>ORDER {order.details.orderNo} · PACKING</small><h2>Packing labels for {order.details.clientName}</h2><p>{referenceOnly?"Separate label list: sizes and quantities stay saved with this batch; live student records are unchanged.":"Choose a product combination, then arrange one label for every eligible person."}</p></div><div className="physicalActions"><button onClick={saveSet}>Save label set</button><button onClick={saveLayout}>Save layout</button><button className="primary" disabled={!selectedRows.length || !items.length || printBusy} onClick={print}>{printBusy ? "Preparing…" : `Print (${selectedRows.length})`}</button></div></header>
     {notice && <p role="status">{notice}</p>}
     <section className="physicalInfo physicalPackageSummary"><div><h3>Information on the label</h3><p>{items.map(item => item.label).join(" · ") || "No fields selected"}</p><small>{items.length} fields · choose what appears and how it is named</small></div><button ref={infoButton} aria-label="Customize label information" onClick={() => { setDraftItems(items.map(item => ({ ...item }))); setInfoOpen(true); }}>Customize</button></section>
     <section className="physicalPackageSummary"><div><h3>Package contents</h3><p>{order.products.filter(product => rules[product.id]?.included).map(product => product.name).join(" + ") || "No products selected"} · <b>{records.length} eligible labels</b></p><small>{packagePresentation.matchMode === "any" ? "Any selected product: one label per person, showing only products they ordered." : "All selected products: a person must have quantity greater than zero for every selected product."}</small></div><button ref={customizeRef} onClick={() => { setDraftRules(mergeRules(order, rules)); setDraftPresentation({ ...packagePresentation }); setPresentationOpen(true); }}>Customize</button></section>

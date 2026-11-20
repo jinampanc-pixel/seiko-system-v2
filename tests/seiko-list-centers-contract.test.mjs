@@ -50,12 +50,14 @@ test("label center uses clickable saved-set rows and consistent three-dot menus"
   assert.match(centers, /Create label set/);
 });
 
-test("saved label actions separate calibrated print from recorded PDF export", () => {
+test("saved labels use one calibrated print action and explicit shared status lists", () => {
   assert.match(centers, /open-task-direct-action/);
   assert.match(centers, /print\.textContent="Print"/);
-  assert.match(centers, /pdf\.textContent="Save PDF"/);
+  assert.doesNotMatch(centers, /pdf\.textContent="Save PDF"/);
+  assert.match(centers, /Mark as printed/);
+  assert.match(centers, /queue-print/);
   assert.match(centers, /labels:pdf-records-v1/);
-  assert.match(centers, /PDF library/);
+  assert.match(centers, /Earlier PDF requests/);
   assert.match(centers, /rememberPdf/);
 });
 

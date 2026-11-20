@@ -46,6 +46,7 @@ export function SeikoPhase2() {
   const [billingAction, setBillingAction] = useState<"payment" | "payments" | "invoice" | "quotation" | "challan" | null>(null);
   const [billingOrderId, setBillingOrderId] = useState("");
   const [billingRequestId, setBillingRequestId] = useState(0);
+  const [libraryError,setLibraryError]=useState("");
   const [clients, setClients] = useState<ClientLibraryRecord[]>([]);
   const [products, setProducts] = useState<ProductLibraryRecord[]>([]);
   const [documents, setDocuments] = useState<SeikoCommercialDocument[]>([]);
@@ -148,7 +149,7 @@ export function SeikoPhase2() {
     return () => controller.stop();
   }, [clients, products]);
 
-  const saveProducts = (next: ProductLibraryRecord[]) => { setProducts(next); writeStore(libraryStoreKey(businessId, "products"), next); };
+  const saveProducts = (next: ProductLibraryRecord[]) => { try { writeStore(libraryStoreKey(businessId, "products"), next); setProducts(next); setLibraryError(""); return true; } catch { setLibraryError("Product changes could not be saved on this device. Your editor remains open; keep a copy before leaving."); return false; } };
   const saveTemplates = (next: SeikoTemplateSet) => { setTemplates(next); writeStore(templateStoreKey(businessId), next); };
 
   if (!view || typeof document === "undefined") return null;
@@ -156,21 +157,23 @@ export function SeikoPhase2() {
   return createPortal(<section className="seikoPhase2Surface" style={reviewingOrder?{display:"none"}:undefined} aria-label={`SEIKO ${view}`}>
     <header className="phase2BrandHeader"><img src="/brands/seiko-logo-approved.webp" alt="SEIKO Tailors"/><button type="button" className="menuToggle" aria-label="Open billing navigation" onClick={()=>requestAppNavigation(()=>{setView(null);document.querySelector<HTMLButtonElement>('.app .topbar .menuToggle[aria-expanded="false"]')?.click();})}><span/><span/><span/></button></header><header className="seikoPhase2Head"><div><button type="button" className="secondary appBackControl" onClick={() => requestAppNavigation(()=>setView(null))}>← Back</button><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
     {view === "clients" && <SeikoClientDirectory legacyRecords={clients}/>} {/* shared client directory */}
-    {view === "products" && <ProductLibrary records={products} onChange={saveProducts}/>} {/* browser product library */}
+    {libraryError&&<p role="alert">{libraryError}</p>}
+    {view === "products" && <ProductLibrary records={products} onChange={saveProducts} error={libraryError}/>} {/* browser product library */}
     {view === "billing" && <SeikoBillingWorkspace suspended={reviewingOrder} key={billingRequestId} initialOrderId={billingOrderId} orders={orders} legacyDocuments={documents} legacyPayments={payments} initialAction={billingAction} onActionHandled={() => setBillingAction(null)}/>}
     {view === "templates" && <TemplateManager templates={templates} onChange={saveTemplates}/>} 
   </section>, document.body);
 }
 
-function ProductLibrary({ records, onChange }: { records: ProductLibraryRecord[]; onChange: (records: ProductLibraryRecord[]) => void }) {
+function ProductLibrary({ records, onChange, error }: { records: ProductLibraryRecord[]; onChange: (records: ProductLibraryRecord[]) => boolean; error?: string }) {
   const [query, setQuery] = useState(""); const [archived, setArchived] = useState(false); const [editing, setEditing] = useState<ProductLibraryRecord | null>(null);
   const visible = records.filter(record => record.archived === archived && `${record.name} ${record.category} ${record.hsnSac}`.toLowerCase().includes(query.toLowerCase()));
   const blank = (): ProductLibraryRecord => ({ id: crypto.randomUUID(), name: "", category: "", unit: "pc", costPrice: 0, sellingPrice: 0, taxRate: 0, hsnSac: "", archived: false, sourceOrderIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-  const save = () => { if (!editing?.name.trim()) return; const duplicate = records.find(item => item.id !== editing.id && item.name.trim().toLowerCase() === editing.name.trim().toLowerCase()); const record = { ...editing, id: duplicate?.id || stableLibraryId("product", editing.name), updatedAt: new Date().toISOString() }; onChange([record, ...records.filter(item => item.id !== editing.id && item.id !== duplicate?.id)]); setEditing(null); };
+  const save = () => { if (!editing?.name.trim()) return; const duplicate = records.find(item => item.id !== editing.id && item.name.trim().toLowerCase() === editing.name.trim().toLowerCase()); const record = { ...editing, id: duplicate?.id || stableLibraryId("product", editing.name), updatedAt: new Date().toISOString() }; if(onChange([record, ...records.filter(item => item.id !== editing.id && item.id !== duplicate?.id)])) setEditing(null); };
   return <LibraryFrame query={query} setQuery={setQuery} archived={archived} setArchived={setArchived} onAdd={() => setEditing(blank())} addLabel="Add product">
+    <p>Product suggestions are saved on this device. Products and specifications saved inside orders stay in shared storage.</p>
     {visible.map(record => <LibraryRow key={record.id} title={record.name} meta={`${record.category || "Uncategorised"} · ₹${record.sellingPrice || 0} / ${record.unit}`} archived={record.archived} onEdit={() => setEditing({ ...record })} onArchive={() => onChange(records.map(item => item.id === record.id ? { ...item, archived: !item.archived, updatedAt: new Date().toISOString() } : item))}/>)}
     {!visible.length && <Empty text={archived ? "No archived products." : "No products match this view."}/>} 
-    {editing && <Editor title="Product" onCancel={() => setEditing(null)} onSave={save}><Input label="Product name" value={editing.name} onChange={name => setEditing({ ...editing, name })}/><Input label="Category" value={editing.category} onChange={category => setEditing({ ...editing, category })}/><Input label="Unit" value={editing.unit} onChange={unit => setEditing({ ...editing, unit })}/><NumberInput label="Cost price" value={editing.costPrice} onChange={costPrice => setEditing({ ...editing, costPrice })}/><NumberInput label="Selling price" value={editing.sellingPrice} onChange={sellingPrice => setEditing({ ...editing, sellingPrice })}/><NumberInput label="GST rate %" value={editing.taxRate} onChange={taxRate => setEditing({ ...editing, taxRate })}/><Input label="HSN / SAC" value={editing.hsnSac} onChange={hsnSac => setEditing({ ...editing, hsnSac })}/></Editor>}
+    {editing && <Editor title="Product" onCancel={() => setEditing(null)} onSave={save}>{error&&<p role="alert">{error}</p>}<Input label="Product name" value={editing.name} onChange={name => setEditing({ ...editing, name })}/><Input label="Category" value={editing.category} onChange={category => setEditing({ ...editing, category })}/><Input label="Unit" value={editing.unit} onChange={unit => setEditing({ ...editing, unit })}/><NumberInput label="Cost price" value={editing.costPrice} onChange={costPrice => setEditing({ ...editing, costPrice })}/><NumberInput label="Selling price" value={editing.sellingPrice} onChange={sellingPrice => setEditing({ ...editing, sellingPrice })}/><NumberInput label="GST rate %" value={editing.taxRate} onChange={taxRate => setEditing({ ...editing, taxRate })}/><Input label="HSN / SAC" value={editing.hsnSac} onChange={hsnSac => setEditing({ ...editing, hsnSac })}/></Editor>}
   </LibraryFrame>;
 }
 

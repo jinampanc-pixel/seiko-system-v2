@@ -4,7 +4,7 @@ import type { Permission } from "../../../lib/access-control";
 
 const reply=(message:string,status=400)=>Response.json({ok:false,message},{status,headers:{"Cache-Control":"no-store"}});
 const permissions:Record<string,Permission>={order:"orders.view",production:"production.view",billing:"billing.view",receipt:"billing.view",labels:"labels.print"};
-const actions=["pdf-prepared","download-requested","print-requested","document-opened","share-requested"];
+const actions=["pdf-prepared","download-requested","print-requested","document-opened","share-requested","keep-record","queue-print","confirm-printed","remove-from-list"];
 export async function POST(request:Request){
  if(request.headers.get("origin")&&request.headers.get("origin")!==new URL(request.url).origin)return reply("Invalid request origin.",403);
  try{
@@ -24,6 +24,10 @@ export async function POST(request:Request){
    source=await db.prepare(b.kind==='billing'?"SELECT data,sequence,COALESCE(json_extract(data,'$.revision'),1) AS version FROM seiko_billing_documents WHERE id=?":"SELECT data,sequence,COALESCE(json_extract(data,'$.revision'),1) AS version FROM seiko_billing_payments WHERE id=?").bind(b.id).first();
   }
   if(b.kind==='labels'&&b.id==='standalone')source={data:JSON.stringify({name:"Standalone labels"}),version:0};
+  if(!source&&b.action==='remove-from-list'){
+   const prior=await db.prepare("SELECT version,snapshot_json FROM erp_audit_events WHERE business_id=? AND entity_type=? AND entity_id=? AND action IN ('keep-record','queue-print','confirm-printed') AND COALESCE(json_extract(snapshot_json,'$.title'),'')=? AND COALESCE(json_extract(snapshot_json,'$.digest'),'')=? ORDER BY at DESC,rowid DESC LIMIT 1").bind(b.businessId,'output-'+b.kind,b.id,b.title||'',b.digest||'').first<{version:number;snapshot_json:string}>();
+   if(prior)source={data:JSON.stringify({number:JSON.parse(prior.snapshot_json).reference}),version:prior.version};
+  }
   if(!source)return reply("Save this record to shared storage before printing or exporting it.",409);
   const doc=JSON.parse(source.data),reference=b.kind==='billing'?`${doc.kind==='invoice'?'INV':doc.kind==='quotation'?'QTN':'DC'}-${doc.issueDate.slice(0,4)}-${String(source.sequence).padStart(5,"0")}`:b.kind==='receipt'?(doc.receiptNumber||`RCP-${doc.date.slice(0,4)}-${String(source.sequence).padStart(5,"0")}`):doc.number||doc.details?.orderNo||doc.name||b.id;
   const snapshot=JSON.stringify({reference,title:b.title||reference,digest:b.digest,displayName:actor.displayName,orderIds:doc.allocations?[...new Set(doc.allocations.map((a:{orderId:string})=>a.orderId))]:[doc.orderId||b.id]});
@@ -39,6 +43,28 @@ export async function GET(request:Request){
   const actor=await authenticateActor(request);if(!actor)return reply("Sign in is required.",401);
   const url=new URL(request.url),business=url.searchParams.get('businessId')||'seiko',cursor=url.searchParams.get('before')||'9999',kind=url.searchParams.get('kind')||'';
   if(!['seiko','meth','veyn-health'].includes(business)||!['','order','production','billing','receipt','labels'].includes(kind)||cursor.length>128)return reply("Choose a valid activity filter.");
+  if (url.searchParams.get('view') === 'outputs') {
+   const status=url.searchParams.get('status')||'', search=url.searchParams.get('search')||'';
+   if(!['','keep-record','queue-print','confirm-printed'].includes(status)||search.length>200)return reply("Choose a valid saved-list filter.");
+   const allowed:string[]=[];
+   for(const [type,permission] of Object.entries(permissions)) {
+    if(!await authorizePermission(actor,business,permission))continue;
+    if(type==='labels'&&!await authorizePermission(actor,business,'orders.view'))continue;
+    if((type==='billing'||type==='receipt')&&!await authorizePermission(actor,business,'financials.view'))continue;
+    allowed.push('output-'+type);
+   }
+   if(!allowed.length)return reply("You cannot view this saved list.",403);
+   const db=env.DB?.withSession('first-primary');if(!db)return reply("Saved-list storage is unavailable.",503);
+   const rows=await db.prepare(`SELECT id,substr(entity_type,8) AS kind,entity_id AS recordId,action,actor_email AS actor,at,version,
+    json_extract(snapshot_json,'$.reference') AS reference,json_extract(snapshot_json,'$.title') AS title,json_extract(snapshot_json,'$.digest') AS digest
+    FROM (SELECT *,row_number() OVER(PARTITION BY entity_type,entity_id,COALESCE(json_extract(snapshot_json,'$.title'),''),COALESCE(json_extract(snapshot_json,'$.digest'),'') ORDER BY at DESC,rowid DESC) AS position
+    FROM erp_audit_events WHERE business_id=? AND entity_type IN (${allowed.map(()=>'?').join(',')}) AND action IN ('keep-record','queue-print','confirm-printed','remove-from-list'))
+    WHERE position=1 AND action!='remove-from-list' AND (at||'|'||id)<? AND (?='' OR action=?) AND (?='' OR substr(entity_type,8)=?)
+    AND (?='' OR instr(lower(COALESCE(json_extract(snapshot_json,'$.reference'),'')||' '||COALESCE(json_extract(snapshot_json,'$.title'),'')),lower(?))>0)
+    ORDER BY at DESC,id DESC LIMIT 101`).bind(business,...allowed,cursor,status,status,kind,kind,search,search).all();
+   const entries=rows.results.slice(0,100),last=entries.at(-1);
+   return Response.json({ok:true,entries,next:rows.results.length>100&&last?last.at+'|'+last.id:null},{headers:{'Cache-Control':'no-store'}});
+  }
   if(!await authorizePermission(actor,business,'audit.view'))return reply("You cannot view activity history.",403);
   const db=env.DB?.withSession('first-primary');if(!db)return reply("Activity storage is unavailable.",503);
   const results=await db.prepare(`SELECT * FROM (

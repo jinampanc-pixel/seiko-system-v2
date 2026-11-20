@@ -1,5 +1,5 @@
 "use client";
-import { recordOutput } from "./lib/output-activity";
+import { DocumentViewer } from "./document-viewer";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { useAccess } from "./access-control";
@@ -15,8 +15,6 @@ export function OrderHandoverPreview({ order, businessId, onClose }: { order: Se
   const [documentId, setDocumentId] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
-  const frame = useRef<HTMLIFrameElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const close = useRef<HTMLButtonElement>(null);
   useEffect(() => { const previous = document.activeElement as HTMLElement | null; const modal = dialog.current; modal?.showModal(); close.current?.focus(); return () => { modal?.close(); previous?.focus(); }; }, []);
@@ -37,18 +35,17 @@ export function OrderHandoverPreview({ order, businessId, onClose }: { order: Se
   }, [includeMoney, order.orderId]);
   const selectedDocument = includeMoney ? documents.find(item => item.id === documentId) : undefined;
   const html = useMemo(() => handoverHtml(order, { ...options, financialDocument: selectedDocument }), [order, options, selectedDocument]);
-  const change = (next: typeof options) => { setReady(false); setOptions(next); };
+  const change = (next: typeof options) => { setOptions(next); };
   return <dialog ref={dialog} className="handoverDialog" aria-labelledby="handover-title" onCancel={event => { event.preventDefault(); onClose(); }}>
     <header><div><h2 id="handover-title">Student handover list</h2><p>{order.details.orderNo} · {order.details.clientName}</p></div><button ref={close} onClick={onClose}>Close preview</button></header>
     <div className="handoverLayout"><aside><p>Choose what appears in the PDF. Printing does not save changes or mark delivery.</p>
       <fieldset><legend>Student details</legend>{order.fields.map(field => <label key={field.id}><input type="checkbox" checked={options.fieldIds.includes(field.id)} onChange={event => change({ ...options, fieldIds: event.target.checked ? [...options.fieldIds, field.id] : options.fieldIds.filter(id => id !== field.id) })}/>{field.name}</label>)}</fieldset>
       <fieldset><legend>Products</legend>{order.products.filter(product => product.name.trim()).map(product => <label key={product.id}><input type="checkbox" checked={options.productIds.includes(product.id)} onChange={event => change({ ...options, productIds: event.target.checked ? [...options.productIds, product.id] : options.productIds.filter(id => id !== product.id) })}/>{product.name}</label>)}</fieldset>
       <fieldset><legend>Include</legend><label><input type="checkbox" checked={options.orderDetails} onChange={event => change({ ...options, orderDetails: event.target.checked })}/>Client / order details</label><label><input type="checkbox" checked={options.sizes} onChange={event => change({ ...options, sizes: event.target.checked })}/>Sizes / measurements</label><label><input type="checkbox" checked={options.specifications} onChange={event => change({ ...options, specifications: event.target.checked })}/>Product specifications</label><label><input type="checkbox" checked={options.checks} onChange={event => change({ ...options, checks: event.target.checked })}/>Manual check column</label>
-      {businessId === "seiko" && can("financials.view") && <label><input type="checkbox" checked={includeMoney} onChange={event => { setReady(false); setIncludeMoney(event.target.checked); }}/>Financial reference</label>}</fieldset>
-      {includeMoney && <><p>Uses one saved billing document. Prices are not inferred for students.</p>{loading ? <p role="status">Loading financial documents…</p> : <label>Billing document<select value={documentId} onChange={event => { setReady(false); setDocumentId(event.target.value); }}><option value="">Choose a document</option>{documents.map(item => <option key={item.id} value={item.id}>{item.number} · {item.kind.replaceAll("_", " ")}</option>)}</select></label>}{!loading && !documents.length && !error && <p>No billing documents for this order.</p>}{error && <p role="alert">{error}</p>}</>}
+      {businessId === "seiko" && can("financials.view") && <label><input type="checkbox" checked={includeMoney} onChange={event => { setIncludeMoney(event.target.checked); }}/>Financial reference</label>}</fieldset>
+      {includeMoney && <><p>Uses one saved billing document. Prices are not inferred for students.</p>{loading ? <p role="status">Loading financial documents…</p> : <label>Billing document<select value={documentId} onChange={event => { setDocumentId(event.target.value); }}><option value="">Choose a document</option>{documents.map(item => <option key={item.id} value={item.id}>{item.number} · {item.kind.replaceAll("_", " ")}</option>)}</select></label>}{!loading && !documents.length && !error && <p>No billing documents for this order.</p>}{error && <p role="alert">{error}</p>}</>}
       <label>Page orientation<select value={options.orientation} onChange={event => change({ ...options, orientation: event.target.value as "portrait" | "landscape" })}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
-      <button className="primary" disabled={!ready || !options.productIds.length || (includeMoney && !selectedDocument)} onClick={async () => {try{await ensureOrderSheetFreshForOutput(order);await recordOutput({businessId,kind:"order",id:order.orderId,title:"Order handover"},"print-requested",frame.current?.contentDocument?.documentElement.outerHTML);frame.current?.contentWindow?.focus();frame.current?.contentWindow?.print();}catch(e){setError((e as Error).message);}}}>Print / Save PDF</button>
-      {!includeMoney&&error&&<p role="alert">{error}</p>}<p>In the print window, choose Save as PDF. All {order.records.filter(record => !record.held).length} unheld records are included.</p>
-    </aside><iframe ref={frame} title="Student handover print preview" srcDoc={html} onLoad={() => setReady(true)}/></div>
+      {!includeMoney&&error&&<p role="alert">{error}</p>}<p>All {order.records.filter(record => !record.held).length} unheld records are included.</p>
+    </aside><DocumentViewer html={html} title="Student handover print preview" filename={order.details.orderNo+"-handover"} activity={{businessId,kind:"order",id:order.orderId,title:"Student handover list"}} beforeOutput={()=>ensureOrderSheetFreshForOutput(order)} outputDisabled={!options.productIds.length || (includeMoney&&!selectedDocument) || loading}/></div>
   </dialog>;
 }

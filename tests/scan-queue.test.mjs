@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import ts from 'typescript';
+const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync('app/lib/scan-queue.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports});
+test('scan acknowledgement preserves scans added while a previous batch is syncing',()=>{const sent=[{id:'ack',token:'a'},{id:'retry',token:'b'}],newScan={id:'new',token:'c'};const result=exports.mergeScanAcknowledgements([...sent,newScan],sent,[sent[1]]);assert.deepEqual(Array.from(result),[sent[1],newScan]);assert.deepEqual(Array.from(exports.mergeScanAcknowledgements(result,sent,[])),[newScan]);});
+test('malformed queues are never replaced with an empty acknowledgement result',()=>{assert.throws(()=>exports.mergeScanAcknowledgements(null,[{id:'one'}],[]),/unreadable/);});

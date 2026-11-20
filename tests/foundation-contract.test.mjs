@@ -24,7 +24,9 @@ test("scanner supports camera, scan gun and offline queue", () => {
   assert.match(page, /BarcodeDetector/);
   assert.match(page, /detector\.detect/);
   assert.match(page, /businessStorageKey\(businessId, "scan-queue"\)/);
-  assert.match(page, />Record<\/button>/);
+  assert.match(page, /Record scan/);
+  assert.match(page, /Not saved — retry required/);
+  assert.match(page, /setToken\(clean\)/);
 });
 
 test("server bridge protects credentials and bounds latency", () => {

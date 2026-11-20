@@ -1,6 +1,8 @@
 "use client";
 
 import { readLabelStorage } from "./lib/label-storage";
+import { mergeScanAcknowledgements } from "./lib/scan-queue";
+import { RecordTrace } from "./record-trace";
 import { CloseIcon } from "./ui-icons";
 
 /* Exact business logos are served unchanged; image optimization is intentionally disabled. */
@@ -20,16 +22,9 @@ import { type SeikoOrder } from "./lib/order-domain";
 import { useCachedOrders } from "./lib/use-cached-orders";
 import { businessStorageKey, canAccess, deriveThemeFromLogo, normalizeMembership, THEME_PRESETS, themeVariables, type BusinessMembership, type BusinessTheme, type FoundationBootstrap, type Module } from "./lib/foundation";
 
-type LabelMode = "INFO" | "BARCODE" | "QR" | "INFO_BARCODE" | "INFO_QR";
 type ScanEvent = { id: string; token: string; operation: string; at: string; status: "SYNCED" | "PENDING" | "REJECTED" };
-type LabelRecord = { id: string; name: string; group: string; product: string; size: string; qty: string; token: string };
-type OrderOption = { orderId: string; orderNumber: string; client: string };
 
-const demoRecords = [
-  { id: "p1", name: "Arushi", group: "Class BV", product: "Collared T Shirt", size: "28", qty: "2", token: "S2A7C084DCB1E743AB94" },
-  { id: "p2", name: "Evanshi", group: "Class BV", product: "Track Pant", size: "30", qty: "2", token: "S2642D4E2009494FDBB5" },
-  { id: "p3", name: "Mokshi", group: "Class AV", product: "Collared T Shirt", size: "26", qty: "1", token: "S2324F4C2E0A734EF08F" },
-];
+
 
 const operations = [
   { state: "CUT", label: "Cutting complete" },
@@ -143,11 +138,14 @@ export default function Home() {
         if (!result.ok) remaining.push(item);
       }
       if (!cancelled) {
-        localStorage.setItem(queueKey, JSON.stringify(remaining)); window.dispatchEvent(new Event("seiko:scan-queue-updated"));
-        setPending(remaining.length);
+        const currentQueue = JSON.parse(localStorage.getItem(queueKey) || "[]");
+        const nextQueue = mergeScanAcknowledgements(currentQueue, queued, remaining);
+        localStorage.setItem(queueKey, JSON.stringify(nextQueue)); window.dispatchEvent(new Event("seiko:scan-queue-updated"));
+        window.dispatchEvent(new CustomEvent("seiko:scans-synced",{detail:{businessId,ids:queued.filter(item=>!remaining.some(failed=>failed.id===item.id)).map(item=>item.id)}}));
+        setPending(nextQueue.length);
       }
     };
-    flush();
+    void flush().catch(() => { /* Keep the durable queue and stable request IDs for a later retry. */ });
     return () => { cancelled = true; };
   }, [businessId, online, pending, queueKey]);
 
@@ -160,7 +158,7 @@ export default function Home() {
         {module === "orders" && canAccess(membership, "orders") && <Orders onAssistantContext={setAssistantOrderId} key={`${businessId}:${serviceOrder?.orderId||labelOrder?.orderId || "center"}:${newOrderRequest}`} initialService={Boolean(serviceOrder)} onServiceBack={()=>{setServiceOrder(null);restoreModule(serviceOriginModule);window.dispatchEvent(new Event("seiko:resume-billing"));}} homeLabel={moduleBackLabel} onHome={() => requestAppNavigation(()=>{ setNewOrderRequest(0); setServiceOrder(null); setLabelOrder(null); moduleBack(); setNavOpen(false); })} startNewOrder={newOrderRequest > 0} businessId={businessId} initialOrder={serviceOrder||labelOrder} canManageSuggestions={membership?.role === "owner" || membership?.role === "admin"} onOpenLabelBatches={order => { setLabelOrder(null); setLabelPurpose(null); setLabelBatchOrder(order); setModule("labels"); }}/>}
         {module === "labels" && canAccess(membership, "labels") && (labelOrder ? <SavedLabelWorkspace key={`${businessId}:${labelOrder.orderId}:${labelPurpose || "choose"}`} businessId={businessId} order={labelOrder} initialPurpose={labelPurpose} backLabel="← Back to Labels" onBack={() => { setLabelOrder(null); setLabelPurpose(null); }} canManageSizes={membership?.role === "owner" || membership?.role === "admin"}/> : <LabelLauncher onBack={moduleBack} backLabel={moduleBackLabel} businessId={businessId} focusedOrder={labelBatchOrder} onOpen={(order, purpose) => { setLabelBatchOrder(null); setLabelOrder(order); setLabelPurpose(purpose); }} onOpenOrders={() => { setLabelBatchOrder(null); setModule("orders"); }}/>)}
         {module === "scan" && canAccess(membership, "scan") && <Scanner businessId={businessId} queueKey={queueKey} onPending={setPending} />}
-        {module === "trace" && canAccess(membership, "trace") && <Trace />}
+        {module === "trace" && canAccess(membership, "trace") && <RecordTrace key={businessId} businessId={businessId}/>}
         {module === "production" && canAccess(membership, "production") && <Production key={`${businessId}:${productionOrderId||"all"}`} businessId={businessId} initialOrderId={productionOrderId} onHome={moduleBack} backLabel={moduleBackLabel} canManage={membership?.role === "owner" || membership?.role === "admin"}/>}
         {(["inventory", "sales", "delivery"] as Module[]).includes(module) && <section className="page"><div className="panel"><p className="eyebrow">{title(module).toUpperCase()}</p><h2>{title(module)}</h2><p>{module === "inventory" ? "Manage stock, materials and inventory label batches here." : "This module will be configured after the main navigation and home screen are finalised."}</p></div></section>}
       </main>
@@ -243,45 +241,15 @@ function ModuleCard({ title, text, action, onClick }: { title: string; text: str
   return <button className="moduleCard" onClick={onClick}><h3>{title}</h3><p>{text}</p><b>{action} →</b></button>;
 }
 
-export function LabelsLegacy({ businessId }: { businessId: string }) {
-  const [mode, setMode] = useState<LabelMode>("INFO_QR");
-  const [selected, setSelected] = useState<string[]>(["p1"]);
-  const [fields, setFields] = useState({ name: true, group: true, product: true, size: true, qty: false });
-  const [names, setNames] = useState({ name: false, group: false, product: true, size: true, qty: true });
-  const [orders, setOrders] = useState<OrderOption[]>([]);
-  const [orderId, setOrderId] = useState("");
-  const [records, setRecords] = useState<LabelRecord[]>(demoRecords);
-  const [source, setSource] = useState<"LIVE" | "DEMO">("DEMO");
-  const current = records.find(r => selected.includes(r.id)) || records[0] || demoRecords[0];
-  const toggle = (id: string) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
-  useEffect(() => {
-    callSeiko<{ orders: OrderOption[] }>("labelBootstrap", {}, businessId).then(result => {
-      if (!result.ok || !result.data.orders?.length) return;
-      setOrders(result.data.orders); setOrderId(result.data.orders[0].orderId); setSource("LIVE");
-    });
-  }, [businessId]);
-  useEffect(() => {
-    if (!orderId) return;
-    callSeiko<{ records: Array<{ recordId: string; title: string; token: string; values: Record<string, unknown> }> }>("labelRecords", { orderId }, businessId).then(result => {
-      if (!result.ok) return;
-      const mapped = result.data.records.map(r => ({ id: r.recordId, name: String(r.values?.["field:name"] || r.title || "Record"), group: String(r.values?.["field:class"] || ""), product: String(r.values?.product_name || ""), size: String(r.values?.size || ""), qty: String(r.values?.quantity || ""), token: r.token || "" }));
-      setRecords(mapped); setSelected(mapped[0] ? [mapped[0].id] : []);
-    });
-  }, [businessId, orderId]);
-  return <div className="page labelsPage">
-    <div className="toolbar"><div className="selectGroup"><label htmlFor="label-order">Order · {source === "LIVE" ? "Live" : "Preview"}</label><select id="label-order" value={orderId} onChange={e => setOrderId(e.target.value)}>{orders.length ? orders.map(o => <option key={o.orderId} value={o.orderId}>{o.orderNumber} — {o.client}</option>) : <option>I-26-27-08-009 — Test 10</option>}</select></div><div className="selectGroup"><label htmlFor="label-content">Label content</label><select id="label-content" value={mode} onChange={e => setMode(e.target.value as LabelMode)}><option value="INFO">Information only</option><option value="BARCODE">Barcode only</option><option value="QR">QR only</option><option value="INFO_BARCODE">Information + barcode</option><option value="INFO_QR">Information + QR</option></select></div><button className="secondary">Saved layouts</button></div>
-    <div className="labelWorkspace">
-      <section className="records panel"><div className="panelHead"><div><p className="eyebrow">RECORDS</p><h3>{selected.length} selected</h3></div><button className="textButton" onClick={() => setSelected(selected.length === records.length ? [] : records.map(r => r.id))}>Select all</button></div>{records.map(r => <button key={r.id} onClick={() => toggle(r.id)} className={`record ${selected.includes(r.id) ? "selected" : ""}`}><span className="check">{selected.includes(r.id) ? "✓" : ""}</span><span><b>{r.name}</b><small>{r.group} · {r.product} · {r.size}</small></span></button>)}</section>
-      <section className="fields panel"><div className="panelHead"><div><p className="eyebrow">FIELDS</p><h3>Content & names</h3></div></div>{Object.keys(fields).map(key => <div className="fieldRow" key={key}><label><input type="checkbox" checked={fields[key as keyof typeof fields]} onChange={e => setFields({ ...fields, [key]: e.target.checked })}/><b>{pretty(key)}</b></label><label className="nameToggle"><input type="checkbox" checked={names[key as keyof typeof names]} disabled={!fields[key as keyof typeof fields]} onChange={e => setNames({ ...names, [key]: e.target.checked })}/> Show field name</label></div>)}<button className="secondary full">+ Free text</button></section>
-      <section className="designer panel"><div className="panelHead"><div><p className="eyebrow">LIVE 50 × 25 MM PREVIEW</p><h3>Drag elements to position</h3></div><div className="miniTools"><button>A−</button><button>A+</button><button>B</button></div></div><div className="labelStage"><div className="labelPaper"><div className="safeArea">{(mode === "INFO" || mode.startsWith("INFO_")) && <div className="labelInfo">{Object.entries(fields).filter(([,v]) => v).map(([key]) => <div key={key}>{names[key as keyof typeof names] && <strong>{pretty(key)}: </strong>}{current[key as keyof typeof current]}</div>)}</div>}{(mode === "QR" || mode === "INFO_QR") && <div className="qr">▦</div>}{(mode === "BARCODE" || mode === "INFO_BARCODE") && <div className="barcode" />}</div></div></div><div className="designerFoot"><input placeholder="Layout name"/><button className="secondary">Save layout</button><button className="primary">Preview & print {selected.length}</button></div></section>
-    </div>
-  </div>;
-}
-
-function Scanner({ businessId, queueKey, onPending }: { businessId: string; queueKey: string; onPending: (n: number) => void }) {
+export function Scanner({ businessId, queueKey, onPending }: { businessId: string; queueKey: string; onPending: (n: number) => void }) {
   const [operation, setOperation] = useState(operations[0].state);
   const [token, setToken] = useState("");
   const [events, setEvents] = useState<ScanEvent[]>([]);
+  const [scanError,setScanError]=useState("");
+  const [recording,setRecording]=useState(false);
+  const scanPending=useRef(false);
+  const retryScan=useRef<ScanEvent|null>(null);
+  useEffect(()=>{const synced=(event:Event)=>{const detail=(event as CustomEvent<{businessId:string;ids:string[]}>).detail;if(detail.businessId===businessId)setEvents(current=>current.map(item=>detail.ids.includes(item.id)?{...item,status:"SYNCED"}:item));};window.addEventListener("seiko:scans-synced",synced);return()=>window.removeEventListener("seiko:scans-synced",synced);},[businessId]);
   const [camera, setCamera] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -292,21 +260,28 @@ function Scanner({ businessId, queueKey, onPending }: { businessId: string; queu
 
   const submit = useCallback(async (value = token) => {
     const clean = value.trim();
-    if (!clean) return;
+    if (!clean || scanPending.current) return;
+    scanPending.current=true;setRecording(true);setScanError("");
     const label = operations.find(o => o.state === operation)?.label || operation;
-    const event: ScanEvent = { id: crypto.randomUUID(), token: clean, operation: label, at: new Date().toLocaleTimeString("en-IN"), status: "PENDING" };
-    setEvents(current => [event, ...current]);
-    setToken("");
-    const result = navigator.onLine ? await callSeiko("recordScan", { token: clean, toState: operation, requestKey: event.id }, businessId) : null;
-    if (result?.ok) {
-      setEvents(current => current.map(item => item.id === event.id ? { ...item, status: "SYNCED" } : item));
-    } else {
-      const queue = JSON.parse(localStorage.getItem(queueKey) || "[]");
-      queue.push({ ...event, toState: operation });
-      localStorage.setItem(queueKey, JSON.stringify(queue)); window.dispatchEvent(new Event("seiko:scan-queue-updated"));
-      onPending(queue.length);
-    }
-    if (navigator.vibrate) navigator.vibrate(result?.ok ? 70 : [80, 60, 80]);
+    const event: ScanEvent = retryScan.current?.token===clean&&retryScan.current.operation===label?{...retryScan.current,status:"PENDING"}:{ id: crypto.randomUUID(), token: clean, operation: label, at: new Date().toLocaleTimeString("en-IN"), status: "PENDING" };
+    setEvents(current => [event, ...current.filter(item=>item.id!==event.id)]);
+    try {
+      const result = navigator.onLine ? await callSeiko("recordScan", { token: clean, toState: operation, requestKey: event.id }, businessId) : null;
+      if (result?.ok) {
+        setEvents(current => current.map(item => item.id === event.id ? { ...item, status: "SYNCED" } : item));
+      } else {
+        if(result&&!result.ok&&!["NETWORK_ERROR","BACKEND_TIMEOUT","BACKEND_UNAVAILABLE","BACKEND_NOT_CONNECTED","INVALID_BACKEND_RESPONSE"].includes(result.code))throw Error(result.message);
+        const queue = JSON.parse(localStorage.getItem(queueKey) || "[]");
+        if(!Array.isArray(queue))throw Error("The offline scan queue cannot be read. Keep this code and contact the administrator before retrying.");
+        queue.push({ ...event, toState: operation });
+        try { localStorage.setItem(queueKey, JSON.stringify(queue)); }
+        catch { throw Error("This scan could not be saved on this device. The code remains in the input; keep it and retry when connected."); }
+        window.dispatchEvent(new Event("seiko:scan-queue-updated")); onPending(queue.length);
+      }
+      retryScan.current=null;setToken("");
+      if (navigator.vibrate) navigator.vibrate(result?.ok ? 70 : [80, 60, 80]);
+    } catch(e) { retryScan.current=event;setToken(clean);setScanError((e as Error).message);setEvents(current=>current.map(item=>item.id===event.id?{...item,status:"REJECTED"}:item)); }
+    finally {scanPending.current=false;setRecording(false);}
   }, [businessId, onPending, operation, queueKey, token]);
 
   const toggleCamera = async () => {
@@ -347,7 +322,7 @@ function Scanner({ businessId, queueKey, onPending }: { businessId: string; queu
         const value = found[0]?.rawValue?.trim();
         if (value && value !== lastCameraToken.current) {
           lastCameraToken.current = value;
-          setCameraMessage("Code detected and recorded.");
+          setCameraMessage("Code detected. Checking and recording…");
           await submit(value);
           window.setTimeout(() => { lastCameraToken.current = ""; }, 1500);
         }
@@ -364,25 +339,18 @@ function Scanner({ businessId, queueKey, onPending }: { businessId: string; queu
       <p className="eyebrow">OPERATION</p>
       <div className="operationGrid">{operations.map(item => <button className={item.state === operation ? "active" : ""} key={item.state} onClick={() => setOperation(item.state)}>{item.label}</button>)}</div>
       <label className="scanLabel" htmlFor="scan-code">Scan code</label>
-      <div className="scanInput"><input id="scan-code" value={token} onChange={e => setToken(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder={portableCamera ? "Scan gun, camera, or enter token" : "Scan gun or enter label token"}/><button onClick={() => submit()}>Record</button></div>
+      <div className="scanInput"><input id="scan-code" value={token} onChange={e => setToken(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder={portableCamera ? "Scan gun, camera, or enter token" : "Scan gun or enter label token"}/><button disabled={recording||!token.trim()} onClick={() => submit()}>{recording?"Recording…":"Record scan"}</button></div>
+      {scanError&&<p role="alert">{scanError}</p>}
       {portableCamera && <button className={`cameraButton ${camera ? "stop" : ""}`} onClick={toggleCamera}>{camera ? "Stop camera" : "Open device camera"}</button>}
       {camera && <><div className="camera"><video ref={video} autoPlay playsInline muted/><div className="scanFrame"/><p>Point the camera at a QR or barcode</p></div><p className="cameraMessage" role="status">{cameraMessage}</p></>}
       <p className="hint">Scan guns work automatically as keyboard input. Offline scans remain on this device and synchronize when connection returns.</p>
     </section>
     <section className="activity panel">
-      <div className="panelHead"><div><p className="eyebrow">THIS SESSION</p><h3>{events.length} scans</h3></div><span className="liveDot">● LIVE</span></div>
-      {events.length === 0 ? <div className="empty"><span>⌗</span><b>Ready for the first scan</b><p>The result and item identity will appear here immediately.</p></div> : events.map(event => <div className="event" key={event.id}><span className={`eventIcon ${event.status.toLowerCase()}`}>✓</span><div><b>{event.operation}</b><small>{event.token}</small></div><time>{event.at}</time></div>)}
+      <div className="panelHead"><div><p className="eyebrow">THIS SESSION</p><h3>{events.length} scans</h3></div><span className="liveDot">{recording?"Recording":"Scanner ready"}</span></div>
+      {events.length === 0 ? <div className="empty"><span>⌗</span><b>Ready for the first scan</b><p>The result and item identity will appear here immediately.</p></div> : events.map(event => <div className="event" key={event.id}><span className={`eventIcon ${event.status.toLowerCase()}`}>{event.status==="SYNCED"?"✓":event.status==="PENDING"?"…":"!"}</span><div><b>{event.operation}</b><small>{event.token}</small><small>{event.status==="SYNCED"?"Saved":event.status==="PENDING"?"Waiting to sync":"Not saved — retry required"}</small></div><time>{event.at}</time></div>)}
     </section>
   </div></div>;
 }
-
-function Trace() {
-  const [query, setQuery] = useState(""); const rows = useMemo(() => demoRecords.filter(r => Object.values(r).join(" ").toLowerCase().includes(query.toLowerCase())), [query]); const [current, setCurrent] = useState(demoRecords[0]);
-  return <div className="page tracePage"><div className="traceSearch"><span>⌕</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search order, client, person, product or scan code"/></div><div className="traceGrid"><section className="panel traceResults"><p className="eyebrow">MATCHING IDENTITIES</p>{rows.map(r => <button className={current.id === r.id ? "active" : ""} key={r.id} onClick={() => setCurrent(r)}><b>{r.name}</b><span>{r.product} · Size {r.size}</span><small>{r.token}</small></button>)}</section><section className="panel traceDetail"><div className="identity"><div><p className="eyebrow">CURRENT IDENTITY</p><h2>{current.name}</h2><p>{current.product} · Size {current.size} · Qty {current.qty}</p></div><span className="status">STITCHING</span></div><div className="timeline"><Timeline title="Identity created" text="Order I-26-27-08-009 · Test 10" time="13 Aug, 10:14"/><Timeline title="Cutting complete" text="Floor · authorized operation" time="13 Aug, 15:42"/><Timeline title="Stitching started" text="Operator record verified" time="14 Aug, 09:18" active/></div></section></div></div>;
-}
-
-function Timeline({ title, text, time, active = false }: { title: string; text: string; time: string; active?: boolean }) { return <div className={`timelineRow ${active ? "active" : ""}`}><span/><div><b>{title}</b><p>{text}</p></div><time>{time}</time></div>; }
-function pretty(v: string) { return ({ name: "Name", group: "Class / group", product: "Product", size: "Size", qty: "Quantity" } as Record<string,string>)[v] || v; }
 
 function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessName: string; theme: BusinessTheme; onSave: (theme: BusinessTheme) => void; onClose: () => void }) {
   const { membership, businessId, can } = useAccess();
@@ -409,7 +377,7 @@ function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessNam
   return <div className="themeScrim" style={themeVariables(theme) as CSSProperties} role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className="themePanel" role="dialog" aria-modal="true" aria-labelledby="theme-title">
     <div className="themeHead"><div><p className="eyebrow">SYSTEM SETTINGS</p><h2 id="theme-title">Settings · {businessName}</h2><p className="settingsIntro">Manage appearance, users and access from one settings area.</p></div><button title="Close settings" type="button" className="uiIconButton uiCloseButton" onClick={onClose} aria-label="Close settings"><CloseIcon/></button></div>
     <nav className="settingsModuleNav" aria-label="Settings modules">
-      {can("audit.view")&&<a href={"/activity?business="+encodeURIComponent(businessId)}>Activity history</a>}
+      <a href={"/outputs?business="+encodeURIComponent(businessId)}>Print &amp; saved list</a>{can("audit.view")&&<a href={"/activity?business="+encodeURIComponent(businessId)}>Activity history</a>}
       {membership?.role === "owner" && <a href="/backups">Backup &amp; recovery</a>}
       <button type="button" className={section === "appearance" ? "active" : ""} onClick={() => setSection("appearance")}><small>1</small><span>Appearance</span></button>
       {can("users.manage")&&<button type="button" className={section === "users" ? "active" : ""} onClick={() => setSection("users")}><span>Users & access</span></button>}
