@@ -3,3 +3,4 @@
 body:has(.outputRegister[data-business="seiko"]){background:#fbf5ed}.outputRegister[data-business="seiko"]{--navy:#173c5e;--paper:#fbf5ed;--gold:#c3a06c;--line:#c3a06c;background:var(--paper);color:var(--navy)}.outputRegister .outputRegisterLogo{display:block;width:150px;height:auto;margin-bottom:18px}
 
 .outputRegister[data-business="seiko"]{min-height:calc(100dvh - 48px)}
+.outputRegister header h1{margin:16px 0 8px;font-size:28px;line-height:1.2;font-weight:750;letter-spacing:-.02em}.outputRegister header p{margin:0 0 18px;font-size:16px;line-height:1.5}.outputRegisterFilters label{font-size:14px;font-weight:650}.outputRegisterFilters input{min-width:280px}.outputRegisterTable{font-size:15px}.outputRegister>.appBackControl{display:inline-flex;margin-bottom:8px}@media(max-width:600px){.outputRegister header h1{font-size:25px}.outputRegisterFilters input{min-width:0;width:100%}}
