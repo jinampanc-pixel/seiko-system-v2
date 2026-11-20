@@ -90,6 +90,15 @@ test('shared production API protects business permissions, fixed releases, dupli
   const nextHistory=await call({operation:'list',handoffStatus:'History',handoffPage:2});assert.equal(nextHistory.handoffs.length,25);assert.ok(nextHistory.handoffs.every(row=>!history.handoffs.some(first=>first.id===row.id)));
   const oneHistory=await call({operation:'list',handoffStatus:'History',handoffSearch:'ARCH-54'});assert.equal(oneHistory.handoffs.length,1);assert.equal(oneHistory.handoffs[0].id,'archive-54');
   const quick=makeOrder('quick');sqlite.prepare("INSERT INTO erp_orders SELECT ?,business_id,?,status,archived,?,1,created_at,created_by_user_id,created_by_email,updated_at,updated_by_user_id,updated_by_email FROM erp_orders WHERE id=?").run(quick.orderId,quick.details.orderNo,JSON.stringify(quick),order.orderId);const quickDraft=handoff(domain.productionDemand([{order:quick,version:1}]),'quick-sheet');let issued=await call({operation:'save',expectedVersion:10,handoff:quickDraft,release:true});assert.equal(issued.status,200,JSON.stringify(issued));assert.equal(issued.ledger.handoffs.find(h=>h.id==='quick-sheet').status,'Released');const qrow=quickDraft.allocations[0],qevent={allocationKey:qrow.key,operation:'Cutting',quantity:1,rejects:2,extras:0,reason:'Defects'};assert.equal((await call({operation:'event',expectedVersion:11,id:'quick-sheet',event:qevent})).status,400,'rejects and good pieces share the available allocation');issued=await call({operation:'event',expectedVersion:11,id:'quick-sheet',event:{...qevent,rejects:1}});assert.equal(issued.status,200);assert.equal((await call({operation:'event',expectedVersion:12,id:'quick-sheet',event:{...qevent,rejects:0}})).status,400,'already processed rejects reduce remaining work');
+  const reference={...handoff(domain.parseReferenceLines('Collared T Shirt | Size: 26 / Waist: 34 | 3', {order,version:2}),'reference-sheet'),purpose:'reference',reason:'Combined existing work and separately supplied cases'};
+  const beforeOrder=sqlite.prepare('SELECT document_json FROM erp_orders WHERE id=?').get(order.orderId).document_json;
+  const savedReference=await call({operation:'save',expectedVersion:12,handoff:reference});assert.equal(savedReference.status,200,JSON.stringify(savedReference));
+  const persisted=savedReference.ledger.handoffs.find(item=>item.id===reference.id);assert.equal(persisted.allocations[0].variant,'Size: 26 / Waist: 34');assert.equal(persisted.allocations[0].members.length,0);
+  assert.equal(sqlite.prepare('SELECT document_json FROM erp_orders WHERE id=?').get(order.orderId).document_json,beforeOrder);
+  assert.equal((await call({operation:'release',expectedVersion:13,id:reference.id})).status,409);
+  assert.equal((await call({operation:'save',expectedVersion:13,handoff:{...reference,id:'reference-direct-issue'},release:true})).status,409);
+  assert.equal((await call({operation:'event',expectedVersion:13,id:reference.id,event})).status,409);
+  const unknown={...reference,id:'reference-unknown',allocations:[{...reference.allocations[0],orderId:'not-authorised'}]};assert.equal((await call({operation:'save',expectedVersion:13,handoff:unknown})).status,400);
   role=null;assert.equal((await call({operation:'list',orderIds:[order.orderId]})).status,401);
  }finally{sqlite.close();}
 });
@@ -133,3 +142,13 @@ test('different collar designs and main colours can share one explicitly confirm
 });
 
 test('addition groups exclude earlier deliveries without double subtracting issued work',()=>{const order=makeOrder();order.records=order.records.slice(0,2);order.records[1].values=structuredClone(order.records[0].values);order.commerce={people:{b:{batch:'Second visit'}},deliveries:[{recordId:'a',productId:'shirt',kind:'delivery',quantity:2}],rules:[],issues:[]};let all=domain.productionDemand([{order,version:1}]);assert.equal(all.length,1);assert.equal(domain.productionRemaining({handoffs:[]},all[0]),2);const selected=domain.productionDemand([{order,version:1}],{one:'batch:Second visit'});assert.equal(selected[0].quantity,2);assert.equal(selected[0].members.length,1);assert.equal(selected[0].members[0].recordId,'b');const old=domain.productionDemand([{order,version:1}],{one:'original'});assert.equal(domain.productionRemaining({handoffs:[]},old[0]),0);const issued={...handoff(old),status:'Issued'};assert.equal(domain.productionRemaining({handoffs:[issued]},all[0]),2);});
+
+test('reference lines retain supplied measurements without borrowing personal values or reserving demand',()=>{
+ const source={order:makeOrder(),version:3};
+ const rows=domain.parseReferenceLines('Collared T Shirt | Size: 26 | 2\nCollared T Shirt | Size: 26 / Waist: 34 | 1\nCollared T Shirt | Size: 26 | 1',source);
+ assert.equal(rows.length,2);assert.equal(rows[0].quantity,3);assert.equal(rows[0].specifications,'');assert.equal(rows[0].members.length,0);
+ const ref={...handoff(rows),purpose:'reference',reason:'Supplied sizes'};
+ assert.equal(domain.refreshDraftSources(ref,[]),ref);assert.equal(domain.issuedQuantity({handoffs:[ref]},rows[0]),0);
+ assert.throws(()=>domain.validateRelease(ref,{handoffs:[]},[]),/Reference sheets cannot be issued/);
+ for(const line of ['Unknown | Size: 26 | 1','Collared T Shirt | Size: 26 | -1','Collared T Shirt | Size: 26 | 1.5','Collared T Shirt | | 1'])assert.throws(()=>domain.parseReferenceLines(line,source));
+});

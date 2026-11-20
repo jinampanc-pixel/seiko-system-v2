@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { authenticateActor, authorizePermission } from '../../../lib/server-erp-auth';
-import { validOrderGroup, processedQuantity, productionDemand, reserveMembers, validateRelease, type ProductionHandoff, type ProductionLedger, type ProductionOrder } from '../../../lib/production-handoffs';
+import { referenceAllocations, validOrderGroup, processedQuantity, productionDemand, reserveMembers, validateRelease, type ProductionHandoff, type ProductionLedger, type ProductionOrder } from '../../../lib/production-handoffs';
 
 const collection = 'production-handoffs-v1';
 const reply = (message:string,status=400,code?:string) => Response.json({ok:false,message,...(code?{code}:{})},{status,headers:{'Cache-Control':'no-store'}});
@@ -63,11 +63,14 @@ export async function POST(request:Request) {
       if(!input || input.id==='ledger' || typeof input.id!=='string' || input.id.length>100 || !input.id || typeof input.name!=='string' || !input.name.trim() || !Array.isArray(input.allocations) || !Array.isArray(input.lays) || !input.allocations.length||input.allocations.length>3000 || input.lays.length>100)return reply('Invalid handoff.');
       const previous=ledger.handoffs.find(item=>item.id===input.id);
       if(previous && previous.status!=='Draft')return reply('Released handoffs are fixed. Create an additional handoff for changes.',409);
-      if(!['normal','rework','extra'].includes(input.purpose)||typeof input.reason!=='string')return reply('Invalid handoff purpose.');
+      if(!['normal','rework','extra','reference'].includes(input.purpose)||typeof input.reason!=='string')return reply('Invalid handoff purpose.');
       if(input.sourceGroups&&(typeof input.sourceGroups!=='object'||Array.isArray(input.sourceGroups)||Object.entries(input.sourceGroups).some(([id,group])=>!ids.includes(id)||!validOrderGroup(group))))return reply('Choose valid source order groups.');
       const demand=productionDemand(orders,input.sourceGroups);const seen=new Set<string>();
-      const allocations=[];
-      for(const row of input.allocations){
+      let allocations=[];
+      if(input.purpose==='reference'){
+        if(!input.reason.trim()||input.lays.length)return reply('Reference sheets need instructions and cannot reserve cutting lays.');
+        try{allocations=referenceAllocations(input.allocations,orders);}catch(error){return reply((error as Error).message);}
+      }else for(const row of input.allocations){
         const source=demand.find(item=>item.key===row.key);
         if(!source || seen.has(row.key) || !Number.isSafeInteger(row.quantity)||row.quantity<=0||row.quantity>100000||typeof row.lay!=='string'||typeof row.stack!=='string')return reply('Review the allocation quantities and refresh changed orders.');
         if(source.sourceVersion!==row.sourceVersion)return reply('A source order changed. Refresh demand and review quantities.',409);

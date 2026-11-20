@@ -11,7 +11,7 @@ export type ProductionEvent = { id: string; at: string; actor: string; allocatio
 export type ProductionHandoff = {
   id: string; number: string; name: string; status: 'Draft'|'Released'|'In progress'|'Closed'|'Cancelled';
   sourceGroups?:Record<string,string>;
-  purpose: 'normal'|'rework'|'extra'; reason: string; allocations: ProductionAllocation[]; lays: ProductionLay[];
+  purpose: 'normal'|'rework'|'extra'|'reference'; reason: string; allocations: ProductionAllocation[]; lays: ProductionLay[];
   events: ProductionEvent[]; history: { at: string; actor: string; action: string }[]; createdAt: string;
 };
 export type ProductionLedger = { handoffs: ProductionHandoff[] };
@@ -89,6 +89,7 @@ export function cuttingGroups(allocations: ProductionAllocation[],lays:Productio
   return [...groups.values()];
 }
 export function validateRelease(handoff: ProductionHandoff, ledger: ProductionLedger, demand: ProductionDemand[]) {
+  if(handoff.purpose==='reference')throw new Error('Reference sheets cannot be issued. Use a production handoff for new work.');
   if (!handoff.name.trim() || !handoff.allocations.length) throw new Error('Name the handoff and select at least one quantity.');
   if (!['normal','rework','extra'].includes(handoff.purpose)) throw new Error('Choose a valid handoff purpose.');
   if (handoff.purpose !== 'normal' && !handoff.reason.trim()) throw new Error('Explain the authorised extra production or rework.');
@@ -114,7 +115,7 @@ export function completedQuantity(handoff: ProductionHandoff, key: string, opera
 
 export function processedQuantity(handoff:ProductionHandoff,key:string,operation:string){return handoff.events.filter(event=>event.allocationKey===key&&event.operation.trim().toLocaleLowerCase()===operation.trim().toLocaleLowerCase()).reduce((sum,event)=>sum+event.quantity+event.rejects,0);}
 /** Refresh unchanged size identities without discarding the user's partial quantities. */
-export function refreshDraftSources(draft:ProductionHandoff,demand:ProductionDemand[]):ProductionHandoff{return {...draft,allocations:draft.allocations.map(row=>{const current=demand.find(item=>item.key===row.key);return current?{...current,quantity:row.quantity,lay:row.lay,stack:row.stack}:row;})};}
+export function refreshDraftSources(draft:ProductionHandoff,demand:ProductionDemand[]):ProductionHandoff{return draft.purpose==='reference'?draft:{...draft,allocations:draft.allocations.map(row=>{const current=demand.find(item=>item.key===row.key);return current?{...current,quantity:row.quantity,lay:row.lay,stack:row.stack}:row;})};}
 
 /** Display sections only: source allocations stay unchanged. */
 export type CuttingGrouping="specifications"|"size"|"stack";
@@ -131,3 +132,28 @@ export function productionRemaining(ledger:ProductionLedger,demand:ProductionDem
 }
 
 export { validOrderGroup } from './order-domain';
+
+/** Explicit document-only lines never claim or update student/order quantities. */
+export function referenceAllocations(lines:{orderId:string;product:string;variant:string;quantity:number;specifications?:string}[],orders:ProductionOrder[]):ProductionAllocation[]{
+ if(!Array.isArray(lines)||!lines.length||lines.length>3000)throw Error('Enter between 1 and 3,000 reference lines.');
+ const result=new Map<string,ProductionAllocation>();
+ for(const line of lines){
+  const source=orders.find(item=>item.order.orderId===line.orderId);
+  const product=source?.order.products.find(item=>typeof line.product==='string'&&item.name.trim().toLowerCase()===line.product.trim().toLowerCase());
+  if(!source||!product||typeof line.variant!=='string'||!line.variant.trim()||line.variant.length>500||typeof line.specifications!=='undefined'&&(typeof line.specifications!=='string'||line.specifications.length>2000)||!Number.isSafeInteger(line.quantity)||line.quantity<=0||line.quantity>100000)throw Error('Check the order, product, measurements and positive whole quantity on every reference line.');
+  const variant=line.variant.trim(),specifications=(line.specifications||'').trim();
+  const key=productionKey(['reference',source.order.orderId,product.id,variant,specifications]);
+  const previous=result.get(key),quantity=(previous?.quantity||0)+line.quantity;
+  if(quantity>100000)throw Error('A reference size cannot exceed 100,000 pieces.');
+  result.set(key,{key,orderId:source.order.orderId,orderNo:source.order.details.orderNo,client:source.order.details.clientName,productId:product.id,product:product.name.trim(),variant,specifications,cuttingSignature:specifications,quantity,sourceQuantity:0,unresolved:false,sourceVersion:source.version,members:[],lay:'',stack:''});
+ }
+ return [...result.values()];
+}
+export function parseReferenceLines(value:string,order:ProductionOrder):ProductionAllocation[]{
+ const lines=value.split(/\r?\n/).filter(line=>line.trim()).map((line,index)=>{
+  const parts=line.split('|').map(part=>part.trim());
+  if(parts.length<3||parts.length>4||!/^\d+$/.test(parts[2]))throw Error(`Line ${index+1}: use Product | Measurements | Qty | Specifications (optional).`);
+  return {orderId:order.order.orderId,product:parts[0],variant:parts[1],quantity:Number(parts[2]),specifications:parts[3]||''};
+ });
+ return referenceAllocations(lines,[order]);
+}
