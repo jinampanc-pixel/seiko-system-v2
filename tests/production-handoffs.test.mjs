@@ -152,3 +152,12 @@ test('reference lines retain supplied measurements without borrowing personal va
  assert.throws(()=>domain.validateRelease(ref,{handoffs:[]},[]),/Reference sheets cannot be issued/);
  for(const line of ['Unknown | Size: 26 | 1','Collared T Shirt | Size: 26 | -1','Collared T Shirt | Size: 26 | 1.5','Collared T Shirt | | 1'])assert.throws(()=>domain.parseReferenceLines(line,source));
 });
+
+test('compact production pages balance six complete garment tables and preserve large-table pagination',()=>{
+ const document=load('app/lib/production-document.ts');
+ const heights=[180,205,130,175,105,105],plan=document.compactProductionColumns(heights,650);
+ assert.deepEqual(Array.from(plan),[0,1,0,1,0,1]);
+ assert.equal(document.compactProductionColumns([1000,1000],650),null);
+ assert.equal(document.compactProductionColumns([500,500,500],650),null);
+ assert.equal(document.compactProductionColumns([NaN],650),null);
+});

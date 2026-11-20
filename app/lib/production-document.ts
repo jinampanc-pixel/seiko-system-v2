@@ -7,6 +7,13 @@ export function productionDocumentHtml(content:string){
  </style></head><body><main class="copy" data-production-document>${content}</main></body></html>`;
 }
 
+/** Keep compact product tables whole and balance them across one A4 page. */
+export function compactProductionColumns(heights:number[],capacity:number):number[]|null{
+ const used=[0,0],plan:number[]=[];
+ for(const height of heights){if(!Number.isFinite(height)||height<=0)return null;const target=used[0]<=used[1]?0:1;used[target]+=height;plan.push(target);}
+ return used.every(height=>height<=capacity)?plan:null;
+}
+
 /** Use the same measured A4 pages for browser printing and client-side PDF export. */
 export function paginateProductionDocument(doc:Document){
  const source=doc.querySelector<HTMLElement>('[data-production-document]');
@@ -27,7 +34,12 @@ export function paginateProductionDocument(doc:Document){
  function nextColumn(){const next=column.nextElementSibling as HTMLElement|null;if(next)column=next;else page();}
  try{
   page();
-  for(const [productIndex,product] of Array.from(grid.querySelectorAll<HTMLElement>('.productionProductTable')).entries()){
+  const products=Array.from(grid.querySelectorAll<HTMLElement>('.productionProductTable'));
+  const heights=products.map(product=>{const probe=product.cloneNode(true) as HTMLElement;column.append(probe);const height=probe.getBoundingClientRect().height+10;probe.remove();return height;});
+  const compact=compactProductionColumns(heights,column.clientHeight);
+  const firstColumns=Array.from(pages[0].querySelectorAll<HTMLElement>('.productionPageColumn'));
+  for(const [productIndex,product] of products.entries()){
+   if(compact)column=firstColumns[compact[productIndex]];
    const table=product.querySelector('table');if(!table)continue;
    const rows=Array.from(table.querySelectorAll<HTMLTableRowElement>('tbody>tr,tfoot>tr')),heading=product.querySelector('h3');
    let body:HTMLTableSectionElement,section:HTMLElement,sectionHasRows=false,context:HTMLTableRowElement|null=null,continued=false;
