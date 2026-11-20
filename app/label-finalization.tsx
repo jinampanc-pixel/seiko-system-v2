@@ -1,4 +1,6 @@
 "use client";
+
+import { readLabelStorage } from "./lib/label-storage";
 import { recordOutput } from "./lib/output-activity";
 
 import { useEffect } from "react";
@@ -19,7 +21,7 @@ const MM_PER_PT = 25.4 / 72;
 
 function activeBusiness() {
   const params = new URLSearchParams(window.location.search);
-  return params.get("business") || localStorage.getItem("jinam:selected-business") || "seiko";
+  return params.get("business") || readLabelStorage("jinam:selected-business") || "seiko";
 }
 function setNativeSelectValue(select: HTMLSelectElement, value: string) {
   Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, value);
@@ -30,7 +32,7 @@ function orderData(businessId: string): OrderSummary[] {
   return readOrderCache(businessId).filter(order => !order.archived);
 }
 function savedTasks(businessId: string): SavedLabelTask[] {
-  try { return JSON.parse(localStorage.getItem(`jinam:${businessId}:labels:tasks-v1`) || "[]") as SavedLabelTask[]; }
+  try { return JSON.parse(readLabelStorage(`jinam:${businessId}:labels:tasks-v1`) || "[]") as SavedLabelTask[]; }
   catch { return []; }
 }
 function enhanceOrderSearch() {
@@ -76,7 +78,7 @@ function markProductionWorkspaceFields() {
 }
 function currentPreset(): Preset {
   const triggerText = document.querySelector<HTMLElement>(".labelDesignerPage .managedSizeTrigger span")?.textContent || "";
-  try { const presets = [DEFAULT_PRESET, ...(JSON.parse(localStorage.getItem(`jinam:${activeBusiness()}:labels:presets-v1`) || "[]") as Preset[])]; return presets.find(preset => preset.name === triggerText) || DEFAULT_PRESET; }
+  try { const presets = [DEFAULT_PRESET, ...(JSON.parse(readLabelStorage(`jinam:${activeBusiness()}:labels:presets-v1`) || "[]") as Preset[])]; return presets.find(preset => preset.name === triggerText) || DEFAULT_PRESET; }
   catch { return DEFAULT_PRESET; }
 }
 function syncPreviewTypography(canvas: HTMLElement, labelWidthMm: number) {

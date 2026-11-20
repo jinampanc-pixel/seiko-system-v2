@@ -1,6 +1,6 @@
 "use client";
 import { openLabelCreation } from "./lib/label-creation";
-import { writeLabelStorage } from "./lib/label-storage";
+import { readLabelStorage, writeLabelStorage } from "./lib/label-storage";
 import { readOrderCache, orderCacheIsVolatile } from "./lib/order-cache";
 
 import { useEffect } from "react";
@@ -14,7 +14,7 @@ type PdfRecord = { id: string; batchId: string; batchName: string; orderNo: stri
 const filterState: OrderFilters = { status: "", clientType: "", product: "", delivery: "all" };
 function resetFilterState() { filterState.status = ""; filterState.clientType = ""; filterState.product = ""; filterState.delivery = "all"; }
 function setNativeInputValue(input: HTMLInputElement, value: string) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); }
-function currentBusiness() { return localStorage.getItem("jinam:selected-business") || "seiko"; }
+function currentBusiness() { return readLabelStorage("jinam:selected-business") || "seiko"; }
 function labelTaskKey() { return `jinam:${currentBusiness()}:labels:tasks-v1`; }
 function pdfRecordKey() { return `jinam:${currentBusiness()}:labels:pdf-records-v1`; }
 function archiveViewKey() { return `jinam:${currentBusiness()}:labels:archive-view`; }
@@ -25,15 +25,15 @@ function ordersForBusiness(): SeikoOrder[] {
   const business = currentBusiness();
   if (orderCacheIsVolatile(business)) return readOrderCache(business);
   try {
-    const raw = localStorage.getItem(`jinam:${business}:orders-v1`);
+    const raw = readLabelStorage(`jinam:${business}:orders-v1`);
     if (business !== cachedBusiness || raw !== cachedRaw) {
       cachedOrders = readOrderCache(business); cachedBusiness = business; cachedRaw = raw;
     }
     return cachedOrders;
   } catch { return readOrderCache(business); }
 }
-function labelTasks(): SavedLabelTask[] { try { return JSON.parse(localStorage.getItem(labelTaskKey()) || "[]") as SavedLabelTask[]; } catch { return []; } }
-function pdfRecords(): PdfRecord[] { try { return JSON.parse(localStorage.getItem(pdfRecordKey()) || "[]") as PdfRecord[]; } catch { return []; } }
+function labelTasks(): SavedLabelTask[] { try { return JSON.parse(readLabelStorage(labelTaskKey()) || "[]") as SavedLabelTask[]; } catch { return []; } }
+function pdfRecords(): PdfRecord[] { try { return JSON.parse(readLabelStorage(pdfRecordKey()) || "[]") as PdfRecord[]; } catch { return []; } }
 function saveLabelTasks(tasks: SavedLabelTask[]) { writeLabelStorage(labelTaskKey(), JSON.stringify(tasks)); }
 function orderNumberFromRow(row: HTMLElement) { return row.querySelector<HTMLElement>(":scope > div:first-child > b")?.textContent?.trim() || ""; }
 function option(select: HTMLSelectElement, value: string, label: string) { const node = document.createElement("option"); node.value = value; node.textContent = label; select.appendChild(node); }

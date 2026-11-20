@@ -1,5 +1,7 @@
 "use client";
 
+import { initializeLabelStorage, readLabelStorage } from "../../lib/label-storage";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SeikoOrder } from "../../lib/order-domain";
 import { LabelDesigner } from "../../label-designer";
@@ -40,11 +42,12 @@ export default function SavedLabelPrintPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const businessId = params.get("business") || localStorage.getItem("jinam:selected-business") || "seiko";
+    const businessId = params.get("business") || readLabelStorage("jinam:selected-business") || "seiko";
     const taskId = params.get("task") || "";
     setBusiness(businessId);
+    void initializeLabelStorage(businessId).catch(() => undefined).then(() => {
     try {
-      const tasks = JSON.parse(localStorage.getItem(taskKey(businessId)) || "[]") as SavedLabelTask[];
+      const tasks = JSON.parse(readLabelStorage(taskKey(businessId)) || "[]") as SavedLabelTask[];
       const selectedTask = tasks.find(item => item.id === taskId) || null;
       if (!selectedTask) { setReady(true); return; }
       sessionStorage.removeItem(`jinam:${businessId}:labels:open-task-action`);
@@ -52,6 +55,7 @@ export default function SavedLabelPrintPage() {
       sessionStorage.setItem(openTaskKey(businessId), selectedTask.id);
       setTask(selectedTask); setReady(true);
     } catch { setReady(true); }
+    }).catch(() => setReady(true));
   }, []);
 
   useEffect(() => {
@@ -70,9 +74,9 @@ export default function SavedLabelPrintPage() {
       printStarted.current = true;
       if (!actualCount) return;
       if (new URLSearchParams(window.location.search).get("mode") === "pdf") {
-        const records = JSON.parse(localStorage.getItem(pdfKey(business)) || "[]") as PdfRecord[];
+        const records = JSON.parse(readLabelStorage(pdfKey(business)) || "[]") as PdfRecord[];
         const record: PdfRecord = { id: crypto.randomUUID(), batchId: task.id, batchName: task.name || "Saved label set", orderNo: task.orderNo || "", client: task.client || "", labelCount: actualCount, createdAt: new Date().toISOString() };
-        localStorage.setItem(pdfKey(business), JSON.stringify([record, ...records].slice(0, 250)));
+        try { localStorage.setItem(pdfKey(business), JSON.stringify([record, ...records].slice(0, 250))); } catch { /* A full optional print-history cache must not prevent printing saved labels. */ }
       }
       requestAnimationFrame(() => requestAnimationFrame(() => window.dispatchEvent(new Event(packing ? "jinam:packing:print" : "jinam:labels:print"))));
       timer = window.setTimeout(() => setBlocked(true), 1300);

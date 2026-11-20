@@ -4,6 +4,16 @@ type SharedRecord = { collection: string; id: string; value: unknown; version: n
 type Pending = { collection: string; id: string; value?: unknown; deleted: boolean; expectedVersion: number; blocked?: number };
 type State = { records: Map<string, SharedRecord>; pending: Map<string, Pending>; running: boolean; ready: boolean };
 const states = new Map<string, State>();
+// Shared storage remains usable when the browser cannot persist another cache entry.
+const memoryCache = new Map<string, string>();
+export function readLabelStorage(key: string): string | null {
+  if (memoryCache.has(key)) return memoryCache.get(key)!;
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function cacheWrite(key: string, value: string): boolean {
+  try { localStorage.setItem(key, value); memoryCache.delete(key); return true; }
+  catch { memoryCache.set(key, value); return false; }
+}
 const arrays = ["tasks-v1", "templates-v1", "layouts-v2", "presets-v1"];
 const token = (collection: string, id: string) => `${collection}\n${id}`;
 const pendingKey = (business: string) => `jinam:${business}:labels:shared-pending-v1`;
@@ -11,13 +21,13 @@ const backupKey = (business: string) => `jinam:${business}:labels:browser-adopti
 function stateFor(business: string): State {
   let state = states.get(business);
   if (!state) {
-    let pending: Pending[] = []; try { pending = JSON.parse(localStorage.getItem(pendingKey(business)) || "[]"); } catch { /* Keep malformed storage available in the adoption backup. */ }
+    let pending: Pending[] = []; try { pending = JSON.parse(readLabelStorage(pendingKey(business)) || "[]"); } catch { /* Keep malformed storage available in the adoption backup. */ }
     state = { records: new Map(), pending: new Map(pending.map(item => [token(item.collection, item.id), item])), running: false, ready: false }; states.set(business, state);
   }
   return state;
 }
 function notify(business: string, message: string) { window.dispatchEvent(new CustomEvent("jinam:label-storage", { detail: { business, message } })); }
-function persist(business: string, state: State) { localStorage.setItem(pendingKey(business), JSON.stringify([...state.pending.values()])); }
+function persist(business: string, state: State) { return cacheWrite(pendingKey(business), JSON.stringify([...state.pending.values()])); }
 function parseKey(key: string) {
   const match = key.match(/^jinam:([^:]+):(?:labels:(tasks-v1|templates-v1|layouts-v2|presets-v1)|labels:classification:(.+)|packing-person-presentation:(.+)|packing-person-package-layout:(.+))$/);
   return match ? { business: match[1], collection: match[2] || (match[3] ? "classification" : match[4] ? "presentation" : "package-layout"), id: match[3] || match[4] || match[5] || "" } : null;
@@ -66,7 +76,7 @@ async function drain(business: string) {
 export function writeLabelStorage(key: string, json: string) {
   const parsed = parseKey(key); if (!parsed) throw new Error("Unsupported shared label key.");
   const { business, collection, id } = parsed; const state = stateFor(business);
-  const previous = localStorage.getItem(key); const value = JSON.parse(json);
+  const previous = readLabelStorage(key); const value = JSON.parse(json);
   const next = entries(collection, id, value);
   const old = previous ? entries(collection, id, JSON.parse(previous)) : [];
   for (const item of next) {
@@ -79,10 +89,10 @@ export function writeLabelStorage(key: string, json: string) {
     const key = token(collection, item.id); const known = state.records.get(key);
     state.pending.set(key, { collection, id: item.id, deleted: true, expectedVersion: state.pending.get(key)?.expectedVersion ?? known?.version ?? 0 });
   }
-  // Save the outbox before the visible cache. A quota failure must not claim a shared save.
-  try { persist(business, state); localStorage.setItem(key, json); }
-  catch { notify(business, "Label changes could not be retained on this device. Keep this page open and download the recovery copy."); return; }
-  notify(business, "Label changes saved on this device; shared save pending."); void drain(business);
+  const retainedPending = persist(business, state);
+  const retainedCache = cacheWrite(key, json);
+  notify(business, retainedPending && retainedCache ? "Label changes saved on this device; shared save pending." : "Device storage is full. Saving labels to shared storage; keep this page open until saved.");
+  void drain(business);
 }
 
 export function removeLabelStorage(key: string) { writeLabelStorage(key, "null"); }
@@ -90,9 +100,9 @@ export function removeLabelStorage(key: string) { writeLabelStorage(key, "null")
 export async function initializeLabelStorage(business: string) {
   const state = stateFor(business);
   for (const item of state.pending.values()) if (item.blocked === 403) item.blocked = undefined;
-  const keys = Object.keys(localStorage).filter(key => parseKey(key)?.business === business);
-  const original = Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)]));
-  if (!localStorage.getItem(backupKey(business))) localStorage.setItem(backupKey(business), JSON.stringify(original));
+  const keys = [...new Set([...Object.keys(localStorage), ...memoryCache.keys()])].filter(key => parseKey(key)?.business === business);
+  const original = Object.fromEntries(keys.map(key => [key, readLabelStorage(key)]));
+  if (!readLabelStorage(backupKey(business))) cacheWrite(backupKey(business), JSON.stringify(original));
   accept(state, await request(business, { operation: "list" }));
   for (const [key, pending] of state.pending) {
     const known = state.records.get(key);
@@ -100,7 +110,7 @@ export async function initializeLabelStorage(business: string) {
   }
   persist(business, state);
   for (const key of keys) {
-    const parsed = parseKey(key)!; const raw = localStorage.getItem(key); if (!raw) continue;
+    const parsed = parseKey(key)!; const raw = readLabelStorage(key); if (!raw) continue;
     for (const item of entries(parsed.collection, parsed.id, JSON.parse(raw))) {
       const recordKey = token(parsed.collection, item.id);
       if (!state.records.has(recordKey) && !state.pending.has(recordKey)) {
@@ -121,17 +131,18 @@ export async function initializeLabelStorage(business: string) {
     const pending = [...state.pending.values()].filter(item => item.collection === collection);
     const values = new Map(records.map(record => [record.id, record.value]));
     for (const item of pending) { if (item.deleted) values.delete(item.id); else values.set(item.id, item.value); }
-    localStorage.setItem(cacheKey(business, collection, ""), JSON.stringify([...values.values()]));
+    cacheWrite(cacheKey(business, collection, ""), JSON.stringify([...values.values()]));
   }
   for (const record of state.records.values()) if (!arrays.includes(record.collection)) {
     const pending = state.pending.get(token(record.collection, record.id));
     const key = cacheKey(business, record.collection, record.id);
-    if (pending) localStorage.setItem(key, JSON.stringify(pending.value ?? null));
-    else if (record.deleted) localStorage.removeItem(key);
-    else localStorage.setItem(key, JSON.stringify(record.value));
+    if (pending) cacheWrite(key, JSON.stringify(pending.value ?? null));
+    else if (record.deleted) cacheWrite(key, "null");
+    else cacheWrite(key, JSON.stringify(record.value));
   }
+  notify(business, state.pending.size ? "Some label changes remain pending; keep this page open or download the recovery copy." : "Labels loaded from shared storage.");
 }
 
 export function labelRecoveryCopy(business: string) {
-  return { browserAdoption: localStorage.getItem(backupKey(business)), pending: localStorage.getItem(pendingKey(business)), unsavedChanges: [...stateFor(business).pending.values()] };
+  return { browserAdoption: readLabelStorage(backupKey(business)), pending: readLabelStorage(pendingKey(business)), unsavedChanges: [...stateFor(business).pending.values()] };
 }

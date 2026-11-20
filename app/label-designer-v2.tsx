@@ -2,7 +2,7 @@
 import { CloseIcon, TrashIcon } from "./ui-icons";
 
 import { recordOutput } from "./lib/output-activity";
-import { writeLabelStorage } from "./lib/label-storage";
+import { readLabelStorage, writeLabelStorage } from "./lib/label-storage";
 
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
@@ -122,7 +122,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 function stored<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
-  try { return JSON.parse(localStorage.getItem(key) || "null") ?? fallback; } catch { return fallback; }
+  try { return JSON.parse(readLabelStorage(key) || "null") ?? fallback; } catch { return fallback; }
 }
 
 function uniqueName(base: string, names: string[]) {

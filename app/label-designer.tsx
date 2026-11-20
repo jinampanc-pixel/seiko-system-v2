@@ -4,7 +4,7 @@ import { CloseIcon, TrashIcon } from "./ui-icons";
 import { labelSources } from "./lib/label-sources";
 import { recordOutput } from "./lib/output-activity";
 import { sharedMeasurementValues } from "./lib/order-domain";
-import { writeLabelStorage, removeLabelStorage } from "./lib/label-storage";
+import { readLabelStorage, writeLabelStorage, removeLabelStorage } from "./lib/label-storage";
 /* eslint-disable @typescript-eslint/no-unused-vars -- old cutting-template readers remain during local data migration */
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
@@ -115,7 +115,7 @@ function defaultLabelItems(order: SeikoOrder | null | undefined, purpose: LabelP
 const key = (businessId: string, suffix: string) => `jinam:${businessId}:labels:${suffix}`;
 function stored<T>(storageKey: string, fallback: T): T { if (typeof window === "undefined")
     return fallback; try {
-    return JSON.parse(localStorage.getItem(storageKey) || "null") || fallback;
+    return JSON.parse(readLabelStorage(storageKey) || "null") || fallback;
 }
 catch {
     return fallback;

@@ -46,3 +46,48 @@ test('shared label API enforces scope, permissions, versions, safe adoption and 
     signedIn = false; assert.equal((await call({ operation: 'list' })).status, 401);
   } finally { sqlite.close(); }
 });
+
+
+test('full browser cache still saves labels to shared storage and reopens them', async () => {
+  let records = []; const messages = []; let offline = false;
+  const source = ts.transpileModule(fs.readFileSync('app/lib/label-storage.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  function client() {
+    const exports = {};
+    vm.runInNewContext(source, {
+      exports,
+      localStorage: { getItem() { return null; }, setItem() { throw new Error('QuotaExceededError'); } },
+      window: { dispatchEvent(event) { messages.push(event.detail.message); } },
+      CustomEvent: class { constructor(type, options) { this.detail = options.detail; } },
+      async fetch(_url, options) {
+        if (offline) throw new Error('Network unavailable');
+        const body = JSON.parse(options.body);
+        if (body.operation === 'save') {
+          const previous = records.find(item => item.id === body.id);
+          assert.equal(body.expectedVersion, previous?.version || 0);
+          records = [{ collection: body.collection, id: body.id, value: body.value, version: (previous?.version || 0) + 1, deleted: false }];
+        }
+        return { ok: true, async json() { return { ok: true, records }; } };
+      },
+    });
+    return exports;
+  }
+  const key = 'jinam:seiko:labels:tasks-v1';
+  const task = { id: 'quota-task', selectedRows: ['one', 'two'] };
+  const first = client(); await first.initializeLabelStorage('seiko');
+  first.writeLabelStorage(key, JSON.stringify([task]));
+  await first.initializeLabelStorage('seiko');
+  assert.equal(records.length, 1);
+  assert.deepEqual(JSON.parse(first.readLabelStorage(key)), [task]);
+  assert.equal(first.labelRecoveryCopy('seiko').unsavedChanges.length, 0);
+  const reopened = client(); await reopened.initializeLabelStorage('seiko');
+  assert.deepEqual(JSON.parse(reopened.readLabelStorage(key)), [task]);
+  offline = true;
+  reopened.writeLabelStorage(key, JSON.stringify([{ ...task, selectedRows: ['three'] }]));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(reopened.labelRecoveryCopy('seiko').unsavedChanges.length, 1);
+  assert.match(messages.join(' '), /Device storage is full/);
+  assert.match(messages.join(' '), /Labels saved to shared storage/);
+  offline = false; await reopened.initializeLabelStorage('seiko');
+  assert.deepEqual(records[0].value.selectedRows, ['three']);
+  assert.equal(records[0].version, 2);
+});

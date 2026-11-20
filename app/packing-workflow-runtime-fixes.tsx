@@ -1,5 +1,5 @@
 "use client";
-import { writeLabelStorage } from "./lib/label-storage";
+import { readLabelStorage, writeLabelStorage } from "./lib/label-storage";
 
 import { useEffect } from "react";
 
@@ -204,13 +204,13 @@ type LibraryItem = Record<string, unknown>;
 
 function parseArray(key: string): LibraryItem[] {
   try {
-    const value = JSON.parse(localStorage.getItem(key) || "[]");
+    const value = JSON.parse(readLabelStorage(key) || "[]");
     return Array.isArray(value) ? value as LibraryItem[] : [];
   } catch { return []; }
 }
 
 function businessId() {
-  return new URLSearchParams(window.location.search).get("business") || localStorage.getItem("jinam:selected-business") || "seiko";
+  return new URLSearchParams(window.location.search).get("business") || readLabelStorage("jinam:selected-business") || "seiko";
 }
 
 function pageOrderNo(page: HTMLElement) {
@@ -231,7 +231,7 @@ function findCurrentOrder(orderNo: string) {
     const key = localStorage.key(index);
     if (!key) continue;
     try {
-      const parsed = JSON.parse(localStorage.getItem(key) || "null");
+      const parsed = JSON.parse(readLabelStorage(key) || "null");
       if (!Array.isArray(parsed)) continue;
       const match = parsed.find(item => item && typeof item === "object" && (item as { details?: { orderNo?: string } }).details?.orderNo === orderNo);
       if (match) return match as { orderId?: string; records?: Array<{ recordId?: string; held?: boolean }> };

@@ -3,7 +3,7 @@ import { CloseIcon } from "./ui-icons";
 
 import { labelSources } from "./lib/label-sources";
 import { recordOutput } from "./lib/output-activity";
-import { writeLabelStorage } from "./lib/label-storage";
+import { readLabelStorage, writeLabelStorage } from "./lib/label-storage";
 
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -147,14 +147,14 @@ function mergeRules(order: SeikoOrder, supplied?: PresentationRules): Presentati
 }
 
 function loadRules(businessId: string, order: SeikoOrder): PresentationRules {
-  try { return mergeRules(order, JSON.parse(localStorage.getItem(presentationKey(businessId, order.orderId)) || "{}") as PresentationRules); }
+  try { return mergeRules(order, JSON.parse(readLabelStorage(presentationKey(businessId, order.orderId)) || "{}") as PresentationRules); }
   catch { return mergeRules(order); }
 }
 
 function loadPackagePresentation(businessId: string, orderId: string, referenceOnly=false): PackagePresentation {
   if(referenceOnly)return {...DEFAULT_PACKAGE_PRESENTATION,matchMode:"any"};
   try {
-    const saved = JSON.parse(localStorage.getItem(packagePresentationKey(businessId, orderId)) || "null") as Partial<PackagePresentation> | null;
+    const saved = JSON.parse(readLabelStorage(packagePresentationKey(businessId, orderId)) || "null") as Partial<PackagePresentation> | null;
     return { matchMode: saved?.matchMode === "any" ? "any" : "all", layoutMode: saved?.layoutMode === "inline" || saved?.layoutMode === "separate" ? saved.layoutMode : "flow", delimiter: saved?.delimiter || DEFAULT_PACKAGE_PRESENTATION.delimiter };
   } catch { return DEFAULT_PACKAGE_PRESENTATION; }
 }
@@ -371,7 +371,7 @@ export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, so
   const [openedTask] = useState<SavedTask | undefined>(() => {
     try {
       const id = sessionStorage.getItem(openTaskKey(businessId));
-      return (JSON.parse(localStorage.getItem(taskKey(businessId)) || "[]") as SavedTask[]).find(task => task.id === id && task.orderId === order.orderId);
+      return (JSON.parse(readLabelStorage(taskKey(businessId)) || "[]") as SavedTask[]).find(task => task.id === id && task.orderId === order.orderId);
     } catch { return undefined; }
   });
   const [rules, setRules] = useState(() => openedTask?.presentationRules ? mergeRules(order, openedTask.presentationRules) : referenceOnly ? mergeRules(order) : loadRules(businessId, order));
@@ -490,13 +490,13 @@ export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, so
   };
   const saveSet = () => {
     const task: SavedTask = { ...(referenceOnly?{referenceOrder:primaryOrder}:{}), id: activeTaskId || crypto.randomUUID(), name: `${referenceOnly?"Separate list":"Packing batch"} · ${order.details.clientName} · ${selectedRows.length} labels`, orderId: primaryOrder.orderId, orderIds: sourceModel.sources.map(source => source.orderId), orderNo: order.details.orderNo, client: order.details.clientName, createdAt: new Date().toISOString(), purpose: "packing", sourceMode: "person", outputMode: "combined", presetId: "pixra-109", items, selectedRows, personPackagePlan: "together", includedProducts: order.products.filter(product => rules[product.id]?.included).map(product => product.id), packageGroupBy: "product", packageCounts: {}, customerUpdates: false, presentationRules: rules, packagePresentation, designerKind: "packing-person-v4" };
-    const tasks = JSON.parse(localStorage.getItem(taskKey(businessId)) || "[]") as SavedTask[];
-    writeLabelStorage(taskKey(businessId), JSON.stringify([...tasks.filter(item => item.id !== task.id), task])); setActiveTaskId(task.id); setNotice("Label set saved on this device; shared save pending.");
+    const tasks = JSON.parse(readLabelStorage(taskKey(businessId)) || "[]") as SavedTask[];
+    writeLabelStorage(taskKey(businessId), JSON.stringify([...tasks.filter(item => item.id !== task.id), task])); setActiveTaskId(task.id); setNotice("Label set queued for shared storage. Check the shared-save status before closing.");
   };
   const saveLayout = () => {
     const layout: SavedLayout = { id: crypto.randomUUID(), name: `Packing · ${order.details.clientName}`, clientType: order.details.clientType, product: "", presetId: "pixra-109", items, purpose: "packing", sourceMode: "person", outputMode: "combined", presentationRules: rules, packagePresentation, designerKind: "packing-person-v4" };
-    const layouts = JSON.parse(localStorage.getItem(layoutKey(businessId)) || "[]") as SavedLayout[];
-    writeLabelStorage(layoutKey(businessId), JSON.stringify([...layouts, layout])); setNotice("Layout saved on this device; shared save pending.");
+    const layouts = JSON.parse(readLabelStorage(layoutKey(businessId)) || "[]") as SavedLayout[];
+    writeLabelStorage(layoutKey(businessId), JSON.stringify([...layouts, layout])); setNotice("Layout queued for shared storage. Check the shared-save status before closing.");
   };
   const print = useCallback(async () => {
     setPrintBusy(true);

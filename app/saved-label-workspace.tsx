@@ -1,4 +1,6 @@
 "use client";
+
+import { readLabelStorage } from "./lib/label-storage";
 import { useMemo, useState, type ComponentProps } from "react";
 import { useCachedOrders } from "./lib/use-cached-orders";
 import type { SeikoOrder } from "./lib/order-domain";
@@ -11,7 +13,7 @@ export function SavedLabelWorkspace(props: ComponentProps<typeof LabelDesigner>)
     if (typeof window === "undefined") return null;
     try {
       const id = sessionStorage.getItem(`jinam:${props.businessId}:labels:open-task`);
-      const tasks = JSON.parse(localStorage.getItem(`jinam:${props.businessId}:labels:tasks-v1`) || "[]") as Array<{ id: string; orderId: string; purpose: string; sourceMode: string; orderIds?:string[]; referenceOrder?:SeikoOrder }>;
+      const tasks = JSON.parse(readLabelStorage(`jinam:${props.businessId}:labels:tasks-v1`) || "[]") as Array<{ id: string; orderId: string; purpose: string; sourceMode: string; orderIds?:string[]; referenceOrder?:SeikoOrder }>;
       const task = tasks.find(item => item.id === id && item.orderId === props.order?.orderId);
       return task || null;
     } catch { return null; }
