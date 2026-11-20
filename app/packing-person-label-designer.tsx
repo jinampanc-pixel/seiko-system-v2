@@ -61,6 +61,7 @@ type PersonRecord = {
   packageProducts: string[];
 };
 type SavedTask = {
+  referenceOrder?: SeikoOrder;
   id: string;
   name: string;
   orderId: string;
@@ -150,7 +151,8 @@ function loadRules(businessId: string, order: SeikoOrder): PresentationRules {
   catch { return mergeRules(order); }
 }
 
-function loadPackagePresentation(businessId: string, orderId: string): PackagePresentation {
+function loadPackagePresentation(businessId: string, orderId: string, referenceOnly=false): PackagePresentation {
+  if(referenceOnly)return {...DEFAULT_PACKAGE_PRESENTATION,matchMode:"any"};
   try {
     const saved = JSON.parse(localStorage.getItem(packagePresentationKey(businessId, orderId)) || "null") as Partial<PackagePresentation> | null;
     return { matchMode: saved?.matchMode === "any" ? "any" : "all", layoutMode: saved?.layoutMode === "inline" || saved?.layoutMode === "separate" ? saved.layoutMode : "flow", delimiter: saved?.delimiter || DEFAULT_PACKAGE_PRESENTATION.delimiter };
@@ -361,8 +363,8 @@ function packageBounds(items: LabelItem[]) {
   };
 }
 
-export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, sourceOrders, onBack, backLabel }: {
-  businessId: string; canManageSizes: boolean; order: SeikoOrder; sourceOrders?: SeikoOrder[]; onBack?: () => void; backLabel?: string;
+export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, sourceOrders, onBack, backLabel, referenceOnly=false }: {
+  businessId: string; canManageSizes: boolean; order: SeikoOrder; sourceOrders?: SeikoOrder[]; referenceOnly?:boolean; onBack?: () => void; backLabel?: string;
 }) {
   const sourceModel = useMemo(() => labelSources(sourceOrders?.length ? sourceOrders : [primaryOrder]), [sourceOrders, primaryOrder]);
   const order = sourceModel.schema;
@@ -372,11 +374,11 @@ export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, so
       return (JSON.parse(localStorage.getItem(taskKey(businessId)) || "[]") as SavedTask[]).find(task => task.id === id && task.orderId === order.orderId);
     } catch { return undefined; }
   });
-  const [rules, setRules] = useState(() => openedTask?.presentationRules ? mergeRules(order, openedTask.presentationRules) : loadRules(businessId, order));
-  const [packagePresentation, setPackagePresentation] = useState(() => openedTask?.packagePresentation || loadPackagePresentation(businessId, order.orderId));
+  const [rules, setRules] = useState(() => openedTask?.presentationRules ? mergeRules(order, openedTask.presentationRules) : referenceOnly ? mergeRules(order) : loadRules(businessId, order));
+  const [packagePresentation, setPackagePresentation] = useState(() => openedTask?.packagePresentation || loadPackagePresentation(businessId, order.orderId, referenceOnly));
   const quantities = useMemo(() => new Map(sourceModel.sources.flatMap(source => [...packingQuantities(source)].map(([id,values]) => [sourceModel.scoped(source,id),Object.fromEntries(Object.entries(values).map(([id,qty]) => [sourceModel.productId(source,id),qty]))] as const))), [sourceModel]);
   const records = useMemo(() => buildSourcePersonRecords(sourceModel,rules,packagePresentation), [sourceModel,rules,packagePresentation]);
-  const [items, rawSetItems] = useState<LabelItem[]>(() => openedTask ? migrateItems(order, openedTask.items) : defaultItems(order).map(constrainBox));
+  const [items, rawSetItems] = useState<LabelItem[]>(() => openedTask ? migrateItems(order, openedTask.items) : defaultItems(order).map(item=>referenceOnly?{...constrainBox(item),textSized:true}:constrainBox(item)));
   const itemsRef = useRef(items);
   useLayoutEffect(() => { itemsRef.current = items; }, [items]);
   const [past, setPast] = useState<LabelItem[][]>([]);
@@ -462,8 +464,8 @@ export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, so
   const updateRule = (id: string, change: Partial<ProductRule>) => setDraftRules(old => ({ ...old, [id]: { ...old[id], ...change } }));
   const closeDrawer = () => { setPresentationOpen(false); customizeRef.current?.focus(); };
   useEffect(() => { if (presentationOpen) drawerRef.current?.querySelector<HTMLButtonElement>("button")?.focus(); }, [presentationOpen]);
-  useEffect(() => { writeLabelStorage(presentationKey(businessId, order.orderId), JSON.stringify(rules)); }, [businessId, order.orderId, rules]);
-  useEffect(() => { writeLabelStorage(packagePresentationKey(businessId, order.orderId), JSON.stringify(packagePresentation)); }, [businessId, order.orderId, packagePresentation]);
+  useEffect(() => { if(!referenceOnly)writeLabelStorage(presentationKey(businessId, order.orderId), JSON.stringify(rules)); }, [businessId, order.orderId, rules, referenceOnly]);
+  useEffect(() => { if(!referenceOnly)writeLabelStorage(packagePresentationKey(businessId, order.orderId), JSON.stringify(packagePresentation)); }, [businessId, order.orderId, packagePresentation, referenceOnly]);
   useEffect(() => { sessionStorage.removeItem(openTaskKey(businessId)); }, [businessId]);
   useEffect(() => {
     const prepare = () => flushSync(() => setPrintReady(true));
@@ -487,7 +489,7 @@ export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, so
     closeDrawer();
   };
   const saveSet = () => {
-    const task: SavedTask = { id: activeTaskId || crypto.randomUUID(), name: `Packing batch · ${order.details.clientName} · ${selectedRows.length} labels`, orderId: primaryOrder.orderId, orderIds: sourceModel.sources.map(source => source.orderId), orderNo: order.details.orderNo, client: order.details.clientName, createdAt: new Date().toISOString(), purpose: "packing", sourceMode: "person", outputMode: "combined", presetId: "pixra-109", items, selectedRows, personPackagePlan: "together", includedProducts: order.products.filter(product => rules[product.id]?.included).map(product => product.id), packageGroupBy: "product", packageCounts: {}, customerUpdates: false, presentationRules: rules, packagePresentation, designerKind: "packing-person-v4" };
+    const task: SavedTask = { ...(referenceOnly?{referenceOrder:primaryOrder}:{}), id: activeTaskId || crypto.randomUUID(), name: `${referenceOnly?"Separate list":"Packing batch"} · ${order.details.clientName} · ${selectedRows.length} labels`, orderId: primaryOrder.orderId, orderIds: sourceModel.sources.map(source => source.orderId), orderNo: order.details.orderNo, client: order.details.clientName, createdAt: new Date().toISOString(), purpose: "packing", sourceMode: "person", outputMode: "combined", presetId: "pixra-109", items, selectedRows, personPackagePlan: "together", includedProducts: order.products.filter(product => rules[product.id]?.included).map(product => product.id), packageGroupBy: "product", packageCounts: {}, customerUpdates: false, presentationRules: rules, packagePresentation, designerKind: "packing-person-v4" };
     const tasks = JSON.parse(localStorage.getItem(taskKey(businessId)) || "[]") as SavedTask[];
     writeLabelStorage(taskKey(businessId), JSON.stringify([...tasks.filter(item => item.id !== task.id), task])); setActiveTaskId(task.id); setNotice("Label set saved on this device; shared save pending.");
   };
@@ -526,7 +528,7 @@ export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, so
       if (event.key.toLowerCase() === "y") { event.preventDefault(); redo(); }
     }
   }}>
-    <header className="physicalHeader"><div>{onBack && <button onClick={onBack} className="appBackControl">{backLabel || "← Back"}</button>}<small>ORDER {order.details.orderNo} · PACKING</small><h2>Packing labels for {order.details.clientName}</h2><p>Choose a product combination, then arrange one label for every eligible person.</p></div><div className="physicalActions"><button onClick={saveSet}>Save label set</button><button onClick={saveLayout}>Save layout</button><button className="primary" disabled={!selectedRows.length || !items.length || printBusy} onClick={print}>{printBusy ? "Preparing…" : `Print / PDF (${selectedRows.length})`}</button></div></header>
+    <header className="physicalHeader"><div>{onBack && <button onClick={onBack} className="appBackControl">{backLabel || "← Back"}</button>}<small>ORDER {order.details.orderNo} · PACKING</small><h2>Packing labels for {order.details.clientName}</h2><p>{referenceOnly?"Separate label list: sizes and quantities stay saved with this batch; live student records are unchanged.":"Choose a product combination, then arrange one label for every eligible person."}</p></div><div className="physicalActions"><button onClick={saveSet}>Save label set</button><button onClick={saveLayout}>Save layout</button><button className="primary" disabled={!selectedRows.length || !items.length || printBusy} onClick={print}>{printBusy ? "Preparing…" : `Print / PDF (${selectedRows.length})`}</button></div></header>
     {notice && <p role="status">{notice}</p>}
     <section className="physicalInfo physicalPackageSummary"><div><h3>Information on the label</h3><p>{items.map(item => item.label).join(" · ") || "No fields selected"}</p><small>{items.length} fields · choose what appears and how it is named</small></div><button ref={infoButton} aria-label="Customize label information" onClick={() => { setDraftItems(items.map(item => ({ ...item }))); setInfoOpen(true); }}>Customize</button></section>
     <section className="physicalPackageSummary"><div><h3>Package contents</h3><p>{order.products.filter(product => rules[product.id]?.included).map(product => product.name).join(" + ") || "No products selected"} · <b>{records.length} eligible labels</b></p><small>{packagePresentation.matchMode === "any" ? "Any selected product: one label per person, showing only products they ordered." : "All selected products: a person must have quantity greater than zero for every selected product."}</small></div><button ref={customizeRef} onClick={() => { setDraftRules(mergeRules(order, rules)); setDraftPresentation({ ...packagePresentation }); setPresentationOpen(true); }}>Customize</button></section>

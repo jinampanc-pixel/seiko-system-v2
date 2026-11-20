@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { SeikoOrder } from "../../lib/order-domain";
 import { LabelDesigner } from "../../label-designer";
 import { PackingPersonLabelDesigner } from "../../packing-person-label-designer";
 import { useCachedOrders } from "../../lib/use-cached-orders";
@@ -8,6 +9,7 @@ import { useCachedOrders } from "../../lib/use-cached-orders";
 type LabelPurpose = "production" | "packing" | "inventory";
 type SourceMode = "person_product" | "person" | "group" | "product" | "order";
 type SavedLabelTask = {
+  referenceOrder?:SeikoOrder;
   id: string;
   name: string;
   orderId: string;
@@ -28,8 +30,8 @@ export default function SavedLabelPrintPage() {
   const [business, setBusiness] = useState("seiko");
   const [task, setTask] = useState<SavedLabelTask | null>(null);
   const orders = useCachedOrders(business);
-  const order = task ? orders.find(item => item.orderId === task.orderId) || null : null;
-  const sourceOrders = useMemo(() => (task?.orderIds?.length ? task.orderIds : order ? [order.orderId] : []).map(id => orders.find(source => source.orderId === id)).filter(source => !!source), [task,order,orders]);
+  const order = task?.referenceOrder || (task ? orders.find(item => item.orderId === task.orderId) || null : null);
+  const sourceOrders = useMemo(() => task?.referenceOrder ? [task.referenceOrder] : (task?.orderIds?.length ? task.orderIds : order ? [order.orderId] : []).map(id => orders.find(source => source.orderId === id)).filter(source => !!source), [task,order,orders]);
   const missingSources = Boolean(task?.orderIds?.some(id => !sourceOrders.some(source => source.orderId === id)));
   const [ready, setReady] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -102,7 +104,7 @@ export default function SavedLabelPrintPage() {
       <button type="button" onClick={() => history.back()} style={{ marginLeft: 10 }}>Cancel</button>
     </section>
     <div className="savedPrintDesigner" aria-hidden="true" style={{ position: "fixed", left: "-200vw", top: 0, width: "1200px", visibility: "hidden", pointerEvents: "none" }}>
-      {isPackingPerson ? <PackingPersonLabelDesigner businessId={business} order={order} sourceOrders={sourceOrders} canManageSizes={false}/> : <LabelDesigner businessId={business} order={order} sourceOrders={sourceOrders} initialPurpose={task.purpose} initialSourceMode={task.sourceMode} canManageSizes={false}/>}
+      {isPackingPerson ? <PackingPersonLabelDesigner businessId={business} order={order} sourceOrders={sourceOrders} referenceOnly={Boolean(task.referenceOrder)} canManageSizes={false}/> : <LabelDesigner businessId={business} order={order} sourceOrders={sourceOrders} initialPurpose={task.purpose} initialSourceMode={task.sourceMode} canManageSizes={false}/>}
     </div>
   </main>;
 }

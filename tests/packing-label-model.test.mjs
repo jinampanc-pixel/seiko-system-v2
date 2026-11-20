@@ -114,3 +114,17 @@ test("ANY includes mixed packages once and excludes zero or unselected products"
  assert.equal(JSON.stringify(model.eligiblePackingIds(q,products,"any")),JSON.stringify(["a","b","c","d","e"]));
  assert.equal(model.eligiblePackingIds(q,[],"any").length,0);
 });
+
+const separateLabels=load("../app/lib/separate-label-list.ts");
+test("separate label lists preserve supplied people and garment quantities without altering source students",()=>{
+ const base={...fixture,orderId:'source-order',details:{...fixture.details,orderNo:'TEST',clientName:'Test school',clientType:'School'},googleSheet:{id:'sheet',url:'https://example.invalid'},commerce:{people:{old:{state:'hold'}}},products:[{...domain.blankProduct(),id:'ts',name:'T-Shirt'},{...domain.blankProduct(),id:'tp',name:'Track Pant'},{...domain.blankProduct(),id:'pant',name:'Pant'}]};
+ const before=JSON.stringify(base);
+ const reference=separateLabels.separateLabelOrder(base,'One | Class 6 | T-Shirt | 26/34 | 1\nOne | Class 6 | Track Pant | Pending | 1\nTwo | 9B | Pant | 38 | 2 | 32');
+ assert.equal(JSON.stringify(base),before);assert.equal(reference.googleSheet,undefined);assert.equal(reference.commerce,undefined);assert.equal(reference.records.length,2);
+ assert.equal(reference.records[0].values['field:label-class'],'Class 6');assert.equal(reference.records[0].values['measurement:label-size-ts:product:ts'],'26/34');assert.equal(reference.records[0].values['measurement:label-size-tp:product:tp'],'Pending');
+ assert.equal(reference.records[1].values['measurement:label-waist-pant:product:pant'],'32');
+ const quantities=model.packingLabelQuantities(reference);assert.equal(quantities.get('label-person-1').ts,1);assert.equal(quantities.get('label-person-1').pant,0);assert.equal(quantities.get('label-person-2').pant,2);assert.equal(quantities.get('label-person-2').ts,0);
+ assert.equal(model.eligiblePackingIds(quantities,reference.products.map(p=>p.id),'any').length,2);
+ const restored=JSON.parse(JSON.stringify({referenceOrder:reference})).referenceOrder;assert.equal(restored.records[1].values['measurement:label-waist-pant:product:pant'],'32');
+ for(const input of ['One | 6 | Unknown | 26 | 1','One | 6 | T-Shirt | 26 | 1.5','One | 6 | T-Shirt | 26 | -1','One | 6 | T-Shirt | | 1','One | 6 | T-Shirt | 26 | 1\nOne | 6 | T-Shirt | 28 | 1'])assert.throws(()=>separateLabels.separateLabelOrder(base,input));
+});

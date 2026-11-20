@@ -1,4 +1,6 @@
 "use client";
+import { separateLabelOrder } from "../../lib/separate-label-list";
+import type { SeikoOrder } from "../../lib/order-domain";
 import { CloseIcon } from "./../../ui-icons";
 
 
@@ -165,6 +167,7 @@ export function LabelCreateWorkspace({context,onClose,onDesigning}: {context?: L
   const [additionalOrderIds,setAdditionalOrderIds] = useState<string[]>([]);
   const orders = useCachedOrders(businessId).filter(order => !order.archived);
   const [started, setStarted] = useState(false);
+  const [separateList,setSeparateList]=useState(false),[separateLines,setSeparateLines]=useState(''),[referenceOrder,setReferenceOrder]=useState<SeikoOrder|null>(null);
   const [manage, setManage] = useState<"purpose" | "representation" | null>(null);
   const [saveError, setSaveError] = useState("");
 
@@ -218,7 +221,7 @@ export function LabelCreateWorkspace({context,onClose,onDesigning}: {context?: L
   if (started && selectedOrder) {
     const nativePackingPerson = selectedPurpose.behavior === "packing" && selectedRepresentation.sourceMode === "person";
     return <div className="labelCreateApp app" data-label-source={selectedRepresentation.sourceMode} style={themeVariables(theme) as CSSProperties}>
-      <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>{nativePackingPerson ? <PackingPersonLabelDesigner businessId={businessId} order={selectedOrder} sourceOrders={selectedOrders} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => { onDesigning?.(false); setStarted(false); }}/> : <LabelDesigner businessId={businessId} order={selectedOrder} sourceOrders={selectedOrders} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => { onDesigning?.(false); setStarted(false); }}/>}</div>
+      <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>{nativePackingPerson ? <PackingPersonLabelDesigner businessId={businessId} order={referenceOrder||selectedOrder} sourceOrders={referenceOrder?[referenceOrder]:selectedOrders} referenceOnly={Boolean(referenceOrder)} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => { onDesigning?.(false); setStarted(false); }}/> : <LabelDesigner businessId={businessId} order={selectedOrder} sourceOrders={selectedOrders} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} backLabel="← Back to label setup" onBack={() => { onDesigning?.(false); setStarted(false); }}/>}</div>
     </div>;
   }
 
@@ -232,8 +235,9 @@ export function LabelCreateWorkspace({context,onClose,onDesigning}: {context?: L
         <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>3 · Label represents</span></div><ManagedDropdown value={selectedRepresentation.id} options={representations} disabled={!selectedOrder || !representations.length} canManage={canManage} manageLabel="Manage representations…" onChange={setRepresentationId} onManage={() => setManage("representation")}/>{manage === "representation" && canManage && <ConfigurationEditor kind="representation" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>
       </section>
       {selectedOrder && !contextOrderId && <details className="panel labelSourceOrders"><summary>Include other orders · {selectedOrders.length} selected</summary><div>{orders.filter(order => order.orderId !== orderId).map(order => <label key={order.orderId}><input type="checkbox" checked={additionalOrderIds.includes(order.orderId)} onChange={event => setAdditionalOrderIds(current => event.target.checked ? [...current,order.orderId] : current.filter(id => id !== order.orderId))}/>{order.details.orderNo} · {order.details.clientName}</label>)}</div></details>}
+      {selectedOrder&&selectedPurpose.behavior==='packing'&&selectedRepresentation.sourceMode==='person'&&<section className="panel"><label><input type="checkbox" checked={separateList} onChange={event=>setSeparateList(event.target.checked)}/>Use a separate person / garment list</label>{separateList&&<><p>Save these names, classes, sizes and quantities with the label batch. This does not add or change students in the order.</p><p>Products: {selectedOrder.products.map(product=>product.name).join(', ')}</p><label>Person and garment lines<textarea rows={12} value={separateLines} onChange={event=>setSeparateLines(event.target.value)} placeholder="Name | Class / group | Product | Size (or Pending) | Qty | Waist (optional)"/></label><p>Use one line per garment. Repeating the same name and class puts those garments on one person&apos;s label.</p></>}</section>}
       {saveError && <p className="labelConfigurationError">{saveError}</p>}
-      <div className="labelCreateRouteActions"><button className="primary" disabled={!selectedOrder || !representations.length} onClick={() => { if(selectedOrder) { onDesigning?.(true); setStarted(true); } }}>Continue to designer</button></div>
+      <div className="labelCreateRouteActions"><button className="primary" disabled={!selectedOrder || !representations.length} onClick={() => { if(selectedOrder) { try{setReferenceOrder(separateList&&selectedPurpose.behavior==='packing'&&selectedRepresentation.sourceMode==='person'?separateLabelOrder(selectedOrder,separateLines):null);setSaveError('');onDesigning?.(true);setStarted(true);}catch(error){setSaveError((error as Error).message);} } }}>Continue to designer</button></div>
     </main>
   </div></div>;
 }
