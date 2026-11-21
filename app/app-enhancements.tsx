@@ -1,5 +1,6 @@
 "use client";
 
+import { DocumentSaveSync } from "./pending-documents";
 import { LabelCreateDialog } from "./label-create-dialog";
 import { ErpOrderSync } from "./erp-order-sync";
 import { ErpSyncNotice } from "./erp-sync-notice";
@@ -32,6 +33,7 @@ import { MethServerSync } from "./meth-server-sync";
 
 export function AppEnhancements() {
   return <>
+    <DocumentSaveSync/>
     <LabelCreateDialog/>
     <ErpOrderSync />
     <ErpSyncNotice />

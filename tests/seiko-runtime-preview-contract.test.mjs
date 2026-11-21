@@ -56,8 +56,8 @@ test("Home Clear filters resets all active order-filter state", () => {
 });
 
 test("Label Center rows open directly and action menus float above the list", () => {
-  assert.match(listCenter, /labelBatchRowClickable/);
-  assert.match(listCenter, /row\.addEventListener\("click"/);
+  assert.match(read("app/page.tsx"), /labelSavedTitleButton/);
+  assert.doesNotMatch(listCenter, /row\.setAttribute\("role","button"\)/);
   assert.match(listCenter, /open\.hidden\s*=\s*true/);
   assert.match(listCenter, /labelCenterFloatingPanel/);
   assert.match(listCss, /z-index:1200!important/);
@@ -109,7 +109,7 @@ test("saved label sets expose calibrated print and explicit shared list actions"
   assert.match(listCenter, /Open \/ edit/);
   assert.match(listCenter, /print\.textContent="Print"/);
   assert.doesNotMatch(listCenter, /pdf\.textContent="Save PDF"/);
-  assert.match(listCenter, /confirm-printed/);
+  assert.match(read("app/saved-output-record.tsx"), /confirm-printed/);
   assert.match(listCenter, /open-task-direct-action/);
   assert.match(listCenter, /labels:pdf-records-v1/);
   assert.match(labels, /open-task/);

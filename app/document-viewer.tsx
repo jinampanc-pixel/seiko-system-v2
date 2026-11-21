@@ -6,12 +6,14 @@ import "./document-viewer.css";
 import { ActionMenu } from "./action-menu";
 import { OutputRecordMenu } from "./output-record-menu";
 import "./outputs/outputs.css";
-import { recordOutput, type OutputContext, type OutputAction } from "./lib/output-activity";
+import { recordOutput, pendingOutputCount, type OutputContext, type OutputAction } from "./lib/output-activity";
 
 export function DocumentViewer({ html, title, filename, copies, beforeOutput, activity, outputDisabled = false }: {
   activity?: OutputContext; html: string; title: string; filename: string; outputDisabled?: boolean;
   copies?: BillingCopies; beforeOutput?: () => Promise<unknown>;
 }) {
+  const [syncPending,setSyncPending]=useState(0);
+  useEffect(()=>{const update=()=>setSyncPending(activity?pendingOutputCount(activity):0);update();window.addEventListener("jinam:output-list-updated",update);return()=>window.removeEventListener("jinam:output-list-updated",update);},[activity?.businessId,activity?.kind,activity?.id]);
   const frame = useRef<HTMLIFrameElement>(null);
   const urls = useRef<string[]>([]);
   const pending = useRef(false);
@@ -39,7 +41,7 @@ export function DocumentViewer({ html, title, filename, copies, beforeOutput, ac
     if (pending.current) return;
     pending.current = true; setBusy("download"); setError(""); setNotice("");
     try {
-      await beforeOutput?.();
+      try{await beforeOutput?.();}catch(e){setError("Printing the open copy. Shared verification is unavailable: "+(e as Error).message);}
       let nextFile = file, objectUrl = download;
       if (!nextFile || !objectUrl) {
         const { createDocumentPdf } = await import("./lib/document-pdf");
@@ -61,7 +63,7 @@ export function DocumentViewer({ html, title, filename, copies, beforeOutput, ac
     if (pending.current) return;
     pending.current = true; setBusy("print"); setError(""); setNotice("");
     try {
-      await beforeOutput?.();
+      try{await beforeOutput?.();}catch(e){setError("Printing the open copy. Shared verification is unavailable: "+(e as Error).message);}
       const f = frame.current, target = f?.contentWindow;
       if (!f || !target) throw Error("The document is still loading. Try again shortly.");
       const doc = await readyDocument(f, copies);
@@ -77,14 +79,14 @@ export function DocumentViewer({ html, title, filename, copies, beforeOutput, ac
     const tab = window.open("", "_blank");
     if (!tab) { setError("Allow the document tab to open, then retry."); return; }
     tab.opener = null; tab.document.open(); tab.document.write(html.replace("<head>", '<head><meta name="viewport" content="width=794">')); tab.document.close();
-    void (async () => { try { await beforeOutput?.(); await readyDocument({ contentDocument: tab.document } as HTMLIFrameElement, copies); await track("document-opened"); } catch (e) { setError((e as Error).message); tab.close(); } })();
+    void (async () => { try { try{await beforeOutput?.();}catch(e){setError("Printing the open copy. Shared verification is unavailable: "+(e as Error).message);} await readyDocument({ contentDocument: tab.document } as HTMLIFrameElement, copies); await track("document-opened"); } catch (e) { setError((e as Error).message); tab.close(); } })();
   }
   async function share() {
     if (!file) return;
     try { await track("share-requested"); await navigator.share({ files: [file], title: filename }); }
     catch (e) { if ((e as Error).name !== "AbortError") setError("Sharing is unavailable here. Use Download PDF."); }
   }
-  return <div className="documentViewer" aria-busy={Boolean(busy)}>
+  return <div className="documentViewer" aria-busy={Boolean(busy)}>{syncPending>0&&<p role="status">Output record pending sync. Printing and downloads remain available.</p>}
     <div className="documentViewerActions">
       <button className="primary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void printDocument()}>{busy === "print" ? "Opening print…" : "Print"}</button>
       <button className="secondary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void downloadPdf()}>{busy === "download" ? "Downloading PDF…" : "Download PDF"}</button>

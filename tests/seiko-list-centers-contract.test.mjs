@@ -38,7 +38,7 @@ test("order center has detailed filters and a three-dot action menu for each ord
 test("label center uses clickable saved-set rows and consistent three-dot menus", () => {
   assert.match(centers, /\.labelLauncher/);
   assert.match(centers, /labelBatchModuleList/);
-  assert.match(centers, /labelBatchRowClickable/);
+  assert.match(read("app/page.tsx"), /labelSavedTitleButton/);
   assert.match(centers, /open\.hidden=true|open\.hidden = true/);
   assert.doesNotMatch(centers, /openAction\.textContent = "Open label set"/);
   assert.match(centers, /labelOrderResults/);
@@ -54,8 +54,8 @@ test("saved labels use one calibrated print action and explicit shared status li
   assert.match(centers, /open-task-direct-action/);
   assert.match(centers, /print\.textContent="Print"/);
   assert.doesNotMatch(centers, /pdf\.textContent="Save PDF"/);
-  assert.match(centers, /Mark as printed/);
-  assert.match(centers, /queue-print/);
+  assert.match(read("app/saved-output-record.tsx"), /confirm-printed/);
+  assert.match(read("app/saved-output-record.tsx"), /confirm-printed/);
   assert.match(centers, /labels:pdf-records-v1/);
   assert.match(centers, /Earlier PDF requests/);
   assert.match(centers, /rememberPdf/);

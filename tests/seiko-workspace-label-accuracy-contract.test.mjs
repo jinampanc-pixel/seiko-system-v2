@@ -136,7 +136,7 @@ test("returning to Order Center and Clear all cannot retain invisible filters", 
 test("Label Center uses clickable rows and floating secondary menus", () => {
   const listCenter = read("app/seiko-list-center-enhancements.tsx");
   const listCss = read("app/seiko-list-center-enhancements.css");
-  assert.match(listCenter, /labelBatchRowClickable/);
+  assert.match(read("app/page.tsx"), /labelSavedTitleButton/);
   assert.match(listCenter, /open\.hidden\s*=\s*true/);
   assert.doesNotMatch(listCenter, /openAction\.textContent = "Open label set"/);
   assert.match(listCenter, /labelCenterFloatingPanel/);
@@ -158,10 +158,10 @@ test("Order Setup return path and label workspace header are source-owned", () =
   const create = read("app/labels/create/page.tsx");
   assert.match(orders, /setupReturnView/);
   assert.match(listCenter, /order-setup-origin/);
-  assert.match(orders, /returnView === "workspace" \? "← Back to Workspace" : existing && returnView === "service" \? "← Back to Order management" : "← Back to Orders"/);
+  assert.match(orders, /onClick=\{onCancel\}>← Back/);
   assert.match(orders, /<Field label="Order date" type="date"/);
   assert.doesNotMatch(orders, /className="orderDateEditor"/);
-  assert.match(create, /backLabel="← Back to label setup"/);
+  assert.match(create, /backLabel="← Back"/);
   assert.match(labels, /labelWorkspaceBackRow/);
   assert.match(labels, /className="labelHeaderMenuButton"/);
   assert.match(labels, /labelHeaderMenuPrimary/);

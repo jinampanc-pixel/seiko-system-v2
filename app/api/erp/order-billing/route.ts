@@ -13,8 +13,9 @@ export async function POST(request:Request){
  const origin=request.headers.get("origin");if(origin&&origin!==new URL(request.url).origin)return fail("Invalid origin.",403);
  const actor=await authenticateActor(request);if(!actor)return fail("Sign in required.",401);
  if(!await authorizePermission(actor,"seiko","financials.view"))return fail("Billing access required.",403);
- let b:{group?:string;baselineGroup?:string;updateInvoiceId?:string;sectionLabel?:string;sectionDate?:string;operation?:string;orderId?:string;basis?:"eligible"|"delivered";token?:string;invoiceId?:string;reason?:string;date?:string;taxMode?:"gst"|"non_gst";document?:SeikoCommercialDocument};
+ let b:{requestedBy?:string;group?:string;baselineGroup?:string;updateInvoiceId?:string;sectionLabel?:string;sectionDate?:string;operation?:string;orderId?:string;basis?:"eligible"|"delivered";token?:string;invoiceId?:string;reason?:string;date?:string;taxMode?:"gst"|"non_gst";document?:SeikoCommercialDocument};
  try{const reader=request.body?.getReader();let text="",bytes=0;const decoder=new TextDecoder();if(reader)for(;;){const p=await reader.read();if(p.done)break;bytes+=p.value.byteLength;if(bytes>1024*1024){await reader.cancel();return fail("Request too large.",413);}text+=decoder.decode(p.value,{stream:true});}b=JSON.parse(text);}catch{return fail("Invalid request.");}
+ if(b.requestedBy&&b.requestedBy!==actor.email)return fail("This pending document belongs to another signed-in user.",403);
  if(!["review","link","apply"].includes(b.operation||"")||typeof b.orderId!=="string"||!b.orderId||b.orderId.length>128||b.basis&&!['eligible','delivered'].includes(b.basis))return fail("Choose an order and billing basis.");
  if(b.group!==undefined&&!validOrderGroup(b.group)||b.baselineGroup!==undefined&&!validOrderGroup(b.baselineGroup))return fail("Choose a valid order group.");
  const management=await authorizePermission(actor,"seiko","billing.invoices.manage");const canManage=Boolean(management);if(b.operation!=="review"&&!canManage)return fail("Invoice management permission required.",403);

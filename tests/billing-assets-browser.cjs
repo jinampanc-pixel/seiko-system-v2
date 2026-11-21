@@ -68,7 +68,7 @@ module.exports=async({page,navigate,sqlite,base,printing})=>{
  await form.getByLabel('Include UPI',{exact:true}).check();
  await form.getByLabel('Include payment QR scanner',{exact:true}).check();
  await form.getByLabel('Rate ₹',{exact:true}).fill('500');
- await form.getByRole('button',{name:'Save',exact:true}).click();
+ await form.getByRole('button',{name:'Save and print',exact:true}).click();
  const preview=page.getByRole('dialog').filter({has:page.getByRole('button',{name:'Print',exact:true})});
  await preview.getByRole('combobox',{name:'Print copies',exact:true}).selectOption('customer');
  const frame=page.frameLocator('iframe[title="Billing print preview"]');
@@ -121,12 +121,12 @@ assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
  await amendment.getByLabel('Notes / payment terms',{exact:true}).fill(notes);
  const failAmend=route=>route.request().postDataJSON().operation==='amend'?route.fulfill({status:503,json:{ok:false,message:'Synthetic amendment failure'}}):route.fallback();
  await page.route('**/api/erp/billing',failAmend);
- await amendment.getByRole('button',{name:'Save',exact:true}).click();
+ await amendment.getByRole('button',{name:'Save and print',exact:true}).click();
  await amendment.getByRole('alert').filter({hasText:'Synthetic amendment failure'}).waitFor();
  assert.equal(await amendment.getByLabel('Notes / payment terms',{exact:true}).inputValue(),notes);
  await page.unroute('**/api/erp/billing',failAmend);
 
- await amendment.getByRole('button',{name:'Save',exact:true}).click();
+ await amendment.getByRole('button',{name:'Save and print',exact:true}).click();
  await amendment.waitFor({state:'detached'});
  await frame.getByText(notes,{exact:true}).waitFor();
  const amended=JSON.parse(sqlite.prepare('SELECT data FROM seiko_billing_documents WHERE id=?').get(document.id).data);

@@ -15,6 +15,22 @@ function runtime(){
  const call=async(body,headers={})=>{const r=await exports.POST(new Request('https://erp.invalid/api/erp/activity',{method:'POST',headers,body:JSON.stringify(body)}));return {status:r.status,...await r.json()};};
  return {sqlite,api:exports,call,allow:v=>allowed=v,signIn:v=>signedIn=v};
 }
+
+test('saved label and production rows expose authenticated save and print history in their own records',async()=>{
+ const r=runtime();try{
+  const now='2026-11-21T10:00:00Z';
+  r.sqlite.prepare("INSERT INTO erp_label_records(business_id,collection,id,document_json,updated_at,updated_by_email) VALUES('seiko','tasks-v1','batch',?,?,?)").run(JSON.stringify({id:'batch',name:'Saved labels',orderId:'order'}),now,'saver@example.invalid');
+  r.sqlite.prepare("INSERT INTO jinam_shared_records(scope,collection,id,document_json,version,created_at,updated_at,updated_by_user_id,updated_by_email) VALUES('seiko','production-handoffs-v1','handoff',?,2,?,?,?,?)").run(JSON.stringify({id:'handoff',number:'PH-001',allocations:[]}),now,now,'saver','production@example.invalid');
+  const get=async(kind,id,business='seiko')=>{const response=await r.api.GET(new Request('https://erp.invalid/api/erp/activity?'+new URLSearchParams({businessId:business,view:'records',kind,ids:JSON.stringify([id])})));return {status:response.status,...await response.json()};};
+  let rows=(await get('labels','batch')).records;assert.equal(rows[0].savedBy,'saver@example.invalid');assert.equal(rows[0].events.length,0);
+  const mark=async(kind,id,action)=>{const result=await r.call({businessId:'seiko',kind,id,action,eventId:crypto.randomUUID()});assert.equal(result.status,200,JSON.stringify(result));};
+  await mark('labels','batch','print-requested');rows=(await get('labels','batch')).records;assert.equal(rows[0].events[0].action,'print-requested');assert.equal(rows[0].events.some(e=>e.action==='confirm-printed'),false);
+  await mark('labels','batch','confirm-printed');rows=(await get('labels','batch')).records;assert.ok(rows[0].events.some(e=>e.action==='confirm-printed'&&e.actor==='real@example.invalid'&&e.version===1));
+  await mark('production','handoff','confirm-printed');rows=(await get('production','handoff')).records;assert.equal(rows[0].savedBy,'production@example.invalid');assert.equal(rows[0].events[0].version,2);
+  assert.equal((await get('labels','batch','meth')).records.length,0,'Different business cannot see the label record');
+  r.allow(false);assert.equal((await get('labels','batch')).status,403);assert.equal((await get('production','handoff')).status,403);
+ }finally{r.sqlite.close();}
+});
 test('output activity uses authenticated actor and source version, is immutable and retry safe',async()=>{const r=runtime();try{
  const event={businessId:'seiko',kind:'order',id:'order',action:'print-requested',eventId:crypto.randomUUID(),digest:'a'.repeat(64),actor:'forged@example.invalid',version:999};
  assert.equal((await r.call(event)).status,200);assert.equal((await r.call(event)).status,200);

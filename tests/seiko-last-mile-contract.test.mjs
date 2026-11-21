@@ -139,6 +139,6 @@ test("normal Print opens native browser print with calibrated output and no inte
 
 test("Order Setup returns to the page it was opened from", () => {
   assert.match(orders, /setView\(existingOrder \? setupReturnView : "workspace"\)/);
-  assert.match(orders, /returnView === "workspace" \? "Update workspace" : "Save changes"/);
-  assert.match(orders, /onCancel=\{\(\) => requestAppNavigation\(\(\)=>\{if\(storedSetup\)setCurrent\(structuredClone\(storedSetup\)\);setView\(currentExists \? setupReturnView : "center"\)/);
+  assert.match(orders, /onClick=\{onCancel\}>← Back/);
+  assert.match(orders, /screenBack\(\)/);
 });

@@ -27,9 +27,10 @@ export async function POST(request: Request) {
   const reader = request.body?.getReader();
   const chunks: Uint8Array[] = []; let size = 0;
   if (reader) { for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.byteLength; if (size > 1024 * 1024) { await reader.cancel(); return reply("Document is too large.", 413); } chunks.push(part.value); } }
-  let body: { operation?: string; id?: string; orderId?: string; taxMode?: "gst" | "non_gst"; document?: SeikoCommercialDocument; payment?: SeikoPaymentRecord };
+  let body: { requestedBy?:string; operation?: string; id?: string; orderId?: string; taxMode?: "gst" | "non_gst"; document?: SeikoCommercialDocument; payment?: SeikoPaymentRecord };
   try { const bytes = new Uint8Array(size); let offset = 0; for (const part of chunks) { bytes.set(part, offset); offset += part.length; } body = JSON.parse(new TextDecoder().decode(bytes)); }
   catch { return reply("Invalid request."); }
+  if(body.requestedBy&&body.requestedBy!==actor.email)return reply("This pending document belongs to another signed-in user.",403);
   if (!body || typeof body !== "object") return reply("Invalid request.");
   if (body.orderId !== undefined && (typeof body.orderId !== "string" || !body.orderId.trim() || body.orderId.length > 200)) return reply("Invalid order filter.");
   if (body.taxMode !== undefined && !["gst", "non_gst"].includes(body.taxMode)) return reply("Choose a valid tax register.");

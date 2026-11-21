@@ -4,7 +4,7 @@ import { referenceAllocations, validOrderGroup, processedQuantity, productionDem
 
 const collection = 'production-handoffs-v1';
 const reply = (message:string,status=400,code?:string) => Response.json({ok:false,message,...(code?{code}:{})},{status,headers:{'Cache-Control':'no-store'}});
-type Body = { release?:boolean; refreshSources?:boolean; orderIds?:string[]; search?:string; status?:string; deliveryFrom?:string; deliveryTo?:string; page?:number; handoffPage?:number; handoffSearch?:string; handoffStatus?:string; businessId?:string; operation?:string; expectedVersion?:number; handoff?:ProductionHandoff; id?:string; reason?:string; event?:{allocationKey:string;operation:string;quantity:number;rejects:number;extras:number;reason:string} };
+type Body = { requestedBy?:string; release?:boolean; refreshSources?:boolean; orderIds?:string[]; search?:string; status?:string; deliveryFrom?:string; deliveryTo?:string; page?:number; handoffPage?:number; handoffSearch?:string; handoffStatus?:string; businessId?:string; operation?:string; expectedVersion?:number; handoff?:ProductionHandoff; id?:string; reason?:string; event?:{allocationKey:string;operation:string;quantity:number;rejects:number;extras:number;reason:string} };
 export async function POST(request:Request) {
   if (request.headers.get('origin') && request.headers.get('origin') !== new URL(request.url).origin) return reply('Invalid request origin.',403);
   try {
@@ -15,6 +15,7 @@ export async function POST(request:Request) {
     const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
     let body:Body;try{body=JSON.parse(new TextDecoder().decode(bytes));}catch{return reply('Invalid request.');}
     if(!body||typeof body!=="object"||Array.isArray(body))return reply("Invalid request.");
+    if(body.requestedBy&&body.requestedBy!==actor.email)return reply('This pending document belongs to another signed-in user.',403);
     const business=body.businessId;
     if (!business || !['seiko','meth','veyn-health'].includes(business)) return reply('Select a valid business.');
     if (!await authorizePermission(actor,business,'production.view') || !await authorizePermission(actor,business,'orders.view')) return reply('You cannot view production for this business.',403);
@@ -48,10 +49,11 @@ export async function POST(request:Request) {
       const choices=await db.prepare(`SELECT id AS orderId,order_no AS orderNo,status,json_extract(document_json,'$.details.clientName') AS client,json_extract(document_json,'$.details.deliveryDate') AS deliveryDate,(SELECT group_concat(name,', ') FROM (SELECT DISTINCT trim(json_extract(p.value,'$.name')) AS name FROM json_each(document_json,'$.products') p WHERE trim(json_extract(p.value,'$.name'))!='')) AS products FROM erp_orders WHERE ${where} ORDER BY updated_at DESC,id DESC LIMIT 10 OFFSET ?`).bind(...args,(page-1)*10).all();
       const hs=String(body.handoffSearch||'').trim().toLowerCase().slice(0,120);
       let hw="scope=? AND collection=? AND id!='ledger'";const ha:unknown[]=[business,collection];
-      if(body.handoffStatus==='History')hw+=" AND json_extract(document_json,'$.status') IN ('Closed','Cancelled')";else if(body.handoffStatus!=='All')hw+=" AND json_extract(document_json,'$.status') NOT IN ('Closed','Cancelled')";
+      if(body.handoffStatus==='Trash')hw+=" AND json_extract(document_json,'$.deletedAt') IS NOT NULL";
+      else {hw+=" AND json_extract(document_json,'$.deletedAt') IS NULL";if(body.handoffStatus==='Archived')hw+=" AND json_extract(document_json,'$.archivedAt') IS NOT NULL";else {hw+=" AND json_extract(document_json,'$.archivedAt') IS NULL";if(body.handoffStatus==='History')hw+=" AND json_extract(document_json,'$.status') IN ('Closed','Cancelled')";else if(body.handoffStatus!=='All')hw+=" AND json_extract(document_json,'$.status') NOT IN ('Closed','Cancelled')";}}
       if(hs){hw+=" AND (instr(lower(json_extract(document_json,'$.name')),?)>0 OR instr(lower(json_extract(document_json,'$.number')),?)>0)";ha.push(hs,hs);}
       const ht=await db.prepare(`SELECT COUNT(*) AS total FROM jinam_shared_records WHERE ${hw}`).bind(...ha).first<{total:number}>();
-      const handoffs=await db.prepare(`SELECT id,json_extract(document_json,'$.number') AS number,json_extract(document_json,'$.name') AS name,json_extract(document_json,'$.status') AS status,json_extract(document_json,'$.purpose') AS purpose FROM jinam_shared_records WHERE ${hw} ORDER BY created_at DESC,id DESC LIMIT 25 OFFSET ?`).bind(...ha,(handoffPage-1)*25).all();
+      const handoffs=await db.prepare(`SELECT id,json_extract(document_json,'$.number') AS number,json_extract(document_json,'$.name') AS name,json_extract(document_json,'$.status') AS status,json_extract(document_json,'$.purpose') AS purpose,json_extract(document_json,'$.archivedAt') AS archivedAt,json_extract(document_json,'$.deletedAt') AS deletedAt FROM jinam_shared_records WHERE ${hw} ORDER BY created_at DESC,id DESC LIMIT 25 OFFSET ?`).bind(...ha,(handoffPage-1)*25).all();
       return Response.json({ok:true,ledger,version,orders,choices:choices.results,total:total?.total||0,page,handoffs:handoffs.results,handoffTotal:ht?.total||0,handoffPage},{headers:{'Cache-Control':'no-store'}});
     }
     if(!await authorizePermission(actor,business,'production.manage'))return reply('You cannot change production for this business.',403);
@@ -83,7 +85,14 @@ export async function POST(request:Request) {
       if(body.release){try{validateRelease(target,ledger,demand);reserveMembers(target,ledger,demand);}catch(error){return reply((error as Error).message,409);}guards.push(...orders.filter(item=>target!.allocations.some(row=>row.orderId===item.order.orderId)));target.status="Released";target.history.push({at:now,actor:actor.email,action:"Released to production"});}
     }else{
       target=ledger.handoffs.find(item=>item.id===body.id);if(!target)return reply('Handoff not found.',404);
-      if(body.operation==='release'){
+      if(['archive','restore','delete','recover'].includes(body.operation||'')){
+        if(body.operation==='archive')target.archivedAt=now;
+        if(body.operation==='restore')delete target.archivedAt;
+        if(body.operation==='delete')target.deletedAt=now;
+        if(body.operation==='recover')delete target.deletedAt;
+        // Document visibility never cancels issued work or releases its reserved quantities.
+      }else if(target.deletedAt)return reply('Restore this document from Trash before changing it.',409);
+      else if(body.operation==='release'){
         if(target.status!=='Draft')return reply('Only a draft can be released.',409);
         try{const demand=productionDemand(orders,target.sourceGroups);validateRelease(target,ledger,demand);reserveMembers(target,ledger,demand);}catch(error){return reply((error as Error).message,409);}
         guards.push(...orders.filter(item=>target!.allocations.some(row=>row.orderId===item.order.orderId)));

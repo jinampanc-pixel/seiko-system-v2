@@ -99,6 +99,13 @@ test('shared production API protects business permissions, fixed releases, dupli
   assert.equal((await call({operation:'save',expectedVersion:13,handoff:{...reference,id:'reference-direct-issue'},release:true})).status,409);
   assert.equal((await call({operation:'event',expectedVersion:13,id:reference.id,event})).status,409);
   const unknown={...reference,id:'reference-unknown',allocations:[{...reference.allocations[0],orderId:'not-authorised'}]};assert.equal((await call({operation:'save',expectedVersion:13,handoff:unknown})).status,400);
+  const visibleBefore=await call({operation:'list',orderIds:[quick.orderId]});const reservedBefore=domain.issuedQuantity(visibleBefore.ledger,qrow);
+  let filing=await call({operation:'archive',id:'quick-sheet',expectedVersion:visibleBefore.version});assert.equal(filing.status,200);assert.equal(filing.ledger.handoffs.find(h=>h.id==='quick-sheet').status,'In progress');
+  assert.ok((await call({operation:'list',handoffStatus:'Archived'})).handoffs.some(h=>h.id==='quick-sheet'));
+  filing=await call({operation:'delete',id:'quick-sheet',expectedVersion:filing.version});assert.equal(filing.status,200);assert.ok((await call({operation:'list',handoffStatus:'Trash'})).handoffs.some(h=>h.id==='quick-sheet'));
+  const retained=await call({operation:'list',orderIds:[quick.orderId]});assert.equal(domain.issuedQuantity(retained.ledger,qrow),reservedBefore,'Archiving/deleting a document never frees issued production');
+  filing=await call({operation:'recover',id:'quick-sheet',expectedVersion:filing.version});assert.equal(filing.status,200);
+  filing=await call({operation:'restore',id:'quick-sheet',expectedVersion:filing.version});assert.equal(filing.status,200);assert.equal(filing.ledger.handoffs.find(h=>h.id==='quick-sheet').status,'In progress');
   role=null;assert.equal((await call({operation:'list',orderIds:[order.orderId]})).status,401);
  }finally{sqlite.close();}
 });

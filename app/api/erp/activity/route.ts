@@ -11,13 +11,15 @@ export async function POST(request:Request){
   const actor=await authenticateActor(request);if(!actor)return reply("Sign in is required.",401);
   const reader=request.body?.getReader();let raw="",size=0;const decoder=new TextDecoder();if(reader)for(;;){const part=await reader.read();if(part.done)break;size+=part.value.byteLength;if(size>4096){await reader.cancel();return reply("Activity request is too large.",413);}raw+=decoder.decode(part.value,{stream:true});}raw+=decoder.decode();
   const b=JSON.parse(raw),permission=permissions[b.kind];
+  if(b.requestedBy&&b.requestedBy!==actor.email)return reply('This pending output belongs to another signed-in user.',403);
   if(!permission||!['seiko','meth','veyn-health'].includes(b.businessId)||typeof b.id!=="string"||!b.id||b.id.length>128||!actions.includes(b.action)||typeof b.eventId!=="string"||!/^[a-f0-9-]{36}$/i.test(b.eventId)||b.digest!==undefined&&!/^[a-f0-9]{64}$/.test(b.digest)||b.title!==undefined&&(typeof b.title!=="string"||b.title.length>240))return reply("Choose a valid record and output action.");
   if(!await authorizePermission(actor,b.businessId,permission))return reply("You cannot output this record.",403);
   if(b.kind==='labels'&&!await authorizePermission(actor,b.businessId,'orders.view'))return reply("Order information access is required.",403);
   if((b.kind==='billing'||b.kind==='receipt')&&!await authorizePermission(actor,b.businessId,'financials.view'))return reply("Financial information access is required.",403);
   const db=env.DB?.withSession('first-primary');if(!db)return reply("Activity storage is unavailable.",503);
   let source:{data:string;version:number;sequence?:number}|null=null;
-  if(b.kind==='order'||b.kind==='labels')source=await db.prepare("SELECT document_json AS data,version FROM erp_orders WHERE business_id=? AND id=? AND json_extract(document_json,'$.deletedAt') IS NULL").bind(b.businessId,b.id).first();
+  if(b.kind==='labels')source=await db.prepare("SELECT document_json AS data,version FROM erp_label_records WHERE business_id=? AND collection='tasks-v1' AND id=? AND deleted=0").bind(b.businessId,b.id).first();
+  if(b.kind==='order'||b.kind==='labels'&&!source)source=await db.prepare("SELECT document_json AS data,version FROM erp_orders WHERE business_id=? AND id=? AND json_extract(document_json,'$.deletedAt') IS NULL").bind(b.businessId,b.id).first();
   if(b.kind==='production')source=await db.prepare("SELECT document_json AS data,version FROM jinam_shared_records WHERE scope=? AND collection='production-handoffs-v1' AND id=? AND id!='ledger'").bind(b.businessId,b.id).first();
   if(b.kind==='billing'||b.kind==='receipt'){
    if(b.businessId!=='seiko')return reply("This billing record is unavailable.",404);
@@ -43,6 +45,19 @@ export async function GET(request:Request){
   const actor=await authenticateActor(request);if(!actor)return reply("Sign in is required.",401);
   const url=new URL(request.url),business=url.searchParams.get('businessId')||'seiko',cursor=url.searchParams.get('before')||'9999',kind=url.searchParams.get('kind')||'';
   if(!['seiko','meth','veyn-health'].includes(business)||!['','order','production','billing','receipt','labels'].includes(kind)||cursor.length>128)return reply("Choose a valid activity filter.");
+  if(url.searchParams.get('view')==='records'){
+   if(!['labels','production','billing','receipt'].includes(kind))return reply('Choose a saved record type.');
+   const ids=JSON.parse(url.searchParams.get('ids')||'[]');
+   if(!Array.isArray(ids)||!ids.length||ids.length>100||ids.some(id=>typeof id!=='string'||!id||id.length>128))return reply('Choose up to 100 saved records.');
+   if(!await authorizePermission(actor,business,kind==='labels'?'labels.view':kind==='production'?'production.view':'billing.view')||(kind==='labels'||kind==='production')&&!await authorizePermission(actor,business,'orders.view')||(kind==='billing'||kind==='receipt')&&(business!=='seiko'||!await authorizePermission(actor,business,'financials.view')))return reply('You cannot view these records.',403);
+   const db=env.DB?.withSession('first-primary');if(!db)return reply('Record history is unavailable.',503);
+   const keys=JSON.stringify(ids);
+   const financial=kind==='billing'||kind==='receipt';
+   const sql=kind==='labels'?"SELECT id,document_json,version,updated_at AS savedAt,updated_by_email AS savedBy FROM erp_label_records WHERE business_id=? AND collection='tasks-v1' AND deleted=0 AND id IN (SELECT value FROM json_each(?))":kind==='production'?"SELECT id,document_json,version,updated_at AS savedAt,updated_by_email AS savedBy FROM jinam_shared_records WHERE scope=? AND collection='production-handoffs-v1' AND id!='ledger' AND id IN (SELECT value FROM json_each(?))":`SELECT id,data AS document_json,COALESCE(json_extract(data,'$.revision'),1) AS version,COALESCE(json_extract(data,'$.updatedAt'),json_extract(data,'$.createdAt'),(SELECT at FROM seiko_storage_audit WHERE entity_id=source.id ORDER BY sequence DESC LIMIT 1)) AS savedAt,COALESCE(json_extract(data,'$.amendedBy'),created_by) AS savedBy FROM ${kind==='billing'?'seiko_billing_documents':'seiko_billing_payments'} source WHERE id IN (SELECT value FROM json_each(?))`;
+   const sources=await db.prepare(sql).bind(...(financial?[keys]:[business,keys])).all<{id:string;document_json:string;version:number;savedAt:string;savedBy:string}>();
+   const rows=await db.prepare("SELECT entity_id AS id,action,actor_email AS actor,at,version FROM (SELECT *,row_number() OVER(PARTITION BY entity_id ORDER BY at DESC,rowid DESC) AS position FROM erp_audit_events WHERE business_id=? AND entity_type=? AND entity_id IN (SELECT value FROM json_each(?))) WHERE position<=20 ORDER BY id,position").bind(business,'output-'+kind,keys).all<{id:string;action:string;actor:string;at:string;version:number}>();
+   return Response.json({ok:true,records:sources.results.map(source=>({id:source.id,version:source.version,savedAt:source.savedAt,savedBy:source.savedBy,events:rows.results.filter(event=>event.id===source.id)}))},{headers:{'Cache-Control':'no-store'}});
+  }
   if (url.searchParams.get('view') === 'outputs') {
    const status=url.searchParams.get('status')||'', search=url.searchParams.get('search')||'';
    if(!['','keep-record','queue-print','confirm-printed'].includes(status)||search.length>200)return reply("Choose a valid saved-list filter.");

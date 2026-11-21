@@ -1,7 +1,7 @@
 "use client";
 
 import { readLabelStorage } from "./lib/label-storage";
-import { recordOutput } from "./lib/output-activity";
+import { recordOutput, type OutputContext } from "./lib/output-activity";
 
 import { useEffect } from "react";
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
@@ -134,14 +134,15 @@ function buildPrintSurface(copies = 1) {
   `;
   document.head.appendChild(style); return { root, preset, count: labels.length };
 }
-async function labelOnlyPrint(copies = 1) {
+export async function labelOnlyPrint(copies = 1, context?:OutputContext) {
   const page=document.querySelector<HTMLElement>(".labelDesignerPage[data-source-order-id]");
   const cached=readOrderCache(activeBusiness());
   let declared:Array<{id:string;version:string}>;
   try{declared=page?.dataset.sourceOrders ? JSON.parse(page.dataset.sourceOrders) : page?.dataset.sourceOrderId ? [{id:page.dataset.sourceOrderId,version:page.dataset.sourceOrderVersion || ""}] : [];}catch{showPrintNotice("Source orders could not be verified. Reopen this label selection.");return false;}
   const sourceIds=new Set([...document.querySelectorAll<HTMLElement>(".labelDesignerPage .printSheet .printedLabel[data-source-order-id]")].map(label=>label.dataset.sourceOrderId));
   const sources=declared.filter(item=>!sourceIds.size || sourceIds.has(item.id)).map(item=>({snapshot:item,source:cached.find(order=>order.orderId===item.id)}));
-  try{for(const {snapshot,source} of sources){if(!source || snapshot.version!==source.updatedAt)throw Error("The source records changed. Reopen this label selection before printing.");await ensureOrderSheetFreshForOutput(source);}}catch(e){showPrintNotice((e as Error).message);return false;}
+  if(sources.some(({snapshot,source})=>!source||snapshot.version!==source.updatedAt)){showPrintNotice("The source records changed. Reopen this label selection before printing.");return false;}
+  try{for(const {source} of sources)await ensureOrderSheetFreshForOutput(source!);}catch(e){showPrintNotice("Printing the open copy. Shared verification is unavailable: "+(e as Error).message);}
 
   const runtime = buildPrintSurface(copies); if (!runtime) return false;
   document.body.appendChild(runtime.root);
@@ -151,7 +152,7 @@ async function labelOnlyPrint(copies = 1) {
   const cleanup = () => { window.removeEventListener("beforeprint", before); removeNativePrintSurface(); };
   window.addEventListener("beforeprint", before, { once: true });
   window.addEventListener("afterprint", cleanup, { once: true });
-  try{for(const {source} of sources)await recordOutput({businessId:activeBusiness(),kind:"labels",id:source!.orderId,title:"Label print sheet"},"print-requested",runtime.root.outerHTML);}catch(e){cleanup();showPrintNotice((e as Error).message);return false;}
+  try{if(context)await recordOutput(context,"print-requested",runtime.root.outerHTML);else for(const {source} of sources)await recordOutput({businessId:activeBusiness(),kind:"labels",id:source!.orderId,title:"Label print sheet"},"print-requested",runtime.root.outerHTML);}catch(e){showPrintNotice("Print recording remains pending: "+(e as Error).message);}
   window.print();
   window.setTimeout(() => {
     if (!beforePrintSeen && document.querySelector(".labelNativePrintRoot")) {
@@ -183,16 +184,16 @@ export function LabelFinalization() {
       const target = event.target as Element | null;
       const centerButton = target?.closest<HTMLButtonElement>(".labelCenterActionMenu .seikoRowActionPanel button");
       const centerText = centerButton?.textContent?.trim();
-      if (centerButton && (centerText === "Print" || centerText === "Save PDF")) {
+      if (centerButton && centerText === "Save PDF") {
         event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
         routeSavedSetPrint(centerButton, centerText === "Save PDF" ? "pdf" : "print");
         return;
       }
       const button = target?.closest<HTMLButtonElement>(".labelDesignerPage .labelHeaderCommandBar > button.primary, .labelDesignerPage .labelTopbar .primary");
       if (!button || button.disabled || !/^Print\b/i.test(button.textContent || "")) return;
-      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); void labelOnlyPrint(1);
+      // React owns Save and print, including the shared-save acknowledgement.
     };
-    const directPrint = () => { void labelOnlyPrint(1); };
+    const directPrint = () => { document.querySelector<HTMLButtonElement>(".labelDesignerPage .labelHeaderCommandBar > button.primary")?.click(); };
     document.addEventListener("click", click, true);
     window.addEventListener("jinam:labels:print", directPrint);
     window.addEventListener("resize", schedule);

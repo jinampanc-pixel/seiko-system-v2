@@ -167,8 +167,8 @@ test("Save label set stays in header actions and Ctrl or Cmd S asks what to save
 
 test("editing an existing order returns to its actual setup origin", () => {
   assert.match(orders, /setView\(existingOrder \? setupReturnView : "workspace"\)/);
-  assert.match(orders, /returnView === "workspace" \? "Update workspace" : "Save changes"/);
-  assert.match(orders, /onCancel=\{\(\) => requestAppNavigation\(\(\)=>\{if\(storedSetup\)setCurrent\(structuredClone\(storedSetup\)\);setView\(currentExists \? setupReturnView : "center"\)/);
+  assert.match(orders, /onClick=\{onCancel\}>← Back/);
+  assert.match(orders, /screenBack\(\)/);
 });
 
 test("PDF acceptance keeps archive, setup policy controls and group rules explicit", () => {
@@ -287,7 +287,7 @@ test("label preview uses real point-to-mm typography and a physical 1 mm grid", 
 test("label copies are requested after Print instead of occupying the header", () => {
   assert.match(labelFinalization, /function askPrintCopies/);
   assert.match(labelFinalization, /labelPrintCopiesDialog/);
-  assert.match(labelFinalization, /function labelOnlyPrint\(copies = 1\)/);
+  assert.match(labelFinalization, /function labelOnlyPrint\(copies = 1, context\?:OutputContext\)/);
   assert.match(labelFinalization, /askPrintCopies\(selected, copies => \{void labelOnlyPrint\(copies\);\}\)/);
   assert.match(labelFinalization, /flatMap\(label => Array\.from\(\{ length: copies \}/);
   assert.doesNotMatch(labelFinalization, /function syncPrintCopies/);

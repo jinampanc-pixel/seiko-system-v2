@@ -26,7 +26,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   await page.getByRole('button',{name:/School test · ORDER-TEST · Received/}).click();
   let advanceForm=page.getByRole('dialog',{name:'Record payment · ORDER-TEST',exact:true});
   await advanceForm.getByLabel('Amount received ₹',{exact:true}).fill('60');
-  await advanceForm.getByRole('button',{name:'Save',exact:true}).click();
+  await advanceForm.getByRole('button',{name:'Save and print',exact:true}).click();
   let receiptFrame=page.frameLocator('iframe[title="Billing print preview"]');
   await receiptFrame.getByText('Against order',{exact:false}).first().waitFor();
   assert.match(await receiptFrame.locator('body').innerText(),/₹60.00/);
@@ -48,14 +48,14 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   assert.equal(await form.getByLabel('Client name *',{exact:true}).inputValue(),'Standalone customer');
   await form.getByLabel('Description',{exact:true}).fill('Uniform stitching');
   await form.getByLabel('Quantity',{exact:true}).fill('2'); await form.getByLabel('Rate ₹',{exact:true}).fill('125');
-  await form.getByRole('button',{name:'Save',exact:true}).click();
+  await form.getByRole('button',{name:'Save and print',exact:true}).click();
   await page.getByRole('dialog').getByRole('button',{name:'Record payment',exact:true}).waitFor();
   let preview=page.frameLocator('iframe[title="Billing print preview"]');
   assert.equal(await preview.locator('.copy').count(),2);
   assert.match(await preview.locator('body').innerText(),/₹250.00/);
   await page.getByRole('dialog').getByRole('button',{name:'Record payment',exact:true}).click();
   const pay=page.getByRole('dialog',{name:/Record payment/});
-  await pay.getByLabel('Amount received ₹',{exact:true}).fill('100'); await pay.getByRole('button',{name:'Save',exact:true}).click();
+  await pay.getByLabel('Amount received ₹',{exact:true}).fill('100'); await pay.getByRole('button',{name:'Save and print',exact:true}).click();
   await page.getByRole('button',{name:'Updated invoice',exact:true}).click();
   await preview.getByText('Balance Due',{exact:true}).first().waitFor();
   assert.match(await preview.locator('body').innerText(),/₹150.00/);
@@ -74,7 +74,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   await form.getByLabel('Bill source').selectOption('order-test');
   assert.equal(await form.getByLabel('Quantity',{exact:true}).inputValue(),'3');
   assert.equal(await form.getByLabel('Client name *',{exact:true}).inputValue(),'School test');
-  await form.getByLabel('Rate ₹',{exact:true}).fill('50'); await form.getByRole('button',{name:'Save',exact:true}).click();
+  await form.getByLabel('Rate ₹',{exact:true}).fill('50'); await form.getByRole('button',{name:'Save and print',exact:true}).click();
   await page.getByRole('dialog').getByRole('button',{name:'Record payment',exact:true}).waitFor();
   assert.match(await preview.locator('body').innerText(),/ORDER-TEST/);
   assert.match(await preview.locator('body').innerText(),/₹90.00/);
@@ -84,7 +84,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   form=page.getByRole('dialog',{name:'New delivery challan',exact:true});
   await form.getByLabel('Bill source').selectOption('order-test');
   assert.equal(await form.getByLabel('Rate ₹',{exact:true}).count(),0);
-  await form.getByRole('button',{name:'Save',exact:true}).click();
+  await form.getByRole('button',{name:'Save and print',exact:true}).click();
   const challanText=await preview.locator('body').innerText();
   assert.doesNotMatch(challanText,/₹|Rate|Amount|Sub Total|Balance Due|Payment details/);
   await page.screenshot({path:'outputs/challan-preview.png',fullPage:true});

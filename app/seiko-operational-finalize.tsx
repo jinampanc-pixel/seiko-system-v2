@@ -105,7 +105,7 @@ function enhanceOrderSetup() {
   if (cancel && !cancel.dataset.contextBackReady) {
     cancel.dataset.contextBackReady = "true";
     const returnOrder = sessionStorage.getItem(SETUP_RETURN_KEY);
-    cancel.textContent = returnOrder ? "← Back to order" : "← Back to orders";
+    cancel.textContent = returnOrder ? "← Back" : "← Back";
     cancel.addEventListener("click", () => {
       const orderNo = sessionStorage.getItem(SETUP_RETURN_KEY);
       if (!orderNo) return;
@@ -324,7 +324,7 @@ function enhanceWorkspaceMenu(page: HTMLElement) {
     const back = document.createElement("button");
     back.type = "button";
     back.className = "secondary workspaceContextBack";
-    back.textContent = "← Back to Orders";
+    back.textContent = "← Back";
     back.addEventListener("click", () => workspaceAction(page, "Save & close"));
     headActions.prepend(back);
   }
@@ -446,7 +446,7 @@ function enhanceLabelLauncher() {
       const back = document.createElement("button");
       back.type = "button";
       back.className = "secondary labelReturnToOrder";
-      back.textContent = "← Back to order";
+      back.textContent = "← Back";
       back.addEventListener("click", () => returnToOrder(contextOrder));
       actions.prepend(back);
     }

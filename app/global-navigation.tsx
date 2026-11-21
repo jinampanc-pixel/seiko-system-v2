@@ -4,7 +4,7 @@ import { CloseIcon } from "./ui-icons";
 /* Exact business logos are intentionally rendered as supplied assets. */
 /* eslint-disable @next/next/no-img-element */
 
-import { useAccess } from "./access-control";
+
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { callSeiko } from "./lib/seiko-api";
@@ -129,7 +129,7 @@ function StandaloneNavigation({ businesses, businessId, onBusinessChange }: {
         {visible.map(item => <button type="button" className={`nav ${item.intent === "labels" ? "active" : ""}`} key={item.intent} onClick={() => goToRoot(item.intent)}>
           <span>{item.icon}</span><small>{item.label}</small>
         </button>)}
-        {canAccess(membership, "admin") && <div className="moduleMenuSettings"><a className="nav" href={"/outputs?business="+encodeURIComponent(businessId)}><span>▣</span><small>Print &amp; saved list</small></a><a className="nav" href={"/activity?business="+encodeURIComponent(businessId)}><span>◷</span><small>Activity history</small></a>
+        {canAccess(membership, "admin") && <div className="moduleMenuSettings">
           <button type="button" className="nav" onClick={() => goToRoot("settings")}><span>⚙</span><small>Settings</small></button>
         </div>}
       </nav>
@@ -138,7 +138,7 @@ function StandaloneNavigation({ businesses, businessId, onBusinessChange }: {
 }
 
 export function GlobalNavigation() {
-  const { can }=useAccess();
+
   const [businesses, setBusinesses] = useState<BusinessMembership[]>(fallbackBusinesses);
   const [businessId, setBusinessId] = useState(currentBusinessId);
   const [menuHost, setMenuHost] = useState<HTMLElement | null>(null);
@@ -226,7 +226,7 @@ export function GlobalNavigation() {
   };
 
   return <>
-    {menuHost && !standaloneLabels && createPortal(<><a className="nav" href={"/outputs?business="+encodeURIComponent(businessId)}><span>▣</span><small>Print &amp; saved list</small></a>{can("audit.view")&&<a className="nav" href={"/activity?business="+encodeURIComponent(businessId)}><span>◷</span><small>Activity history</small></a>}<BusinessNavigator businesses={visibleBusinesses} businessId={businessId} onChange={changeBusiness}/></>, menuHost)}
+    {menuHost && !standaloneLabels && createPortal(<><BusinessNavigator businesses={visibleBusinesses} businessId={businessId} onChange={changeBusiness}/></>, menuHost)}
     {createHeader && standaloneLabels && createPortal(<StandaloneNavigation businesses={visibleBusinesses} businessId={businessId} onBusinessChange={changeBusiness}/>, createHeader)}
   </>;
 }

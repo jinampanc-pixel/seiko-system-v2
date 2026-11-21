@@ -8,14 +8,12 @@ export function OutputRecordMenu({context,content,beforeSave}:{context:OutputCon
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[error,setError]=useState("");
  async function save(action:OutputListAction){
   if(pending.current)return;pending.current=true;setBusy(true);setError("");setNotice("");
-  try{await beforeSave?.();await recordOutput(context,action,content);setNotice(action==="confirm-printed"?"Marked as printed by you.":"Added to “"+OUTPUT_LIST_LABELS[action]+"”.");if(menu.current)menu.current.open=false;}
+  try{await beforeSave?.();await recordOutput(context,action,content);setNotice(action==="confirm-printed"?"Marked as printed by you.":"Marked as not printed.");if(menu.current)menu.current.open=false;}
   catch(e){setError((e as Error).message);}finally{pending.current=false;setBusy(false);}
  }
- return <div className="outputRecordControl"><ActionMenu menuRef={menu} label="Save to list">
-  <button type="button" disabled={busy} onClick={()=>void save("keep-record")}>Keep for later</button>
-  <button type="button" disabled={busy} onClick={()=>void save("queue-print")}>Add to print list</button>
+ return <div className="outputRecordControl"><ActionMenu menuRef={menu} label="Print record">
+  <button type="button" disabled={busy} onClick={()=>void save("queue-print")}>Mark as not printed</button>
   <button type="button" disabled={busy} onClick={()=>void save("confirm-printed")}>Mark as printed</button>
-  <a href={"/outputs?business="+encodeURIComponent(context.businessId)}>Open print &amp; saved list</a>
   <small>Mark Printed after the actual print.</small>
  </ActionMenu>{notice&&<span role="status">{notice}</span>}{error&&<span role="alert">{error}</span>}</div>;
 }

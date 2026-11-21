@@ -1,6 +1,7 @@
 "use client";
 
 import "./seiko-billing-polish.css";
+import { requestAppNavigation } from "./app-navigation";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -40,18 +41,7 @@ function openSeikoModule(label: string, afterOpen?: () => void) {
 }
 
 function openSeikoOrder(order: SeikoOrder) {
-  openSeikoModule("Orders", () => {
-    const search = document.querySelector<HTMLInputElement>(".ordersPage .orderTools input");
-    if (!search) return;
-    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-    valueSetter?.call(search, order.details.orderNo || order.details.clientName);
-    search.dispatchEvent(new Event("input", { bubbles: true }));
-    search.dispatchEvent(new Event("change", { bubbles: true }));
-    window.setTimeout(() => {
-      const row = Array.from(document.querySelectorAll<HTMLElement>(".ordersPage .orderRow")).find(item => item.querySelector("b")?.textContent?.trim() === order.details.orderNo);
-      row?.querySelector<HTMLButtonElement>(".openOrderButton")?.click();
-    }, 50);
-  });
+  requestAppNavigation(()=>window.dispatchEvent(new CustomEvent("seiko:open-order",{detail:order})));
 }
 
 function openNewOrder() {
@@ -122,12 +112,12 @@ export function SeikoPhase1() {
       });
 
       const setupBack = document.querySelector<HTMLButtonElement>(".orderSetup .orderPageHead .secondary");
-      if (setupBack && setupBack.textContent?.trim() === "Cancel") setupBack.textContent = "← Back to Order Center";
+      if (setupBack && setupBack.textContent?.trim() === "Cancel") setupBack.textContent = "← Back";
       document.querySelectorAll<HTMLButtonElement>("button").forEach(button => {
         const text = button.textContent?.trim();
-        if (text === "Order Center") button.textContent = "← Back to Orders";
-        if (text === "Back" && button.closest(".ordersPage,.orderSetup,.workspacePage")) button.textContent = "← Back to Orders";
-        if (text === "Back" && button.closest(".labelCreateApp,.labelDesigner")) button.textContent = "← Back to Labels";
+        if (text === "Order Center") button.textContent = "← Back";
+        if (text === "Back" && button.closest(".ordersPage,.orderSetup,.workspacePage")) button.textContent = "← Back";
+        if (text === "Back" && button.closest(".labelCreateApp,.labelDesigner")) button.textContent = "← Back";
         if (button.textContent?.trim().startsWith("← Back")) button.classList.add("contextBackButton","appBackControl");
       });
 

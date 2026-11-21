@@ -3,10 +3,10 @@ import { CloseIcon } from "./ui-icons";
 
 import { labelSources } from "./lib/label-sources";
 import { recordOutput } from "./lib/output-activity";
-import { readLabelStorage, writeLabelStorage } from "./lib/label-storage";
+import { initializeLabelStorage, readLabelStorage, writeLabelStorage } from "./lib/label-storage";
 
 import { ensureOrderSheetFreshForOutput } from "./lib/order-sheet-client";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { specificationForRecord, type ProductPolicy, type SeikoOrder } from "./lib/order-domain";
 
@@ -491,21 +491,21 @@ export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, so
   const saveSet = () => {
     const task: SavedTask = { ...(referenceOnly?{referenceOrder:primaryOrder}:{}), id: activeTaskId || crypto.randomUUID(), name: `${referenceOnly?"Separate list":"Packing batch"} · ${order.details.clientName} · ${selectedRows.length} labels`, orderId: primaryOrder.orderId, orderIds: sourceModel.sources.map(source => source.orderId), orderNo: order.details.orderNo, client: order.details.clientName, createdAt: new Date().toISOString(), purpose: "packing", sourceMode: "person", outputMode: "combined", presetId: "pixra-109", items, selectedRows, personPackagePlan: "together", includedProducts: order.products.filter(product => rules[product.id]?.included).map(product => product.id), packageGroupBy: "product", packageCounts: {}, customerUpdates: false, presentationRules: rules, packagePresentation, designerKind: "packing-person-v4" };
     const tasks = JSON.parse(readLabelStorage(taskKey(businessId)) || "[]") as SavedTask[];
-    writeLabelStorage(taskKey(businessId), JSON.stringify([...tasks.filter(item => item.id !== task.id), task])); setActiveTaskId(task.id); setNotice("Label set queued for shared storage. Check the shared-save status before closing.");
+    writeLabelStorage(taskKey(businessId), JSON.stringify([...tasks.filter(item => item.id !== task.id), task])); setActiveTaskId(task.id); setNotice("Label set queued for shared storage. Check the shared-save status before closing."); return task;
   };
   const saveLayout = () => {
     const layout: SavedLayout = { id: crypto.randomUUID(), name: `Packing · ${order.details.clientName}`, clientType: order.details.clientType, product: "", presetId: "pixra-109", items, purpose: "packing", sourceMode: "person", outputMode: "combined", presentationRules: rules, packagePresentation, designerKind: "packing-person-v4" };
     const layouts = JSON.parse(readLabelStorage(layoutKey(businessId)) || "[]") as SavedLayout[];
     writeLabelStorage(layoutKey(businessId), JSON.stringify([...layouts, layout])); setNotice("Layout queued for shared storage. Check the shared-save status before closing.");
   };
-  const print = useCallback(async () => {
+  const print = async () => {
     setPrintBusy(true);
-    try{for (const source of sourceModel.sources) await ensureOrderSheetFreshForOutput(source);}catch(e){setNotice((e as Error).message);setPrintBusy(false);setPrintReady(false);return;}
+    try{for (const source of sourceModel.sources) await ensureOrderSheetFreshForOutput(source);}catch(e){setNotice("Printing the open copy. Shared verification is unavailable: "+(e as Error).message);}
     setPrintReady(true);
     await document.fonts.ready;
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-    try{for (const source of sourceModel.sources.filter(source => selectedRecords.some(record => record.sourceOrderId === source.orderId))) await recordOutput({businessId,kind:"labels",id:source.orderId,title:"Packing labels"},"print-requested",document.querySelector("main")?.outerHTML);window.print();}catch(e){setNotice((e as Error).message);}setPrintBusy(false);
-  }, [sourceModel,selectedRecords,businessId]);
+    try{const task=saveSet();if(!task)throw Error("Choose labels before saving and printing.");void initializeLabelStorage(businessId).catch(()=>{});await recordOutput({businessId,kind:"labels",id:task.id,title:task.name},"print-requested",document.querySelector("main")?.outerHTML);}catch(e){setNotice("Saving remains pending. Printing the open copy: "+(e as Error).message);}window.print();setPrintBusy(false);
+  };
   useEffect(() => {
     const request = () => { if (selectedRows.length && items.length) void print(); };
     window.addEventListener("jinam:packing:print", request);
@@ -528,7 +528,7 @@ export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, so
       if (event.key.toLowerCase() === "y") { event.preventDefault(); redo(); }
     }
   }}>
-    <header className="physicalHeader"><div>{onBack && <button onClick={onBack} className="appBackControl">{backLabel || "← Back"}</button>}<small>ORDER {order.details.orderNo} · PACKING</small><h2>Packing labels for {order.details.clientName}</h2><p>{referenceOnly?"Separate label list: sizes and quantities stay saved with this batch; live student records are unchanged.":"Choose a product combination, then arrange one label for every eligible person."}</p></div><div className="physicalActions"><button onClick={saveSet}>Save label set</button><button onClick={saveLayout}>Save layout</button><button className="primary" disabled={!selectedRows.length || !items.length || printBusy} onClick={print}>{printBusy ? "Preparing…" : `Print (${selectedRows.length})`}</button></div></header>
+    <header className="physicalHeader"><div>{onBack && <button onClick={onBack} className="appBackControl">{backLabel || "← Back"}</button>}<small>ORDER {order.details.orderNo} · PACKING</small><h2>Packing labels for {order.details.clientName}</h2><p>{referenceOnly?"Separate label list: sizes and quantities stay saved with this batch; live student records are unchanged.":"Choose a product combination, then arrange one label for every eligible person."}</p></div><div className="physicalActions"><button onClick={saveSet}>Save label set</button><button onClick={saveLayout}>Save layout</button><button className="primary" disabled={!selectedRows.length || !items.length || printBusy} onClick={print}>{printBusy ? "Preparing…" : `Save and print (${selectedRows.length})`}</button></div></header>
     {notice && <p role="status">{notice}</p>}
     <section className="physicalInfo physicalPackageSummary"><div><h3>Information on the label</h3><p>{items.map(item => item.label).join(" · ") || "No fields selected"}</p><small>{items.length} fields · choose what appears and how it is named</small></div><button ref={infoButton} aria-label="Customize label information" onClick={() => { setDraftItems(items.map(item => ({ ...item }))); setInfoOpen(true); }}>Customize</button></section>
     <section className="physicalPackageSummary"><div><h3>Package contents</h3><p>{order.products.filter(product => rules[product.id]?.included).map(product => product.name).join(" + ") || "No products selected"} · <b>{records.length} eligible labels</b></p><small>{packagePresentation.matchMode === "any" ? "Any selected product: one label per person, showing only products they ordered." : "All selected products: a person must have quantity greater than zero for every selected product."}</small></div><button ref={customizeRef} onClick={() => { setDraftRules(mergeRules(order, rules)); setDraftPresentation({ ...packagePresentation }); setPresentationOpen(true); }}>Customize</button></section>

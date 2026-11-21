@@ -119,12 +119,6 @@ function enhanceLabelLauncher() {
     if (eyebrow && eyebrow.textContent !== "LABEL CENTER") eyebrow.textContent = "LABEL CENTER";
     if (heading && heading.textContent !== "Labels & printing") heading.textContent = "Labels & printing";
 
-    const orderCenter = head?.querySelector<HTMLButtonElement>("button.secondary");
-    if (head && orderCenter) {
-      if(orderCenter.textContent !== "Orders")orderCenter.textContent = "Orders";
-      orderCenter.classList.remove("contextBackButton", "appBackControl");
-      if (orderCenter.parentElement !== head) head.appendChild(orderCenter);
-    }
     let headActions = head?.querySelector<HTMLElement>(".labelLauncherHeadActions");
     if (head && !headActions) {
       headActions = document.createElement("div");

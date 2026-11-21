@@ -146,3 +146,16 @@ export async function initializeLabelStorage(business: string) {
 export function labelRecoveryCopy(business: string) {
   return { browserAdoption: readLabelStorage(backupKey(business)), pending: readLabelStorage(pendingKey(business)), unsavedChanges: [...stateFor(business).pending.values()] };
 }
+
+export async function retryPendingLabelSaves(business:string){const state=stateFor(business);if(state.ready&&!state.running&&[...state.pending.values()].some(item=>!item.blocked))await drain(business);}
+
+/** A print flow must wait for the shared saved batch, not just the local outbox. */
+export async function confirmSavedLabelTask(business:string,id:string){
+ const state=stateFor(business),key=token('tasks-v1',id);
+ const deadline=Date.now()+30000;
+ while(state.running&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,40));
+ if(!state.ready)await initializeLabelStorage(business);
+ await drain(business);
+ while(state.running&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,40));
+ if(state.pending.has(key)||!state.records.has(key))throw Error('The label set has not been saved to shared storage yet. Your changes remain open; retry Save and print when connected.');
+}

@@ -89,7 +89,7 @@ const { spawn } = require('node:child_process');
       assert.equal(route.request().resourceType(), 'document'); homeDocumentRequests++;
       await route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body><h1>Home</h1></body></html>' });
     });
-    await page.getByRole('link', { name: '← Back to Home', exact: true }).click();
+    await page.getByRole('link', { name: '← Back', exact: true }).click();
     await page.waitForURL('http://127.0.0.1:5183/');
     await page.getByRole('heading', { name: 'Home', exact: true }).waitFor();
     assert.equal(homeDocumentRequests, 1, 'Back to Home must load the Home document');

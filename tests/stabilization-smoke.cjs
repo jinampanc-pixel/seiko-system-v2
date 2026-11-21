@@ -120,6 +120,7 @@ function load(path, imports = {}) {
       const response=await billingProfile.GET(new Request(route.request().url()));
       await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});
     });
+    await page.route('**/api/erp/activity?*',async route=>{const response=await activity.GET(new Request(route.request().url()));await route.fulfill({status:response.status,json:await response.json()});});
     for (const [path, api] of [['activity',activity],['search',search],['people',people],['order-billing',orderBilling],['billing-profile', billingProfile], ['billing', billing], ['clients', clients], ['labels', labels], ['production',production]]) {
       await page.route(`**/api/erp/${path}`, async route => {
         const response = await api.POST(new Request(`${base}/api/erp/${path}`, { method: 'POST', body: route.request().postData() }));
@@ -194,16 +195,17 @@ function load(path, imports = {}) {
       console.log(`PASS: 1,001 synthetic orders / 100,001 records; last-order search, bounded 10-row rendering and page navigation (${Date.now() - started} ms, local Chrome).`);
       return;
     }
+    if(process.argv.includes('--save-print')){await require('./save-print-browser.cjs')({page,navigate,seed,order});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--home-workspace')){await require('./home-workspace-browser.cjs')({page,navigate,seed,order});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--invoice-brief')){await require('./invoice-brief-browser.cjs')({page,seed,navigate,order,sqlite});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--dialog-ux')){await require('./dialog-interactions-browser.cjs')({page,navigate,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-rules')){await require('./order-rules-browser.cjs')({page,seed,navigate,order,sqlite,domain,sheetModel:load('app/lib/order-sheet-model.ts',{'./order-domain':domain})});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--responsive-audit')){await require('./responsive-audit-browser.cjs')({page,navigate,billing,base});assert.deepEqual(errors,[]);return;}
-    if(process.argv.includes('--google-sheets')){try{await require('./google-sheets-browser.cjs')({page,seed,navigate,order,sqlite,base});}catch(e){fs.mkdirSync('../../outputs',{recursive:true});fs.writeFileSync('../../outputs/sheets-failure.html',await page.content());await page.screenshot({path:'../../outputs/sheets-failure.png',fullPage:true});throw e;}assert.deepEqual(errors,[]);return;}
-    if(process.argv.includes('--order-delivery')){try { await require('./order-delivery-browser.cjs')({page,seed,navigate,order,sqlite}); } catch(error) { fs.mkdirSync('../../outputs',{recursive:true});require('node:fs').writeFileSync('../../outputs/delivery-failure.html',await page.content()); await page.screenshot({path:'../../outputs/delivery-failure.png',fullPage:true}); throw error; }assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--google-sheets')){try{await require('./google-sheets-browser.cjs')({page,seed,navigate,order,sqlite,base});}catch(e){fs.mkdirSync('work/browser-failures',{recursive:true});fs.writeFileSync('work/browser-failures/sheets-failure.html',await page.content());await page.screenshot({path:'work/browser-failures/sheets-failure.png',fullPage:true});throw e;}assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--order-delivery')){try { await require('./order-delivery-browser.cjs')({page,seed,navigate,order,sqlite}); } catch(error) { fs.mkdirSync('work/browser-failures',{recursive:true});require('node:fs').writeFileSync('work/browser-failures/delivery-failure.html',await page.content()); await page.screenshot({path:'work/browser-failures/delivery-failure.png',fullPage:true}); throw error; }assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-service')){await require('./order-service-browser.cjs')({page,seed,navigate,order,sqlite,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--production-pagination')){await require('./production-pagination-browser.cjs')({page,seed,navigate});assert.deepEqual(errors,[]);return;}
-    if(process.argv.includes('--production-handoffs')){try{await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});}catch(error){fs.mkdirSync('../../outputs',{recursive:true});fs.writeFileSync('../../outputs/production-failure.html',await page.content());await page.screenshot({path:'../../outputs/production-failure.png',fullPage:true});throw error;}assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--production-handoffs')){try{await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});}catch(error){fs.mkdirSync('work/browser-failures',{recursive:true});fs.writeFileSync('work/browser-failures/production-failure.html',await page.content());await page.screenshot({path:'work/browser-failures/production-failure.png',fullPage:true});throw error;}assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--shared-measurements')){await require('./shared-measurements-browser.cjs')({page,sqlite,seed,navigate,order,base,domain,sheetModel:load('app/lib/order-sheet-model.ts',{'./order-domain':domain})});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--artwork')){await require('./artwork-browser.cjs')({page,seed,navigate,order,sqlite,domain});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--billing-assets')){await require('./billing-assets-browser.cjs')({page,billing,sqlite,navigate,base,printing:load('app/lib/seiko-billing-print.ts',{'./seiko-billing':load('app/lib/seiko-billing.ts')})});assert.deepEqual(errors,[]);return;}
@@ -221,7 +223,7 @@ function load(path, imports = {}) {
     await page.getByRole('button', { name: /Smoke School · SMOKE-001 · Received/ }).click();
     const form = page.getByRole('dialog', { name: 'Record payment · SMOKE-001', exact: true });
     await form.getByLabel('Amount received ₹', { exact: true }).fill('60');
-    await form.getByRole('button', { name: 'Save', exact: true }).click();
+    await form.getByRole('button', { name: 'Save and print', exact: true }).click();
     const receipt = page.frameLocator('iframe[title="Billing print preview"]');
     await receipt.getByText('Against order', { exact: false }).first().waitFor();
     const text = await receipt.locator('body').innerText();
@@ -231,7 +233,7 @@ function load(path, imports = {}) {
     const amendReceipt=page.getByRole('dialog',{name:/Amend receipt · RCP-/});
     await amendReceipt.getByLabel('Amount received ₹',{exact:true}).fill('55');
     await amendReceipt.getByLabel('Reference / transaction ID',{exact:true}).fill('Corrected reference');
-    await amendReceipt.getByRole('button',{name:'Save',exact:true}).click();
+    await amendReceipt.getByRole('button',{name:'Save and print',exact:true}).click();
     await receipt.getByText('₹55.00',{exact:true}).first().waitFor();
     const correctedReceipt=JSON.parse(sqlite.prepare('SELECT data FROM seiko_billing_payments').get().data);
     assert.equal(correctedReceipt.amount,55);assert.equal(correctedReceipt.reference,'Corrected reference');assert.equal(correctedReceipt.revision,1);assert.ok(correctedReceipt.receiptNumber.startsWith('RCP-'));
@@ -244,7 +246,7 @@ function load(path, imports = {}) {
     if (process.argv.includes('--order-workflows')) await require('./order-workflows-browser.cjs')({ page, browser, sqlite, order, seed, navigate, base, ordersApi, session, errors });
     if (process.argv.includes('--order-workflows')) await require('./order-cache-browser.cjs')({ page, sqlite, navigate, ordersApi, base });
     if (process.argv.includes('--order-workflows')) await require('./billing-production-browser.cjs')({page,billing,sqlite,navigate,base,seed,order});
-    if (process.argv.includes('--order-workflows')) try{await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});}catch(error){fs.mkdirSync('../../outputs',{recursive:true});fs.writeFileSync('../../outputs/production-failure.html',await page.content());await page.screenshot({path:'../../outputs/production-failure.png',fullPage:true});throw error;}
+    if (process.argv.includes('--order-workflows')) try{await require('./production-handoff-browser.cjs')({page,seed,navigate,base,production});}catch(error){fs.mkdirSync('work/browser-failures',{recursive:true});fs.writeFileSync('work/browser-failures/production-failure.html',await page.content());await page.screenshot({path:'work/browser-failures/production-failure.png',fullPage:true});throw error;}
     assert.deepEqual(errors, []);
     console.log('PASS: Home → Orders → Billing → order payment → persisted receipt → Back/Home; no page errors.');
   } finally {

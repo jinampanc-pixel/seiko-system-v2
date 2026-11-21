@@ -70,7 +70,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     assert.equal(await cell.inputValue(), 'Unsaved failure fixture');
     assert.equal(await page.locator('.orderSaveConfirmation').count(), 0, 'Failed saves never show success');
     assert.equal(read(order.orderId).details.contactPerson, 'Persisted through Save and Close');
-        const leave=page.waitForEvent('dialog').then(d=>d.accept());await page.getByRole('button', { name: '← Back to Orders', exact: true }).first().click();await leave;
+        const leave=page.waitForEvent('dialog').then(d=>d.accept());await page.getByRole('button', { name: '← Back', exact: true }).first().click();await leave;
     await row('SMOKE-001').waitFor();
   }
   await page.unroute('**/api/erp/orders');
@@ -113,7 +113,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await action('SMOKE-001', 'Record payment');
   const payment = page.getByRole('dialog', { name: 'Record payment · SMOKE-001', exact: true });
   await payment.getByLabel('Amount received ₹', { exact: true }).fill('25');
-  await payment.getByRole('button', { name: 'Save', exact: true }).click();
+  await payment.getByRole('button', { name: 'Save and print', exact: true }).click();
   const receipt = page.frameLocator('iframe[title="Billing print preview"]');
   await receipt.getByText('Against order', { exact: false }).first().waitFor();
   assert.match(await receipt.locator('body').innerText(), /SMOKE-001/);
@@ -123,7 +123,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await action('SECOND-002', 'Record payment');
   const otherPayment = page.getByRole('dialog', { name: 'Record payment · SECOND-002', exact: true });
   await otherPayment.getByLabel('Amount received ₹', { exact: true }).fill('15');
-  await otherPayment.getByRole('button', { name: 'Save', exact: true }).click();
+  await otherPayment.getByRole('button', { name: 'Save and print', exact: true }).click();
   await receipt.getByText('Against order', { exact: false }).first().waitFor();
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByLabel('SEIKO billing').getByRole('button', { name: '← Back', exact: true }).click(); await page.locator('.orderCenterHead').waitFor(); await navigate('Orders');
