@@ -54,6 +54,7 @@ module.exports=async({page,billing,navigate,base,seed,order,sqlite})=>{
   await row(invoice.number).getByLabel(`Actions for ${invoice.number}`,{exact:true}).click();
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   const box=await row(invoice.number).locator('.billingDocumentMenu>div').boundingBox();
+  assert.ok(await row(invoice.number).locator('.billingDocumentMenu>div').evaluate(el=>{const r=el.getBoundingClientRect();const hit=document.elementFromPoint(r.x+r.width/2,r.y+Math.min(r.height-10,90));return el.contains(hit);}), 'Open menu stays above later row controls');
   assert.ok(box&&box.x>=0&&box.y>=0&&box.x+box.width<=size.width&&box.y+box.height<=size.height,`Document menu stays inside viewport: ${JSON.stringify({box,size})}`);
   await page.keyboard.press('Escape');
   assert.equal(await row(invoice.number).locator('.billingDocumentMenu').evaluate(node=>node.open),false,'Escape dismisses document menu');

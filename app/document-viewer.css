@@ -8,3 +8,12 @@
 @media(max-width:900px){.documentViewerActions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.documentViewerActions>label{grid-column:1/-1}.documentViewerActions>.outputRecordControl{grid-column:1;width:100%}.documentViewerActions>.outputRecordControl .documentMore{width:100%}.documentViewerActions>.documentMore:last-child{grid-column:2;justify-self:end}}
 
 .documentViewer{container-name:document-preview;container-type:inline-size}@container document-preview (max-width:760px){.documentViewerActions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.documentViewerActions>label{grid-column:1/-1}.documentViewerActions>.outputRecordControl{grid-column:1;width:100%}.documentViewerActions>.outputRecordControl .documentMore{width:100%}.documentViewerActions>.documentMore:last-child{grid-column:2;justify-self:end}}
+
+.documentViewer .documentViewerActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid #c3a06c}
+.documentViewerActions>label{display:flex;align-items:center;gap:8px;min-width:0;font-size:12px;grid-column:auto}
+.documentViewerActions>label>select{min-height:44px;width:auto;max-width:235px}
+.documentViewerActions>.outputRecordControl{width:auto;grid-column:auto}
+.documentViewerActions>.documentMore:last-child{grid-column:auto;justify-self:auto}
+@media(max-width:650px){.documentViewer .documentViewerActions{display:grid;grid-template-columns:1fr 1fr}.documentViewerActions>label{display:grid;gap:4px}.documentViewerActions>label>select{width:100%;max-width:100%}.documentViewerActions>.outputRecordControl{width:100%}}
+
+@container document-preview (max-width:760px){.documentViewer .documentViewerActions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.documentViewerActions>label{grid-column:1/-1}.documentViewerActions>.outputRecordControl{grid-column:1;width:100%}.documentViewerActions>.documentMore:last-child{grid-column:2;justify-self:end}}

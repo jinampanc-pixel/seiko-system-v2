@@ -58,7 +58,7 @@ export default function Home() {
   const [pending, setPending] = useState(0);
   const [businesses, setBusinesses] = useState<BusinessMembership[]>(previewBusinesses);
   const [businessId, setBusinessId] = useState(previewBusinesses[0].businessId);
-  useEffect(()=>resetNavigation(),[businessId,resetNavigation]);
+  useEffect(()=>{resetNavigation();if(new URLSearchParams(window.location.search).get("screen")==="billing")setModule("billing");},[businessId,resetNavigation]);
   useEffect(()=>{if(businessId==="seiko")document.body.dataset.seikoPalette="true";else delete document.body.dataset.seikoPalette;return()=>{delete document.body.dataset.seikoPalette;};},[businessId]);
   const [themeOverrides, setThemeOverrides] = useState<Record<string, BusinessTheme>>({});
   const [themeOpen, setThemeOpen] = useState(false);

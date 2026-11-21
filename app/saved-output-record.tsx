@@ -18,9 +18,9 @@ export function SavedOutputRecordDetails({record,businessId,kind,id}:{record?:Sa
  const latest=record?.events.find(e=>e.action==='confirm-printed'||e.action==='queue-print');
  const printed=latest?.action==='confirm-printed';
  async function mark(){if(pending.current)return;pending.current=true;setBusy(true);setError('');try{await recordOutput({businessId,kind,id},printed?'queue-print':'confirm-printed');}catch(e){setError((e as Error).message);}finally{pending.current=false;setBusy(false);}}
- return <div className="savedOutputRecord">
+ return <details className="savedOutputRecord"><summary>Details &amp; print history</summary><div className="savedOutputRecordBody">
   <small>{record?.savedBy?<>Saved by {record.savedBy} · {date(record.savedAt)}</>:record?'Saved record · author unavailable':'Shared save pending or record history unavailable'}</small>
   <span className={printed?'savedPrintState printed':'savedPrintState'}>{printed?'Printed':'No print confirmation'}{latest&&<> · {latest.actor} · {date(latest.at)}{record&&latest.version!==record.version?' · earlier saved version':''}</>}</span>
-  <details><summary>Print record</summary><div><p>Confirm after the actual print. Opening a print dialog does not confirm printing.</p><button type="button" className="secondary" disabled={busy||!record} onClick={()=>void mark()}>{printed?'Mark as not printed':'Mark as printed'}</button><ol>{record?.events.filter(e=>labels[e.action]).map((e,i)=><li key={i}>{labels[e.action]} · {e.actor} · {date(e.at)} · version {e.version}</li>)}</ol>{!record?.events.length&&<p>No output actions recorded.</p>}{error&&<p role="alert">{error}</p>}</div></details>
- </div>;
+  <div className="savedOutputHistory"><p>Confirm after the actual print. Opening a print dialog does not confirm printing.</p><button type="button" className="secondary" disabled={busy||!record} onClick={()=>void mark()}>{printed?'Mark as not printed':'Mark as printed'}</button><ol>{record?.events.filter(e=>labels[e.action]).map((e,i)=><li key={i}>{labels[e.action]} · {e.actor} · {date(e.at)} · version {e.version}</li>)}</ol>{!record?.events.length&&<p>No output actions recorded.</p>}{error&&<p role="alert">{error}</p>}</div>
+ </div></details>;
 }

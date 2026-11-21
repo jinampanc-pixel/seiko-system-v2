@@ -110,3 +110,19 @@
 .seikoBillingWorkspace .phase2TableHead{border-radius:11px 11px 0 0}.seikoBillingWorkspace .phase2Table{border-radius:12px}.seikoBillingWorkspace .phase2TableRow:last-child{border-radius:0 0 11px 11px}
 
 .billingClientPicker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}.billingClientPicker>label{display:grid;gap:6px;min-width:0;font-size:11px;font-weight:700}.billingClientPicker>button{min-height:40px;align-self:end}@media(max-width:500px){.billingClientPicker{grid-template-columns:minmax(0,1fr)}.billingClientPicker>button{justify-self:start}}
+
+/* Raise the entire open row above subsequent row stacking contexts. */
+.billingDocumentRow:has(.billingDocumentMenu[open]){z-index:80}
+.billingDocumentMenu[open]>div{z-index:100;isolation:isolate;background:#fbf5ed;box-shadow:0 12px 32px #173c5e30}
+.billingDocumentMenu>div>button{display:flex;align-items:center;width:100%;line-height:1.4;white-space:normal}
+.billingPreview{background:#fbf5ed;color:#173c5e;gap:10px;padding:18px;position:relative}
+.billingPreview>header{padding:0 0 12px;border-bottom:1px solid #c3a06c;align-items:center}
+.billingPreview>header h2{font-size:19px;line-height:1.4;font-weight:700}
+.billingPreview>.documentMore{position:absolute;top:18px;right:104px;z-index:100}
+.billingPreview>header h2{padding-right:190px}
+.billingPreview>.documentMore>div{left:auto;right:0;width:290px;max-height:65dvh;overflow:auto}
+.billingRelatedReceipts{font-size:12px}.billingRelatedReceipts>summary{cursor:pointer;min-height:28px;display:flex;align-items:center}
+.billingPreview .billingReceiptList{justify-content:flex-start;gap:6px;padding:8px 0}
+.billingPreview>p:empty{display:none}
+.seikoBillingWorkspace .phase2Toolbar>.phase2Actions{gap:8px;align-items:end}
+@media(max-width:650px){.billingPreview>.documentMore{position:relative;top:auto;right:auto;align-self:flex-start}.billingPreview>header h2{padding-right:0;font-size:16px}.billingPreview{padding:12px}}

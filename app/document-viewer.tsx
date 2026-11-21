@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { readyDocument } from "./lib/document-pdf";
 import type { BillingCopies } from "./lib/seiko-billing-print";
 import "./document-viewer.css";
@@ -8,8 +8,8 @@ import { OutputRecordMenu } from "./output-record-menu";
 import "./outputs/outputs.css";
 import { recordOutput, pendingOutputCount, type OutputContext, type OutputAction } from "./lib/output-activity";
 
-export function DocumentViewer({ html, title, filename, copies, beforeOutput, activity, outputDisabled = false }: {
-  activity?: OutputContext; html: string; title: string; filename: string; outputDisabled?: boolean;
+export function DocumentViewer({ html, title, filename, copies, beforeOutput, activity, controls, outputDisabled = false }: {
+  controls?: ReactNode; activity?: OutputContext; html: string; title: string; filename: string; outputDisabled?: boolean;
   copies?: BillingCopies; beforeOutput?: () => Promise<unknown>;
 }) {
   const [syncPending,setSyncPending]=useState(0);
@@ -90,7 +90,7 @@ export function DocumentViewer({ html, title, filename, copies, beforeOutput, ac
     <div className="documentViewerActions">
       <button className="primary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void printDocument()}>{busy === "print" ? "Opening print…" : "Print"}</button>
       <button className="secondary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void downloadPdf()}>{busy === "download" ? "Downloading PDF…" : "Download PDF"}</button>
-      <label>Preview zoom<select aria-label="Preview zoom" value={zoom} onChange={e => setZoom(e.target.value)}><option value="fit">Fit screen</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></label>
+      {controls}<label>Preview zoom<select aria-label="Preview zoom" value={zoom} onChange={e => setZoom(e.target.value)}><option value="fit">Fit screen</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></label>
       {activity && !outputDisabled && <OutputRecordMenu context={activity} content={html} beforeSave={beforeOutput}/>}
       <ActionMenu label="More options">
         <button className="secondary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={openDocument}>Open document in new tab</button>

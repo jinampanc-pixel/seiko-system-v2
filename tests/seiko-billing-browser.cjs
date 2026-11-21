@@ -32,9 +32,9 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   assert.match(await receiptFrame.locator('body').innerText(),/₹60.00/);
   assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM seiko_billing_documents').get().n,0);
   await page.getByRole('button',{name:'Close',exact:true}).click();
-  await page.getByRole('button',{name:'Payments & receipts',exact:true}).click();
+  await page.getByLabel('Filter documents',{exact:true}).click();await page.getByLabel('Document type',{exact:true}).selectOption('payments');await page.getByLabel('Filter documents',{exact:true}).click();
   assert.match(await page.getByRole('region',{name:'Payment history'}).innerText(),/School test/);
-  await page.getByRole('button',{name:'Invoices & documents',exact:true}).click();
+  await page.getByLabel('Filter documents',{exact:true}).click();await page.getByLabel('Document type',{exact:true}).selectOption('all');await page.getByLabel('Filter documents',{exact:true}).click();
  await page.locator('.billingCreateMenu > summary').click();
   await page.getByRole('button',{name:'+ Invoice',exact:true}).click();
   let form = page.getByRole('dialog',{name:'New invoice',exact:true});
@@ -56,7 +56,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   await page.getByRole('dialog').getByRole('button',{name:'Record payment',exact:true}).click();
   const pay=page.getByRole('dialog',{name:/Record payment/});
   await pay.getByLabel('Amount received ₹',{exact:true}).fill('100'); await pay.getByRole('button',{name:'Save and print',exact:true}).click();
-  await page.getByRole('button',{name:'Updated invoice',exact:true}).click();
+  if(!await page.getByRole('button',{name:'Updated invoice',exact:true}).isVisible())await page.getByText('Document actions',{exact:true}).click();await page.getByRole('button',{name:'Updated invoice',exact:true}).click();
   await preview.getByText('Balance Due',{exact:true}).first().waitFor();
   assert.match(await preview.locator('body').innerText(),/₹150.00/);
   assert.match(await preview.locator('body').innerText(),/INV-\d{4}-00001/);

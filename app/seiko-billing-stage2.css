@@ -11,3 +11,6 @@
 .billingInlineClient .phase2Actions { margin-top: 12px; justify-content: flex-end; }
 @media (max-width: 900px) { .seikoBillingWorkspace .phase2Metrics { grid-template-columns: 1fr 1fr; } .billingRowLink::after { right: min(-700px, -70vw); } .billingRowAction { align-items: flex-start; flex-direction: column; } }
 @media (max-width: 620px) { .seikoBillingWorkspace .phase2Metrics { grid-template-columns: 1fr; } .billingRowLink::after { right: -70vw; } .billingRowAction { width: 100%; } .billingRowAction .primary { width: 100%; } }
+
+/* Keep embedded details and menus clickable rather than stretching the title over them. */
+.billingRowLink::after{content:none}

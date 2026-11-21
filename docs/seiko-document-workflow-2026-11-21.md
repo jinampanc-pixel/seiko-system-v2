@@ -17,3 +17,11 @@ Back returns through the actual preceding views. Confirmed discard restores the 
 ## Validation scope
 
 Regression coverage includes offline save and reconnect, exact retained copies, actor scoping, duplicate-safe retry identifiers, nonblocking output logging, manual print confirmation, production lifecycle quantities, navigation/discard, payment selection, document PDF output and responsive layouts. Existing domain, API, contract, build and browser checks remain required before deployment. Fixture checks supplement live verification; they do not certify every possible workflow or printer.
+
+## Billing and compact-list correction
+
+The duplicate `/outputs` register now redirects to the main Billing list. Document type, including payments/receipts, is selected in the existing filter rather than separate view buttons. The preview groups print/PDF/copy/zoom controls together and keeps secondary amendment actions in Document actions. Authorship and print confirmations are collapsed inside Details & print history across existing lists. Open billing row menus are raised above subsequent row controls.
+
+Billing documents render the approved Seiko logo. The existing bank/UPI/customer acknowledgement layout is preserved; the Seiko signatory stays at the right and anchors lower within its existing area. No financial values or saved commercial records are rewritten for these presentation changes.
+
+The document logo uses an SVG presentation of the approved artwork with its pale background removed by an alpha filter. The source lettering and colours are retained; the document paper remains visible through the background in previews, printing and canvas PDF exports.

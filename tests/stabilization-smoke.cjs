@@ -93,7 +93,7 @@ function load(path, imports = {}) {
       '../../../lib/server-erp-auth': auth,
     });
     browser = await chromium.launch({ headless: true, ...(process.env.TEST_DOWNLOAD_DIR?{downloadsPath:process.env.TEST_DOWNLOAD_DIR}:{}), ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
-    const page = await browser.newPage({acceptDownloads:true}); const errors = [];
+    const page = await browser.newPage({acceptDownloads:true}); const errors = []; const diagnostics=[]; page.on("console",m=>{if(m.type()==="error")diagnostics.push(m.text());}); page.on("requestfailed",r=>diagnostics.push(r.url()+" "+r.failure()?.errorText));
     page.on('pageerror', error => errors.push(error.message));
     const session = { user: { displayName: 'Smoke Owner', email: 'smoke@example.invalid' }, businesses: [{
       businessId: 'seiko', businessName: 'SEIKO', logoUrl: load('app/lib/business-catalog.ts').businessCatalogEntry('seiko').logoUrl, role: 'owner',
@@ -134,7 +134,7 @@ function load(path, imports = {}) {
     }, order);
     await page.goto(`${base}/tests/packing-browser/smoke.html`);
     try { await page.getByRole('button', { name: 'Open menu', exact: true }).waitFor({ timeout: 10000 }); }
-    catch { throw new Error(`Application did not mount: ${JSON.stringify(errors)}. ${await page.locator('body').innerText()}`); }
+    catch { throw new Error(`Application did not mount: ${JSON.stringify(errors)}. ${JSON.stringify(diagnostics)} ${serverOutput} ${await page.locator('body').innerText()}`); }
     const navigate = async name => {
       const moduleMenu=page.getByRole('button',{name:'Open billing navigation',exact:true});
       if(await moduleMenu.isVisible())await moduleMenu.click();
@@ -229,7 +229,7 @@ function load(path, imports = {}) {
     const text = await receipt.locator('body').innerText();
     assert.match(text, /SMOKE-001/); assert.match(text, /₹60.00/);
     assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM seiko_billing_payments').get().n, 1);
-    await page.getByRole('button',{name:'Amend receipt',exact:true}).click();
+    await page.getByText('Document actions',{exact:true}).click();await page.getByRole('button',{name:'Amend receipt',exact:true}).click();
     const amendReceipt=page.getByRole('dialog',{name:/Amend receipt · RCP-/});
     await amendReceipt.getByLabel('Amount received ₹',{exact:true}).fill('55');
     await amendReceipt.getByLabel('Reference / transaction ID',{exact:true}).fill('Corrected reference');

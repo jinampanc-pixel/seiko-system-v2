@@ -73,10 +73,11 @@ module.exports=async({page,navigate,sqlite,base,printing})=>{
  await preview.getByRole('combobox',{name:'Print copies',exact:true}).selectOption('customer');
  const frame=page.frameLocator('iframe[title="Billing print preview"]');
  await frame.getByText('Sample Signatory',{exact:true}).waitFor();
+ assert.equal(await preview.getByRole('button',{name:'Amend document',exact:true}).isVisible(),false,'Secondary actions stay collapsed');const toolbarButtons=await preview.locator('.documentViewerActions>button').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().toJSON()));assert.ok(toolbarButtons[1].x-toolbarButtons[0].right<=16,'Print and PDF controls stay together');await page.screenshot({path:'work/billing-preview-ui.png',fullPage:false});
  assert.match(await frame.locator('body').innerText(),/School contact: Sample contact/);
  assert.match(await frame.locator('body').innerText(),/Address: Test address/);
  assert.doesNotMatch(await frame.locator('body').innerText(),/Phone:/);
- const bankHeading=await frame.getByText('For bank transfer',{exact:true}).boundingBox();const upiHeading=await frame.getByText('For UPI payment',{exact:true}).boundingBox();const signingHeading=await frame.getByText('For SEIKO Tailors',{exact:true}).boundingBox();assert.ok(Math.abs(bankHeading.y-upiHeading.y)<2&&Math.abs(bankHeading.y-signingHeading.y)<2);
+ const bankHeading=await frame.getByText('For bank transfer',{exact:true}).boundingBox();const upiHeading=await frame.getByText('For UPI payment',{exact:true}).boundingBox();const signingHeading=await frame.getByText('For SEIKO Tailors',{exact:true}).boundingBox();const ackHeading=await frame.locator('.acknowledgement').boundingBox();const closing=await frame.locator('.closingGrid').boundingBox();assert.ok(Math.abs(bankHeading.y-upiHeading.y)<2,'bank and UPI positions stay unchanged');assert.ok(signingHeading.x>ackHeading.x+ackHeading.width&&signingHeading.y>closing.y+12,'supplier signing stays at the right, inset from the separator');assert.match(await frame.getByAltText('SEIKO Tailors',{exact:true}).getAttribute('src'),/seiko-logo-document.svg$/);assert.equal(await frame.getByAltText('SEIKO Tailors',{exact:true}).evaluate(image=>{const canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0);return ctx.getImageData(2,2,1,1).data[3];}),0,'Logo background is transparent in the actual image, including canvas/PDF rendering');
  assert.match(await frame.locator('body').innerText(),/Payment due[\s\S]*31 Jan 2027/);
  assert.equal(await frame.getByAltText('Authorised signature').count(),1);
   {const qrImage=frame.getByAltText('UPI payment QR');const qr=await qrImage.boundingBox();const upi=await frame.getByText('UPI ID: sample@upi',{exact:true}).boundingBox();assert.ok(qr&&upi&&Math.abs(qr.width-qr.height)<1&&qr.y>=upi.y+upi.height&&Math.abs((qr.x+qr.width/2)-(upi.x+upi.width/2))<2);assert.equal(await qrImage.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');assert.equal(await qrImage.evaluate(el=>getComputedStyle(el).padding),'0px');}
@@ -105,7 +106,7 @@ module.exports=async({page,navigate,sqlite,base,printing})=>{
  short.lines=Array.from({length:60},(_,i)=>({...short.lines[0],id:'long-'+i}));await sheet.setContent(printing.billingPrintHtml(short,[],'both'));await sheet.evaluate(`(${printing.fitBillingCopies.toString()})({contentDocument:document},'both')`);assert.equal(await sheet.locator('body').getAttribute('class'),'separate','long invoices retain safe page fallback');await fitContext.close();
 assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
  assert.equal(document.clientContactPerson,'Sample contact');assert.equal(document.signatory.name,'Sample Signatory');
- await preview.getByRole('button',{name:'Amend document',exact:true}).click();
+ if(!await preview.getByRole('button',{name:'Amend document',exact:true}).isVisible())await preview.getByText('Document actions',{exact:true}).click();await preview.getByRole('button',{name:'Amend document',exact:true}).click();
  const amendment=page.getByRole('dialog',{name:'Amend invoice',exact:true});
  const notes='Package contents updated: 2 shirts, 2 pants, 1 T-shirt and 1 track pant.';
  await amendment.getByLabel('Client name *',{exact:true}).fill('Amended school');
@@ -136,9 +137,9 @@ assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
  assert.equal(amended.clientContactPerson,'Amended contact');assert.equal(amended.clientAddress,'Amended school address');
  await frame.getByText('Amended school',{exact:true}).waitFor();
  await frame.getByText('9876543210',{exact:true}).waitFor();
- await preview.getByRole('button',{name:'Updated invoice',exact:true}).click();
+ if(!await preview.getByRole('button',{name:'Updated invoice',exact:true}).isVisible())await preview.getByText('Document actions',{exact:true}).click();await preview.getByRole('button',{name:'Updated invoice',exact:true}).click();
  await frame.getByText('9876543210',{exact:true}).waitFor();
- await preview.getByRole('button',{name:'Amend document',exact:true}).click();
+ if(!await preview.getByRole('button',{name:'Amend document',exact:true}).isVisible())await preview.getByText('Document actions',{exact:true}).click();await preview.getByRole('button',{name:'Amend document',exact:true}).click();
  assert.equal(await amendment.getByLabel('Client phone *',{exact:true}).inputValue(),'9876543210');
  assert.equal(await amendment.getByLabel('Client name *',{exact:true}).inputValue(),'Amended school');
  await amendment.getByRole('button',{name:'Cancel',exact:true}).click();
@@ -147,7 +148,7 @@ assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
  // A fresh server revision must be fetched by Updated invoice, even if no receipt is open.
  amended.notes='Newer invoice notes from shared storage.';amended.revision=2;
  sqlite.prepare('UPDATE seiko_billing_documents SET data=? WHERE id=?').run(JSON.stringify(amended),document.id);
- await preview.getByRole('button',{name:'Updated invoice',exact:true}).click();
+ if(!await preview.getByRole('button',{name:'Updated invoice',exact:true}).isVisible())await preview.getByText('Document actions',{exact:true}).click();await preview.getByRole('button',{name:'Updated invoice',exact:true}).click();
  await frame.getByText(amended.notes,{exact:true}).waitFor();
  if(process.env.BILLING_ASSET_SCREENSHOTS)await preview.screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/invoice-amendment-fixed.png'});
 
