@@ -41,6 +41,7 @@ export function SeikoPhase2() {
   const businessId = "seiko";
   const orders = useCachedOrders(businessId);
   const [view, setView] = useState<Phase2View>(null);
+  useEffect(()=>{if(new URLSearchParams(window.location.search).get("screen")==="billing")setView("billing");},[]);
   const [reviewingOrder,setReviewingOrder]=useState(false);
   useEffect(()=>{const open=()=>setReviewingOrder(true),resume=()=>setReviewingOrder(false);window.addEventListener("seiko:open-order-service",open);window.addEventListener("seiko:resume-billing",resume);return()=>{window.removeEventListener("seiko:open-order-service",open);window.removeEventListener("seiko:resume-billing",resume);};},[]);
   const [billingAction, setBillingAction] = useState<"payment" | "payments" | "invoice" | "quotation" | "challan" | null>(null);
