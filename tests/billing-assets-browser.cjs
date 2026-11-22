@@ -87,14 +87,17 @@ module.exports=async({page,navigate,sqlite,base,printing})=>{
  let twoHtml=printing.billingPrintHtml(short,[{id:'fit-payment',invoiceId:short.id,receiptNumber:'RCP-FIT',date:'2026-10-22',amount:30000,mode:'Cash'}],'both');
  twoHtml=twoHtml.replace(/\/api\/erp\/billing-profile\?asset=([a-f0-9-]{36})/g,(_url,id)=>JSON.parse(sqlite.prepare("SELECT value_json FROM erp_preferences WHERE key=?").get('billing.asset.'+id).value_json).image);
  const fitContext=await page.context().browser().newContext();const sheet=await fitContext.newPage();await sheet.setContent(twoHtml,{waitUntil:'load'});await sheet.evaluate(`(${printing.fitBillingCopies.toString()})({contentDocument:document},'both')`);
- assert.equal(await sheet.locator('body').getAttribute('class'),'both');
+ const richCopies=await sheet.locator('body').getAttribute('class');assert.ok(['both','separate'].includes(richCopies));
  const lower=await sheet.locator('.copy').first().evaluate(e=>['.ackLine:last-child','.upiCaption','.signingDate'].map(q=>e.querySelector(q).getBoundingClientRect().bottom));assert.ok(Math.max(...lower)-Math.min(...lower)<2,'acknowledgement date, UPI caption and supplier signing date share a baseline');
  const signSpace=await sheet.locator('.ackSignature').first().boundingBox();assert.ok(signSpace.height>=26,'acknowledgement reserves at least 7mm for a handwritten signature');
  assert.match(await sheet.locator('.acknowledgement').first().innerText(),/^Client acknowledgement/);
  const fit=await sheet.locator('.copy').evaluateAll(es=>es.map(e=>({height:e.getBoundingClientRect().height,overflow:e.scrollHeight-e.clientHeight,footerBottom:e.querySelector('footer').getBoundingClientRect().bottom,bottom:e.getBoundingClientRect().bottom})));
- assert.equal(fit.length,2);for(const copy of fit){assert.ok(copy.height<=562&&copy.overflow<=2&&copy.footerBottom<=copy.bottom+1,JSON.stringify(copy));}
- const pdf=await sheet.pdf({format:'A4',printBackground:true,margin:{top:0,bottom:0,left:0,right:0}});assert.equal((pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)||[]).length,1,'two copies export on exactly one A4 page');
+ assert.equal(fit.length,2);for(const copy of fit){assert.ok(copy.height<=(richCopies==='both'?562:1124)&&copy.overflow<=2&&copy.footerBottom<=copy.bottom+1,JSON.stringify(copy));}
+ const pdf=await sheet.pdf({format:'A4',printBackground:true,margin:{top:0,bottom:0,left:0,right:0}});assert.equal((pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)||[]).length,richCopies==='both'?1:2,'full signed copies use one A4 only when they fit; otherwise each copy gets an A4 page');
  if(process.env.BILLING_ASSET_SCREENSHOTS){await sheet.locator('body').screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/two-copies-one-a4.png'});}
+ // A genuinely short document still fits both copies on one sheet.
+ const compact={...short,clientAddress:'',notes:'',showSignature:false,showStamp:false,showSigningDate:false,signatory:undefined,supplier:{...short.supplier,showBank:false,showUpi:false,showQr:false}};
+ await sheet.setContent(printing.billingPrintHtml(compact,[],'both'),{waitUntil:'load'});await sheet.evaluate(`(${printing.fitBillingCopies.toString()})({contentDocument:document},'both')`);assert.equal(await sheet.locator('body').getAttribute('class'),'both');const compactPdf=await sheet.pdf({format:'A4',printBackground:true,margin:{top:0,bottom:0,left:0,right:0}});assert.equal((compactPdf.toString('latin1').match(/\/Type\s*\/Page\b/g)||[]).length,1,'short two-copy documents export on one A4');
  // Single-copy A4 keeps the table and totals together, leaving spare space before the closing divider.
  let singleHtml=printing.billingPrintHtml(short,[{id:'fit-payment',invoiceId:short.id,receiptNumber:'RCP-FIT',date:'2026-10-22',amount:30000,mode:'Cash'}],'customer');
  singleHtml=singleHtml.replace(/\/api\/erp\/billing-profile\?asset=([a-f0-9-]{36})/g,(_url,id)=>JSON.parse(sqlite.prepare("SELECT value_json FROM erp_preferences WHERE key=?").get('billing.asset.'+id).value_json).image);
