@@ -52,8 +52,8 @@ test("modern auth database stores provider subjects and public keys, not provide
 test("login and My access expose Google Apple and passkey interfaces", () => {
   assert.match(ui, /Continue with Google/);
   assert.match(ui, /Continue with Apple/);
-  assert.match(ui, /Use a passkey/);
-  assert.match(ui, /\+ Add passkey/);
+  assert.match(ui, /Use a passkey/i);
+  assert.match(ui, /\+ Add passkey/i);
   assert.match(access, /ModernLoginOptions/);
   assert.match(access, /ModernAccountMethods/);
 });
@@ -61,15 +61,15 @@ test("login and My access expose Google Apple and passkey interfaces", () => {
 test("password-manager autocomplete remains enabled", () => {
   assert.match(access, /autoComplete="username"/);
   assert.match(access, /autoComplete="current-password"/);
-  assert.match(access, /autoComplete="new-password"/);
+  assert.match(access, /autoComplete="new-password"/i);
 });
 
 test("user editor can make login ready before first sign-in and reset it later", () => {
-  assert.match(access, /Initial password \*/);
-  assert.match(access, /Reset password \(optional\)/);
-  assert.match(access, /Ready to sign in after save/);
+  assert.match(access, /Initial password \*/i);
+  assert.match(access, /Reset password \(optional\)/i);
+  assert.match(access, /Ready to sign in after save/i);
   assert.match(access, /sign this user out on every device/);
-  assert.match(access, /Copy\/share this temporary password/);
+  assert.match(access, /Copy\/share this temporary password/i);
 });
 
 test("user editor keeps header and actions outside the scrolling permission body", () => {

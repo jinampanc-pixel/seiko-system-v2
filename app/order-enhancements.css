@@ -3,7 +3,7 @@
 /* Owner-managed list fields */
 .policyRow:has(.optionEditor){grid-template-columns:minmax(170px,1fr) 138px minmax(220px,1.35fr) auto 28px;align-items:start}
 .optionEditor{display:grid;gap:4px;min-width:0}
-.optionEditor::before{content:"Owner choices · type + Enter · × removes";font-size:9px;font-weight:700;letter-spacing:.02em;color:var(--muted)}
+.optionEditor::before{content:"Owner Choices · Type + Enter · × Removes";font-size:9px;font-weight:700;letter-spacing:.02em;color:var(--muted)}
 .optionEditor>input{box-sizing:border-box;width:100%;height:34px!important}
 .optionChips{display:flex;flex-wrap:wrap;gap:4px;min-height:20px}
 .optionChips>span{display:inline-flex;align-items:center;gap:2px;max-width:100%;padding:1px 2px 1px 7px;border:1px solid var(--line);border-radius:13px;background:color-mix(in srgb,var(--paper) 92%,var(--pale));font-size:10px;color:var(--ink)}

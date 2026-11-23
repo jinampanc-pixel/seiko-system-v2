@@ -15,8 +15,8 @@ const orderCss = read("app/order-enhancements.css");
 const finalCss = read("app/seiko-interface-fixes.css");
 
 test("workspace compact numeric controls commit on Enter", () => {
-  assert.match(orders, /aria-label="Number of rows to add"[\s\S]{0,500}event\.key==="Enter"[\s\S]{0,220}addRecords\(rowsToAdd\)/);
-  assert.match(orders, /aria-label="Rows per page"[\s\S]{0,420}event\.key==="Enter"[\s\S]{0,180}commitPageSize\(\)/);
+  assert.match(orders, /aria-label="Number of rows to add"[\s\S]{0,500}event\.key==="Enter"[\s\S]{0,220}addRecords\(rowsToAdd\)/i);
+  assert.match(orders, /aria-label="Rows per page"[\s\S]{0,420}event\.key==="Enter"[\s\S]{0,180}commitPageSize\(\)/i);
   assert.match(orderCss, /workspaceAddTools \.rowCountControl/);
 });
 
@@ -58,7 +58,7 @@ test("order product hover popout closes deterministically and cannot leak into W
 test("Label Information contains only configured product fields and no synthetic applicable-product slots", () => {
   assert.doesNotMatch(labelDesigner, /Applicable product/);
   assert.doesNotMatch(labelDesigner, /packageSlots/);
-  assert.match(labelDesigner, /product_name:\$\{product\.id\}/);
+  assert.match(labelDesigner, /product_name:\$\{product\.id\}/i);
   assert.match(labelDesigner, /product_quantity:\$\{product\.id\}/);
   assert.match(labelDesigner, /filter\(item => !item\.field\?\.startsWith\("package_product:"\)\)/);
 });
@@ -81,10 +81,10 @@ test("React is the sole pointer owner for label dragging", () => {
 
 test("label canvas restores passive Drop to remove without taking over React movement", () => {
   assert.match(labelInteractions, /labelCanvasDropRemove/);
-  assert.match(labelInteractions, /Drop to remove/);
+  assert.match(labelInteractions, /Drop to remove/i);
   assert.match(labelInteractions, /window\.addEventListener\("pointermove", trackRemoveDrag, true\)/);
   assert.match(labelInteractions, /pointInside\(removeZone, event\.clientX, event\.clientY\)/);
-  assert.match(labelInteractions, /aria-label="Remove selected element"/);
+  assert.match(labelInteractions, /aria-label="Remove selected element"/i);
   assert.match(labelInteractions, /remove\?\.click\(\)/);
   assert.doesNotMatch(labelInteractions, /update\([^\n]*\{ x, y \}/);
 });
@@ -138,7 +138,7 @@ test("normal Print opens native browser print with calibrated output and no inte
 });
 
 test("Order Setup returns to the page it was opened from", () => {
-  assert.match(orders, /setView\(existingOrder \? setupReturnView : "workspace"\)/);
+  assert.match(orders, /setView\(existingOrder \? setupReturnView : "workspace"\)/i);
   assert.match(orders, /onClick=\{onCancel\}>← Back/);
   assert.match(orders, /screenBack\(\)/);
 });

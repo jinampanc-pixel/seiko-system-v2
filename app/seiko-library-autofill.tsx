@@ -40,10 +40,10 @@ export function SeikoLibraryAutofill() {
       clientInput.addEventListener("change", () => {
         const record = readClients().find(item => !item.archived && item.name.trim().toLowerCase() === clientInput.value.trim().toLowerCase());
         if (!record) return;
-        setInput(inputByLabel(root, "Contact person"), record.contactPerson);
-        setInput(inputByLabel(root, "Phone number"), record.phone);
-        setInput(inputByLabel(root, "Delivery address"), record.deliveryAddress);
-        setInput(inputByLabel(root, "Billing address"), record.billingAddress);
+        setInput(inputByLabel(root, "Contact Person"), record.contactPerson);
+        setInput(inputByLabel(root, "Phone Number"), record.phone);
+        setInput(inputByLabel(root, "Delivery Address"), record.deliveryAddress);
+        setInput(inputByLabel(root, "Billing Address"), record.billingAddress);
       });
     });
     return () => controller.stop();

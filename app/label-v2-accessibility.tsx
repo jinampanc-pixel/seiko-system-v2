@@ -12,7 +12,7 @@ function enhance() {
   document.querySelectorAll<HTMLElement>(".labelDesignerV2 .labelV2ResizeHandle").forEach(handle => {
     handle.setAttribute("role", "button");
     handle.setAttribute("tabindex", "-1");
-    handle.setAttribute("aria-label", "Resize selected label element");
+    handle.setAttribute("aria-label", "Resize Selected Label Element");
   });
 }
 

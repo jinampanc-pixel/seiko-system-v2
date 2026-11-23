@@ -9,7 +9,7 @@ function sourceMode() {
 function tidyTopActions(page: HTMLElement) {
 
   const print = Array.from(page.querySelectorAll<HTMLButtonElement>(".labelTopbar button.primary"))
-    .find(item => item.textContent?.includes("Print"));
+    .find(item => item.textContent?.toLowerCase().includes("print"));
   if (print) {
     print.textContent = "Print";
     print.title = "Print the selected labels. Your browser print dialog can also save them as PDF.";
@@ -20,16 +20,16 @@ function tidyTopActions(page: HTMLElement) {
   if (saveBar && !meaning) {
     meaning = document.createElement("p");
     meaning.className = "labelSaveMeaning";
-    meaning.innerHTML = "<b>Layout</b> saves the reusable physical design, size, components and placement. <b>Label set</b> saves this order's selected records for repeat printing.";
+    meaning.innerHTML = "<b>Layout</b> saves the reusable physical design, size, components and placement. <b>Label Set</b> saves this order's selected records for repeat printing.";
     saveBar.insertAdjacentElement("afterend", meaning);
   }
   if (saveBar) {
     Array.from(saveBar.querySelectorAll<HTMLButtonElement>("button")).forEach(button => {
       const text = button.textContent?.trim() || "";
-      if (text.startsWith("Save batch")) { button.textContent = "Save label set"; button.classList.remove("textButton"); button.classList.add("primary", "labelSetSave"); }
-      if (text.startsWith("Update batch")) { button.textContent = "Update label set"; button.classList.remove("textButton"); button.classList.add("primary", "labelSetSave"); }
-      if (text.startsWith("Batches")) button.childNodes[0].textContent = "Saved sets ";
-      if (text.startsWith("Layouts")) button.childNodes[0].textContent = "Layout Library ";
+      if ((text).toLowerCase().startsWith("save batch")) { button.textContent = "Save Label Set"; button.classList.remove("textButton"); button.classList.add("primary", "labelSetSave"); }
+      if ((text).toLowerCase().startsWith("update batch")) { button.textContent = "Update Label Set"; button.classList.remove("textButton"); button.classList.add("primary", "labelSetSave"); }
+      if ((text).toLowerCase().startsWith("batches")) button.childNodes[0].textContent = "Saved Sets ";
+      if ((text).toLowerCase().startsWith("layouts")) button.childNodes[0].textContent = "Layout Library ";
     });
   }
 
@@ -37,9 +37,9 @@ function tidyTopActions(page: HTMLElement) {
     const eyebrow = library.querySelector<HTMLElement>(".eyebrow");
     const heading = library.querySelector<HTMLElement>("h3");
     const empty = library.querySelector<HTMLElement>(".emptyLibrary");
-    if (eyebrow?.textContent?.includes("BATCH")) eyebrow.textContent = "SAVED LABEL SETS";
-    if (heading?.textContent?.includes("batches")) heading.textContent = "Saved label sets for this order";
-    if (empty?.textContent?.includes("batches")) empty.textContent = "No saved label sets yet. Select the labels you need, then choose Save label set.";
+    if (eyebrow?.textContent?.toLowerCase().includes("batch")) eyebrow.textContent = "SAVED LABEL SETS";
+    if (heading?.textContent?.toLowerCase().includes("batches")) heading.textContent = "Saved Label Sets for This Order";
+    if (empty?.textContent?.toLowerCase().includes("batches")) empty.textContent = "No saved label sets yet. Select the labels you need, then choose Save Label Set.";
   });
   page.querySelectorAll<HTMLElement>(".labelSaveNotice").forEach(notice => {
     notice.textContent = notice.textContent?.replace(/Batch/gi, "Label set") || "";
@@ -56,10 +56,10 @@ function forceInteractiveCanvas(page: HTMLElement) {
 }
 
 function groupForLabel(label: string) {
-  if (label.startsWith("Person detail ·")) return "Person details";
-  if (/^(Trace code|Label number|Person number|Product number|Number within|Piece \/ pair|Package \/ set)/i.test(label)) return "Trace & codes";
-  if (/^Applicable product \d+ ·/i.test(label) || label.includes(" · ")) return "Product details";
-  return "Core information";
+  if ((label).toLowerCase().startsWith("person detail ·")) return "Person Details";
+  if (/^(Trace code|Label number|Person number|Product number|Number within|Piece \/ pair|Package \/ set)/i.test(label)) return "Trace & Codes";
+  if (/^Applicable product \d+ ·/i.test(label) || (label).toLowerCase().includes(" · ")) return "Product Details";
+  return "Core Information";
 }
 
 function refreshFieldHeadings(checklist: HTMLElement) {
@@ -74,7 +74,7 @@ function renameShowFieldControl(choice: HTMLElement) {
   const showName = choice.querySelector<HTMLLabelElement>(".showName");
   if (!showName) return;
   Array.from(showName.childNodes).forEach(node => {
-    if (node.nodeType === Node.TEXT_NODE && /Show name/i.test(node.textContent || "")) node.textContent = " Show field name";
+    if (node.nodeType === Node.TEXT_NODE && /Show name/i.test(node.textContent || "")) node.textContent = " Show Field Name";
   });
 }
 
@@ -88,7 +88,7 @@ function organizeInformation(page: HTMLElement) {
     section.classList.add("labelInfoCollapsed");
     const heading = section.querySelector<HTMLElement>(".simpleDesignerHead h3");
     const note = section.querySelector<HTMLElement>(".simpleDesignerHead small");
-    if (heading) heading.textContent = "Label information";
+    if (heading) heading.textContent = "Label Information";
     if (note) note.textContent = "Choose the details that should appear on this label.";
 
     const chosenCount = () => section.querySelectorAll(".labelInfoSelectedStripReact .labelInfoChip").length || checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
@@ -108,13 +108,13 @@ function organizeInformation(page: HTMLElement) {
     const searchToggle = document.createElement("button");
     searchToggle.type = "button";
     searchToggle.className = "labelInfoSearchToggle";
-    searchToggle.setAttribute("aria-label", "Search label information");
+    searchToggle.setAttribute("aria-label", "Search Label Information");
     searchToggle.textContent = "⌕";
     const search = document.createElement("input");
     search.type = "search";
     search.hidden = true;
     search.placeholder = "Search fields…";
-    search.setAttribute("aria-label", "Find label information");
+    search.setAttribute("aria-label", "Find Label Information");
     tools.append(searchToggle, search);
     checklist.insertAdjacentElement("beforebegin", tools);
     searchToggle.addEventListener("click", () => {
@@ -152,7 +152,7 @@ function organizeInformation(page: HTMLElement) {
       lastSubGroup = "";
     }
     const subGroup = choice.dataset.productDetailGroup || "";
-    if (group === "Product details" && subGroup && subGroup !== lastSubGroup) {
+    if (group === "Product Details" && subGroup && subGroup !== lastSubGroup) {
       const subHeading = document.createElement("div");
       subHeading.className = "fieldSubGroupHeading";
       subHeading.textContent = subGroup;
@@ -249,7 +249,7 @@ function manageSetupDrawers(page: HTMLElement) {
   if (!setup) return;
   const labels = Array.from(setup.querySelectorAll<HTMLLabelElement>(":scope > label"));
   const identityLabel = labels[0];
-  const sizeLabel = labels.find(label => label.querySelector(":scope > span")?.textContent?.trim() === "Label size");
+  const sizeLabel = labels.find(label => label.querySelector(":scope > span")?.textContent?.trim() === "Label Size");
 
   const personPlan = page.querySelector<HTMLElement>(".personPackageSetup");
   const groupPlan = page.querySelector<HTMLElement>(".packageGrouping");
@@ -260,7 +260,7 @@ function manageSetupDrawers(page: HTMLElement) {
       const wrap = document.createElement("span");
       wrap.className = "labelInlineActions labelContextSettings";
       identityLabel.appendChild(wrap);
-      const name = personPlan ? "Package settings" : "Grouping settings";
+      const name = personPlan ? "Package Settings" : "Grouping Settings";
       addInlineButton(wrap, "labelContextSettingsButton", name, () => {
         contextPlan.classList.toggle("labelInlineConfiguratorOpen");
       });
@@ -275,15 +275,15 @@ function manageSetupDrawers(page: HTMLElement) {
       actions = document.createElement("span");
       actions.className = "labelInlineActions labelSizeActions";
       sizeLabel.appendChild(actions);
-      addInlineButton(actions, "labelAddSize", "+ New size", () => {
+      addInlineButton(actions, "labelAddSize", "+ New Size", () => {
         page.querySelector<HTMLButtonElement>(".canvasSizeButton")?.click();
       });
       addInlineButton(actions, "labelRemoveSize", "Remove", () => {
-        page.querySelector<HTMLButtonElement>('.labelSetup .iconButton[aria-label="Remove selected size preset"]')?.click();
+        page.querySelector<HTMLButtonElement>('.labelSetup .iconButton[aria-label="Remove selected size preset" i]')?.click();
       });
     }
     const remove = actions.querySelector<HTMLButtonElement>(".labelRemoveSize");
-    if (remove) remove.disabled = !page.querySelector('.labelSetup .iconButton[aria-label="Remove selected size preset"]');
+    if (remove) remove.disabled = !page.querySelector('.labelSetup .iconButton[aria-label="Remove selected size preset" i]');
   }
 
 }
@@ -308,8 +308,8 @@ function tidyRecordLabels(page: HTMLElement) {
     const parts = raw.split(" — ").map(part => part.trim()).filter(Boolean);
     if (mode === "product" && parts.length >= 2 && parts[0] === parts[1]) title.textContent = parts[0];
     else if (mode === "person" && parts.length >= 2) title.textContent = parts[0];
-    else if (mode === "order") title.textContent = parts[0] || "Whole order";
-    if (mode === "product" && meta?.textContent?.startsWith("Product total")) meta.textContent = meta.textContent.replace(/^Product total\s*·?\s*/, "");
+    else if (mode === "order") title.textContent = parts[0] || "Whole Order";
+    if (mode === "product" && meta?.textContent?.toLowerCase().startsWith("product total")) meta.textContent = meta.textContent.replace(/^Product total\s*·?\s*/i, "");
   });
 }
 

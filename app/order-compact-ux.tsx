@@ -22,17 +22,17 @@ function labelText(label: HTMLLabelElement) {
 function markClientFields() {
   document.querySelectorAll<HTMLLabelElement>(".orderSetup .clientDetails .setupGrid label").forEach(label => {
     const name = labelText(label);
-    if (name === "Phone number") label.classList.add("clientPhoneField");
-    if (name === "Delivery address" || name === "Billing address") {
+    if (name === "Phone Number") label.classList.add("clientPhoneField");
+    if (name === "Delivery Address" || name === "Billing Address") {
       label.classList.add("clientLongField");
 
     }
-    if (name === "Client name" || name === "Contact person / Attn") label.classList.add("clientFlexibleField");
+    if (name === "Client Name" || name === "Contact Person / Attn") label.classList.add("clientFlexibleField");
   });
 }
 
 function upgradeSpecificationFreeText() {
-  document.querySelectorAll<HTMLInputElement>('.orderSetup .specPolicy > input:not([aria-label="Order or default value"])').forEach(input => {
+  document.querySelectorAll<HTMLInputElement>('.orderSetup .specPolicy > input:not([aria-label="Order or default value" i])').forEach(input => {
     if (input.dataset.adaptiveTextReady === "true") return;
     input.dataset.adaptiveTextReady = "true";
     const wrapper = document.createElement("div");
@@ -41,7 +41,7 @@ function upgradeSpecificationFreeText() {
     textarea.rows = 1;
     textarea.value = input.value;
     textarea.placeholder = input.placeholder;
-    textarea.setAttribute("aria-label", "Specification name");
+    textarea.setAttribute("aria-label", "Specification Name");
     input.classList.add("adaptiveNativeInput");
     input.tabIndex = -1;
     input.insertAdjacentElement("afterend", wrapper);

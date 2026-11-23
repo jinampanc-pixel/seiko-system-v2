@@ -172,9 +172,9 @@ function ensureSelection(page: HTMLElement) {
     const corner = document.createElement("button");
     corner.type = "button";
     corner.className = "workspaceSelectCorner";
-    corner.setAttribute("aria-label", "Select all visible rows");
+    corner.setAttribute("aria-label", "Select All Visible Rows");
     corner.setAttribute("aria-pressed", "false");
-    corner.title = "Select all visible rows";
+    corner.title = "Select All Visible Rows";
     corner.addEventListener("click", () => {
       const ids = rows(page).map(rowId).filter(Boolean);
       const allSelected = ids.length > 0 && ids.every(id => selectedRows.has(id));
@@ -224,7 +224,7 @@ function ensureReadiness(page: HTMLElement) {
   if (!readiness) return;
   readiness.classList.add("workspaceReadinessCompact");
   const summary = readiness.querySelector<HTMLDetailsElement>("details")?.querySelector("summary");
-  if (summary) summary.textContent = "Review issues";
+  if (summary) summary.textContent = "Review Issues";
 }
 
 function enhance() {
@@ -267,7 +267,7 @@ export function WorkspaceRowActions() {
         return;
       }
       const page = addButton.closest<HTMLElement>(".workspacePage");
-      const input = page?.querySelector<HTMLInputElement>('input[aria-label="Number of rows to add"]');
+      const input = page?.querySelector<HTMLInputElement>('input[aria-label="Number of rows to add" i]');
       const count = Math.max(1, Math.floor(Number(input?.value) || 1));
       if (count <= 1) return;
       event.preventDefault();

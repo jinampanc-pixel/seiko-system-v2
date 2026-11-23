@@ -27,7 +27,7 @@ function relabelBoldControls(page: HTMLElement) {
   page.querySelectorAll<HTMLLabelElement>(".packingInfoGrid .fieldChoice .showName").forEach(label => {
     if (label.textContent?.trim() !== "Bold") return;
     const textNode = Array.from(label.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
-    if (textNode) textNode.textContent = " Value bold";
+    if (textNode) textNode.textContent = " Value Bold";
   });
 }
 
@@ -83,7 +83,7 @@ function fitScaledPreviewText(element: HTMLElement, scale: number) {
 
 function applyValueBold(element: HTMLElement) {
   const text = element.textContent || "";
-  const isSingleLine = !text.includes("\n");
+  const isSingleLine = !(text).toLowerCase().includes("\n");
   const separator = text.indexOf(": ");
   const alreadyApplied = element.dataset.valueBoldApplied === "true" && element.dataset.valueBoldText === text;
   const spans = element.querySelectorAll(":scope > span");
@@ -189,7 +189,7 @@ function ensureInspector(page: HTMLElement) {
     fitButton = document.createElement("button");
     fitButton.type = "button";
     fitButton.className = "secondary packingFitBoxButton";
-    fitButton.textContent = "Fit box to text";
+    fitButton.textContent = "Fit Box to Text";
     fitButton.title = "Tighten the field area around the current text so it can move farther to the edge.";
     fitButton.addEventListener("click", () => requestAnimationFrame(() => fitSelectedBox(page, false)));
     controls.appendChild(fitButton);
@@ -255,7 +255,7 @@ function openSavedLibrary(page: HTMLElement, kind: "sets" | "layouts") {
 
   const layer = document.createElement("div");
   layer.className = "packingRuntimeLayer";
-  layer.innerHTML = `<section class="packingRuntimeDialog"><header><div><p class="eyebrow">${kind === "sets" ? "SAVED LABEL SETS" : "SAVED LAYOUTS"}</p><h3>${kind === "sets" ? `This order · ${escapeHtml(orderNo)}` : "Reusable label layouts"}</h3></div><button type="button" class="secondary packingRuntimeClose">Done</button></header><div class="packingLibraryList">${items.length ? items.map(item => `<article class="packingLibraryRow"><div><b>${escapeHtml(item.name || (kind === "sets" ? "Saved label set" : "Saved layout"))}</b><small>${kind === "sets" ? `${escapeHtml(item.orderNo || orderNo)} · ${Array.isArray(item.selectedRows) ? item.selectedRows.length : 0} labels` : `${escapeHtml(item.clientType || "Reusable")} · ${escapeHtml(item.purpose || "label")}`}</small></div><button type="button" class="secondary packingLibraryOpen" data-library-id="${escapeHtml(item.id)}">${kind === "sets" ? "Open" : "Use"}</button></article>`).join("") : `<p class="packingLibraryEmpty">${kind === "sets" ? "No saved label sets for this order yet." : "No saved layouts yet."}</p>`}</div></section>`;
+  layer.innerHTML = `<section class="packingRuntimeDialog"><header><div><p class="eyebrow">${kind === "sets" ? "SAVED LABEL SETS" : "SAVED LAYOUTS"}</p><h3>${kind === "sets" ? `This order · ${escapeHtml(orderNo)}` : "Reusable Label Layouts"}</h3></div><button type="button" class="secondary packingRuntimeClose">Done</button></header><div class="packingLibraryList">${items.length ? items.map(item => `<article class="packingLibraryRow"><div><b>${escapeHtml(item.name || (kind === "sets" ? "Saved label set" : "Saved layout"))}</b><small>${kind === "sets" ? `${escapeHtml(item.orderNo || orderNo)} · ${Array.isArray(item.selectedRows) ? item.selectedRows.length : 0} labels` : `${escapeHtml(item.clientType || "Reusable")} · ${escapeHtml(item.purpose || "label")}`}</small></div><button type="button" class="secondary packingLibraryOpen" data-library-id="${escapeHtml(item.id)}">${kind === "sets" ? "Open" : "Use"}</button></article>`).join("") : `<p class="packingLibraryEmpty">${kind === "sets" ? "No saved label sets for this order yet." : "No saved layouts yet."}</p>`}</div></section>`;
   document.body.appendChild(layer);
   layer.querySelector(".packingRuntimeClose")?.addEventListener("click", closeRuntimeLayer);
   layer.addEventListener("pointerdown", event => { if (event.target === layer) closeRuntimeLayer(); });
@@ -312,11 +312,11 @@ function ensureMenuLibraries(page: HTMLElement) {
   const savedSets = document.createElement("button");
   savedSets.type = "button";
   savedSets.className = "packingSavedSetsMenu";
-  savedSets.textContent = "Saved label sets";
+  savedSets.textContent = "Saved Label Sets";
   savedSets.addEventListener("click", () => openSavedLibrary(page, "sets"));
   const savedLayouts = document.createElement("button");
   savedLayouts.type = "button";
-  savedLayouts.textContent = "Saved layouts";
+  savedLayouts.textContent = "Saved Layouts";
   savedLayouts.addEventListener("click", () => openSavedLibrary(page, "layouts"));
   menu.append(divider, savedSets, savedLayouts);
 }
@@ -366,16 +366,16 @@ function updateReadiness(page: HTMLElement) {
   value("order", orderNo || "Current order");
   value("labels", `${labels} label${labels === 1 ? "" : "s"}`);
   value("size", size.replace(/ label$/i, ""));
-  value("fields", fields.filter(field => field !== "Package contents").join(", ") || "None");
+  value("fields", fields.filter(field => field !== "Package Contents").join(", ") || "None");
   value("products", productVisible ? productSummary : "Not included on this label set");
   value("rules", productVisible && conditional ? conditional : "—");
 
   panel.classList.toggle("confirmed", confirmed);
   const state = panel.querySelector<HTMLElement>(".packingReadinessState");
-  if (state) state.textContent = confirmed ? "Confirmed · ready to print" : "Review and confirm before printing";
+  if (state) state.textContent = confirmed ? "Confirmed · Ready to Print" : "Review and Confirm Before Printing";
   const confirm = panel.querySelector<HTMLButtonElement>(".packingConfirmSet");
   if (confirm) {
-    confirm.textContent = confirmed ? "Label set confirmed" : "Confirm label set";
+    confirm.textContent = confirmed ? "Label Set Confirmed" : "Confirm Label Set";
     confirm.disabled = confirmed || labels < 1 || fields.length < 1;
   }
   const print = page.querySelector<HTMLButtonElement>(".labelTopbar .primary");
@@ -391,7 +391,7 @@ function ensureReadiness(page: HTMLElement) {
   if (!panel) {
     panel = document.createElement("section");
     panel.className = "panel packingReadinessPanel";
-    panel.innerHTML = '<div class="packingReadinessHead"><div><p class="eyebrow">LABEL SET BRIEF</p><h3>Ready-check before printing</h3><p class="packingReadinessState">Review and confirm before printing</p></div><button type="button" class="primary packingConfirmSet">Confirm label set</button></div><div class="packingReadinessGrid"><div><span>Order</span><b data-ready-value="order"></b></div><div><span>Labels</span><b data-ready-value="labels"></b></div><div><span>Label size</span><b data-ready-value="size"></b></div><div><span>Information</span><b data-ready-value="fields"></b></div><div><span>Product details</span><b data-ready-value="products"></b></div><div><span>Conditional rules</span><b data-ready-value="rules"></b></div></div>';
+    panel.innerHTML = '<div class="packingReadinessHead"><div><p class="eyebrow">LABEL SET BRIEF</p><h3>Ready-check Before Printing</h3><p class="packingReadinessState">Review and confirm before printing</p></div><button type="button" class="primary packingConfirmSet">Confirm label set</button></div><div class="packingReadinessGrid"><div><span>Order</span><b data-ready-value="order"></b></div><div><span>Labels</span><b data-ready-value="labels"></b></div><div><span>Label size</span><b data-ready-value="size"></b></div><div><span>Information</span><b data-ready-value="fields"></b></div><div><span>Product details</span><b data-ready-value="products"></b></div><div><span>Conditional rules</span><b data-ready-value="rules"></b></div></div>';
     const grid = page.querySelector(".packingDesignerGrid");
     if (grid) grid.insertAdjacentElement("beforebegin", panel);
     panel.querySelector(".packingConfirmSet")?.addEventListener("click", () => {

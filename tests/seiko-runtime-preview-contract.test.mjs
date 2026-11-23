@@ -52,7 +52,7 @@ test("Order Center status remains visible beside the contextual menu", () => {
 
 test("Home Clear filters resets all active order-filter state", () => {
   assert.match(home, /const clearFilters=\(\)=>\{setQuery\(""\);setStatus\(""\);setClientType\(""\);setProduct\(""\);\};/);
-  assert.match(home, /aria-label="Clear all order filters" onClick=\{clearFilters\}>Clear filters/);
+  assert.match(home, /aria-label="Clear all order filters" onClick=\{clearFilters\}>Clear filters/i);
 });
 
 test("Label Center rows open directly and action menus float above the list", () => {
@@ -94,7 +94,7 @@ test("main menu and settings keep access inside a stable full-height structure",
   assert.match(access, /moduleMenu \.moduleMenuSettings/);
   assert.match(access, /jinam:open-access/);
   assert.match(page, /settingsModuleNav/);
-  assert.match(page, /Users & access/);
+  assert.match(page, /Users & access/i);
   assert.doesNotMatch(home, /<div><small>SEIKO<\/small><h1>Home<\/h1>/);
 });
 
@@ -106,7 +106,7 @@ test("settings dialog has one React owner rather than overlapping injected modul
 });
 
 test("saved label sets expose calibrated print and explicit shared list actions", () => {
-  assert.match(listCenter, /Open \/ edit/);
+  assert.match(listCenter, /Open \/ edit/i);
   assert.match(listCenter, /print\.textContent="Print"/);
   assert.doesNotMatch(listCenter, /pdf\.textContent="Save PDF"/);
   assert.match(read("app/saved-output-record.tsx"), /confirm-printed/);

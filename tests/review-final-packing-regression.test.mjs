@@ -8,7 +8,7 @@ const designer = fs.readFileSync(new URL("../app/physical-label-canvas.tsx", imp
 
 test("font resizing never changes a field's x or y position", () => {
   const apply = runtime.match(/function applyFontGrowth\([\s\S]*?\nfunction tightenSelected/)?.[0] || "";
-  assert.match(apply, /font-size/);
+  assert.match(apply, /font-size/i);
   assert.doesNotMatch(apply, /ArrowLeft|ArrowUp|translate|style\.left|style\.top|nudgeSelected/);
   assert.doesNotMatch(apply, /setReactInput\(fresh\.width|setReactInput\(fresh\.height/);
 });

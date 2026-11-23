@@ -81,8 +81,8 @@ function enhanceOrderMenu() {
   document.querySelectorAll<HTMLElement>(".workspacePage .orderActionMenu").forEach(menu => {
     if (menu.dataset.labelPurposeMenuReady === "true") return;
 
-    const printButton = buttonByText(menu, "Print labels");
-    const editButton = buttonByText(menu, "Edit setup");
+    const printButton = buttonByText(menu, "Print Labels");
+    const editButton = buttonByText(menu, "Edit Setup");
     const sectionLabel = Array.from(menu.querySelectorAll<HTMLElement>(".orderMenuSectionLabel")).find(item => item.textContent?.trim() === "Create label");
     const purposeButtons = Array.from(menu.querySelectorAll<HTMLButtonElement>(".orderMenuIndented"));
     if (!printButton || !editButton || !sectionLabel || purposeButtons.length < 3) return;
@@ -92,8 +92,8 @@ function enhanceOrderMenu() {
     const secondDivider = dividers[1];
     if (!firstDivider || !secondDivider) return;
 
-    const createGroup = makePurposeGroup("Create labels", "create", menu, printButton);
-    const printGroup = makePurposeGroup("Print labels", "print", menu, printButton);
+    const createGroup = makePurposeGroup("Create Labels", "create", menu, printButton);
+    const printGroup = makePurposeGroup("Print Labels", "print", menu, printButton);
 
     sectionLabel.hidden = true;
     printButton.hidden = true;
@@ -117,7 +117,7 @@ function enhanceLabelLauncher() {
     const eyebrow = head?.querySelector<HTMLElement>(".eyebrow");
     const heading = head?.querySelector<HTMLElement>("h2");
     if (eyebrow && eyebrow.textContent !== "LABEL CENTER") eyebrow.textContent = "LABEL CENTER";
-    if (heading && heading.textContent !== "Labels & printing") heading.textContent = "Labels & printing";
+    if (heading && heading.textContent !== "Labels & printing") heading.textContent = "Labels & Printing";
 
     let headActions = head?.querySelector<HTMLElement>(".labelLauncherHeadActions");
     if (head && !headActions) {
@@ -129,7 +129,7 @@ function enhanceLabelLauncher() {
       const create = document.createElement("button");
       create.type = "button";
       create.className = "primary labelCreateNewTab";
-      create.textContent = "+ Create labels";
+      create.textContent = "+ Create Labels";
       create.title = "Create labels in this workspace";
       create.addEventListener("click", () => openCreateWorkspace());
       headActions.appendChild(create);
@@ -137,14 +137,14 @@ function enhanceLabelLauncher() {
 
     const library = page.querySelector<HTMLElement>(".labelBatchModule");
     const libraryHeading = library?.querySelector<HTMLElement>(".labelBatchModuleHead h3");
-    if (libraryHeading && libraryHeading.textContent !== "Saved labels") libraryHeading.textContent = "Saved labels";
-    const libraryFilter = library?.querySelector<HTMLSelectElement>('select[aria-label="Filter label batches"]');
+    if (libraryHeading && libraryHeading.textContent !== "Saved labels") libraryHeading.textContent = "Saved Labels";
+    const libraryFilter = library?.querySelector<HTMLSelectElement>('select[aria-label="Filter label batches" i]');
     if (libraryFilter) {
       ensurePurposeOption(libraryFilter, "inventory", "Inventory");
       const all = Array.from(libraryFilter.options).find(option => option.value === "all");
-      if (all && all.textContent !== "All labels") all.textContent = "All labels";
+      if (all && all.textContent !== "All Labels") all.textContent = "All Labels";
     }
-    const librarySearch = library?.querySelector<HTMLInputElement>('input[aria-label="Find a saved label batch"]');
+    const librarySearch = library?.querySelector<HTMLInputElement>('input[aria-label="Find a saved label batch" i]');
     if (librarySearch) librarySearch.placeholder = "Find saved label, order or client";
     library?.querySelectorAll<HTMLElement>(".emptyLibrary").forEach(empty => {
       const text = empty.textContent?.trim();

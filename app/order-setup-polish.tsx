@@ -20,8 +20,8 @@ function lockIrrelevantDefaults() {
     }
 
     card.querySelectorAll<HTMLElement>(".specPolicy").forEach(row => {
-      const mode = row.querySelector<HTMLSelectElement>('select[aria-label="Value assignment method"]');
-      const value = row.querySelector<HTMLInputElement>('input[aria-label="Order or default value"]');
+      const mode = row.querySelector<HTMLSelectElement>('select[aria-label="Value assignment method" i]');
+      const value = row.querySelector<HTMLInputElement>('input[aria-label="Order or default value" i]');
       if (!mode || !value) return;
       const blocked = mode.value === "by_group" || mode.value === "per_person";
       value.disabled = blocked;

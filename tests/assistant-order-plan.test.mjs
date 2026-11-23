@@ -65,13 +65,13 @@ test('length/waist setup rejects numeric-only format and preserves slash values 
 });
 test('a quantity correction cannot be replaced by a descriptive specification',()=>{
  const order=compile(complex()),p=order.products[8];
- assert.throws(()=>guard.patchAssistantOrder(order,[{path:'/products/8/specifications',value:[...p.specifications,{id:'test-qty-spec',name:'Quantity per girl',role:'attribute',mode:'same_for_all',defaultValue:'1',groupRules:[],required:true,attachments:[]}]}]),/quantity rules/);
+ assert.throws(()=>guard.patchAssistantOrder(order,[{path:'/products/8/specifications',value:[...p.specifications,{id:'test-qty-spec',name:'Quantity per girl',role:'attribute',mode:'same_for_all',defaultValue:'1',groupRules:[],required:true,attachments:[]}]}]),/quantity rules/i);
 });
 test('quantity correction updates the applicable package, preserves rates and individual exceptions',()=>{
  const order=compile(complex()),p=order.products[8],rule=structuredClone(p.quantityGroupRules);rule[0].quantity=1;
  order.records=[{recordId:'exception',personId:'TEST',values:{['product:'+p.id+':assigned_qty']:0}}];
  const change={path:'/products/8/quantityGroupRules',value:rule};
- assert.throws(()=>guard.patchAssistantOrder(order,[change]),/package contents/);
+ assert.throws(()=>guard.patchAssistantOrder(order,[change]),/package contents/i);
  const contents=structuredClone(order.commerce.rules[3].contents);contents.find(c=>c.productId===p.id).quantity=1;
  const next=guard.patchAssistantOrder(order,[change,{path:'/commerce/rules/3/contents',value:contents}]);
  assert.equal(next.commerce.rules[3].rate,1100);assert.equal(JSON.stringify(next.records),JSON.stringify(order.records));

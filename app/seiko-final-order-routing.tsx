@@ -42,7 +42,7 @@ function waitFor<T extends Element>(find: () => T | null, action: (node: T) => v
 function openWorkspace(orderNo: string) {
   clickOrdersModule();
   waitFor(() => orderRow(orderNo), row => {
-    const workspace = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Open workspace");
+    const workspace = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Open Workspace");
     if (workspace) workspace.click();
     else row.querySelector<HTMLButtonElement>(".openOrderButton")?.click();
   });
@@ -54,7 +54,7 @@ function openSetup(orderNo: string) {
     const invoke = () => {
       const menu = row.querySelector<HTMLDetailsElement>(".orderCenterActionMenu,.seikoRowActionMenu");
       const edit = Array.from(row.querySelectorAll<HTMLButtonElement>(".seikoRowActionPanel button,button"))
-        .find(button => button.textContent?.trim() === "Edit setup");
+        .find(button => button.textContent?.trim() === "Edit Setup");
       if (edit) {
         sessionStorage.setItem(SETUP_ORIGIN_KEY, "center");
         if (menu) menu.open = true;
@@ -66,7 +66,7 @@ function openSetup(orderNo: string) {
       open.click();
       waitFor(
         () => Array.from(document.querySelectorAll<HTMLButtonElement>(".workspacePage .orderActionMenu button"))
-          .find(button => button.textContent?.trim() === "Edit setup") || null,
+          .find(button => button.textContent?.trim() === "Edit Setup") || null,
         button => {
           sessionStorage.setItem(SETUP_ORIGIN_KEY, "center");
           button.click();
@@ -89,7 +89,7 @@ function openLabels(orderNo: string) {
     if (menu) menu.open = true;
     waitFor(
       () => Array.from(row.querySelectorAll<HTMLButtonElement>(".seikoRowActionPanel button,button"))
-        .find(button => ["Create labels", "Labels"].includes(button.textContent?.trim() || "")) || null,
+        .find(button => ["Create Labels", "Labels"].includes(button.textContent?.trim() || "")) || null,
       button => button.click(),
     );
   });

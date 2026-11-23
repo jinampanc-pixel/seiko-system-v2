@@ -94,7 +94,7 @@ export function AccessProvider({ children }: { children: ReactNode }) {
     };
     const onChange = (event: Event) => {
       const target = event.target as HTMLSelectElement | null;
-      if (target?.matches('select[aria-label="Active business"], select[aria-label="Switch business"]')) queueMicrotask(syncBusiness);
+      if (target?.matches('select[aria-label="Active business" i], select[aria-label="Switch business" i]')) queueMicrotask(syncBusiness);
     };
     window.addEventListener("storage", syncBusiness);
     document.addEventListener("change", onChange, true);
@@ -134,7 +134,7 @@ export function AccessProvider({ children }: { children: ReactNode }) {
 
   return <AccessContext.Provider value={value}>
     <SharedLabelStorage business={value.businessId} enabled={can("labels.view")}>{children}</SharedLabelStorage>
-    {menuHost && createPortal(<>{!can("users.manage")&&<button type="button" className="nav accessMenuEntry" onClick={() => setPanelOpen(true)}><span>◉</span><small>My access</small></button>}<button type="button" className="nav accessMenuEntry" onClick={() => void logoutSession()}><span>↪</span><small>Sign out</small></button></>, menuHost)}
+    {menuHost && createPortal(<>{!can("users.manage")&&<button type="button" className="nav accessMenuEntry" onClick={() => setPanelOpen(true)}><span>◉</span><small>My Access</small></button>}<button type="button" className="nav accessMenuEntry" onClick={() => void logoutSession()}><span>↪</span><small>Sign Out</small></button></>, menuHost)}
     {panelOpen && <AccessPanel onClose={() => setPanelOpen(false)}/>} 
   </AccessContext.Provider>;
 }
@@ -205,11 +205,11 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
     } finally { setBusy(false); }
   };
 
-  const heading = status === "signed-out" ? "Sign in to your ERP"
-    : status === "change-password" ? "Create your private password"
-      : status === "no-access" ? "Access not assigned"
-        : status === "error" ? "Access check unavailable"
-          : "Verifying access";
+  const heading = status === "signed-out" ? "Sign In to Your ERP"
+    : status === "change-password" ? "Create Your Private Password"
+      : status === "no-access" ? "Access Not Assigned"
+        : status === "error" ? "Access Check Unavailable"
+          : "Verifying Access";
 
   return <div className="accessGate" role="main">
     <div className="accessGateCard">
@@ -220,24 +220,24 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
 
       {status === "signed-out" && <>
         <form className="erpLoginForm" onSubmit={event => { event.preventDefault(); void signIn(); }}>
-          <label><span>Email or phone</span><input autoComplete="username" value={identifier} onChange={event => setIdentifier(event.target.value)} placeholder="Email or mobile number"/></label>
+          <label><span>Email or Phone</span><input autoComplete="username" value={identifier} onChange={event => setIdentifier(event.target.value)} placeholder="Email or mobile number"/></label>
           <label><span>Password</span><input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Password"/></label>
           {formError && <div className="accessError" role="alert">{formError}</div>}
-          {!bootstrapOpen && <button className="primary" type="submit" disabled={busy || !identifier.trim() || !password}>{busy ? "Signing in…" : "Sign in"}</button>}
-          <button type="button" className="secondary" onClick={() => setBootstrapOpen(value => !value)}>{bootstrapOpen ? "First-owner setup (one time)" : "Create first SEIKO owner"}</button>
-          {bootstrapOpen && <div className="bootstrapPanel"><label><span>Owner name</span><input value={bootstrapName} onChange={event => setBootstrapName(event.target.value)} /></label><small>Only works while SEIKO has no active owner. Use the email and password above.</small><button type="button" className="primary" onClick={() => void bootstrap()} disabled={busy || !identifier.trim() || password.length < 12}>Create owner account</button></div>}
+          {!bootstrapOpen && <button className="primary" type="submit" disabled={busy || !identifier.trim() || !password}>{busy ? "Signing In…" : "Sign In"}</button>}
+          <button type="button" className="secondary" onClick={() => setBootstrapOpen(value => !value)}>{bootstrapOpen ? "First-owner Setup (One Time)" : "Create First SEIKO Owner"}</button>
+          {bootstrapOpen && <div className="bootstrapPanel"><label><span>Owner Name</span><input value={bootstrapName} onChange={event => setBootstrapName(event.target.value)} /></label><small>Only works while SEIKO has no active owner. Use the email and password above.</small><button type="button" className="primary" onClick={() => void bootstrap()} disabled={busy || !identifier.trim() || password.length < 12}>Create Owner Account</button></div>}
           <small className="accessLoginHelp">Your administrator creates your account and initial password. Users not listed in the ERP cannot sign in.</small>
         </form>
         <ModernLoginOptions onSignedIn={onRetry}/>
       </>}
 
       {status === "change-password" && <form className="erpLoginForm" onSubmit={event => { event.preventDefault(); void changePassword(); }}>
-        <label><span>New password</span><input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="At least 12 characters"/></label>
-        <label><span>Confirm password</span><input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Repeat your password"/></label>
+        <label><span>New Password</span><input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="At least 12 characters"/></label>
+        <label><span>Confirm Password</span><input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Repeat your password"/></label>
         {formError && <div className="accessError" role="alert">{formError}</div>}
-        <button className="primary" type="submit" disabled={busy || newPassword.length < 12 || !confirmPassword}>{busy ? "Saving…" : "Set password & continue"}</button>
+        <button className="primary" type="submit" disabled={busy || newPassword.length < 12 || !confirmPassword}>{busy ? "Saving…" : "Set Password & Continue"}</button>
         <small className="accessLoginHelp">This replaces the temporary password your administrator gave you.</small>
-        <button className="secondary" type="button" disabled={busy} onClick={() => void logoutSession()}>Sign out</button>
+        <button className="secondary" type="button" disabled={busy} onClick={() => void logoutSession()}>Sign Out</button>
       </form>}
 
       {(status === "error" || status === "no-access") && <button className="secondary" onClick={() => void onRetry()}>Retry</button>}
@@ -276,29 +276,29 @@ function AccessPanel({ onClose }: { onClose: () => void }) {
   const signOut = logoutSession;
 
   return <div className="accessPanelBackdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="accessPanel" role="dialog" aria-modal="true" aria-label="Account and access">
+    <section className="accessPanel" role="dialog" aria-modal="true" aria-label="Account and Access">
       <header className="accessPanelHeader">
-        <div><p className="eyebrow">{businessName.toUpperCase()}</p><h2>Account & access</h2><p>{session?.user.displayName} · {session?.user.email}</p></div>
+        <div><p className="eyebrow">{businessName.toUpperCase()}</p><h2>Account & Access</h2><p>{session?.user.displayName} · {session?.user.email}</p></div>
         <button title="Close" type="button" className="iconButton uiIconButton uiCloseButton" onClick={onClose} aria-label="Close"><CloseIcon/></button>
       </header>
       <div className="accessTabs">
-        <button className={tab === "mine" ? "active" : ""} onClick={() => setTab("mine")}>My access</button>
-        {can("users.manage") && <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Users & access</button>}
+        <button className={tab === "mine" ? "active" : ""} onClick={() => setTab("mine")}>My Access</button>
+        {can("users.manage") && <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Users & Access</button>}
       </div>
 
       {tab === "mine" && <div className="accessPanelBody">
         <div className="accessSummary"><div><small>Role</small><strong>{titleRole(membership?.role || "viewer")}</strong></div><div><small>Business</small><strong>{businessName}</strong></div></div>
         <ModernAccountMethods/>
         <AccessMatrix modules={membership?.modules || []} permissions={permissions} readOnly/>
-        <div className="accessSessionActions"><button className="secondary" onClick={() => void signOut(false)}>Sign out</button><button className="secondary" onClick={() => void signOut(true)}>Sign out all devices</button></div>
+        <div className="accessSessionActions"><button className="secondary" onClick={() => void signOut(false)}>Sign Out</button><button className="secondary" onClick={() => void signOut(true)}>Sign Out All Devices</button></div>
       </div>}
 
       {tab === "users" && can("users.manage") && <div className="accessPanelBody">
-        <div className="accessUsersToolbar"><div><h3>Users</h3><p>One place to control identity, login and everything each person can see and do.</p></div><button className="primary" onClick={() => setEditing("new")}>+ Add user</button></div>
+        <div className="accessUsersToolbar"><div><h3>Users</h3><p>One place to control identity, login and everything each person can see and do.</p></div><button className="primary" onClick={() => setEditing("new")}>+ Add User</button></div>
         {error && <div className="accessError">{error}</div>}
         {loadingUsers ? <p>Loading users…</p> : <div className="accessUserList">{users.map(user => <button key={user.email} className={`accessUserRow ${user.active ? "" : "inactive"}`} onClick={() => setEditing(user)}>
           <span className="accessAvatar">{(user.displayName || user.email).slice(0, 1).toUpperCase()}</span>
-          <span><strong>{user.displayName || user.email}</strong><small>{user.email}{user.phone ? ` · ${user.phone}` : ""}</small><small className={user.hasCredentials ? "credentialReady" : "credentialMissing"}>{user.hasCredentials ? (user.mustChangePassword ? "Ready · temporary password" : "Ready to sign in") : "Password login needs setup"}</small></span>
+          <span><strong>{user.displayName || user.email}</strong><small>{user.email}{user.phone ? ` · ${user.phone}` : ""}</small><small className={user.hasCredentials ? "credentialReady" : "credentialMissing"}>{user.hasCredentials ? (user.mustChangePassword ? "Ready · Temporary Password" : "Ready to Sign In") : "Password Login Needs Setup"}</small></span>
           <span className="accessRoleBadge">{titleRole(user.role)}</span><span className="accessRowChevron">›</span>
         </button>)}</div>}
         {editing && <MembershipEditor businessId={businessId} currentUser={session?.user.email || ""} actorRole={membership?.role || "viewer"} user={editing === "new" ? null : editing} onCancel={() => setEditing(null)} onSaved={async () => { setEditing(null); await loadUsers(); await refresh(); }}/>} 
@@ -365,10 +365,10 @@ function MembershipEditor({ businessId, currentUser, actorRole, user, onCancel, 
   const requiresInitialPassword = !user;
   const passwordReady = Boolean(user?.hasCredentials || temporaryPassword.length >= 12);
   const passwordStatus = temporaryPassword.length >= 12
-    ? (user?.hasCredentials ? "Reset ready to save" : "Ready to sign in after save")
+    ? (user?.hasCredentials ? "Reset Ready to Save" : "Ready to Sign In After Save")
     : user?.hasCredentials
-      ? (user.mustChangePassword ? "Ready · temporary password" : "Ready to sign in")
-      : "Set an initial password";
+      ? (user.mustChangePassword ? "Ready · Temporary Password" : "Ready to Sign In")
+      : "Set an Initial Password";
   const credentialHelp = temporaryPassword.length >= 12
     ? (user?.hasCredentials
       ? "Saving will reset the password, sign this user out on every device, and require a new private password at the next sign-in."
@@ -380,29 +380,29 @@ function MembershipEditor({ businessId, currentUser, actorRole, user, onCancel, 
       : "Set or generate a temporary password now. The user will be able to sign in immediately after you save this account, then must create their own private password.";
 
   return <div className="membershipEditorBackdrop">
-    <div className="membershipEditor" role="dialog" aria-modal="true" aria-label={user ? `Edit ${user.displayName || user.email}` : "Add user"}>
+    <div className="membershipEditor" role="dialog" aria-modal="true" aria-label={user ? `Edit ${user.displayName || user.email}` : "Add User"}>
       <div className="membershipEditorHead">
-        <div><p className="eyebrow">{user ? "EDIT USER" : "NEW USER"}</p><h3>{user ? user.displayName || user.email : "Add user"}</h3></div>
-        <button title="Close user editor" type="button" className="iconButton uiIconButton uiCloseButton" onClick={onCancel} aria-label="Close user editor"><CloseIcon/></button>
+        <div><p className="eyebrow">{user ? "EDIT USER" : "NEW USER"}</p><h3>{user ? user.displayName || user.email : "Add User"}</h3></div>
+        <button title="Close User Editor" type="button" className="iconButton uiIconButton uiCloseButton" onClick={onCancel} aria-label="Close User Editor"><CloseIcon/></button>
       </div>
 
       <div className="membershipEditorBody">
         {error && <div className="accessError">{error}</div>}
         <div className="membershipIdentityGrid">
-          <label><span>Name</span><input aria-label="User name" value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={ownerLocked}/></label>
-          <label><span>Email</span><input aria-label="User email" type="email" autoComplete="off" value={email} onChange={event => setEmail(event.target.value)} disabled={Boolean(user) || ownerLocked}/></label>
-          <label><span>Phone</span><input aria-label="User phone" inputMode="tel" autoComplete="off" value={phone} onChange={event => setPhone(event.target.value)} placeholder="+91… or 10-digit mobile" disabled={ownerLocked}/></label>
-          <label><span>Role preset</span><select aria-label="Role preset" value={role} onChange={event => applyRole(event.target.value as AccessRole)} disabled={ownerLocked}>{(["owner","admin","operations","viewer"] as AccessRole[]).filter(item => item !== "owner" || actorRole === "owner").map(item => <option key={item} value={item}>{titleRole(item)}</option>)}</select></label>
+          <label><span>Name</span><input aria-label="User Name" value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={ownerLocked}/></label>
+          <label><span>Email</span><input aria-label="User Email" type="email" autoComplete="off" value={email} onChange={event => setEmail(event.target.value)} disabled={Boolean(user) || ownerLocked}/></label>
+          <label><span>Phone</span><input aria-label="User Phone" inputMode="tel" autoComplete="off" value={phone} onChange={event => setPhone(event.target.value)} placeholder="+91… or 10-digit mobile" disabled={ownerLocked}/></label>
+          <label><span>Role Preset</span><select aria-label="Role Preset" value={role} onChange={event => applyRole(event.target.value as AccessRole)} disabled={ownerLocked}>{(["owner","admin","operations","viewer"] as AccessRole[]).filter(item => item !== "owner" || actorRole === "owner").map(item => <option key={item} value={item}>{titleRole(item)}</option>)}</select></label>
 
           <div className={`membershipLoginStatus ${passwordReady ? "ready" : "needsSetup"}`}>
-            <span><small>Password login</small><strong>{passwordStatus}</strong></span>
+            <span><small>Password Login</small><strong>{passwordStatus}</strong></span>
             <span className="membershipLoginStatusDot" aria-hidden="true"/>
           </div>
 
           <label className="membershipCredential">
-            <span>{requiresInitialPassword || !user?.hasCredentials ? "Initial password *" : "Reset password (optional)"}</span>
+            <span>{requiresInitialPassword || !user?.hasCredentials ? "Initial Password *" : "Reset Password (Optional)"}</span>
             <div className="credentialInputRow">
-              <input aria-label="Temporary password" type="text" autoComplete="off" value={temporaryPassword} onChange={event => { setTemporaryPassword(event.target.value); setCopied(false); }} placeholder={requiresInitialPassword || !user?.hasCredentials ? "At least 12 characters" : "Leave blank to keep current password"} disabled={ownerLocked}/>
+              <input aria-label="Temporary Password" type="text" autoComplete="off" value={temporaryPassword} onChange={event => { setTemporaryPassword(event.target.value); setCopied(false); }} placeholder={requiresInitialPassword || !user?.hasCredentials ? "At least 12 characters" : "Leave blank to keep current password"} disabled={ownerLocked}/>
               <button type="button" className="secondary" onClick={generateTemporaryPassword} disabled={ownerLocked}>Generate</button>
               <button type="button" className="secondary" onClick={() => void copyTemporaryPassword()} disabled={ownerLocked || !temporaryPassword}>{copied ? "Copied" : "Copy"}</button>
             </div>
@@ -410,7 +410,7 @@ function MembershipEditor({ businessId, currentUser, actorRole, user, onCancel, 
             {temporaryPassword && <small className="credentialShareNote">Copy/share this temporary password before closing the editor. For security, it cannot be retrieved later.</small>}
           </label>
 
-          <label className="membershipActive"><input aria-label="Active access" type="checkbox" checked={active} onChange={event => setActive(event.target.checked)} disabled={ownerLocked || (user?.email === currentUser && user?.role === "owner")}/><span>Active access</span></label>
+          <label className="membershipActive"><input aria-label="Active Access" type="checkbox" checked={active} onChange={event => setActive(event.target.checked)} disabled={ownerLocked || (user?.email === currentUser && user?.role === "owner")}/><span>Active Access</span></label>
         </div>
         {user?.lastLoginAt && <p className="credentialLastLogin">Last ERP login: {new Date(user.lastLoginAt).toLocaleString()}</p>}
         <AccessMatrix modules={modules} permissions={permissions} onModules={setModules} onPermissions={setPermissions} readOnly={ownerLocked || role === "owner"}/>
@@ -420,7 +420,7 @@ function MembershipEditor({ businessId, currentUser, actorRole, user, onCancel, 
         <small>{passwordReady ? "Account access is ready to save." : "Set an initial password before creating this user."}</small>
         <div className="membershipEditorActions">
           <button className="secondary" onClick={onCancel}>Cancel</button>
-          <button className="primary" onClick={() => void save()} disabled={saving || ownerLocked || !email.trim() || (requiresInitialPassword && temporaryPassword.length < 12)}>{saving ? "Saving…" : user ? "Save changes" : "Create user"}</button>
+          <button className="primary" onClick={() => void save()} disabled={saving || ownerLocked || !email.trim() || (requiresInitialPassword && temporaryPassword.length < 12)}>{saving ? "Saving…" : user ? "Save Changes" : "Create User"}</button>
         </div>
       </footer>
     </div>
@@ -434,7 +434,7 @@ function AccessMatrix({ modules, permissions, onModules, onPermissions, readOnly
   const toggleModule = (module: Module) => onModules?.(modules.includes(module) ? modules.filter(item => item !== module) : [...modules, module]);
   const togglePermission = (permission: Permission) => onPermissions?.(permissions.includes(permission) ? permissions.filter(item => item !== permission) : [...permissions, permission]);
   return <div className={`accessMatrix ${readOnly ? "readOnly" : ""}`}>
-    <section><h3>Modules</h3><p>Controls which parts of the system appear for this user.</p><div className="accessModuleGrid">{MODULES.filter(item => item !== "admin").map(module => { const label = module === "home" ? "Home" : module[0].toUpperCase() + module.slice(1); return <label key={module} htmlFor={`access-module-${module}`}><input id={`access-module-${module}`} aria-label={`${label} module`} type="checkbox" checked={modules.includes(module)} onChange={() => toggleModule(module)} disabled={readOnly}/><span>{label}</span></label>; })}</div></section>
+    <section><h3>Modules</h3><p>Controls which parts of the system appear for this user.</p><div className="accessModuleGrid">{MODULES.filter(item => item !== "admin").map(module => { const label = module === "home" ? "Home" : module[0].toUpperCase() + module.slice(1); return <label key={module} htmlFor={`access-module-${module}`}><input id={`access-module-${module}`} aria-label={`${label} Module`} type="checkbox" checked={modules.includes(module)} onChange={() => toggleModule(module)} disabled={readOnly}/><span>{label}</span></label>; })}</div></section>
     {groups.map(group => <section key={group}><h3>{group}</h3><div className="permissionGrid">{PERMISSION_DEFINITIONS.filter(item => item.group === group).map(item => <label key={item.key} htmlFor={`access-permission-${item.key}`} title={item.description}><input id={`access-permission-${item.key}`} aria-label={item.label} type="checkbox" checked={permissions.includes(item.key)} onChange={() => togglePermission(item.key)} disabled={readOnly}/><span><strong>{item.label}</strong><small>{item.description}</small></span></label>)}</div></section>)}
   </div>;
 }

@@ -42,9 +42,9 @@ function selectedNative(page: HTMLElement) {
   const canvas = page.querySelector<HTMLElement>(".packingCanvas");
   const selected = canvas?.querySelector<HTMLElement>(".canvasElement.selected:not(.finalPackingExtra)");
   const text = selected?.querySelector<HTMLElement>(".packingFitText");
-  const font = inspectorInput(page, ["Font", "Text size"]);
-  const width = inspectorInput(page, ["Width", "Box width"]);
-  const height = inspectorInput(page, ["Height", "Box height"]);
+  const font = inspectorInput(page, ["Font", "Text Size"]);
+  const width = inspectorInput(page, ["Width", "Box Width"]);
+  const height = inspectorInput(page, ["Height", "Box Height"]);
   return canvas && selected && text && font && width && height ? { canvas, selected, text, font, width, height } : null;
 }
 function measuredNative(page: HTMLElement, targetPt: number) {
@@ -269,12 +269,12 @@ function stabilizeHome() {
   });
 }
 function stabilizePacking(page: HTMLElement) {
-  const font = inspectorInput(page, ["Font", "Text size"]);
+  const font = inspectorInput(page, ["Font", "Text Size"]);
   if (font) { font.min = "4"; font.max = "40"; font.step = ".5"; }
   const fit = page.querySelector<HTMLButtonElement>(".packingFitBoxButton");
   if (fit && !fit.dataset.reviewReady) {
     fit.dataset.reviewReady = "true";
-    fit.textContent = "Tighten area";
+    fit.textContent = "Tighten Area";
     fit.addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();
@@ -322,7 +322,7 @@ export function SeikoReviewStabilization() {
       }
       const native = target?.closest<HTMLElement>(".packingCanvas .canvasElement.selected:not(.finalPackingExtra)");
       if (!native) return;
-      const font = inspectorInput(page, ["Font", "Text size"]); if (!font) return;
+      const font = inspectorInput(page, ["Font", "Text Size"]); if (!font) return;
       event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
       const step = event.shiftKey ? 2 : .5;
       const next = clamp((Number(font.value) || 8) + (event.deltaY < 0 ? step : -step), 4, 40);
@@ -368,7 +368,7 @@ export function SeikoReviewStabilization() {
       const target = event.target as HTMLInputElement | null;
       const page = target?.closest<HTMLElement>(".packingWorkflowDesigner");
       if (!target || !page) return;
-      if (target === inspectorInput(page, ["Font", "Text size"])) {
+      if (target === inspectorInput(page, ["Font", "Text Size"])) {
         window.setTimeout(() => {
           tightenNativeArea(page);
           const fresh = selectedNative(page);

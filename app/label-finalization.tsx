@@ -43,7 +43,7 @@ function enhanceOrderSearch() {
   select.dataset.searchReady = "true";
   select.classList.add("labelOrderNativeSelect");
   const wrapper = document.createElement("div"); wrapper.className = "labelOrderSearch";
-  const input = document.createElement("input"); input.type = "search"; input.autocomplete = "off"; input.placeholder = "Search order, client, Attn or phone"; input.setAttribute("aria-label", "Search orders by order number, client, attention name or phone number");
+  const input = document.createElement("input"); input.type = "search"; input.autocomplete = "off"; input.placeholder = "Search order, client, Attn or phone"; input.setAttribute("aria-label", "Search Orders by Order Number, Client, Attention Name or Phone Number");
   const results = document.createElement("div"); results.className = "labelOrderSearchResults"; results.hidden = true;
   wrapper.append(input, results); select.insertAdjacentElement("afterend", wrapper);
   const labelFor = (order: OrderSummary | undefined, fallback = "") => order ? `${order.details?.orderNo || "Order"} — ${order.details?.clientName || "Unnamed client"}` : fallback;
@@ -56,11 +56,11 @@ function enhanceOrderSearch() {
     for (const order of matches) {
       const button = document.createElement("button"); button.type = "button"; button.className = "labelOrderSearchResult";
       const title = document.createElement("b"); title.textContent = labelFor(order);
-      const meta = document.createElement("small"); const details = [order.details?.contactPerson && `Attn: ${order.details.contactPerson}`, order.details?.contactNumber && `Phone: ${order.details.contactNumber}`].filter(Boolean); meta.textContent = details.join(" · ") || "No contact details saved";
+      const meta = document.createElement("small"); const details = [order.details?.contactPerson && `Attn: ${order.details.contactPerson}`, order.details?.contactNumber && `Phone: ${order.details.contactNumber}`].filter(Boolean); meta.textContent = details.join(" · ") || "No Contact Details Saved";
       button.append(title, meta); button.addEventListener("mousedown", event => event.preventDefault());
       button.addEventListener("click", () => { const id = String(order.orderId || ""); setNativeSelectValue(select, id); input.value = labelFor(order); results.hidden = true; }); results.appendChild(button);
     }
-    if (!matches.length) { const empty = document.createElement("p"); empty.className = "labelOrderSearchEmpty"; empty.textContent = "No matching orders"; results.appendChild(empty); }
+    if (!matches.length) { const empty = document.createElement("p"); empty.className = "labelOrderSearchEmpty"; empty.textContent = "No Matching Orders"; results.appendChild(empty); }
     results.hidden = false;
   };
   input.addEventListener("focus", () => render(input.value.includes(" — ") ? "" : input.value));
@@ -110,7 +110,7 @@ function buildPrintSurface(copies = 1) {
   const labels = sourceLabels.flatMap(label => Array.from({ length: copies }, () => normalizedPrintedLabel(label)));
   if (!labels.length) { showPrintNotice("No selected labels are available to print."); return null; }
   const preset = currentPreset(), pitch = preset.labelH + Math.max(0, preset.gapY || 0);
-  const root = document.createElement("main"); root.className = "labelNativePrintRoot"; root.setAttribute("aria-label", "Calibrated label print surface");
+  const root = document.createElement("main"); root.className = "labelNativePrintRoot"; root.setAttribute("aria-label", "Calibrated Label Print Surface");
   for (let index = 0; index < labels.length; index += preset.columns) { const row = document.createElement("section"); row.className = "labelNativePrintRow"; labels.slice(index, index + preset.columns).forEach(label => row.appendChild(label)); root.appendChild(row); }
   const style = document.createElement("style"); style.id = "jinam-label-native-print-style";
   style.textContent = `
@@ -152,7 +152,7 @@ export async function labelOnlyPrint(copies = 1, context?:OutputContext) {
   const cleanup = () => { window.removeEventListener("beforeprint", before); removeNativePrintSurface(); };
   window.addEventListener("beforeprint", before, { once: true });
   window.addEventListener("afterprint", cleanup, { once: true });
-  try{if(context)await recordOutput(context,"print-requested",runtime.root.outerHTML);else for(const {source} of sources)await recordOutput({businessId:activeBusiness(),kind:"labels",id:source!.orderId,title:"Label print sheet"},"print-requested",runtime.root.outerHTML);}catch(e){showPrintNotice("Print recording remains pending: "+(e as Error).message);}
+  try{if(context)await recordOutput(context,"print-requested",runtime.root.outerHTML);else for(const {source} of sources)await recordOutput({businessId:activeBusiness(),kind:"labels",id:source!.orderId,title:"Label Print Sheet"},"print-requested",runtime.root.outerHTML);}catch(e){showPrintNotice("Print recording remains pending: "+(e as Error).message);}
   window.print();
   window.setTimeout(() => {
     if (!beforePrintSeen && document.querySelector(".labelNativePrintRoot")) {

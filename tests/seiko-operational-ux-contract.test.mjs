@@ -15,7 +15,7 @@ const page = read("app/page.tsx");
 
 test("operational UX refinement remains mounted and late styled", () => {
   assert.match(enhancements, /<SeikoOperationalUx \/>/);
-  assert.match(layout, /seiko-operational-ux\.css/);
+  assert.match(layout, /seiko-operational-ux\.css/i);
 });
 
 test("Home removes duplicate Orders navigation without inventing another Order Center shortcut", () => {
@@ -35,17 +35,17 @@ test("Order Center opens rows directly and keeps visible status plus conditional
   assert.match(ux, /const select = nativeStatus\.cloneNode\(true\) as HTMLSelectElement/);
   assert.match(ux, /setNativeSelect\(nativeStatus, select\.value\)/);
   assert.match(ux, /hasPrintable = tasks\.some/);
-  assert.match(ux, /Print labels/);
+  assert.match(ux, /Print labels/i);
   assert.match(ux, /waitForWorkspaceAction\("Labels"\)/);
 });
 
 test("workspace source owns status and save while rows-per-page accepts custom values", () => {
   assert.match(ux, /workspaceHeaderSecondaryAction/);
   assert.match(ux, /workspaceMenuOperational/);
-  assert.doesNotMatch(ux, /Save now/);
+  assert.doesNotMatch(ux, /Save now/i);
   assert.match(orders, /workspaceNativeMenuStatus/);
   assert.match(orders, /workspaceMenuSaveNow/);
-  assert.match(orders, />Save now<\/button>/);
+  assert.match(orders, />Save now<\/button>/i);
   assert.match(pager, /workspacePageSizeInput/);
   assert.match(pager, /Math\.max\(1, Math\.min\(5000/);
   assert.match(pager, /FocusEvent\("focusout"/);
@@ -62,11 +62,11 @@ test("Settings exposes Appearance first and Users & access second", () => {
 
 test("person-package label filtering uses resolved positive package contents", () => {
   assert.match(labelDesigner, /quantityForRecord/);
-  assert.match(labelDesigner, /contains_product/);
+  assert.match(labelDesigner, /contains_product/i);
   assert.match(labelDesigner, /const filterNeedle = recordFilterValue\.trim\(\)\.toLowerCase\(\)/);
   assert.match(labelDesigner, /packageProducts\(record\)\.some\(value => value\.toLowerCase\(\) === filterNeedle\)/);
   assert.match(labelDesigner, /Products with a resolved quantity of 0 are excluded/);
-  assert.match(labelDesigner, /Find person, group or product in the package/);
+  assert.match(labelDesigner, /Find person, group or product in the package/i);
   assert.doesNotMatch(labels, /personPackageWorkspace/);
 });
 

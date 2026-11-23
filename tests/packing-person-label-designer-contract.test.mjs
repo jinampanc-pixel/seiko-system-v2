@@ -19,11 +19,11 @@ test("native designer builds eligible person packages from actual quantities", (
 });
 
 test("product presentation supports aliases formats quantity and conditional measurements", () => {
-  assert.match(source, /Printed product name/);
-  assert.match(source, /name_details/);
-  assert.match(source, /details_only/);
-  assert.match(source, /name_only/);
-  assert.match(source, /when_present/);
+  assert.match(source, /Printed product name/i);
+  assert.match(source, /name_details/i);
+  assert.match(source, /details_only/i);
+  assert.match(source, /name_only/i);
+  assert.match(source, /when_present/i);
   assert.match(source, /Never/);
   assert.match(source, /Always/);
   assert.match(source, /measurementAliases/);

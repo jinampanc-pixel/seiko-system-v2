@@ -72,11 +72,11 @@ export function ModernLoginOptions({ onSignedIn }: { onSignedIn: () => Promise<v
   if (!methods.available.google && !methods.available.apple && !passkeySupported) return null;
 
   return <div className="modernLoginOptions">
-    <div className="authDivider"><span>or</span></div>
+    <div className="authDivider"><span>Or</span></div>
     <div className="federatedButtons">
       {methods.available.google && <button type="button" className="federatedButton google" onClick={() => window.location.assign("/api/erp/auth/oauth/google/start")}><span aria-hidden="true">G</span>Continue with Google</button>}
       {methods.available.apple && <button type="button" className="federatedButton apple" onClick={() => window.location.assign("/api/erp/auth/oauth/apple/start")}><span aria-hidden="true">●</span>Continue with Apple</button>}
-      {passkeySupported && <button type="button" className="federatedButton passkey" disabled={busy === "passkey"} onClick={() => void passkeyLogin()}><span aria-hidden="true">⌁</span>{busy === "passkey" ? "Checking passkey…" : "Use a passkey"}</button>}
+      {passkeySupported && <button type="button" className="federatedButton passkey" disabled={busy === "passkey"} onClick={() => void passkeyLogin()}><span aria-hidden="true">⌁</span>{busy === "passkey" ? "Checking Passkey…" : "Use a Passkey"}</button>}
     </div>
     {error && <div className="accessError" role="alert">{error}</div>}
   </div>;
@@ -126,21 +126,21 @@ export function ModernAccountMethods() {
     finally { setBusy(""); }
   };
 
-  if (!methods) return <section className="signInMethodsCard"><h3>Sign-in methods</h3><p>Loading sign-in methods…</p></section>;
+  if (!methods) return <section className="signInMethodsCard"><h3>Sign-in Methods</h3><p>Loading sign-in methods…</p></section>;
   const google = methods.linked.find(item => item.provider === "google");
   const apple = methods.linked.find(item => item.provider === "apple");
   const passkeySupported = methods.available.passkey && typeof window !== "undefined" && "PublicKeyCredential" in window;
 
   return <section className="signInMethodsCard">
-    <div className="signInMethodsHead"><div><h3>Sign-in methods</h3><p>Use any linked method to sign in. ERP permissions still come from your administrator.</p></div></div>
+    <div className="signInMethodsHead"><div><h3>Sign-in Methods</h3><p>Use any linked method to sign in. ERP permissions still come from your administrator.</p></div></div>
     {error && <div className="accessError" role="alert">{error}</div>}
     <div className="signInMethodList">
-      <div className="signInMethodRow"><span className="methodIcon">•••</span><span><strong>Password</strong><small>{methods.hasPassword ? "Available for email or phone login" : "No password currently set"}</small></span><span className={`methodStatus ${methods.hasPassword ? "linked" : ""}`}>{methods.hasPassword ? "Ready" : "Not set"}</span></div>
-      {methods.available.google && <div className="signInMethodRow"><span className="methodIcon">G</span><span><strong>Google</strong><small>{google ? google.email || "Linked Google Account" : "Use a verified Google Account"}</small></span>{google ? <button className="secondary compact" disabled={busy === "google"} onClick={() => void removeProvider("google")}>Remove</button> : <button className="secondary compact" onClick={() => window.location.assign("/api/erp/auth/oauth/google/start?mode=link")}>Link</button>}</div>}
-      {methods.available.apple && <div className="signInMethodRow"><span className="methodIcon">●</span><span><strong>Apple</strong><small>{apple ? apple.email || "Linked Apple Account" : "Link once before using Apple to sign in"}</small></span>{apple ? <button className="secondary compact" disabled={busy === "apple"} onClick={() => void removeProvider("apple")}>Remove</button> : <button className="secondary compact" onClick={() => window.location.assign("/api/erp/auth/oauth/apple/start?mode=link")}>Link</button>}</div>}
-      {methods.passkeys.map(item => <div className="signInMethodRow" key={item.id}><span className="methodIcon">⌁</span><span><strong>{item.label}</strong><small>Passkey · added {formatDate(item.createdAt)}</small></span><button className="secondary compact" disabled={busy === item.id} onClick={() => void removePasskey(item.id)}>Remove</button></div>)}
+      <div className="signInMethodRow"><span className="methodIcon">•••</span><span><strong>Password</strong><small>{methods.hasPassword ? "Available for Email or Phone Login" : "No Password Currently Set"}</small></span><span className={`methodStatus ${methods.hasPassword ? "linked" : ""}`}>{methods.hasPassword ? "Ready" : "Not Set"}</span></div>
+      {methods.available.google && <div className="signInMethodRow"><span className="methodIcon">G</span><span><strong>Google</strong><small>{google ? google.email || "Linked Google Account" : "Use a Verified Google Account"}</small></span>{google ? <button className="secondary compact" disabled={busy === "google"} onClick={() => void removeProvider("google")}>Remove</button> : <button className="secondary compact" onClick={() => window.location.assign("/api/erp/auth/oauth/google/start?mode=link")}>Link</button>}</div>}
+      {methods.available.apple && <div className="signInMethodRow"><span className="methodIcon">●</span><span><strong>Apple</strong><small>{apple ? apple.email || "Linked Apple Account" : "Link Once Before Using Apple to Sign In"}</small></span>{apple ? <button className="secondary compact" disabled={busy === "apple"} onClick={() => void removeProvider("apple")}>Remove</button> : <button className="secondary compact" onClick={() => window.location.assign("/api/erp/auth/oauth/apple/start?mode=link")}>Link</button>}</div>}
+      {methods.passkeys.map(item => <div className="signInMethodRow" key={item.id}><span className="methodIcon">⌁</span><span><strong>{item.label}</strong><small>Passkey · Added {formatDate(item.createdAt)}</small></span><button className="secondary compact" disabled={busy === item.id} onClick={() => void removePasskey(item.id)}>Remove</button></div>)}
     </div>
-    {passkeySupported && <button type="button" className="secondary addPasskeyButton" disabled={busy === "passkey"} onClick={() => void addPasskey()}>{busy === "passkey" ? "Adding passkey…" : "+ Add passkey"}</button>}
+    {passkeySupported && <button type="button" className="secondary addPasskeyButton" disabled={busy === "passkey"} onClick={() => void addPasskey()}>{busy === "passkey" ? "Adding Passkey…" : "+ Add Passkey"}</button>}
   </section>;
 }
 

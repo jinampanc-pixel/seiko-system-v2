@@ -18,8 +18,8 @@ test("paste-link connector supports Shopify, WooCommerce, Amazon and generic pro
   assert.match(connectors, /\.myshopify\.com/);
   assert.match(connectors, /sellercentral\.amazon/);
   assert.match(connectors, /\/wp-json\/wc\//);
-  assert.match(settings, /Store \/ seller link/);
-  assert.match(settings, /Detected platform/);
+  assert.match(settings, /Store \/ seller link/i);
+  assert.match(settings, /Detected platform/i);
   assert.match(settings, /channelConnectionForm/);
   assert.doesNotMatch(settings, /phase2EditorGrid/);
 });
@@ -35,7 +35,7 @@ test("a pasted URL starts setup but never pretends to authorize a provider", () 
   assert.match(connectors, /needs_authorization/);
   assert.match(connectors, /merchant authorization is still required/);
   assert.match(connectors, /Seller Central authorization is required/);
-  assert.match(settings, /Authorization required/);
+  assert.match(settings, /Authorization required/i);
   assert.doesNotMatch(settings, /accessToken/);
   assert.doesNotMatch(settings, /consumerSecret/);
 });

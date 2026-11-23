@@ -96,15 +96,15 @@ export default function SavedLabelPrintPage() {
     window.setTimeout(() => setBlocked(true), 1300);
   };
 
-  if (!ready) return <main style={{ padding: 32 }}><b>Preparing labels for print…</b></main>;
-  if (!task || !order || missingSources) return <main style={{ padding: 32 }}><h1>Label set or source order unavailable</h1><button type="button" onClick={() => history.back()} className="appBackControl">Back to Labels</button></main>;
+  if (!ready) return <main style={{ padding: 32 }}><b>Preparing Labels for Print…</b></main>;
+  if (!task || !order || missingSources) return <main style={{ padding: 32 }}><h1>Label Set or Source Order Unavailable</h1><button type="button" onClick={() => history.back()} className="appBackControl">Back to Labels</button></main>;
 
   const isPackingPerson = task.purpose === "packing" && task.sourceMode === "person";
   return <main className="savedLabelPrintRoute" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 32, background: "#f5f1eb", color: "#102d49" }}>
     <section className="savedPrintStatus" style={{ maxWidth: 520, background: "#fff", border: "1px solid #d7e0e6", borderRadius: 14, padding: 24 }}>
-      <h1 style={{ marginTop: 0, fontSize: 22 }}>Preparing system print…</h1>
+      <h1 style={{ marginTop: 0, fontSize: 22 }}>Preparing System Print…</h1>
       <p>{task.name || "Saved label set"} · {labelCount ?? "Preparing"} labels</p>
-      {labelCount === 0 ? <p>No selected people meet this set&apos;s product requirements. Return to Labels to change the selection.</p> : !blocked ? <p>The browser print preview should open automatically.</p> : <><p><b>The embedded browser did not open the system print dialog.</b> Click below once more. If it remains blocked, open this JINAM preview in Chrome or Edge and print there.</p><button type="button" onClick={retry}>Print now</button></>}
+      {labelCount === 0 ? <p>No selected people meet this set&apos;s product requirements. Return to Labels to change the selection.</p> : !blocked ? <p>The browser print preview should open automatically.</p> : <><p><b>The embedded browser did not open the system print dialog.</b> Click below once more. If it remains blocked, open this JINAM preview in Chrome or Edge and print there.</p><button type="button" onClick={retry}>Print Now</button></>}
       <button type="button" onClick={() => history.back()} style={{ marginLeft: 10 }}>Cancel</button>
     </section>
     <div className="savedPrintDesigner" aria-hidden="true" style={{ position: "fixed", left: "-200vw", top: 0, width: "1200px", visibility: "hidden", pointerEvents: "none" }}>

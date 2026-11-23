@@ -94,7 +94,7 @@ function ensureInformationDrawer(page: HTMLElement) {
   if (!head) {
     head = document.createElement("div");
     head.className = "finalInfoHead";
-    head.innerHTML = '<div><p class="eyebrow">INFORMATION</p><h3>Information on the label</h3><p>Choose order fields and decide how their names and values should print.</p></div><button type="button" class="secondary finalInfoCustomize">Customize</button>';
+    head.innerHTML = '<div><p class="eyebrow">INFORMATION</p><h3>Information on the Label</h3><p>Choose order fields and decide how their names and values should print.</p></div><button type="button" class="secondary finalInfoCustomize">Customize</button>';
     panel.prepend(head);
     Array.from(panel.children).forEach(child => {
       if (child !== head && !child.classList.contains("packingInfoGrid")) (child as HTMLElement).classList.add("finalInfoLegacyHeading");
@@ -108,7 +108,7 @@ function ensureInformationDrawer(page: HTMLElement) {
       const backdrop = document.createElement("button");
       backdrop.type = "button";
       backdrop.className = "finalInfoBackdrop";
-      backdrop.setAttribute("aria-label", "Close information settings");
+      backdrop.setAttribute("aria-label", "Close Information Settings");
       backdrop.addEventListener("click", () => closeInfoDrawer(page));
       panel.insertAdjacentElement("beforebegin", backdrop);
     });
@@ -117,7 +117,7 @@ function ensureInformationDrawer(page: HTMLElement) {
   const prefs = readPackingPrefs(page);
   panel.querySelectorAll<HTMLElement>(".packingInfoGrid .fieldChoice").forEach(choice => {
     const name = fieldChoiceName(choice);
-    if (name === "Package contents") {
+    if (name === "Package Contents") {
       choice.classList.add("finalPackageChoice");
       return;
     }
@@ -224,7 +224,7 @@ function applyPackingTypography(page: HTMLElement) {
   const aliases = new Map<string, TypographyPrefs>();
   page.querySelectorAll<HTMLElement>(".packingPresentationRules details").forEach(details => {
     const name = productName(details);
-    const aliasInput = Array.from(details.querySelectorAll<HTMLInputElement>('input[type="text"]')).find(input => input.closest("label")?.textContent?.includes("Printed product name"));
+    const aliasInput = Array.from(details.querySelectorAll<HTMLInputElement>('input[type="text"]')).find(input => input.closest("label")?.textContent?.toLowerCase().includes("printed product name"));
     aliases.set(aliasInput?.value.trim() || name, prefs.products[name] || {});
   });
 
@@ -263,10 +263,10 @@ function relabelInspector(page: HTMLElement) {
     const node = Array.from(label.childNodes).find(child => child.nodeType === Node.TEXT_NODE);
     if (node) node.textContent = `${to} `;
   };
-  rename("Font", "Text size");
-  rename("Width", "Box width");
-  rename("Height", "Box height");
-  const font = inspectorInput(page, "Text size") || inspectorInput(page, "Font");
+  rename("Font", "Text Size");
+  rename("Width", "Box Width");
+  rename("Height", "Box Height");
+  const font = inspectorInput(page, "Text Size") || inspectorInput(page, "Font");
   if (!font) return;
   font.max = "96";
   font.min = "4";
@@ -290,7 +290,7 @@ function forceSelectedFont(page: HTMLElement) {
   const canvas = page.querySelector<HTMLElement>(".packingCanvas");
   const selected = canvas?.querySelector<HTMLElement>(".canvasElement.selected");
   const text = selected?.querySelector<HTMLElement>(".packingFitText");
-  const font = inspectorInput(page, "Text size") || inspectorInput(page, "Font");
+  const font = inspectorInput(page, "Text Size") || inspectorInput(page, "Font");
   if (!canvas || !selected || !text || !font) return;
   const pt = Number(font.value);
   if (!Number.isFinite(pt) || pt <= 0) return;
@@ -343,16 +343,16 @@ function ensureTraceTools(page: HTMLElement) {
 }
 
 function detectView(): NavEntry | null {
-  if (window.location.pathname.startsWith("/labels/create")) return { key: `url:${window.location.pathname}${window.location.search}`, label: "Label workspace", kind: "url", target: `${window.location.pathname}${window.location.search}` };
+  if (window.location.pathname.startsWith("/labels/create")) return { key: `url:${window.location.pathname}${window.location.search}`, label: "Label Workspace", kind: "url", target: `${window.location.pathname}${window.location.search}` };
   const workspace = document.querySelector<HTMLElement>(".workspacePage");
   if (workspace) {
     const order = workspace.querySelector(".workspaceTitle h1,.workspaceTitle h2,.workspaceTitle")?.textContent?.match(/\d{4}-\d{2}-\d{3}/)?.[0] || "";
-    return { key: `workspace:${order}`, label: "Order workspace", kind: "workspace", target: order };
+    return { key: `workspace:${order}`, label: "Order Workspace", kind: "workspace", target: order };
   }
   const setup = document.querySelector<HTMLElement>(".orderSetup");
   if (setup) {
     const order = setup.textContent?.match(/\d{4}-\d{2}-\d{3}/)?.[0] || "";
-    return { key: `setup:${order}`, label: "Order setup", kind: "setup", target: order };
+    return { key: `setup:${order}`, label: "Order Setup", kind: "setup", target: order };
   }
   if (document.querySelector(".ordersPage")) return { key: "module:Orders", label: "Order Center", kind: "module", target: "Orders" };
   if (document.querySelector(".labelLauncher")) return { key: "module:Labels", label: "Label Center", kind: "module", target: "Labels" };
@@ -440,11 +440,11 @@ function orderRow(orderNo: string) {
 function openOrderChoice(orderNo: string, action: "setup" | "workspace" | "labels") {
   clickModule("Orders");
   waitFor(() => orderRow(orderNo), row => {
-    if (action === "workspace") { const workspace=Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(button=>button.textContent?.trim()==="Open workspace"); if(workspace)workspace.click();else row.querySelector<HTMLButtonElement>(".openOrderButton")?.click(); return; }
+    if (action === "workspace") { const workspace=Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(button=>button.textContent?.trim()==="Open Workspace"); if(workspace)workspace.click();else row.querySelector<HTMLButtonElement>(".openOrderButton")?.click(); return; }
     const menu = row.querySelector<HTMLDetailsElement>(".seikoRowActionMenu");
     if (menu) menu.open = true;
     window.setTimeout(() => {
-      const label = action === "setup" ? "Edit setup" : "Labels";
+      const label = action === "setup" ? "Edit Setup" : "Labels";
       const button = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(node => node.textContent?.trim() === label);
       button?.click();
     }, 0);
@@ -459,7 +459,7 @@ function openOrderChooser(button: HTMLButtonElement) {
   const client = button.querySelector("span")?.textContent?.trim() || "";
   const layer = document.createElement("div");
   layer.className = "finalOrderChooserLayer";
-  layer.innerHTML = `<section class="finalOrderChooser"><header><div><p class="eyebrow">${orderNo}</p><h3>${client || "Choose where to continue"}</h3><p>Open the part of this order you need.</p></div><button type="button" class="uiIconButton uiCloseButton finalChooserClose" aria-label="Close order chooser" title="Close order chooser"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div class="finalOrderDestinations"><button type="button" data-action="setup"><b>Order page / setup</b><span>Products, fields, quantities and configuration.</span></button><button type="button" data-action="workspace"><b>Workspace</b><span>Enter and review person / record data.</span></button><button type="button" data-action="labels"><b>Labels</b><span>Create, open and print label sets for this order.</span></button></div></section>`;
+  layer.innerHTML = `<section class="finalOrderChooser"><header><div><p class="eyebrow">${orderNo}</p><h3>${client || "Choose where to continue"}</h3><p>Open the part of this order you need.</p></div><button type="button" class="uiIconButton uiCloseButton finalChooserClose" aria-label="Close order chooser" title="Close order chooser"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div class="finalOrderDestinations"><button type="button" data-action="setup"><b>Order Page / Setup</b><span>Products, fields, quantities and configuration.</span></button><button type="button" data-action="workspace"><b>Workspace</b><span>Enter and review person / record data.</span></button><button type="button" data-action="labels"><b>Labels</b><span>Create, open and print label sets for this order.</span></button></div></section>`;
   document.body.appendChild(layer);
   layer.querySelector(".finalChooserClose")?.addEventListener("click", closeOrderChooser);
   layer.addEventListener("pointerdown", event => { if (event.target === layer) closeOrderChooser(); });
@@ -473,7 +473,7 @@ function enhanceAdvancedLabelAutoOpen() {
   const orderNo = sessionStorage.getItem(ADVANCED_LABEL_KEY);
   const launcher = document.querySelector<HTMLElement>(".labelLauncher");
   if (!orderNo || !launcher) return;
-  const select = launcher.querySelector<HTMLSelectElement>('select[aria-label="Label use"]');
+  const select = launcher.querySelector<HTMLSelectElement>('select[aria-label="Label use" i]');
   if (select && select.value !== "packing") setReactSelectValue(select, "packing");
   const row = Array.from(launcher.querySelectorAll<HTMLElement>(".labelOrderResults article")).find(article => article.querySelector("b")?.textContent?.includes(orderNo));
   const create = row?.querySelector<HTMLButtonElement>(".orderLabelActions button");
@@ -529,7 +529,7 @@ export function SeikoFinalUxPass() {
       const element = (event.target as Element | null)?.closest<HTMLElement>(".packingWorkflowDesigner .packingCanvas .canvasElement");
       const page = element?.closest<HTMLElement>(".packingWorkflowDesigner");
       if (!element || !page || !element.classList.contains("selected")) return;
-      const font = inspectorInput(page, "Text size") || inspectorInput(page, "Font");
+      const font = inspectorInput(page, "Text Size") || inspectorInput(page, "Font");
       if (!font) return;
       event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
       const step = event.shiftKey ? 2 : .5;

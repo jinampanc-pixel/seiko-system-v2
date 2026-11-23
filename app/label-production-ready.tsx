@@ -155,7 +155,7 @@ function enhanceInformation(page: HTMLElement) {
   let bar = section.querySelector<HTMLElement>(".labelInfoCategoryBar");
   if (!bar) {
     bar = document.createElement("div"); bar.className = "labelInfoCategoryBar";
-    const categories = [["core","Core information"],["person","Person details"],["product","Product details"],["trace","Trace & codes"]] as const;
+    const categories = [["core","Core Information"],["person","Person Details"],["product","Product Details"],["trace","Trace & Codes"]] as const;
     categories.forEach(([id,label], index) => {
       const button = document.createElement("button"); button.type = "button"; button.textContent = label; button.dataset.category = id; if (index === 0) button.classList.add("active");
       button.addEventListener("click", () => {

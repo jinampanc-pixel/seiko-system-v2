@@ -44,7 +44,7 @@ function finalizeProductDetails(setup: Element) {
     const quantityLabel = quantityInput?.closest("label")?.querySelector<HTMLElement>(":scope > span");
     if (!quantitySelect) return;
 
-    quantitySelect.setAttribute("aria-label", "Quantity rule");
+    quantitySelect.setAttribute("aria-label", "Quantity Rule");
 
     if (quantitySelect.value === "by_group") {
       setText(help, "Set the normal quantity once, then add only the groups that differ. Use comma-separated values or a range such as 1-7 for several groups at once; quantity 0 means that group does not receive this product.");
@@ -54,7 +54,7 @@ function finalizeProductDetails(setup: Element) {
       rules?.querySelectorAll<HTMLInputElement>(":scope > div input:first-child").forEach(input => {
         input.placeholder = "Group values or range, e.g. 1-7";
       });
-      rules?.querySelectorAll<HTMLInputElement>('input[aria-label="Group quantity"]').forEach(input => {
+      rules?.querySelectorAll<HTMLInputElement>('input[aria-label="Group quantity" i]').forEach(input => {
         input.min = "0";
         input.placeholder = "Qty";
       });

@@ -1,4 +1,5 @@
 "use client";
+import { uiStatusLabel } from "./lib/ui-copy";
 import { CloseIcon } from "./ui-icons";
 
 
@@ -15,7 +16,7 @@ import {
 
 const STATUS_OPTIONS: VeynRequirementStatus[] = [
   "Draft",
-  "Ready to quote",
+  "Ready to Quote",
   "Quoted",
   "Confirmed",
   "Part delivered",
@@ -104,7 +105,7 @@ export function VeynOrders({
         <h1>Requirements</h1>
       </div>
       <button type="button" className="primary" disabled={!canCreate} onClick={() => setEditing({ order: blankVeynRequirement(), version: null })}>
-        {canCreate ? "+ New requirement" : "No create access"}
+        {canCreate ? "+ New Requirement" : "No Create Access"}
       </button>
     </div>
 
@@ -121,8 +122,8 @@ export function VeynOrders({
         const order = record.order;
         return <div className="veynRegisterRow" key={order.orderId}>
           <div><strong>{order.details.orderNo}</strong><span>{order.details.institutionName}</span><small>{order.details.institutionType}{order.details.reference ? ` · ${order.details.reference}` : ""}</small></div>
-          <div><strong>{order.lines.filter(line => line.description.trim()).length}</strong><small>{order.lines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0)} total qty</small></div>
-          <div><span className="veynStatusBadge">{order.status}</span></div>
+          <div><strong>{order.lines.filter(line => line.description.trim()).length}</strong><small>{order.lines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0)} Total Qty</small></div>
+          <div><span className="veynStatusBadge">{uiStatusLabel(String(order.status ?? ""))}</span></div>
           <div><span>{record.updatedAt ? new Date(record.updatedAt).toLocaleDateString("en-IN") : "—"}</span><small>{record.updatedBy}</small></div>
           <div className="veynRowActions">
             <button type="button" className="secondary" onClick={() => setEditing({ order: structuredClone(order), version: record.version })}>{canEdit ? "Edit" : "View"}</button>
@@ -167,7 +168,7 @@ function RequirementEditor({
   };
 
   return <div className="veynModalBackdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onCancel(); }}>
-    <section className="veynEditor" role="dialog" aria-modal="true" aria-label="VÉYN requirement editor">
+    <section className="veynEditor" role="dialog" aria-modal="true" aria-label="VÉYN Requirement Editor">
       <header className="veynEditorHead">
         <div><p className="eyebrow">{order.details.orderNo}</p><h2>{order.details.institutionName || "New requirement"}</h2></div>
         <button title="Close" type="button" className="iconButton uiIconButton uiCloseButton" onClick={onCancel} aria-label="Close"><CloseIcon/></button>
@@ -177,32 +178,32 @@ function RequirementEditor({
         <section className="veynFormSection">
           <h3>Institution</h3>
           <div className="veynFormGrid">
-            <Field label="Institution name *" value={order.details.institutionName} disabled={readOnly} onChange={value => detail("institutionName", value)}/>
-            <label><span>Institution type</span><select value={order.details.institutionType} disabled={readOnly} onChange={event => detail("institutionType", event.target.value)}><option>Hospital</option><option>CHC</option><option>PHC</option><option>UPHC</option><option>Diagnostic centre</option><option>Medical college</option><option>Other</option></select></label>
-            <Field label="Contact person" value={order.details.contactPerson} disabled={readOnly} onChange={value => detail("contactPerson", value)}/>
+            <Field label="Institution Name *" value={order.details.institutionName} disabled={readOnly} onChange={value => detail("institutionName", value)}/>
+            <label><span>Institution Type</span><select value={order.details.institutionType} disabled={readOnly} onChange={event => detail("institutionType", event.target.value)}><option>Hospital</option><option>CHC</option><option>PHC</option><option>UPHC</option><option value="Diagnostic centre">Diagnostic Centre</option><option value="Medical college">Medical College</option><option>Other</option></select></label>
+            <Field label="Contact Person" value={order.details.contactPerson} disabled={readOnly} onChange={value => detail("contactPerson", value)}/>
             <Field label="Phone" value={order.details.phone} disabled={readOnly} onChange={value => detail("phone", value)}/>
             <Field label="Email" type="email" value={order.details.email} disabled={readOnly} onChange={value => detail("email", value)}/>
             <Field label="GSTIN" value={order.details.gstin} disabled={readOnly} onChange={value => detail("gstin", value)}/>
-            <Field label="Reference / tender / enquiry" value={order.details.reference} disabled={readOnly} onChange={value => detail("reference", value)}/>
+            <Field label="Reference / Tender / Enquiry" value={order.details.reference} disabled={readOnly} onChange={value => detail("reference", value)}/>
             <Field label="Required by" type="date" value={order.details.requiredBy} disabled={readOnly} onChange={value => detail("requiredBy", value)}/>
-            <label><span>Status</span><select value={order.status} disabled={readOnly} onChange={event => onChange({ ...order, status: event.target.value as VeynRequirementStatus })}>{STATUS_OPTIONS.map(status => <option key={status}>{status}</option>)}</select></label>
+            <label><span>Status</span><select value={order.status} disabled={readOnly} onChange={event => onChange({ ...order, status: event.target.value as VeynRequirementStatus })}>{STATUS_OPTIONS.map(status => <option key={status}>{uiStatusLabel(String(status ?? ""))}</option>)}</select></label>
           </div>
           <div className="veynAddressGrid">
-            <label><span>Billing address</span><textarea rows={3} value={order.details.billTo} disabled={readOnly} onChange={event => detail("billTo", event.target.value)}/></label>
-            <label><span>Delivery address</span><textarea rows={3} value={order.details.deliverTo} disabled={readOnly} onChange={event => detail("deliverTo", event.target.value)}/></label>
+            <label><span>Billing Address</span><textarea rows={3} value={order.details.billTo} disabled={readOnly} onChange={event => detail("billTo", event.target.value)}/></label>
+            <label><span>Delivery Address</span><textarea rows={3} value={order.details.deliverTo} disabled={readOnly} onChange={event => detail("deliverTo", event.target.value)}/></label>
           </div>
         </section>
 
         <section className="veynFormSection">
-          <div className="veynSectionHead"><h3>Products & services</h3>{!readOnly && <button type="button" className="secondary" onClick={() => onChange({ ...order, lines: [...order.lines, blankRequirementLine()] })}>+ Add line</button>}</div>
+          <div className="veynSectionHead"><h3>Products & Services</h3>{!readOnly && <button type="button" className="secondary" onClick={() => onChange({ ...order, lines: [...order.lines, blankRequirementLine()] })}>+ Add Line</button>}</div>
           <div className="veynLineTable">
             <div className="veynLineHead"><span>Description</span><span>Qty</span><span>Unit</span><span>Specification</span><span>Est. rate</span><span/></div>
             {order.lines.map((line, index) => <div className="veynLineRow" key={line.id}>
-              <input aria-label={`Line ${index + 1} description`} value={line.description} disabled={readOnly} onChange={event => updateLine(index, { description: event.target.value })}/>
-              <input aria-label={`Line ${index + 1} quantity`} type="number" min="0" step="0.001" value={line.quantity} disabled={readOnly} onChange={event => updateLine(index, { quantity: Number(event.target.value) })}/>
-              <input aria-label={`Line ${index + 1} unit`} value={line.unit} disabled={readOnly} onChange={event => updateLine(index, { unit: event.target.value })}/>
-              <input aria-label={`Line ${index + 1} specification`} value={line.specification} disabled={readOnly} onChange={event => updateLine(index, { specification: event.target.value })}/>
-              <input aria-label={`Line ${index + 1} estimated rate`} type="number" min="0" step="0.01" value={line.estimatedRate} disabled={readOnly} onChange={event => updateLine(index, { estimatedRate: Number(event.target.value) })}/>
+              <input aria-label={`Line ${index + 1} Description`} value={line.description} disabled={readOnly} onChange={event => updateLine(index, { description: event.target.value })}/>
+              <input aria-label={`Line ${index + 1} Quantity`} type="number" min="0" step="0.001" value={line.quantity} disabled={readOnly} onChange={event => updateLine(index, { quantity: Number(event.target.value) })}/>
+              <input aria-label={`Line ${index + 1} Unit`} value={line.unit} disabled={readOnly} onChange={event => updateLine(index, { unit: event.target.value })}/>
+              <input aria-label={`Line ${index + 1} Specification`} value={line.specification} disabled={readOnly} onChange={event => updateLine(index, { specification: event.target.value })}/>
+              <input aria-label={`Line ${index + 1} Estimated Rate`} type="number" min="0" step="0.01" value={line.estimatedRate} disabled={readOnly} onChange={event => updateLine(index, { estimatedRate: Number(event.target.value) })}/>
               {!readOnly && <button type="button" className="dangerText" disabled={order.lines.length === 1} onClick={() => onChange({ ...order, lines: order.lines.filter((_, lineIndex) => lineIndex !== index) })}>Remove</button>}
             </div>)}
           </div>
@@ -213,7 +214,7 @@ function RequirementEditor({
         </section>
       </div>
 
-      <footer className="veynEditorActions"><button type="button" className="secondary" onClick={onCancel}>{readOnly ? "Close" : "Cancel"}</button>{!readOnly && <button type="button" className="primary" disabled={saving} onClick={onSave}>{saving ? "Saving…" : "Save requirement"}</button>}</footer>
+      <footer className="veynEditorActions"><button type="button" className="secondary" onClick={onCancel}>{readOnly ? "Close" : "Cancel"}</button>{!readOnly && <button type="button" className="primary" disabled={saving} onClick={onSave}>{saving ? "Saving…" : "Save Requirement"}</button>}</footer>
     </section>
   </div>;
 }

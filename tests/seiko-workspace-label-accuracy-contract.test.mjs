@@ -12,14 +12,14 @@ const labelRefinement = read("app/label-workspace-refinement.tsx");
 const orderCss = read("app/order-enhancements.css");
 
 test("Home clear filters is always a working reset", () => {
-  assert.match(home, /aria-label="Clear all order filters"/);
+  assert.match(home, /aria-label="Clear all order filters"/i);
   assert.match(home, /const clearFilters=\(\)=>\{setQuery\(""\);setStatus\(""\);setClientType\(""\);setProduct\(""\);\};/);
-  assert.match(home, /aria-label="Clear all order filters" onClick=\{clearFilters\}>Clear filters/);
+  assert.match(home, /aria-label="Clear all order filters" onClick=\{clearFilters\}>Clear filters/i);
   assert.doesNotMatch(home, /disabled=\{!activeFilterCount\} onClick=\{clearFilters\}/);
 });
 
 test("contextual Back navigation uses the locked shared style", () => {
-  assert.match(home, /startsWith\("← Back"\)/);
+  assert.match(home, /toLowerCase\(\)\.startsWith\("← back"\)/);
   assert.match(home, /contextBackButton/);
   assert.match(orders, /workspaceBackButton contextBackButton/);
   assert.match(orderCss, /\.contextBackButton,\.workspaceBackButton/);
@@ -30,7 +30,7 @@ test("workspace separates order actions from spreadsheet actions", () => {
   assert.match(orders, /workspaceCompactTools/);
   assert.match(orders, /data-sheet-action="undo"/);
   assert.match(orders, /data-sheet-action="redo"/);
-  assert.doesNotMatch(orders, />Put order on hold<\/button>/);
+  assert.doesNotMatch(orders, />Put order on hold<\/button>/i);
   assert.doesNotMatch(orders, />Undo last change<\/button>/);
   assert.match(shortcuts, /data-sheet-action/);
 });
@@ -47,7 +47,7 @@ test("workspace column widths and display preferences are persisted", () => {
 });
 
 test("label Value filter matches exact resolved values without matching other groups", () => {
-  assert.match(labels, /type="search" list="label-record-filter-values"/);
+  assert.match(labels, /type="search" list="label-record-filter-values"/i);
   assert.match(labels, /Type to filter values/);
   assert.match(labels, /\.toLowerCase\(\) === filterNeedle/);
 });
@@ -59,14 +59,14 @@ test("person package layouts use configured product fields and record-resolved a
   assert.ok(optionStart >= 0 && optionEnd > optionStart);
   assert.doesNotMatch(options, /Applicable product/);
   assert.doesNotMatch(options, /packageSlots/);
-  assert.match(options, /product_name:\$\{product\.id\}/);
+  assert.match(options, /product_name:\$\{product\.id\}/i);
   assert.match(options, /product_quantity:\$\{product\.id\}/);
   assert.match(labels, /labelQuantityForRecord/);
   assert.match(labels, /orderUsesProductEvidence/);
   assert.match(labels, /valuesWithNormalizedMeasurements/);
   assert.match(labels, /normalizedMeasurementValues\(order, candidate\.values\)/);
   assert.match(labels, /specificProductValues/);
-  assert.match(labels, /product_name:\$\{productId\}/);
+  assert.match(labels, /product_name:\$\{productId\}/i);
   assert.match(labels, /product_quantity:\$\{productId\}/);
   assert.match(labels, /filter\(item => !item\.field\?\.startsWith\("package_product:"\)\)/);
 });
@@ -89,14 +89,14 @@ test("label measurement normalization never borrows another product value", () =
 
 test("packing preview keeps only relevant fields and uses concise record identity", () => {
   assert.match(labels, /allowed = new Set\(fieldOptions\.map/);
-  assert.match(labels, /sourceMode === "person" && record\.values\.group/);
+  assert.match(labels, /sourceMode === "person" && record\.values\.group/i);
   assert.doesNotMatch(labels, /record\.name\}\{record\.product \?/);
 });
 
 test("label canvas is directly editable without an Arrange or Finish arranging mode", () => {
   assert.doesNotMatch(labelRefinement, /addArrangeControl/);
   assert.doesNotMatch(labelRefinement, /Finish arranging|Arrange label/);
-  assert.doesNotMatch(labels, /Automatic layout|Manual layout/);
+  assert.doesNotMatch(labels, /Automatic layout|Manual layout/i);
   assert.match(labels, /if \(!advanced\) \{ setItems\(arranged\); setAdvanced\(true\); \}/);
   assert.match(labels, /const down = \(e: ReactPointerEvent, item: Item\)/);
 });
@@ -157,9 +157,9 @@ test("Order Setup return path and label workspace header are source-owned", () =
   const listCenter = read("app/seiko-list-center-enhancements.tsx");
   const create = read("app/labels/create/page.tsx");
   assert.match(orders, /setupReturnView/);
-  assert.match(listCenter, /order-setup-origin/);
+  assert.match(listCenter, /order-setup-origin/i);
   assert.match(orders, /onClick=\{onCancel\}>← Back/);
-  assert.match(orders, /<Field label="Order date" type="date"/);
+  assert.match(orders, /<Field label="Order date" type="date"/i);
   assert.doesNotMatch(orders, /className="orderDateEditor"/);
   assert.match(create, /backLabel="← Back"/);
   assert.match(labels, /labelWorkspaceBackRow/);
@@ -170,7 +170,7 @@ test("Order Setup return path and label workspace header are source-owned", () =
 
 test("workspace add rows and expanded label information stay compact", () => {
   const finalCss = read("app/seiko-workspace-label-final.css");
-  assert.match(orders, /rowCountLabel">Add rows/);
+  assert.match(orders, /rowCountLabel">Add rows/i);
   assert.match(orders, /className="workspaceRowTotal"/);
   assert.match(finalCss, /grid-template-columns:auto 48px 52px/);
   assert.match(finalCss, /fieldChoice\.chosen\.fieldChoiceExpanded/);

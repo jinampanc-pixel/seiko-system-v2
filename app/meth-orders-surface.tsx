@@ -136,29 +136,29 @@ export function MethOrdersSurface() {
   };
 
   return <section className="jinamDashboard">
-    <div className="jinamDashboardHead"><div><small>METH</small><h1>Orders</h1><p>One operational order model for Shopify, Amazon, marketplaces, B2B and manual sales.</p></div><button className="primary" onClick={() => { setPolicy(defaultPolicy); setError(""); setOpen(true); }}>Add / import order</button></div>
+    <div className="jinamDashboardHead"><div><small>METH</small><h1>Orders</h1><p>One operational order model for Shopify, Amazon, marketplaces, B2B and manual sales.</p></div><button className="primary" onClick={() => { setPolicy(defaultPolicy); setError(""); setOpen(true); }}>Add / Import Order</button></div>
     <div className="jinamDashboardSection"><div className="jinamDashboardList">
-      {orders.map(order => <div className="jinamDashboardRow" key={order.id}><div><strong>{order.orderNumber}</strong><span>{order.channel.channel.toUpperCase()} · {order.channel.externalOrderNumber || order.channel.externalOrderId} · {order.customerName}</span></div><div><strong>{money(order.lines.reduce((sum, line) => sum + line.quantity * line.unitSellingPrice - line.discount, 0))}</strong><span>{order.customerPaymentStatus} · {order.fulfilmentStatus} · {order.routingDecision === "pending" ? "decision required" : order.routingDecision || "stock first"}</span></div></div>)}
-      {!orders.length && <div className="jinamDashboardRow"><strong>No MeTh orders yet</strong><span>Connected channel orders will normalize into this same list.</span></div>}
+      {orders.map(order => <div className="jinamDashboardRow" key={order.id}><div><strong>{order.orderNumber}</strong><span>{order.channel.channel.toUpperCase()} · {order.channel.externalOrderNumber || order.channel.externalOrderId} · {order.customerName}</span></div><div><strong>{money(order.lines.reduce((sum, line) => sum + line.quantity * line.unitSellingPrice - line.discount, 0))}</strong><span>{order.customerPaymentStatus} · {order.fulfilmentStatus} · {order.routingDecision === "pending" ? "Decision Required" : order.routingDecision || "stock first"}</span></div></div>)}
+      {!orders.length && <div className="jinamDashboardRow"><strong>No MeTh Orders Yet</strong><span>Connected channel orders will normalize into this same list.</span></div>}
     </div></div>
-    {open && <div className="phase2EditorBackdrop"><form className="phase2Editor" action={createManual}><h2>Add channel order</h2>
+    {open && <div className="phase2EditorBackdrop"><form className="phase2Editor" action={createManual}><h2>Add Channel Order</h2>
       {error && <p className="phase2Error">{error}</p>}
       <div className="phase2EditorGrid">
-        <label>Channel<select name="channel" defaultValue="manual"><option value="shopify">Shopify</option><option value="amazon">Amazon</option><option value="marketplace">Other marketplace</option><option value="b2b">B2B</option><option value="manual">Manual</option></select></label>
-        <label>External order ID<input name="externalOrderId"/></label>
-        <label>External order number<input name="externalOrderNumber"/></label>
+        <label>Channel<select name="channel" defaultValue="manual"><option value="shopify">Shopify</option><option value="amazon">Amazon</option><option value="marketplace">Other Marketplace</option><option value="b2b">B2B</option><option value="manual">Manual</option></select></label>
+        <label>External Order ID<input name="externalOrderId"/></label>
+        <label>External Order Number<input name="externalOrderNumber"/></label>
         <label>Customer<input name="customerName"/></label>
         <label>MeTh SKU<input name="methSku" required/></label>
         <label>Product<input name="productName" required/></label>
         <label>Size<input name="size"/></label>
         <label>Colour<input name="colour"/></label>
         <label>Quantity<input name="quantity" type="number" min="1" defaultValue="1"/></label>
-        <label>Selling price / unit<input name="unitSellingPrice" type="number" min="0" step="0.01"/></label>
-        <label>Fulfilment routing<select name="fulfilmentPolicy" value={policy} onChange={event => setPolicy(event.target.value as MethFulfilmentPolicy)}><option value="stock_first">Stock first — reserve stock, produce shortage</option><option value="decide">Decide — choose after order is saved</option></select></label>
-        <label>Customer payment<select name="paymentStatus" defaultValue="unpaid"><option value="unpaid">Unpaid</option><option value="paid">Paid</option><option value="cod_due">COD due</option><option value="cod_collected">COD collected</option></select></label>
+        <label>Selling Price / Unit<input name="unitSellingPrice" type="number" min="0" step="0.01"/></label>
+        <label>Fulfilment Routing<select name="fulfilmentPolicy" value={policy} onChange={event => setPolicy(event.target.value as MethFulfilmentPolicy)}><option value="stock_first">Stock First — Reserve Stock, Produce Shortage</option><option value="decide">Decide — Choose After Order Is Saved</option></select></label>
+        <label>Customer Payment<select name="paymentStatus" defaultValue="unpaid"><option value="unpaid">Unpaid</option><option value="paid">Paid</option><option value="cod_due">COD Due</option><option value="cod_collected">COD Collected</option></select></label>
       </div>
       <p>{policy === "stock_first" ? "Jinam will use the authoritative MeTh finished-stock balance. You do not type an availability estimate." : "The order will wait in Production until Stock first or Produce full order is chosen."}</p>
-      <footer><button type="button" className="secondary" disabled={saving} onClick={() => setOpen(false)}>Cancel</button><button className="primary" disabled={saving}>{saving ? "Saving…" : "Save order"}</button></footer>
+      <footer><button type="button" className="secondary" disabled={saving} onClick={() => setOpen(false)}>Cancel</button><button className="primary" disabled={saving}>{saving ? "Saving…" : "Save Order"}</button></footer>
     </form></div>}
   </section>;
 }

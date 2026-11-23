@@ -59,5 +59,5 @@ test('person-detail recipients are independent of fixed, group and per-person qu
  p.quantityMode='by_group';p.quantityGroupRules=[{match:'',quantity:4,...when(['class','7'])}];delete female.values['product:pinafore:assigned_qty'];assert.equal(d.quantityForRecord(p,female),4);assert.equal(d.quantityForRecord(p,male),0);
  p.recipientWhen=when(['gender','Female, F'],['class','5-8']);female.values['field:class']='4';assert.equal(d.quantityForRecord(p,female),0);female.values['field:class']='7';assert.equal(d.quantityForRecord(p,female),4);assert.equal(d.orderRuleErrors(o).length,0);
  p.recipientWhen=when(['missing-field','Female']);assert.ok(d.orderRuleErrors(o).some(e=>e.includes('recipients')));
- p.recipientWhen=when(['gender','Female']);p.quantityMode='order_total';assert.ok(d.orderRuleErrors(o).some(e=>e.includes('order totals')));
+ p.recipientWhen=when(['gender','Female']);p.quantityMode='order_total';assert.ok(d.orderRuleErrors(o).some(e=>(e).toLowerCase().includes("order totals")));
 });

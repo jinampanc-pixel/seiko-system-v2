@@ -47,28 +47,28 @@ export function JinamBusinessShell<T extends string>({
 
   return <div className="jinamBusinessShell" data-business={businessId} style={themeVariables(theme) as CSSProperties}>
     <header className="jinamShellTopbar">
-      <button type="button" className="jinamBusinessBrand" onClick={() => navigate(nav[0]?.key ?? active)} aria-label={`${businessName} home`}>
+      <button type="button" className="jinamBusinessBrand" onClick={() => navigate(nav[0]?.key ?? active)} aria-label={`${businessName} Home`}>
         {businessLogo ? <img src={businessLogo} alt={`${businessName} logo`}/> : <strong>{businessName}</strong>}
       </button>
-      <button type="button" className={`jinamShellMenuToggle ${menuOpen ? "active" : ""}`} onClick={() => setMenuOpen(open => !open)} aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen}>
+      <button type="button" className={`jinamShellMenuToggle ${menuOpen ? "active" : ""}`} onClick={() => setMenuOpen(open => !open)} aria-label={menuOpen ? "Close Menu" : "Open Menu"} aria-expanded={menuOpen}>
         <span/><span/><span/>
       </button>
     </header>
 
-    {menuOpen && <button type="button" className="jinamShellBackdrop" aria-label="Close menu" onClick={() => setMenuOpen(false)}/>}
+    {menuOpen && <button type="button" className="jinamShellBackdrop" aria-label="Close Menu" onClick={() => setMenuOpen(false)}/>}
 
-    <aside className={`jinamShellDrawer ${menuOpen ? "open" : ""}`} aria-label={`${businessName} navigation`}>
+    <aside className={`jinamShellDrawer ${menuOpen ? "open" : ""}`} aria-label={`${businessName} Navigation`}>
       <div className="jinamDrawerHeading">
         <small>{businessName}</small>
       </div>
-      <nav className="moduleMenu jinamModuleMenu" aria-label={`${businessName} modules`}>
+      <nav className="moduleMenu jinamModuleMenu" aria-label={`${businessName} Modules`}>
         {nav.map(item => <button type="button" className={`nav ${active === item.key ? "active" : ""}`} key={item.key} onClick={() => navigate(item.key)}>
           <span>{item.icon}</span><small><b>{item.label}</b></small>
         </button>)}
       </nav>
       <label className="jinamBusinessSwitch">
-        <span>Switch business</span>
-        <select aria-label="Switch business" value={businessId} onChange={event => switchBusiness(event.target.value)}>
+        <span>Switch Business</span>
+        <select aria-label="Switch Business" value={businessId} onChange={event => switchBusiness(event.target.value)}>
           {session?.businesses.map(item => <option key={item.businessId} value={item.businessId}>{item.businessName}</option>)}
         </select>
       </label>

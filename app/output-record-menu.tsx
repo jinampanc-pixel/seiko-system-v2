@@ -11,9 +11,9 @@ export function OutputRecordMenu({context,content,beforeSave}:{context:OutputCon
   try{await beforeSave?.();await recordOutput(context,action,content);setNotice(action==="confirm-printed"?"Marked as printed by you.":"Marked as not printed.");if(menu.current)menu.current.open=false;}
   catch(e){setError((e as Error).message);}finally{pending.current=false;setBusy(false);}
  }
- return <div className="outputRecordControl"><ActionMenu menuRef={menu} label="Print record">
-  <button type="button" disabled={busy} onClick={()=>void save("queue-print")}>Mark as not printed</button>
-  <button type="button" disabled={busy} onClick={()=>void save("confirm-printed")}>Mark as printed</button>
+ return <div className="outputRecordControl"><ActionMenu menuRef={menu} label="Print Record">
+  <button type="button" disabled={busy} onClick={()=>void save("queue-print")}>Mark as Not Printed</button>
+  <button type="button" disabled={busy} onClick={()=>void save("confirm-printed")}>Mark as Printed</button>
   <small>Mark Printed after the actual print.</small>
  </ActionMenu>{notice&&<span role="status">{notice}</span>}{error&&<span role="alert">{error}</span>}</div>;
 }

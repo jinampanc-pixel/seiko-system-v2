@@ -13,7 +13,7 @@ test("global menu uses Home and keeps business switching in the menu", () => {
   assert.match(navigation, /label: "Home"/);
   assert.match(navigationCss, /compactBusinessPicker>select\{display:none!important;pointer-events:none!important\}/);
   assert.match(navigation, /globalBusinessNavigator/);
-  assert.match(navigation, /Switch business/);
+  assert.match(navigation, /Switch business/i);
   assert.doesNotMatch(navigation, /Veyn Health · Read only/);
 });
 
@@ -25,7 +25,7 @@ test("stable menu owns the whole viewport and keeps the business selector at the
 });
 
 test("business selector uses one accessible overlay and one shared chevron", () => {
-  assert.match(navigation, /<select aria-label="Switch business"/);
+  assert.match(navigation, /<select aria-label="Switch business"/i);
   assert.match(navigation, /globalBusinessChevron/);
   assert.match(navigationCss, /globalBusinessNavigator>select/);
   assert.match(navigationCss, /opacity:0/);
@@ -59,7 +59,7 @@ test("switching businesses updates the owning React business selector instead of
 
 test("standalone menu closes through its React-owned backdrop", () => {
   assert.match(navigation, /className="menuBackdrop"[\s\S]*onClick=\{\(\) => setOpen\(false\)\}/);
-  assert.match(navigation, /aria-label=\{open \? "Close menu" : "Open menu"\}/);
+  assert.match(navigation, /aria-label=\{open \? "Close menu" : "Open menu"\}/i);
 });
 
 test("retired business access stays excluded from global navigation", () => {

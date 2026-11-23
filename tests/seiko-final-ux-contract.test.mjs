@@ -20,11 +20,11 @@ test("packing designer keeps product presentation in its React-owned drawer", ()
   assert.match(packing, /physicalDrawerBackdrop/);
   assert.match(packing, /physicalDrawer/);
   assert.match(packing, /every checked product/);
-  assert.match(packing, /Printed product name/);
-  assert.match(packing, /Primary measurement/);
-  assert.match(packing, /Show quantity/);
+  assert.match(packing, /Printed product name/i);
+  assert.match(packing, /Primary measurement/i);
+  assert.match(packing, /Show quantity/i);
   assert.match(packing, /Measurements/);
-  assert.match(packing, /Attributes \/ specifications/);
+  assert.match(packing, /Attributes \/ specifications/i);
   assert.match(stableCss, /packingPresentationRules[\s\S]*overflow-y: auto !important/);
   assert.match(stableCss, /packingPresentationDrawer[\s\S]*overflow: hidden !important/);
 });

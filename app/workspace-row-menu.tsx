@@ -28,7 +28,7 @@ function enhanceRow(row: HTMLTableRowElement) {
   const trigger = document.createElement("button");
   trigger.type = "button";
   trigger.className = "workspaceRowMenuTrigger";
-  trigger.setAttribute("aria-label", "Row actions");
+  trigger.setAttribute("aria-label", "Row Actions");
   trigger.setAttribute("aria-haspopup", "menu");
   trigger.setAttribute("aria-expanded", "false");
   trigger.innerHTML = "<span></span><span></span><span></span>";
@@ -43,7 +43,7 @@ function enhanceRow(row: HTMLTableRowElement) {
   holdAction.className = "workspaceRowMenuHold";
   const syncHoldLabel = () => {
     const nativeLabel = hold.getAttribute("aria-label") || hold.title || "Put on hold";
-    holdAction.textContent = /^Resume/i.test(nativeLabel) ? "Resume row" : "Put on hold";
+    holdAction.textContent = /^Resume/i.test(nativeLabel) ? "Resume Row" : "Put on Hold";
   };
   syncHoldLabel();
   holdAction.addEventListener("click", () => {
@@ -56,7 +56,7 @@ function enhanceRow(row: HTMLTableRowElement) {
   deleteAction.type = "button";
   deleteAction.setAttribute("role", "menuitem");
   deleteAction.className = "workspaceRowMenuDelete";
-  deleteAction.textContent = "Delete row";
+  deleteAction.textContent = "Delete Row";
   deleteAction.addEventListener("click", () => {
     closeMenus();
     remove.click();

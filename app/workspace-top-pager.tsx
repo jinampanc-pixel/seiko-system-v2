@@ -10,7 +10,7 @@ function setInputValue(input: HTMLInputElement, value: string) {
 }
 
 function enhanceRowCount(page: HTMLElement) {
-  const input = page.querySelector<HTMLInputElement>('.rowCountControl input[aria-label="Number of rows to add"]');
+  const input = page.querySelector<HTMLInputElement>('.rowCountControl input[aria-label="Number of rows to add" i]');
   if (!input || input.dataset.replaceOnFocus === "true") return;
   input.dataset.replaceOnFocus = "true";
   input.addEventListener("focus", () => requestAnimationFrame(() => input.select()));
@@ -25,18 +25,18 @@ function buildTopPager(page: HTMLElement) {
   const bottom = realPager(page), tools = page.querySelector<HTMLElement>(":scope > .workspaceTools");
   if (!bottom || !tools) return;
   let top = tools.querySelector<HTMLElement>(":scope > .workspacePagerTop");
-  if (!top) { top = document.createElement("div"); top.className = "workspacePager workspacePagerTop"; top.setAttribute("aria-label", "Workspace pagination"); tools.appendChild(top); }
+  if (!top) { top = document.createElement("div"); top.className = "workspacePager workspacePagerTop"; top.setAttribute("aria-label", "Workspace Pagination"); tools.appendChild(top); }
   if (top.matches(":focus-within")) return;
   const children = Array.from(bottom.children);
   const range = children.find(child => child instanceof HTMLSpanElement && /^Showing\s/i.test(child.textContent || ""));
   const pageStatus = children.find(child => child instanceof HTMLSpanElement && /^Page\s/i.test(child.textContent || ""));
-  const native = bottom.querySelector<HTMLInputElement>('input[aria-label="Rows per page"]');
+  const native = bottom.querySelector<HTMLInputElement>('input[aria-label="Rows per page" i]');
   const previous = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Previous");
   const next = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Next");
   top.replaceChildren();
   if (range) top.appendChild(range.cloneNode(true));
   const label = document.createElement("label"); label.append("Rows ");
-  const input = document.createElement("input"); input.type = "text"; input.inputMode = "numeric"; input.className = "workspacePageSizeInput"; input.setAttribute("aria-label", "Rows per page"); input.value = native?.value || "50";
+  const input = document.createElement("input"); input.type = "text"; input.inputMode = "numeric"; input.className = "workspacePageSizeInput"; input.setAttribute("aria-label", "Rows Per Page"); input.value = native?.value || "50";
   const commit = () => {
     if (!native) return;
     const value = String(Math.max(1, Math.min(5000, Math.floor(Number(input.value) || 1))));

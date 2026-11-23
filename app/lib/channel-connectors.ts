@@ -127,9 +127,9 @@ export function detectChannelProvider(input: string): ChannelDetection {
 
 export function nextAuthorizationStep(provider: ChannelProvider, storeUrl: string) {
   if (provider === "shopify") return { title: "Authorize Shopify", detail: "Install/authorize the Jinam app for this store. Jinam will then receive an access token and register order/fulfilment webhooks.", requiresExternalApproval: true };
-  if (provider === "woocommerce") return { title: "Grant WooCommerce access", detail: "Jinam will open the store's WooCommerce application authorization page so the owner can grant read/write API access.", requiresExternalApproval: true };
+  if (provider === "woocommerce") return { title: "Grant WooCommerce Access", detail: "Jinam will open the store's WooCommerce application authorization page so the owner can grant read/write API access.", requiresExternalApproval: true };
   if (provider === "amazon") return { title: "Authorize Seller Central", detail: "Complete the Amazon Seller Central/SP-API authorization flow for the seller account. A pasted marketplace URL cannot grant API access by itself.", requiresExternalApproval: true };
-  return { title: "Add API connection details", detail: `For ${new URL(storeUrl).hostname}, add the API/authentication method supplied by that sales channel. Jinam will keep the same normalized order model.`, requiresExternalApproval: true };
+  return { title: "Add API Connection Details", detail: `For ${new URL(storeUrl).hostname}, add the API/authentication method supplied by that sales channel. Jinam will keep the same normalized order model.`, requiresExternalApproval: true };
 }
 
 export function newConnectionFromDetection(detection: ChannelDetection): ChannelConnection {

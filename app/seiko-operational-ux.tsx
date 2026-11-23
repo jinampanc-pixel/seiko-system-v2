@@ -51,7 +51,7 @@ function waitForWorkspaceAction(label: string, attempts = 60) {
 
 function dueLabel(order: SeikoOrder) {
   const date = order.details.deliveryDate;
-  if (!date) return "Not set";
+  if (!date) return "Not Set";
   const due = new Date(`${date}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -144,7 +144,7 @@ function enhanceOrderCenter(page: HTMLElement) {
       if (productHoverTarget && meta.contains(productHoverTarget)) removeProductHover();
       meta.dataset.signature = metaSignature;
       meta.replaceChildren();
-      appendMetaItem(meta, "Client type", order.details.clientType || "—");
+      appendMetaItem(meta, "Client Type", order.details.clientType || "—");
       appendMetaItem(meta, "Records", String(order.records.length));
       const productMeta = appendMetaItem(meta, "Products", String(order.products.filter(product => product.name.trim()).length));
       productMeta.classList.add("orderProductMeta"); productMeta.tabIndex = 0;
@@ -196,7 +196,7 @@ function enhanceOrderCenter(page: HTMLElement) {
       print = document.createElement("button");
       print.type = "button";
       print.className = "orderMenuPrintLabels";
-      print.textContent = "Print labels";
+      print.textContent = "Print Labels";
       print.addEventListener("click", () => {
         removeProductHover();
         menu.open = false;
@@ -204,7 +204,7 @@ function enhanceOrderCenter(page: HTMLElement) {
         waitForWorkspaceAction("Labels");
       });
       const create = Array.from(panel.querySelectorAll<HTMLButtonElement>("button"))
-        .find(button => button.textContent?.trim() === "Create labels");
+        .find(button => button.textContent?.trim() === "Create Labels");
       if (create) create.insertAdjacentElement("afterend", print); else panel.appendChild(print);
     }
     if (!hasPrintable && print) print.remove();

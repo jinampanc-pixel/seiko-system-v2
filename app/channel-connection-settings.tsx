@@ -109,11 +109,11 @@ export function ChannelConnectionSettings() {
   };
 
   return <section className="jinamSettingsCard">
-    <h2>Sales channels</h2>
+    <h2>Sales Channels</h2>
     <p>Paste a store or seller link. Jinam identifies the channel where possible, then asks only for the authorization that provider actually requires.</p>
     <div className="channelConnectionForm">
       <label className="channelConnectionField">
-        <span>Store / seller link</span>
+        <span>Store / Seller Link</span>
         <input
           value={url}
           onChange={event => { setUrl(event.target.value); setProviderOverride(""); }}
@@ -123,7 +123,7 @@ export function ChannelConnectionSettings() {
         />
       </label>
       <label className="channelConnectionField">
-        <span>Detected platform</span>
+        <span>Detected Platform</span>
         <select value={providerOverride || detection.provider} onChange={event => setProviderOverride(event.target.value as ChannelProvider)}>
           <option value="shopify">Shopify</option>
           <option value="woocommerce">WooCommerce</option>
@@ -134,8 +134,8 @@ export function ChannelConnectionSettings() {
     </div>
     {url && <div className="jinamDashboardList">
       <div className="jinamDashboardRow">
-        <div><strong>{detection.normalizedUrl ? CHANNEL_PROVIDERS[provider].label : "Link not recognized"}</strong><span>{detection.reason}</span></div>
-        <span>{detection.confidence} confidence</span>
+        <div><strong>{detection.normalizedUrl ? CHANNEL_PROVIDERS[provider].label : "Link Not Recognized"}</strong><span>{detection.reason}</span></div>
+        <span>{detection.confidence} Confidence</span>
       </div>
       {step && <div className="jinamDashboardRow">
         <div><strong>{step.title}</strong><span>{step.detail}</span></div>
@@ -144,7 +144,7 @@ export function ChannelConnectionSettings() {
           className="primary channelConnectionAction"
           disabled={provider === "shopify" && !!busyId}
           onClick={provider === "shopify" ? () => void connectCurrent() : prepare}
-        >{provider === "shopify" ? (busyId ? "Starting…" : "Connect Shopify") : "Prepare connection"}</button>
+        >{provider === "shopify" ? (busyId ? "Starting…" : "Connect Shopify") : "Prepare Connection"}</button>
       </div>}
     </div>}
     {notice && <p className="channelConnectionStatus" role="status">{notice}</p>}
@@ -152,12 +152,12 @@ export function ChannelConnectionSettings() {
       {connections.map(connection => <div className="jinamDashboardRow" key={connection.id}>
         <div><strong>{connection.label}</strong><span>{connection.storeUrl}</span></div>
         <div>
-          <strong>{connection.status === "connected" ? "Connected" : connection.status === "error" ? "Needs attention" : connection.status === "disabled" ? "Disabled" : "Authorization required"}</strong>
+          <strong>{connection.status === "connected" ? "Connected" : connection.status === "error" ? "Needs Attention" : connection.status === "disabled" ? "Disabled" : "Authorization Required"}</strong>
           <span>{connection.lastError || connection.capabilities.join(" · ")}</span>
           {connection.provider === "shopify" && connection.status !== "connected" && connection.status !== "disabled" && <button type="button" className="primary" disabled={busyId === connection.id} onClick={() => void authorizeShopify(connection)}>{busyId === connection.id ? "Starting…" : "Authorize Shopify"}</button>}
         </div>
       </div>)}
-      {!connections.length && <div className="jinamDashboardRow"><strong>No sales channel connected yet</strong><span>When your store is ready, paste its link above and connect it.</span></div>}
+      {!connections.length && <div className="jinamDashboardRow"><strong>No Sales Channel Connected Yet</strong><span>When your store is ready, paste its link above and connect it.</span></div>}
     </div>
     <p><small>Security rule: store URLs and connection metadata may be cached in the browser, but OAuth tokens, refresh tokens, API secrets and webhook secrets are never stored in browser localStorage. Real credentials are accepted and encrypted only by the server-side connector credential store.</small></p>
   </section>;

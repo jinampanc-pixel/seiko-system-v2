@@ -19,26 +19,26 @@ test("packing designer owns exactly one visible drop-to-remove target", () => {
 });
 
 test("packing inspector restores value emphasis and tight-box sizing", () => {
-  assert.match(runtime, /Value bold/);
-  assert.match(runtime, /Fit box to text/);
+  assert.match(runtime, /Value bold/i);
+  assert.match(runtime, /Fit box to text/i);
   assert.match(runtime, /fitSelectedBox/);
   assert.match(finalCss, /\.packingWorkflowDesigner \.packingInspectorBar/);
 });
 
 test("package block wording describes inclusion rather than data ownership", () => {
-  assert.match(runtime, /Include product details on label/);
-  assert.doesNotMatch(runtime, /Show package contents on label/);
+  assert.match(runtime, /Include product details on label/i);
+  assert.doesNotMatch(runtime, /Show package contents on label/i);
 });
 
 test("saved label sets and saved layouts are available from the packing menu", () => {
-  assert.match(runtime, /Saved label sets/);
-  assert.match(runtime, /Saved layouts/);
+  assert.match(runtime, /Saved label sets/i);
+  assert.match(runtime, /Saved layouts/i);
   assert.match(runtime, /openSavedLibrary/);
 });
 
 test("packing workflow requires a label-set brief confirmation before printing", () => {
   assert.match(runtime, /LABEL SET BRIEF/);
-  assert.match(runtime, /Confirm label set/);
+  assert.match(runtime, /Confirm label set/i);
   assert.match(runtime, /labelSetConfirmedFingerprint/);
   assert.match(finalCss, /\.packingWorkflowDesigner \.packingReadinessPanel/);
 });

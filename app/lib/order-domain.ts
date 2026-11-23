@@ -106,7 +106,7 @@ export function workspaceColumns(order: SeikoOrder): WorkspaceColumn[] {
     if (!product.name.trim()) continue;
     const group = { groupId: `product:${product.id}`, groupLabel: product.name };
     if (product.quantityMode === "per_person") columns.push({ id: `product:${product.id}:qty`, label: "Quantity", required: true, ...group });
-    if (product.quantityMode === "default_with_exceptions") columns.push({ id: `product:${product.id}:qty_override`, label: "Quantity override", required: false, ...group });
+    if (product.quantityMode === "default_with_exceptions") columns.push({ id: `product:${product.id}:qty_override`, label: "Quantity Override", required: false, ...group });
     for (const spec of product.specifications) {
       if (spec.mode === "per_person") columns.push({ id: `spec:${spec.id}`, label: spec.name, required: spec.required, ...group });
       if (spec.mode === "default_with_exceptions") columns.push({ id: `spec:${spec.id}:override`, label: `${spec.name} override`, required: false, ...group });
@@ -266,7 +266,7 @@ export function recordInOrderGroup(order:SeikoOrder,recordId:string,group="all")
 }
 export function orderGroupOptions(order:SeikoOrder){
  const counts=new Map<string,number>();for(const r of order.records){const key=orderGroupKey(order.commerce?.people[r.recordId]?.batch||"");counts.set(key,(counts.get(key)||0)+1);}
- return [{key:"all",label:"Whole order",count:order.records.length},{key:"original",label:"Original / ungrouped",count:counts.get("original")||0},...[...counts].filter(([key])=>key.startsWith("batch:")).map(([key,count])=>({key,label:key.slice(6),count}))];
+ return [{key:"all",label:"Whole Order",count:order.records.length},{key:"original",label:"Original / Ungrouped",count:counts.get("original")||0},...[...counts].filter(([key])=>key.startsWith("batch:")).map(([key,count])=>({key,label:key.slice(6),count}))];
 }
 export function orderGroupLabel(group:string){return group==="all"?"Whole order":group==="original"?"Original / ungrouped":group.startsWith("batch:")?group.slice(6):"Unknown group";}
 export function validOrderGroup(group:unknown){return typeof group==="string"&&(group==="all"||group==="original"||group.startsWith("batch:")&&group.slice(6).trim()===group.slice(6)&&group.length>6&&group.length<=126);}

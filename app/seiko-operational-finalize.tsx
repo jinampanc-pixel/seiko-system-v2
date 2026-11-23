@@ -90,15 +90,15 @@ function enhanceOrderSetup() {
       defaultInput.disabled = false;
       defaultInput.classList.remove("modeBlockedInput");
       defaultInput.min = "0";
-      if (defaultLabel) defaultLabel.textContent = "Default qty";
+      if (defaultLabel) defaultLabel.textContent = "Default Qty";
       if (help) help.textContent = "Set the normal quantity once. Add only groups that differ. One exception may contain several values such as 1, 2, 3; quantity 0 means that group does not receive this product.";
       const rules = card.querySelector<HTMLElement>(".quantityGroupRules");
       const summary = rules?.querySelector<HTMLElement>(":scope > summary");
-      if (summary) summary.textContent = "Quantity exceptions by group";
+      if (summary) summary.textContent = "Quantity Exceptions by Group";
       rules?.querySelectorAll<HTMLInputElement>(":scope > div input:first-child").forEach(input => { input.placeholder = "Group values, e.g. 1, 2, 3"; });
-      rules?.querySelectorAll<HTMLInputElement>('input[aria-label="Group quantity"]').forEach(input => { input.min = "0"; input.placeholder = "Qty"; });
+      rules?.querySelectorAll<HTMLInputElement>('input[aria-label="Group quantity" i]').forEach(input => { input.min = "0"; input.placeholder = "Qty"; });
     }
-    if (quantitySelect?.value === "per_person" && defaultLabel) defaultLabel.textContent = "Entered in workspace";
+    if (quantitySelect?.value === "per_person" && defaultLabel) defaultLabel.textContent = "Entered In Workspace";
   });
 
   const cancel = Array.from(setup.querySelectorAll<HTMLButtonElement>(".orderPageHead button")).find(button => /Cancel|Back to/.test(button.textContent || ""));
@@ -126,7 +126,7 @@ function enhanceReadiness(page: HTMLElement) {
   readiness.classList.add("workspaceReadinessCompact");
   const details = readiness.querySelector<HTMLDetailsElement>("details");
   const summary = details?.querySelector("summary");
-  if (summary) summary.textContent = "Review issues";
+  if (summary) summary.textContent = "Review Issues";
   if (!details || readiness.querySelector(".workspaceIssueChips")) return;
   const issues = Array.from(details.querySelectorAll("li")).map(item => item.textContent?.trim() || "").filter(Boolean);
   const groups = new Map<string, number>();
@@ -149,7 +149,7 @@ function enhanceReadiness(page: HTMLElement) {
 
 function enhanceWorkspaceAdd(page: HTMLElement) {
   const button = page.querySelector<HTMLButtonElement>(".workspaceAddTools .primary");
-  const input = page.querySelector<HTMLInputElement>('.workspaceAddTools input[aria-label="Number of rows to add"]');
+  const input = page.querySelector<HTMLInputElement>('.workspaceAddTools input[aria-label="Number of rows to add" i]');
   if (!button || !input || button.dataset.bulkConfirmReady) return;
   button.dataset.bulkConfirmReady = "true";
   button.addEventListener("click", async event => {
@@ -230,7 +230,7 @@ function enhanceWorkspaceRows(page: HTMLElement) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.className = "workspaceSelectAll";
-    checkbox.setAttribute("aria-label", "Select all visible rows");
+    checkbox.setAttribute("aria-label", "Select All Visible Rows");
     checkbox.addEventListener("change", () => {
       workspaceRows(page).forEach(row => {
         const id = rowId(row);
@@ -325,14 +325,14 @@ function enhanceWorkspaceMenu(page: HTMLElement) {
     back.type = "button";
     back.className = "secondary workspaceContextBack";
     back.textContent = "← Back";
-    back.addEventListener("click", () => workspaceAction(page, "Save & close"));
+    back.addEventListener("click", () => workspaceAction(page, "Save & Close"));
     headActions.prepend(back);
   }
 
   const menu = page.querySelector<HTMLElement>(".orderActionMenu");
   if (!menu || menu.dataset.unifiedLabelsReady) return;
   const buttons = Array.from(menu.querySelectorAll<HTMLButtonElement>(":scope > button"));
-  const print = buttons.find(button => button.textContent?.trim() === "Print labels");
+  const print = buttons.find(button => button.textContent?.trim() === "Print Labels");
   if (!print) return;
   menu.dataset.unifiedLabelsReady = "true";
   print.hidden = true;
@@ -349,12 +349,12 @@ function enhanceWorkspaceMenu(page: HTMLElement) {
   const divider = menu.querySelector(".orderMenuDivider");
   divider?.insertAdjacentElement("afterend", labels);
 
-  const edit = buttons.find(button => button.textContent?.trim() === "Edit setup");
+  const edit = buttons.find(button => button.textContent?.trim() === "Edit Setup");
   edit?.addEventListener("click", () => { if (orderNo) sessionStorage.setItem(SETUP_RETURN_KEY, orderNo); });
-  buttons.filter(button => !page.hasAttribute("data-server-order-actions") && ["Save", "Save & close"].includes(button.textContent?.trim() || "")).forEach(button => {
+  buttons.filter(button => !page.hasAttribute("data-server-order-actions") && ["Save", "Save & Close"].includes(button.textContent?.trim() || "")).forEach(button => {
     if (button.dataset.saveNoticeReady) return;
     button.dataset.saveNoticeReady = "true";
-    button.addEventListener("click", () => window.setTimeout(() => toast(button.textContent?.trim() === "Save & close" ? "Order saved." : "Changes saved."), 30));
+    button.addEventListener("click", () => window.setTimeout(() => toast(button.textContent?.trim() === "Save & Close" ? "Order saved." : "Changes saved."), 30));
   });
 }
 
@@ -369,7 +369,7 @@ function triggerRowAction(row: HTMLElement, action: "open" | "setup" | "labels")
   waitFor(".workspacePage", node => {
     const page = node as HTMLElement;
     enhanceWorkspaceMenu(page);
-    workspaceAction(page, action === "setup" ? "Edit setup" : "Labels");
+    workspaceAction(page, action === "setup" ? "Edit Setup" : "Labels");
   });
 }
 
@@ -388,8 +388,8 @@ function enhanceOrderCenter() {
       button.addEventListener("click", () => { menu.removeAttribute("open"); triggerRowAction(row, action); });
       group.appendChild(button);
     };
-    add("Open order", "open");
-    add("Edit setup", "setup");
+    add("Open Order", "open");
+    add("Edit Setup", "setup");
     add("Labels", "labels");
     menu.querySelector("summary")?.insertAdjacentElement("afterend", group);
   });
@@ -429,7 +429,7 @@ function enhanceLabelLauncher() {
     const create = document.createElement("button");
     create.type = "button";
     create.className = "primary labelCreateToggle";
-    create.textContent = "+ Create labels";
+    create.textContent = "+ Create Labels";
     create.setAttribute("aria-expanded", contextOrder ? "true" : "false");
     create.addEventListener("click", () => {
       const open = !page.classList.contains("labelCreateOpen");

@@ -1,4 +1,5 @@
 "use client";
+import { uiStatusLabel } from "./lib/ui-copy";
 import { CloseIcon } from "./ui-icons";
 
 
@@ -126,7 +127,7 @@ export function VeynBilling({
 
   return <section className="page veynBillingPage">
     <div className="veynPageHead">
-      <div><p className="eyebrow">BILLING</p><h1>Commercial pipeline</h1></div>
+      <div><p className="eyebrow">BILLING</p><h1>Commercial Pipeline</h1></div>
       <button type="button" className="secondary" onClick={() => void load()}>Refresh</button>
     </div>
 
@@ -175,7 +176,7 @@ function PipelineRow({
   return <article className="panel veynPipelineRow">
     <header className="veynPipelineOrder">
       <div><strong>{order.details.orderNo}</strong><h3>{order.details.institutionName}</h3><small>{order.details.reference || `${order.lines.length} requirement line${order.lines.length === 1 ? "" : "s"}`}</small></div>
-      <span className="veynStatusBadge">{order.status}</span>
+      <span className="veynStatusBadge">{uiStatusLabel(String(order.status ?? ""))}</span>
     </header>
 
     <div className="veynPipelineStages">
@@ -187,20 +188,20 @@ function PipelineRow({
         {quotation && <b>{formatMoney(quotationTotal(quotation))}</b>}
       </Stage>
 
-      <Stage label="Purchase order" state={po ? `${po.poNumber}${po.customerPoNumber ? ` · Customer ${po.customerPoNumber}` : ""}` : accepted ? "Ready" : "Accept quotation first"}>
+      <Stage label="Purchase Order" state={po ? `${po.poNumber}${po.customerPoNumber ? ` · Customer ${po.customerPoNumber}` : ""}` : accepted ? "Ready" : "Accept quotation first"}>
         {!po && accepted && <button type="button" className="primary" disabled={disabled || !can("billing.purchase_orders.manage")} onClick={() => onEdit({ kind: "po", orderId: order.orderId, value: newPurchaseOrder(order, accepted) })}>Record PO</button>}
         {po && <button type="button" className="secondary" disabled={disabled || !can("billing.purchase_orders.manage")} onClick={() => onEdit({ kind: "po", orderId: order.orderId, value: structuredClone(po) })}>Edit</button>}
       </Stage>
 
-      <Stage label="Delivery challan" state={challan ? `${order.commercial.deliveryChallans.length} · latest ${challan.challanNumber} · ${challan.status}` : po ? "Ready" : "PO required"}>
+      <Stage label="Delivery Challan" state={challan ? `${order.commercial.deliveryChallans.length} · latest ${challan.challanNumber} · ${challan.status}` : po ? "Ready" : "PO required"}>
         {po && accepted && <button type="button" className="primary" disabled={disabled || !can("billing.delivery_challans.manage")} onClick={() => onEdit({ kind: "challan", orderId: order.orderId, value: newChallan(order, accepted, po) })}>+ Challan</button>}
-        {challan && <button type="button" className="secondary" disabled={disabled || !can("billing.delivery_challans.manage")} onClick={() => onEdit({ kind: "challan", orderId: order.orderId, value: structuredClone(challan) })}>Edit latest</button>}
+        {challan && <button type="button" className="secondary" disabled={disabled || !can("billing.delivery_challans.manage")} onClick={() => onEdit({ kind: "challan", orderId: order.orderId, value: structuredClone(challan) })}>Edit Latest</button>}
         {challan?.status === "draft" && <button type="button" className="secondary" disabled={disabled || !can("billing.delivery_challans.manage")} onClick={() => onIssueDocument("challan", challan.id)}>Issue</button>}
       </Stage>
 
       <Stage label="Invoice" state={invoice ? `${invoice.invoiceNumber} · ${invoice.status}` : po ? "Ready" : "PO required"}>
         {po && accepted && <button type="button" className="primary" disabled={disabled || !can("billing.invoices.manage")} onClick={() => onEdit({ kind: "invoice", orderId: order.orderId, value: newInvoice(order, accepted, po) })}>Create</button>}
-        {invoice && <button type="button" className="secondary" disabled={disabled || !can("billing.invoices.manage")} onClick={() => onEdit({ kind: "invoice", orderId: order.orderId, value: structuredClone(invoice) })}>Edit latest</button>}
+        {invoice && <button type="button" className="secondary" disabled={disabled || !can("billing.invoices.manage")} onClick={() => onEdit({ kind: "invoice", orderId: order.orderId, value: structuredClone(invoice) })}>Edit Latest</button>}
         {invoice?.status === "draft" && <button type="button" className="secondary" disabled={disabled || !can("billing.invoices.manage")} onClick={() => onIssueDocument("invoice", invoice.id)}>Issue</button>}
       </Stage>
     </div>
@@ -208,7 +209,7 @@ function PipelineRow({
 }
 
 function Stage({ label, state, children }: { label: string; state: string; children: React.ReactNode }) {
-  return <section className="veynStage"><small>{label}</small><span>{state}</span><div className="veynStageActions">{children}</div></section>;
+  return <section className="veynStage"><small>{label}</small><span>{uiStatusLabel(String(state ?? ""))}</span><div className="veynStageActions">{children}</div></section>;
 }
 
 function CommercialEditor({
@@ -225,7 +226,7 @@ function CommercialEditor({
   onSave: () => void;
 }) {
   return <div className="veynModalBackdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onCancel(); }}>
-    <section className="veynEditor veynCommercialEditor" role="dialog" aria-modal="true" aria-label="Commercial document editor">
+    <section className="veynEditor veynCommercialEditor" role="dialog" aria-modal="true" aria-label="Commercial Document Editor">
       <header className="veynEditorHead"><div><p className="eyebrow">{editorTitle(editor.kind).toUpperCase()}</p><h2>{documentNumber(editor)}</h2></div><button title="Close" type="button" className="iconButton uiIconButton uiCloseButton" onClick={onCancel} aria-label="Close"><CloseIcon/></button></header>
       <div className="veynEditorBody">
         {editor.kind === "quotation" && <QuotationForm value={editor.value} onChange={value => onChange({ ...editor, value })}/>} 
@@ -243,31 +244,31 @@ function QuotationForm({ value, onChange }: { value: VeynQuotation; onChange: (v
   return <>
     <div className="veynFormGrid">
       <Field label="Quotation no." value={value.quotationNumber} onChange={quotationNumber => onChange({ ...value, quotationNumber })}/>
-      <Field label="Issue date" type="date" value={value.issueDate} onChange={issueDate => onChange({ ...value, issueDate })}/>
-      <Field label="Valid till" type="date" value={value.validTill || ""} onChange={validTill => onChange({ ...value, validTill })}/>
+      <Field label="Issue Date" type="date" value={value.issueDate} onChange={issueDate => onChange({ ...value, issueDate })}/>
+      <Field label="Valid Till" type="date" value={value.validTill || ""} onChange={validTill => onChange({ ...value, validTill })}/>
       <Field label="Reference" value={value.reference || ""} onChange={reference => onChange({ ...value, reference })}/>
       <Field label="Customer" value={value.customer.name} onChange={name => onChange({ ...value, customer: { ...value.customer, name } })}/>
     </div>
     <div className="veynLineTable veynCommercialLines">
       <div className="veynLineHead"><span>Description</span><span>Qty</span><span>Unit</span><span>Rate</span><span>Amount</span></div>
       {value.lines.map((line, index) => <div className="veynLineRow" key={line.id}>
-        <input aria-label={`Quotation line ${index + 1} description`} value={line.description} onChange={event => updateLine(index, { description: event.target.value })}/>
-        <input aria-label={`Quotation line ${index + 1} quantity`} type="number" min="0" step="0.001" value={line.quantity} onChange={event => updateLine(index, { quantity: Number(event.target.value) })}/>
-        <input aria-label={`Quotation line ${index + 1} unit`} value={line.unit} onChange={event => updateLine(index, { unit: event.target.value })}/>
-        <input aria-label={`Quotation line ${index + 1} rate`} type="number" min="0" step="0.01" value={line.unitRate} onChange={event => updateLine(index, { unitRate: Number(event.target.value) })}/>
+        <input aria-label={`Quotation Line ${index + 1} Description`} value={line.description} onChange={event => updateLine(index, { description: event.target.value })}/>
+        <input aria-label={`Quotation Line ${index + 1} Quantity`} type="number" min="0" step="0.001" value={line.quantity} onChange={event => updateLine(index, { quantity: Number(event.target.value) })}/>
+        <input aria-label={`Quotation Line ${index + 1} Unit`} value={line.unit} onChange={event => updateLine(index, { unit: event.target.value })}/>
+        <input aria-label={`Quotation Line ${index + 1} Rate`} type="number" min="0" step="0.01" value={line.unitRate} onChange={event => updateLine(index, { unitRate: Number(event.target.value) })}/>
         <strong>{formatMoney(line.quantity * line.unitRate)}</strong>
       </div>)}
     </div>
     <div className="veynCommercialTotal"><span>Total</span><strong>{formatMoney(quotationTotal(value))}</strong></div>
-    <label><span>Terms · one per line</span><textarea rows={5} value={value.terms.join("\n")} onChange={event => onChange({ ...value, terms: event.target.value.split("\n").map(item => item.trim()).filter(Boolean) })}/></label>
+    <label><span>Terms · One Per Line</span><textarea rows={5} value={value.terms.join("\n")} onChange={event => onChange({ ...value, terms: event.target.value.split("\n").map(item => item.trim()).filter(Boolean) })}/></label>
   </>;
 }
 
 function PurchaseOrderForm({ value, onChange }: { value: VeynPurchaseOrder; onChange: (value: VeynPurchaseOrder) => void }) {
   return <div className="veynFormGrid">
-    <Field label="Internal PO reference" value={value.poNumber} onChange={poNumber => onChange({ ...value, poNumber })}/>
-    <Field label="Customer PO number" value={value.customerPoNumber || ""} onChange={customerPoNumber => onChange({ ...value, customerPoNumber })}/>
-    <Field label="Accepted date" type="date" value={value.acceptedAt.slice(0, 10)} onChange={acceptedAt => onChange({ ...value, acceptedAt: `${acceptedAt}T00:00:00.000Z` })}/>
+    <Field label="Internal PO Reference" value={value.poNumber} onChange={poNumber => onChange({ ...value, poNumber })}/>
+    <Field label="Customer PO Number" value={value.customerPoNumber || ""} onChange={customerPoNumber => onChange({ ...value, customerPoNumber })}/>
+    <Field label="Accepted Date" type="date" value={value.acceptedAt.slice(0, 10)} onChange={acceptedAt => onChange({ ...value, acceptedAt: `${acceptedAt}T00:00:00.000Z` })}/>
   </div>;
 }
 
@@ -276,13 +277,13 @@ function ChallanForm({ value, onChange }: { value: VeynDeliveryChallan; onChange
   return <>
     <div className="veynFormGrid">
       <Field label="Challan no." value={value.challanNumber} onChange={challanNumber => onChange({ ...value, challanNumber })}/>
-      <Field label="Issue date" type="date" value={value.issueDate} onChange={issueDate => onChange({ ...value, issueDate })}/>
+      <Field label="Issue Date" type="date" value={value.issueDate} onChange={issueDate => onChange({ ...value, issueDate })}/>
       <Field label="Reference" value={value.reference} onChange={reference => onChange({ ...value, reference })}/>
     </div>
     <label><span>Deliver to</span><textarea rows={3} value={address} onChange={event => onChange({ ...value, deliverTo: { ...value.deliverTo, addressLines: event.target.value.split("\n") } })}/></label>
     <div className="veynLineTable veynDeliveryLines">
-      <div className="veynLineHead"><span>Line</span><span>Ordered</span><span>Delivered now</span></div>
-      {value.lines.map((line, index) => <div className="veynLineRow" key={line.lineId}><span>Line {index + 1}</span><span>{line.ordered}</span><input aria-label={`Delivered quantity line ${index + 1}`} type="number" min="0" max={line.ordered} step="0.001" value={line.delivered} onChange={event => onChange({ ...value, lines: value.lines.map((item, i) => i === index ? { ...item, delivered: Number(event.target.value) } : item) })}/></div>)}
+      <div className="veynLineHead"><span>Line</span><span>Ordered</span><span>Delivered Now</span></div>
+      {value.lines.map((line, index) => <div className="veynLineRow" key={line.lineId}><span>Line {index + 1}</span><span>{line.ordered}</span><input aria-label={`Delivered Quantity Line ${index + 1}`} type="number" min="0" max={line.ordered} step="0.001" value={line.delivered} onChange={event => onChange({ ...value, lines: value.lines.map((item, i) => i === index ? { ...item, delivered: Number(event.target.value) } : item) })}/></div>)}
     </div>
   </>;
 }
@@ -293,16 +294,16 @@ function InvoiceForm({ value, onChange }: { value: VeynInvoice; onChange: (value
   return <>
     <div className="veynFormGrid">
       <Field label="Invoice no." value={value.invoiceNumber} onChange={invoiceNumber => onChange({ ...value, invoiceNumber })}/>
-      <Field label="Issue date" type="date" value={value.issueDate} onChange={issueDate => onChange({ ...value, issueDate })}/>
-      <Field label="Due date" type="date" value={value.dueDate || ""} onChange={dueDate => onChange({ ...value, dueDate })}/>
+      <Field label="Issue Date" type="date" value={value.issueDate} onChange={issueDate => onChange({ ...value, issueDate })}/>
+      <Field label="Due Date" type="date" value={value.dueDate || ""} onChange={dueDate => onChange({ ...value, dueDate })}/>
     </div>
     <div className="veynLineTable veynCommercialLines">
       <div className="veynLineHead"><span>Description</span><span>Qty</span><span>Unit</span><span>Rate</span><span>Amount</span></div>
       {value.lines.map((line, index) => <div className="veynLineRow" key={line.id}>
-        <input aria-label={`Invoice line ${index + 1} description`} value={line.description} onChange={event => updateLine(index, { description: event.target.value })}/>
-        <input aria-label={`Invoice line ${index + 1} quantity`} type="number" min="0" step="0.001" value={line.quantity} onChange={event => updateLine(index, { quantity: Number(event.target.value) })}/>
-        <input aria-label={`Invoice line ${index + 1} unit`} value={line.unit} onChange={event => updateLine(index, { unit: event.target.value })}/>
-        <input aria-label={`Invoice line ${index + 1} rate`} type="number" min="0" step="0.01" value={line.unitRate} onChange={event => updateLine(index, { unitRate: Number(event.target.value) })}/>
+        <input aria-label={`Invoice Line ${index + 1} Description`} value={line.description} onChange={event => updateLine(index, { description: event.target.value })}/>
+        <input aria-label={`Invoice Line ${index + 1} Quantity`} type="number" min="0" step="0.001" value={line.quantity} onChange={event => updateLine(index, { quantity: Number(event.target.value) })}/>
+        <input aria-label={`Invoice Line ${index + 1} Unit`} value={line.unit} onChange={event => updateLine(index, { unit: event.target.value })}/>
+        <input aria-label={`Invoice Line ${index + 1} Rate`} type="number" min="0" step="0.01" value={line.unitRate} onChange={event => updateLine(index, { unitRate: Number(event.target.value) })}/>
         <strong>{formatMoney(line.quantity * line.unitRate)}</strong>
       </div>)}
     </div>
@@ -378,7 +379,7 @@ function latest<T>(items: T[]): T | undefined {
 }
 
 function editorTitle(kind: EditorState["kind"]): string {
-  return ({ quotation: "Quotation", po: "Purchase order", challan: "Delivery challan", invoice: "Invoice" } as const)[kind];
+  return ({ quotation: "Quotation", po: "Purchase Order", challan: "Delivery Challan", invoice: "Invoice" } as const)[kind];
 }
 
 function documentNumber(editor: EditorState): string {

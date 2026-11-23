@@ -82,22 +82,22 @@ function ensureShortcutGuide(page: HTMLElement) {
     details = document.createElement("details");
     details.className = "workspaceShortcutGuide";
     const summary = document.createElement("summary");
-    summary.textContent = "Keyboard shortcuts";
+    summary.textContent = "Keyboard Shortcuts";
     const panel = document.createElement("div");
     panel.className = "workspaceShortcutGuidePanel";
     panel.innerHTML = [
       ["Ctrl/Cmd + S", "Save"],
-      ["Ctrl/Cmd + Shift + S", "Save & close"],
+      ["Ctrl/Cmd + Shift + S", "Save & Close"],
       ["Ctrl/Cmd + P", "Open Labels"],
-      ["Ctrl/Cmd + F", "Search rows"],
-      ["Ctrl/Cmd + C / V / X", "Copy / paste / cut cells"],
-      ["Ctrl/Cmd + Z / Y", "Undo / redo"],
-      ["Ctrl/Cmd + ;", "Insert current date"],
-      ["Ctrl/Cmd + Shift + ;", "Insert current time"],
-      ["Ctrl/Cmd + Home / End", "First / last used cell"],
-      ["F2", "Edit selected cell"],
-      ["Delete / Backspace", "Clear selected cells"],
-      ["Esc", "Close menus / leave cell"]
+      ["Ctrl/Cmd + F", "Search Rows"],
+      ["Ctrl/Cmd + C / V / X", "Copy / Paste / Cut Cells"],
+      ["Ctrl/Cmd + Z / Y", "Undo / Redo"],
+      ["Ctrl/Cmd + ;", "Insert Current Date"],
+      ["Ctrl/Cmd + Shift + ;", "Insert Current Time"],
+      ["Ctrl/Cmd + Home / End", "First / Last Used Cell"],
+      ["F2", "Edit Selected Cell"],
+      ["Delete / Backspace", "Clear Selected Cells"],
+      ["Esc", "Close Menus / Leave Cell"]
     ].map(([shortcut, action]) => `<span><kbd>${shortcut}</kbd><b>${action}</b></span>`).join("");
     details.append(summary, panel);
   }
@@ -163,7 +163,7 @@ export function WorkspaceShortcuts() {
       }
       if (modifier && key === "f") {
         event.preventDefault();
-        const search = page.querySelector<HTMLInputElement>('input[aria-label="Search rows"]');
+        const search = page.querySelector<HTMLInputElement>('input[aria-label="Search rows" i]');
         search?.focus(); search?.select(); return;
       }
       if (modifier && key === "z") {

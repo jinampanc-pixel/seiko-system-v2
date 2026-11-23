@@ -11,8 +11,8 @@ const handoffs = readFileSync(new URL("../app/lib/server-meth-handoffs.ts", impo
 test("the live MeTh Orders screen uses the authoritative routing surface", () => {
   assert.match(meth, /import \{ MethOrdersSurface \} from "\.\/meth-orders-surface"/);
   assert.doesNotMatch(meth, /MethOrdersSurface.*from "\.\/meth-commerce-ui"/);
-  assert.doesNotMatch(orders, /Finished stock available/);
-  assert.match(orders, /authoritative MeTh finished-stock balance/);
+  assert.doesNotMatch(orders, /Finished stock available/i);
+  assert.match(orders, /authoritative MeTh finished-stock balance/i);
 });
 
 test("manual orders are stored pending before stock-first routing runs", () => {
@@ -24,14 +24,14 @@ test("manual orders are stored pending before stock-first routing runs", () => {
 });
 
 test("decide orders expose both explicit choices without reserving stock first", () => {
-  assert.match(orders, /Decide — choose after order is saved/);
-  assert.match(routing, /Use stock first/);
-  assert.match(routing, /Produce full order/);
+  assert.match(orders, /Decide — choose after order is saved/i);
+  assert.match(routing, /Use stock first/i);
+  assert.match(routing, /Produce full order/i);
   assert.match(server, /routingDecision: decision/);
 });
 
 test("stock-first uses atomic D1 reservations and only shortage crosses to SEIKO", () => {
-  assert.match(server, /jinam_meth_finished_stock/);
+  assert.match(server, /jinam_meth_finished_stock/i);
   assert.match(server, /reserved=reserved\+\?/);
   assert.match(server, /productionRequired: Math\.max\(0, quantity - allocation\)/);
   assert.match(handoffs, /line\.productionRequired <= 0/);

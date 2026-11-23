@@ -53,9 +53,9 @@ export function PhysicalLabelCanvas<T extends PhysicalItem>({ items, onChange, r
     onChange(items.map(item => { const factor = Math.min(scale, 48 / item.w); const next = constrainBox({ ...item, x: 1, y, w: item.w * factor, h: item.h * factor, font: item.font * factor }); y += next.h + gap; return next; }));
   };
   return <>
-    <details className="physicalViewControls"><summary>Layout controls</summary>
-    <div className="physicalTools"><b>50 × 25 mm</b><label><input type="checkbox" checked={snap} onChange={e => setSnap(e.target.checked)}/>1 mm snap</label>
-      <button onClick={() => setFit(true)}>Fit</button><label>Zoom <select aria-label="Canvas zoom" value={fit ? "fit" : zoom} onChange={e => { setFit(false); setZoom(Number(e.target.value)); }}>
+    <details className="physicalViewControls"><summary>Layout Controls</summary>
+    <div className="physicalTools"><b>50 × 25 mm</b><label><input type="checkbox" checked={snap} onChange={e => setSnap(e.target.checked)}/>1 mm Snap</label>
+      <button onClick={() => setFit(true)}>Fit</button><label>Zoom <select aria-label="Canvas Zoom" value={fit ? "fit" : zoom} onChange={e => { setFit(false); setZoom(Number(e.target.value)); }}>
         {fit && <option value="fit">Fit ({Math.round(zoom * 100)}%)</option>}{[.5, 1, 2, 3, 4, 5].map(value => <option key={value} value={value}>{value * 100}%</option>)}</select></label>
       <button onClick={arrange}>Auto-arrange</button><span onPointerDown={endWheel}>{children}</span>
     </div>
@@ -63,7 +63,7 @@ export function PhysicalLabelCanvas<T extends PhysicalItem>({ items, onChange, r
     <div className="physicalStageWrap"><div className="physicalStage" ref={stage}><div style={{ position: "relative", width: 50 * MM_PX * zoom, height: 25 * MM_PX * zoom, flexShrink: 0 }}>
       {/* The application canvas receives arrow/delete shortcuts, not a button activation. */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
-      <div className="physicalCanvas" role="application" tabIndex={0} aria-label="50 by 25 millimetre label editor" style={{ width: 50 * MM_PX, height: 25 * MM_PX, transform: `scale(${zoom})`, "--handle-size": `${10 / zoom}px`, "--handle-hit": `${24 / zoom}px` } as CSSProperties} onPointerDown={() => select("")}
+      <div className="physicalCanvas" role="application" tabIndex={0} aria-label="50 By 25 Millimetre Label Editor" style={{ width: 50 * MM_PX, height: 25 * MM_PX, transform: `scale(${zoom})`, "--handle-size": `${10 / zoom}px`, "--handle-hit": `${24 / zoom}px` } as CSSProperties} onPointerDown={() => select("")}
         onKeyDown={event => {
           if (!selected || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Delete", "Backspace"].includes(event.key)) return;
           event.preventDefault(); endWheel();
@@ -97,12 +97,12 @@ export function PhysicalLabelCanvas<T extends PhysicalItem>({ items, onChange, r
         </div>)}
         {guides.x != null && <div className="physicalGuide vertical" style={{ left: guides.x * MM_PX }}/>}{guides.y != null && <div className="physicalGuide horizontal" style={{ top: guides.y * MM_PX }}/>}
       </div>
-    <div ref={trash} className={`physicalTrash ${dragging ? "visible" : ""} ${overTrash ? "over" : ""}`} aria-label="Drop here to remove" aria-hidden={!dragging}><span aria-hidden="true">×</span></div></div></div></div>
+    <div ref={trash} className={`physicalTrash ${dragging ? "visible" : ""} ${overTrash ? "over" : ""}`} aria-label="Drop Here to Remove" aria-hidden={!dragging}><span aria-hidden="true">×</span></div></div></div></div>
 
-    {selected && <details className="physicalElementControls" key={selected.id}><summary>{selected.label} · Size &amp; position</summary><div className="physicalInspector"><b>{selected.label}</b>{(["x", "y", "w", "h", "font"] as const).map(key => <label key={key}>{({ x: "X (mm)", y: "Y (mm)", w: "Width (mm)", h: "Height (mm)", font: "Font (pt)" })[key]}<input aria-label={key} type="number" step={key === "font" ? .25 : .1} min={key === "x" || key === "y" ? 0 : 1} value={Number(selected[key].toFixed(2))} onChange={e => {
+    {selected && <details className="physicalElementControls" key={selected.id}><summary>{selected.label} · Size &amp; Position</summary><div className="physicalInspector"><b>{selected.label}</b>{(["x", "y", "w", "h", "font"] as const).map(key => <label key={key}>{({ x: "X (mm)", y: "Y (mm)", w: "Width (mm)", h: "Height (mm)", font: "Font (Pt)" })[key]}<input aria-label={key} type="number" step={key === "font" ? .25 : .1} min={key === "x" || key === "y" ? 0 : 1} value={Number(selected[key].toFixed(2))} onChange={e => {
       endWheel(); const value = Number(e.target.value); if (!Number.isFinite(value) || value < 0) return;
       update(key === "font" ? scaleTextBox(selected, value / selected.font) : key === "w" ? stretchTextBox(selected, "e", value - selected.w, 0) : key === "h" ? stretchTextBox(selected, "s", 0, value - selected.h) : { ...selected, [key]: value });
-    }}/></label>)}<label>Alignment<select aria-label="Text alignment" value={selected.align || "left"} onChange={e => update({ ...selected, align: e.target.value as T["align"] })}><option>left</option><option>center</option><option>right</option></select></label><button onClick={() => update({ ...selected, bold: !selected.bold })} aria-pressed={selected.bold}>Bold</button><button onClick={() => onChange(items.filter(item => item.id !== selected.id))}>Remove</button></div></details>}
+    }}/></label>)}<label>Alignment<select aria-label="Text Alignment" value={selected.align || "left"} onChange={e => update({ ...selected, align: e.target.value as T["align"] })}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label><button onClick={() => update({ ...selected, bold: !selected.bold })} aria-pressed={selected.bold}>Bold</button><button onClick={() => onChange(items.filter(item => item.id !== selected.id))}>Remove</button></div></details>}
     {items.some(outsideSafeArea) && <p role="status" className="physicalWarning">Some fields enter the 1 mm print margin. Your layout is preserved; check your printer’s printable area.</p>}
   </>;
 }

@@ -19,7 +19,7 @@ export function orderSheetColumns(order:SeikoOrder):SheetColumn[]{
    const col:SheetColumn={id:`product:${p.id}:assigned_qty`,label:usesStructuredRules(o)?"Quantity exception":"Quantity (pieces)",groupId:`product:${p.id}`,groupLabel:p.name,required:false,numeric:true};
    const at=cols.findIndex(c=>c.groupId===col.groupId);if(at<0)cols.push(col);else cols.splice(at,0,col);
  }
- for(const p of o.products){const group={groupId:'product:'+p.id,groupLabel:p.name};if(usesStructuredRules(o)&&p.quantityMode!=='order_total')cols.push({id:'product:'+p.id+':resolved_qty',label:'Quantity (pieces)',required:false,numeric:true,derived:true,...group});for(const spec of p.specifications.filter(s=>s.role!=='asset'&&['same_for_all','by_group'].includes(s.mode))){cols.push({id:'spec:'+spec.id+':override',label:spec.name+' exception',required:false,...group},{id:'spec:'+spec.id+':resolved',label:spec.name,required:false,derived:true,...group});}}
+ for(const p of o.products){const group={groupId:'product:'+p.id,groupLabel:p.name};if(usesStructuredRules(o)&&p.quantityMode!=='order_total')cols.push({id:'product:'+p.id+':resolved_qty',label:"Quantity (Pieces)",required:false,numeric:true,derived:true,...group});for(const spec of p.specifications.filter(s=>s.role!=='asset'&&['same_for_all','by_group'].includes(s.mode))){cols.push({id:'spec:'+spec.id+':override',label:spec.name+' exception',required:false,...group},{id:'spec:'+spec.id+':resolved',label:spec.name,required:false,derived:true,...group});}}
  // Keep each product together even when new derived columns were appended.
  const displayed=entryDisplayColumns(o,cols),groups=[...new Set(displayed.map(c=>c.groupId))];return groups.flatMap(group=>displayed.filter(c=>c.groupId===group));
 }
@@ -127,7 +127,7 @@ export function sheetCountRequests(order:SeikoOrder,cols:SheetColumn[],summarySh
  const nameCol=letter(Math.max(5,cols.findIndex(c=>c.id===`field:${personField?.id}`))),range=(i:number)=>`'People'!${letter(i)}4:${letter(i)}`,names=`'People'!${nameCol}4:${nameCol}`,statuses=range(cols.findIndex(c=>c.id==="_state"));
  // Explicit empty cells and whitespace must not create a person or garment count.
  const named=`N(LEN(TRIM(${names}&""))>0)`,active=[named,...["cancelled","hold","awaiting"].map(state=>`N(LOWER(TRIM(${statuses}))<>"${state}")`)];
- const calculated=[{label:"People listed",formula:`=SUMPRODUCT(${named})`},{label:"Active people (not a billing count)",formula:`=SUMPRODUCT(${active.join(",")})`},...cols.map((c,i)=>({c,i})).filter(({c})=>c.id.endsWith(usesStructuredRules(order)?":resolved_qty":":assigned_qty")).map(({c,i})=>({label:`${c.groupLabel} — active pieces`,formula:`=SUMPRODUCT(${active.join(",")},IFERROR(${range(i)}*1,0))`}))];
+ const calculated=[{label:"People Listed",formula:`=SUMPRODUCT(${named})`},{label:"Active People (Not a Billing Count)",formula:`=SUMPRODUCT(${active.join(",")})`},...cols.map((c,i)=>({c,i})).filter(({c})=>c.id.endsWith(usesStructuredRules(order)?":resolved_qty":":assigned_qty")).map(({c,i})=>({label:`${c.groupLabel} — active pieces`,formula:`=SUMPRODUCT(${active.join(",")},IFERROR(${range(i)}*1,0))`}))];
  requests.push({updateCells:{start:{sheetId:summarySheetId,rowIndex:5,columnIndex:0},rows:calculated.map(row=>({values:[sheetCell(row.label),{userEnteredValue:{formulaValue:row.formula}}]})),fields:"userEnteredValue"}});
  requests.push({autoResizeDimensions:{dimensions:{sheetId:summarySheetId,dimension:"ROWS",startIndex:0,endIndex:5+calculated.length}}});
  return requests;

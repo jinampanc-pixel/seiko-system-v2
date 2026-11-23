@@ -1,16 +1,17 @@
+const uiLabel=require("./ui-label.cjs");
 const assert = require('node:assert/strict');
 module.exports = async ({page, sqlite, navigate}) => {
   const setup = page.locator('.orderSetup');
-  await page.getByRole('button', {name: '+ New order', exact: true}).click();
+  await page.getByRole('button', {name: uiLabel('+ New order', true), exact: true}).click();
   await setup.waitFor();
-  assert.equal(await page.getByRole('navigation', {name: 'Modules'}).count(), 0);
-  await setup.getByLabel('Client name *', {exact:true}).fill('Recovery test client');
-  await setup.getByLabel('Phone number *', {exact:true}).fill('9999999999');
+  assert.equal(await page.getByRole('navigation', {name: uiLabel('Modules', false)}).count(), 0);
+  await setup.getByLabel(uiLabel('Client name *', true), {exact:true}).fill('Recovery test client');
+  await setup.getByLabel(uiLabel('Phone number *', true), {exact:true}).fill('9999999999');
   for(let i=0;i<6;i++) {
-    if(i) await setup.getByRole('button',{name:'+ Add product',exact:true}).click();
-    await setup.getByLabel('Product', {exact:true}).nth(i).fill(`Product ${i+1}`);
+    if(i) await setup.getByRole('button',{name:uiLabel('+ Add product', true),exact:true}).click();
+    await setup.getByLabel(uiLabel('Product', true), {exact:true}).nth(i).fill(`Product ${i+1}`);
   }
-  const add = setup.getByRole('button',{name:'+ Add product',exact:true});
+  const add = setup.getByRole('button',{name:uiLabel('+ Add product', true),exact:true});
   await add.scrollIntoViewIfNeeded();
   const addBox = await add.boundingBox();
   const lastBox = await setup.locator('.productPolicy').last().boundingBox();
@@ -18,24 +19,24 @@ module.exports = async ({page, sqlite, navigate}) => {
   const countBefore = sqlite.prepare('SELECT COUNT(*) AS n FROM erp_orders').get().n;
   const offline = route => route.abort('internetdisconnected');
   await page.route('**/api/erp/orders', offline);
-  await setup.getByRole('button',{name:'Create workspace',exact:true}).last().click();
+  await setup.getByRole('button',{name:uiLabel('Create workspace', true),exact:true}).last().click();
   await page.getByRole('alert').filter({hasText:'temporarily unreachable'}).waitFor();
-  assert.equal(await setup.getByLabel('Client name *', {exact:true}).inputValue(),'Recovery test client');
+  assert.equal(await setup.getByLabel(uiLabel('Client name *', true), {exact:true}).inputValue(),'Recovery test client');
   assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM erp_orders').get().n, countBefore);
   await page.reload();
   await navigate('Orders');
-  await page.getByRole('button',{name:'+ New order',exact:true}).click();
-  assert.equal(await setup.getByLabel('Client name *', {exact:true}).inputValue(),'Recovery test client');
+  await page.getByRole('button',{name:uiLabel('+ New order', true),exact:true}).click();
+  assert.equal(await setup.getByLabel(uiLabel('Client name *', true), {exact:true}).inputValue(),'Recovery test client');
   assert.equal(await setup.locator('.productPolicy').count(),6);
   await page.unroute('**/api/erp/orders', offline);
   const expired = route => route.fulfill({status:302, headers:{location:'https://unreachable-login.invalid/'}});
   await page.route('**/api/erp/orders', expired);
-  await setup.getByRole('button',{name:'Create workspace',exact:true}).last().click();
+  await setup.getByRole('button',{name:uiLabel('Create workspace', true),exact:true}).last().click();
   await page.getByRole('alert').filter({hasText:'sign-in session has expired'}).waitFor();
   assert.equal(await setup.locator('.productPolicy').count(),6);
   await page.unroute('**/api/erp/orders', expired);
-  await setup.getByRole('button',{name:'Create workspace',exact:true}).last().click();
-  await page.getByRole('region',{name:'Google Sheets order workspace',exact:true}).waitFor();assert.equal(await page.locator('.workspacePage').count(),0,'order creation opens the current workspace without mounting the legacy grid');
+  await setup.getByRole('button',{name:uiLabel('Create workspace', true),exact:true}).last().click();
+  await page.getByRole('region',{name:uiLabel('Google Sheets order workspace', true),exact:true}).waitFor();assert.equal(await page.locator('.workspacePage').count(),0,'order creation opens the current workspace without mounting the legacy grid');
   const saved = sqlite.prepare("SELECT document_json FROM erp_orders WHERE json_extract(document_json, '$.details.clientName') = ?").get('Recovery test client');
   assert.equal(JSON.parse(saved.document_json).products.length,6);
   assert.equal(await page.evaluate(() => localStorage.getItem('jinam:seiko:order-setup-draft-v1')),null);

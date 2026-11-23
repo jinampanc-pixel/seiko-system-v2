@@ -17,6 +17,19 @@ const printing = load("../app/lib/seiko-billing-print.ts", { "./seiko-billing": 
 const invoice = (id = "invoice-test-001") => ({ id, kind: "invoice", clientName: "Test Client", clientPhone: "1234567890", supplier: { name: "SEIKO", address: "", phone: "", bank: "", gstin: "" }, orderId: "", orderNo: "", issueDate: "2026-09-26", taxMode: "non_gst", taxTreatment: "intra_state", lines: [{ id: "line", description: "Vest", quantity: 2, unit: "pc", unitRate: 125, taxRate: 0 }], notes: "", status: "issued" });
 const payment = (id, amount) => ({ id, invoiceId: "invoice-test-001", amount, date: "2026-09-26", mode: "UPI", reference: "test", notes: "" });
 
+test("printed status labels are capitalized without changing billing codes or entered text", () => {
+  const bill = { ...invoice(), clientName: "aBc School", notes: "keep this exact wording" };
+  for (const [payments, code, label] of [[[], "issued", "Issued"], [[payment("part", 50)], "part_paid", "Part Paid"], [[payment("full", 250)], "paid", "Paid"]]) {
+    const before = JSON.stringify({ bill, payments });
+    const html = printing.billingPrintHtml(bill, payments, "customer");
+    assert.ok(html.includes(`Payment Status: ${label}`));
+    assert.equal(model.billingStatus(bill, payments), code);
+    assert.ok(html.includes("aBc School"));
+    assert.ok(html.includes("keep this exact wording"));
+    assert.equal(JSON.stringify({ bill, payments }), before);
+  }
+});
+
 test("amendments cannot overwrite a concurrent revision or undercut a concurrent payment", async () => {
   for (const race of ["revision", "payment"]) {
     const sqlite = new DatabaseSync(':memory:');
@@ -26,7 +39,7 @@ test("amendments cannot overwrite a concurrent revision or undercut a concurrent
       const db = { withSession() { return this; }, prepare(sql) {
         const statement = sqlite.prepare(sql); let args = [];
         return { bind(...values) { args = values; return this; }, async run() {
-          if (raceArmed && sql.startsWith('UPDATE seiko_billing_documents SET')) {
+          if (raceArmed && (sql).toLowerCase().startsWith("update seiko_billing_documents set")) {
             raceArmed = false;
             if (race === 'revision') sqlite.prepare('UPDATE seiko_billing_documents SET data=? WHERE id=?').run(JSON.stringify({ ...invoice(), clientName: 'Concurrent winner', revision: 1, amendedBy: 'other-owner' }), invoice().id);
             else sqlite.prepare('INSERT INTO seiko_billing_payments(id,invoice_id,amount_paise,data,created_by) VALUES(?,?,?,?,?)').run('racing-payment', invoice().id, 20000, JSON.stringify(payment('racing-payment', 200)), 'cashier');
@@ -72,28 +85,28 @@ test("A4 output has named copies, updated balance, escaped content and receipt r
   assert.match(html, /₹150.00/); assert.doesNotMatch(html, /<script>/);
   assert.equal((printing.billingPrintHtml(bill, payments, "customer").match(/<article/g) || []).length, 1);
   assert.match(printing.billingPrintHtml(bill, payments, "separate"), /body class="separate"/);
-  assert.match(printing.billingPrintHtml(bill, payments, "customer", payments[0]), /Against invoice <b>INV-2026-00001/);
+  assert.match(printing.billingPrintHtml(bill, payments, "customer", payments[0]), /Against invoice <b>INV-2026-00001/i);
 });
 
 test("delivery documents support non-GST quantity-only, valued and statutory GST modes", () => {
   const bill = { ...invoice(), number: "DC-2026-00001", kind: "delivery_challan", supplier: { ...invoice().supplier, bank: "Bank A 123", upi: "seiko@upi", paymentQr: "data:image/png;base64,AAAA", showBank: true, showUpi: true, showQr: true } };
   const challan = printing.billingPrintHtml(bill, [], "customer");
-  assert.match(challan, /Delivery Challan/); assert.match(challan, /<th>Qty<\/th><th>Unit<\/th>/);
+  assert.match(challan, /Delivery Challan/i); assert.match(challan, /<th>Qty<\/th><th>Unit<\/th>/);
   assert.doesNotMatch(challan, /<th>Rate<\/th>|<th>Amount<\/th>|Sub Total|Balance Due|Bank A 123|seiko@upi|₹/);
   const invoiceHtml = printing.billingPrintHtml({ ...bill, kind: "invoice", number: "INV-2026-00002" }, [], "customer");
   assert.match(invoiceHtml, /Bank A 123/); assert.match(invoiceHtml, /seiko@upi/); assert.match(invoiceHtml, /Scan to pay/); assert.match(invoiceHtml, /#173c5e/);
   assert.match(challan, /Recipient Copy/); assert.match(printing.billingPrintHtml(bill, [], "supplier"), /Office Copy/);
-  assert.match(printing.billingPrintHtml({ ...bill, showMonetaryValues: true }, [], "customer"), /Delivery Challan/);
+  assert.match(printing.billingPrintHtml({ ...bill, showMonetaryValues: true }, [], "customer"), /Delivery Challan/i);
   const gst = { ...bill, taxMode: "gst", placeOfSupply: "Maharashtra 27", supplier: { ...bill.supplier, address: "Mumbai", gstin: "27ABCDE1234F1Z5" }, clientAddress: "Pune", lines: bill.lines.map(line => ({ ...line, hsnSac: "6203", taxRate: 5 })) };
   const gstHtml = printing.billingPrintHtml(gst, [], "both");
-  assert.match(gstHtml, /GST Delivery Challan/); assert.match(gstHtml, /Original for Consignee/); assert.match(gstHtml, /Duplicate for Transporter/); assert.match(gstHtml, /Triplicate for Consignor/); assert.match(gstHtml, /HSN\/SAC/); assert.match(gstHtml, /Place of supply/);
+  assert.match(gstHtml, /GST Delivery Challan/i); assert.match(gstHtml, /Original for Consignee/); assert.match(gstHtml, /Duplicate for Transporter/); assert.match(gstHtml, /Triplicate for Consignor/); assert.match(gstHtml, /HSN\/SAC/); assert.match(gstHtml, /Place of supply/);
 });
 
 test("Indian money, amount words and professional receipt wording are printed", () => {
   assert.match(model.formatInr(213000), /2,13,000\.00/); assert.equal(model.amountInWords(213000), "Indian Rupees Two Lakh Thirteen Thousand Only");
   const receipt = { ...payment("payment-01", 213000), invoiceId: "", orderId: "order-1", receiptNumber: "RCP-2026-00001", allocations: [] };
   const html = printing.billingPrintHtml(model.orderReceiptDocument(receipt), [], "customer", receipt);
-  assert.match(html, /Advance balance available/); assert.match(html, /Payment acknowledgement only; this is not a tax invoice/); assert.doesNotMatch(html, /Unapplied order advance/);
+  assert.match(html, /Advance balance available/i); assert.match(html, /Payment acknowledgement only; this is not a tax invoice/); assert.doesNotMatch(html, /Unapplied order advance/);
 });
 
 test("database persists invoices and idempotent payments, rejecting overpayment and unauthorized writes", async () => {
@@ -142,7 +155,7 @@ test("order advances create receipts before invoices and allocate once across mu
     assert.equal(result.payments[0].receiptNumber, "RCP-2026-00001");
     assert.equal(model.unappliedOrderPayment(result.payments[0]), 300);
     const html = printing.billingPrintHtml(model.orderReceiptDocument(result.payments[0]), result.payments, "customer", result.payments[0]);
-    assert.match(html, /Against order/); assert.match(html, /ORD-01/); assert.doesNotMatch(html, /Invoice total|Against invoice/);
+    assert.match(html, /Against order/i); assert.match(html, /ORD-01/); assert.doesNotMatch(html, /Invoice total|Against invoice/i);
     await call({ operation: "payment", payment: advance });
     assert.equal((await call({ operation: "payment", payment: { ...advance, amount: 400 } })).status, 409);
     result = await (await call({ operation: "create", document: { ...invoice("advance-invoice-01"), orderId: "order-advance", issueDate: "2026-09-30" } })).json();
@@ -197,8 +210,8 @@ test("Home exposes daily billing actions and the billing surface locks backgroun
   const home = fs.readFileSync(new URL("../app/seiko-phase1.tsx", import.meta.url), "utf8");
   const phase2 = fs.readFileSync(new URL("../app/seiko-phase2.tsx", import.meta.url), "utf8");
   const polish = fs.readFileSync(new URL("../app/seiko-billing-polish.css", import.meta.url), "utf8");
-  for (const label of ["+ New order", "Record payment", "Create invoice", "Delivery challan", "Quotation", "Packing labels"]) assert.match(home, new RegExp(label.replace("+", "\\+")));
-  assert.match(home, /seiko:open-billing/); assert.match(phase2, /document\.body\.style\.overflow = "hidden"/); assert.match(polish, /\.seikoPhase2Surface \{ inset: 0 !important/);
+  for (const label of ["+ New order", "Record payment", "Create invoice", "Delivery challan", "Quotation", "Packing labels"]) assert.match(home, new RegExp(label.replace("+", "\\+"), "i"));
+  assert.match(home, /seiko:open-billing/i); assert.match(phase2, /document\.body\.style\.overflow = "hidden"/); assert.match(polish, /\.seikoPhase2Surface \{ inset: 0 !important/);
 });
 
 
@@ -245,9 +258,9 @@ test("customer prints omit internal revisions and use clean payment separators",
   const doc = {...invoice(), revision: 3};
   const html = printing.billingPrintHtml(doc, [{...payment("receipt-test", 50), receiptNumber:"RCP-TEST"}], "customer");
   assert.doesNotMatch(html, /Amended|Revision 3|Â/);
-  assert.match(html, /Payments received/);assert.doesNotMatch(html, /&middot; RCP-TEST &middot; UPI/);
+  assert.match(html, /Payments received/i);assert.doesNotMatch(html, /&middot; RCP-TEST &middot; UPI/);
   assert.match(html, /class="ackLine">Name:.*<\/span><span class="ackLine">Date:/);
   assert.equal(doc.revision, 3);
 });
 
-test('invoice payment summary combines same-day applied amounts without changing receipts or other invoices',()=>{const doc=invoice(),payments=[{...payment('cash',50),mode:'Cash',receiptNumber:'RCP-CASH'},{...payment('upi',70),mode:'UPI',receiptNumber:'RCP-UPI'},{...payment('later',10),date:'2026-09-27',receiptNumber:'RCP-LATER'},{...payment('other',999),invoiceId:'another-invoice',receiptNumber:'RCP-OTHER'}],before=JSON.stringify(payments),html=printing.billingPrintHtml(doc,payments,'customer');const history=html.match(/<section class="history"><b>Payments received<\/b>(.*?)<\/section>/s)[1];assert.equal((history.match(/<div>/g)||[]).length,2);assert.match(history,/120.00/);assert.match(history,/10.00/);assert.doesNotMatch(history,/999.00|RCP-/);assert.equal(JSON.stringify(payments),before);const receipt=printing.billingPrintHtml(doc,payments,'customer',payments[0]);assert.match(receipt,/RCP-CASH/);assert.doesNotMatch(receipt,/<b>Payments received<\/b>/);});
+test('invoice payment summary combines same-day applied amounts without changing receipts or other invoices',()=>{const doc=invoice(),payments=[{...payment('cash',50),mode:'Cash',receiptNumber:'RCP-CASH'},{...payment('upi',70),mode:'UPI',receiptNumber:'RCP-UPI'},{...payment('later',10),date:'2026-09-27',receiptNumber:'RCP-LATER'},{...payment('other',999),invoiceId:'another-invoice',receiptNumber:'RCP-OTHER'}],before=JSON.stringify(payments),html=printing.billingPrintHtml(doc,payments,'customer');const history=html.match(/<section class="history"><b>Payments received<\/b>(.*?)<\/section>/si)[1];assert.equal((history.match(/<div>/g)||[]).length,2);assert.match(history,/120.00/);assert.match(history,/10.00/);assert.doesNotMatch(history,/999.00|RCP-/);assert.equal(JSON.stringify(payments),before);const receipt=printing.billingPrintHtml(doc,payments,'customer',payments[0]);assert.match(receipt,/RCP-CASH/);assert.doesNotMatch(receipt,/<b>Payments received<\/b>/i);});

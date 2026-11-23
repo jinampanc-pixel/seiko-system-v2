@@ -1,4 +1,5 @@
 "use client";
+import { uiStatusLabel } from "./lib/ui-copy";
 
 import { useEffect, useMemo, useState } from "react";
 import { useAccess } from "./access-control";
@@ -88,24 +89,24 @@ function VeynHome({ businessId, membership, onOpen }: { businessId: string; memb
     <div className="jinamDashboardHead">
       <div><small>VÉYN HEALTH</small><h1>Home</h1><p>Requirements, commercial actions and fulfilment in one operational view.</p></div>
       <div className="jinamDashboardActions">
-        {canAccess(membership, "orders") && <button type="button" className="primary" onClick={() => onOpen("orders")}>New / open requirement</button>}
-        {canAccess(membership, "billing") && <button type="button" className="secondary" onClick={() => onOpen("billing")}>Commercial pipeline</button>}
+        {canAccess(membership, "orders") && <button type="button" className="primary" onClick={() => onOpen("orders")}>New / Open Requirement</button>}
+        {canAccess(membership, "billing") && <button type="button" className="secondary" onClick={() => onOpen("billing")}>Commercial Pipeline</button>}
       </div>
     </div>
     {loadError && <div className="accessError" role="alert">{loadError}</div>}
     <div className="jinamDashboardGrid">
-      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("orders")}><small>OPEN REQUIREMENTS</small><strong>{open.length}</strong><span>Institutional work still active</span></button>
-      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("billing")}><small>AWAITING PO</small><strong>{awaitingPo.length}</strong><span>Accepted quotations without PO</span></button>
-      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("billing")}><small>DELIVERY OPEN</small><strong>{deliveryOpen.length}</strong><span>Open or part-delivered POs</span></button>
-      <button type="button" className="jinamDashboardCard veynDashboardButton" data-tone={invoiceOutstanding.length === 0 && paidInvoices > 0 ? "positive" : undefined} onClick={() => onOpen("billing")}><small>INVOICE OUTSTANDING</small><strong>{invoiceOutstanding.length}</strong><span>{invoiceOutstanding.length ? "Issued / part-paid invoices" : paidInvoices ? `${paidInvoices} paid` : "No outstanding invoices"}</span></button>
+      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("orders")}><small>OPEN REQUIREMENTS</small><strong>{open.length}</strong><span>Institutional Work Still Active</span></button>
+      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("billing")}><small>AWAITING PO</small><strong>{awaitingPo.length}</strong><span>Accepted Quotations Without PO</span></button>
+      <button type="button" className="jinamDashboardCard veynDashboardButton" onClick={() => onOpen("billing")}><small>DELIVERY OPEN</small><strong>{deliveryOpen.length}</strong><span>Open or Part-delivered POs</span></button>
+      <button type="button" className="jinamDashboardCard veynDashboardButton" data-tone={invoiceOutstanding.length === 0 && paidInvoices > 0 ? "positive" : undefined} onClick={() => onOpen("billing")}><small>INVOICE OUTSTANDING</small><strong>{invoiceOutstanding.length}</strong><span>{invoiceOutstanding.length ? "Issued / Part-paid Invoices" : paidInvoices ? `${paidInvoices} Paid` : "No Outstanding Invoices"}</span></button>
     </div>
     <section className="jinamDashboardSection">
-      <div className="jinamDashboardSectionHead"><div><h2>Commercial flow</h2><p>Quotation → PO → Delivery Challan → Invoice → Payment</p></div><span className="veynFlowSummary">{quotations} quotations · {challans} challans · {invoices} invoices</span></div>
-      <div className="jinamDashboardActions"><button type="button" className="secondary" onClick={() => onOpen("billing")}>Open billing</button><button type="button" className="secondary" onClick={() => onOpen("orders")}>Open orders</button></div>
+      <div className="jinamDashboardSectionHead"><div><h2>Commercial Flow</h2><p>Quotation → PO → Delivery Challan → Invoice → Payment</p></div><span className="veynFlowSummary">{quotations} Quotations · {challans} Challans · {invoices} Invoices</span></div>
+      <div className="jinamDashboardActions"><button type="button" className="secondary" onClick={() => onOpen("billing")}>Open Billing</button><button type="button" className="secondary" onClick={() => onOpen("orders")}>Open Orders</button></div>
     </section>
     <section className="jinamDashboardSection">
-      <div className="jinamDashboardSectionHead"><div><h2>Recent requirements</h2><p>Most recently updated VÉYN records.</p></div></div>
-      <div className="jinamDashboardList">{recent.length ? recent.map(record => <div className="jinamDashboardRow" key={record.order.orderId}><strong>{record.order.details.institutionName || record.order.details.orderNo}</strong><span>{record.order.status} · {record.order.details.orderNo}</span></div>) : <div className="jinamDashboardRow"><strong>No requirements yet</strong><span>Start from Orders.</span></div>}</div>
+      <div className="jinamDashboardSectionHead"><div><h2>Recent Requirements</h2><p>Most recently updated VÉYN records.</p></div></div>
+      <div className="jinamDashboardList">{recent.length ? recent.map(record => <div className="jinamDashboardRow" key={record.order.orderId}><strong>{record.order.details.institutionName || record.order.details.orderNo}</strong><span>{uiStatusLabel(String(record.order.status ?? ""))} · {record.order.details.orderNo}</span></div>) : <div className="jinamDashboardRow"><strong>No Requirements Yet</strong><span>Start from Orders.</span></div>}</div>
     </section>
   </section>;
 }
@@ -116,8 +117,8 @@ function VeynSettings({ membership, canManageUsers, onRefresh }: { membership: B
   return <section className="jinamSettingsPage">
     <div className="jinamSettingsHead"><small>VÉYN HEALTH</small><h1>Settings</h1></div>
     <div className="jinamSettingsGrid">
-      <article className="jinamSettingsCard"><h2>Users & access</h2><p>Manage VÉYN memberships, roles and permissions.</p>{canManageUsers && <button type="button" className="primary" onClick={openAccess}>Open users & access</button>}</article>
-      <article className="jinamSettingsCard"><h2>My access</h2><p>{membership.businessName} · {membership.role}</p><button type="button" className="secondary" onClick={onRefresh}>Refresh access</button></article>
+      <article className="jinamSettingsCard"><h2>Users & Access</h2><p>Manage VÉYN memberships, roles and permissions.</p>{canManageUsers && <button type="button" className="primary" onClick={openAccess}>Open Users & Access</button>}</article>
+      <article className="jinamSettingsCard"><h2>My Access</h2><p>{membership.businessName} · {uiStatusLabel(String(membership.role ?? ""))}</p><button type="button" className="secondary" onClick={onRefresh}>Refresh Access</button></article>
     </div>
   </section>;
 }

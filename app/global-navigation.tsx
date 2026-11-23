@@ -54,7 +54,7 @@ const standaloneItems: Array<{ intent: NavIntent; label: string; icon: string; m
   { intent: "scan", label: "Scan", icon: "⌗", module: "scan" },
   { intent: "trace", label: "Trace", icon: "◎", module: "trace" },
   { intent: "production", label: "Production", icon: "•", module: "production" },
-  { intent: "meth jobs", label: "MeTh jobs", icon: "↔" },
+  { intent: "meth jobs", label: "MeTh Jobs", icon: "↔" },
   { intent: "clients", label: "Clients", icon: "◎" },
   { intent: "products", label: "Products", icon: "◇" },
   { intent: "billing", label: "Billing", icon: "₹" },
@@ -93,13 +93,13 @@ function BusinessNavigator({ businesses, businessId, onChange }: {
 }) {
   const selected = businesses.find(item => item.businessId === businessId) || businesses[0];
   if (!selected) return null;
-  return <div className="globalBusinessNavigator" title="Switch business">
+  return <div className="globalBusinessNavigator" title="Switch Business">
     <span className={`globalBusinessIcon logo-${selected.businessId}`} aria-hidden="true">
       {selected.logoUrl ? <img src={selected.logoUrl} alt=""/> : <b>{selected.businessName.slice(0, 1)}</b>}
     </span>
     <span className="globalBusinessName">{selected.businessName}</span>
     <span className="globalBusinessChevron" aria-hidden="true"/>
-    <select aria-label="Switch business" value={selected.businessId} onChange={event => onChange(event.target.value)}>
+    <select aria-label="Switch Business" value={selected.businessId} onChange={event => onChange(event.target.value)}>
       {businesses.map(item => <option key={item.businessId} value={item.businessId}>{item.businessName}</option>)}
     </select>
   </div>;
@@ -117,15 +117,15 @@ function StandaloneNavigation({ businesses, businessId, onBusinessChange }: {
 
   return <>
     <div className="topbarEnd globalStandaloneNavEnd">
-      <button className={`menuToggle ${open ? "active" : ""}`} onClick={() => setOpen(value => !value)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open}>
+      <button className={`menuToggle ${open ? "active" : ""}`} onClick={() => setOpen(value => !value)} aria-label={open ? "Close Menu" : "Open Menu"} aria-expanded={open}>
         <span/><span/><span/>
       </button>
     </div>
     {open && <>
-      <button className="menuBackdrop" aria-label="Close menu" onClick={() => setOpen(false)}/>
+      <button className="menuBackdrop" aria-label="Close Menu" onClick={() => setOpen(false)}/>
       <nav className="moduleMenu globalStandaloneMenu" aria-label="Modules">
         <BusinessNavigator businesses={businesses} businessId={businessId} onChange={onBusinessChange}/>
-        <div className="moduleMenuHead"><b>Menu</b><button title="Close menu" type="button" className="uiIconButton uiCloseButton" onClick={() => setOpen(false)} aria-label="Close menu"><CloseIcon/></button></div>
+        <div className="moduleMenuHead"><b>Menu</b><button title="Close Menu" type="button" className="uiIconButton uiCloseButton" onClick={() => setOpen(false)} aria-label="Close Menu"><CloseIcon/></button></div>
         {visible.map(item => <button type="button" className={`nav ${item.intent === "labels" ? "active" : ""}`} key={item.intent} onClick={() => goToRoot(item.intent)}>
           <span>{item.icon}</span><small>{item.label}</small>
         </button>)}

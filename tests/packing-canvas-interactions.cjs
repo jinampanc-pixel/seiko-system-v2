@@ -22,7 +22,7 @@ const assert = require('node:assert/strict');
  await page.locator('.physicalViewControls>summary').click(); await page.getByRole('button',{name:'Undo',exact:true}).click();
  assert.equal(await page.locator('.physicalItem').count(),initial);
  await page.locator('.physicalRecord button').first().hover(); await page.getByRole('tooltip').waitFor();
- assert.match(await page.getByRole('tooltip').innerText(),/Package contents/);
+ assert.match(await page.getByRole('tooltip').innerText(),/Package contents/i);
  await page.getByRole('button',{name:'Next',exact:true}).click();
  assert.equal(await page.locator('.physicalRecord button[aria-pressed=true]').count(),1);
  await page.getByRole('button',{name:'Previous',exact:true}).click();

@@ -15,25 +15,25 @@ test("packing labels expose every order-defined person field without hardcoding"
 
 test("package presentation is schema driven for arbitrary measurements and specifications", () => {
   assert.match(packing, /order\.measurements\.filter\(item => item\.appliesTo\.includes\(product\.id\)/);
-  assert.match(packing, /product\.specifications\.filter\(item => item\.name\.trim\(\) && item\.role !== "asset"\)/);
+  assert.match(packing, /product\.specifications\.filter\(item => item\.name\.trim\(\) && item\.role !== "asset"\)/i);
   assert.match(packing, /measurementAliases/);
   assert.match(packing, /specificationAliases/);
   assert.match(packing, /Never/);
-  assert.match(packing, /When present/);
+  assert.match(packing, /When present/i);
   assert.match(packing, /Always/);
 });
 
 test("missing conditional measurements and attributes consume no rendered content", () => {
-  assert.match(packing, /if \(!value && mode === "when_present"\) continue/);
+  assert.match(packing, /if \(!value && mode === "when_present"\) continue/i);
   assert.match(packing, /if \(!text\.trim\(\)\) continue/);
   assert.match(packing, /if \(quantity <= 0\) continue/);
 });
 
 test("package contents support flow, inline and separately movable rows", () => {
   assert.match(packing, /type PackageLayoutMode = "flow" \| "inline" \| "separate"/);
-  assert.match(packing, /<option value="flow">Flow rows<\/option>/);
+  assert.match(packing, /<option value="flow">Flow rows<\/option>/i);
   assert.match(packing, /<option value="inline">Inline<\/option>/);
-  assert.match(packing, /<option value="separate">Separate movable rows<\/option>/);
+  assert.match(packing, /<option value="separate">Separate movable rows<\/option>/i);
   assert.match(packing, /`package_row:\$\{index\}`/);
   assert.match(packing, /packagePresentation\.delimiter/);
 });
@@ -62,13 +62,13 @@ test("canvas and print use the same field renderer", () => {
 });
 
 test("universal setup retains purpose-driven representations and free generic canvas", () => {
-  assert.match(create, /Each physical item/);
-  assert.match(create, /Each person \/ package/);
-  assert.match(create, /Each product \/ stock group/);
-  assert.match(create, /Each group \/ outer package/);
-  assert.match(create, /Whole order/);
-  assert.match(generic, /Fixed text/);
-  assert.match(generic, /QR code/);
+  assert.match(create, /Each physical item/i);
+  assert.match(create, /Each person \/ package/i);
+  assert.match(create, /Each product \/ stock group/i);
+  assert.match(create, /Each group \/ outer package/i);
+  assert.match(create, /Whole order/i);
+  assert.match(generic, /Fixed text/i);
+  assert.match(generic, /QR code/i);
   assert.match(generic, /Barcode/);
   assert.match(generic, /Sequence/);
 });

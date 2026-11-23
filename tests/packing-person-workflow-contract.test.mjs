@@ -8,11 +8,11 @@ const printPage = readFileSync(new URL("../app/labels/print/page.tsx", import.me
 
 test("packing person labels use a dedicated workflow-first designer", () => {
   assert.match(createPage, /PackingPersonLabelDesigner/);
-  assert.match(designer, /Information on the label/);
-  assert.match(designer, /Package contents/);
+  assert.match(designer, /Information on the label/i);
+  assert.match(designer, /Package contents/i);
   assert.doesNotMatch(designer, /Automatic product slots/);
   assert.doesNotMatch(designer, /Product 1/);
-  assert.doesNotMatch(designer, /Person package · Product/);
+  assert.doesNotMatch(designer, /Person package · Product/i);
 });
 
 test("new information fields are placed in free non-overlapping areas", () => {
@@ -26,10 +26,10 @@ test("package contents use actual applicable products and conditional details", 
   assert.match(designer, /quantity <= 0/);
   assert.match(designer, /measurementModes/);
   assert.match(designer, /specificationModes/);
-  assert.match(designer, /When present/);
-  assert.match(designer, /Printed product name/);
-  assert.match(designer, /Details only/);
-  assert.match(designer, /Name only/);
+  assert.match(designer, /When present/i);
+  assert.match(designer, /Printed product name/i);
+  assert.match(designer, /Details only/i);
+  assert.match(designer, /Name only/i);
 });
 
 test("preview and print share the same renderer and fitted text", () => {

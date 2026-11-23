@@ -42,7 +42,7 @@ test("MeTh never falls through to the SEIKO compatibility application", () => {
   assert.match(methApp, /JinamBusinessShell/);
   assert.match(methApp, /businessId !== "meth"/);
   assert.match(methApp, /READY TO PACK/);
-  assert.match(methApp, /Linked SEIKO production handoffs/);
+  assert.match(methApp, /Linked SEIKO production handoffs/i);
   assert.doesNotMatch(methApp, /Business isolated|MeTh owns its orders|SEIKO is a linked manufacturer/);
   assert.doesNotMatch(methApp, /<Orders/);
   assert.doesNotMatch(methApp, /AppEnhancements/);
@@ -52,7 +52,7 @@ test("business shell shows only active business identity while Jinam remains the
   assert.match(shell, /jinamBusinessBrand/);
   assert.doesNotMatch(shell, /jinamSystemBrand/);
   assert.doesNotMatch(shell, />Jinam</);
-  assert.match(shell, /aria-label="Switch business"/);
+  assert.match(shell, /aria-label="Switch business"/i);
   assert.match(shell, /jinamContextBack/);
   assert.match(shell, /localStorage\.setItem\("jinam:selected-business"/);
   assert.doesNotMatch(enhancements, /JinamLegacyBrand/);
@@ -73,12 +73,12 @@ test("installed system identity is Jinam with the S and integrated J money mark"
 test("Phase 1 removes prototype UI from the visible SEIKO home and menu", () => {
   assert.match(seikoPhase, /hero\.style\.display = "none"/);
   assert.match(seikoPhase, /nextFlow\.style\.display = "none"/);
-  assert.match(seikoPhase, /ACTIVE ORDERS/);
+  assert.match(seikoPhase, /ACTIVE ORDERS/i);
   assert.match(seikoPhase, /Open production/);
-  assert.match(page, /<span>Users & access<\/span>/);
+  assert.match(page, /<span>Users & access<\/span>/i);
   assert.match(seikoPhase, /\["Inventory", "Sales", "Delivery"\]/);
   assert.doesNotMatch(seikoPhase, /SEIKO · JINAM/);
-  assert.match(catalog, /allowedModules: \["home", "orders", "labels", "scan", "trace", "production", "billing", "admin"\]/);
+  assert.match(catalog, /allowedModules: \["home", "orders", "labels", "scan", "trace", "production", "billing", "admin"\]/i);
 });
 
 test("SEIKO Phase 2 exposes real owner/admin libraries and billing without leaking them to other apps", () => {
@@ -98,8 +98,8 @@ test("business libraries stay partitioned and learn from SEIKO orders", () => {
   assert.match(businessLibrary, /learnLibrariesFromOrders/);
   assert.match(businessLibrary, /sourceOrderIds/);
   assert.match(autofill, /seiko-client-library-options/);
-  assert.match(autofill, /Delivery address/);
-  assert.match(autofill, /Billing address/);
+  assert.match(autofill, /Delivery address/i);
+  assert.match(autofill, /Billing address/i);
 });
 
 test("SEIKO billing links documents, tax treatment, payments and outstanding balances to orders", () => {
@@ -110,14 +110,14 @@ test("SEIKO billing links documents, tax treatment, payments and outstanding bal
   assert.match(seikoBilling, /paymentStoreKey/);
   assert.match(seikoBilling, /showCustomerAcknowledgement/);
   const billingWorkspace = readFileSync(new URL("../app/seiko-billing-workspace.tsx", import.meta.url), "utf8");
-  assert.match(billingWorkspace, /Record payment/);
-  assert.match(billingWorkspace, /GST document/);
-  assert.match(billingWorkspace, /<option value="non_gst">Non-GST document<\/option>/);
+  assert.match(billingWorkspace, /Record payment/i);
+  assert.match(billingWorkspace, /GST document/i);
+  assert.match(billingWorkspace, /<option value="non_gst">Non-GST document<\/option>/i);
 });
 
 test("Users and access is nested inside business settings rather than exposed as a shell module", () => {
-  assert.match(veynApp, /jinamSettingsCard"><h2>Users & access/);
-  assert.match(methApp, /jinamSettingsCard"><h2>Users & access/);
+  assert.match(veynApp, /jinamSettingsCard"><h2>Users & access/i);
+  assert.match(methApp, /jinamSettingsCard"><h2>Users & access/i);
   assert.doesNotMatch(veynApp, /Templates<\/h2>|Libraries & options<\/h2>/);
   assert.doesNotMatch(methApp, /Business setup<\/h2>/);
 });

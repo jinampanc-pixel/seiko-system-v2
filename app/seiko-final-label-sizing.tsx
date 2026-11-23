@@ -24,9 +24,9 @@ function selectedParts(page: HTMLElement) {
   const canvas = page.querySelector<HTMLElement>(".packingCanvas");
   const selected = canvas?.querySelector<HTMLElement>(".canvasElement.selected");
   const text = selected?.querySelector<HTMLElement>(".packingFitText");
-  const font = controlInput(page, ["Font", "Text size"]);
-  const width = controlInput(page, ["Width", "Box width"]);
-  const height = controlInput(page, ["Height", "Box height"]);
+  const font = controlInput(page, ["Font", "Text Size"]);
+  const width = controlInput(page, ["Width", "Box Width"]);
+  const height = controlInput(page, ["Height", "Box Height"]);
   if (!canvas || !selected || !text || !font || !width || !height) return null;
   return { canvas, selected, text, font, width, height };
 }
@@ -101,7 +101,7 @@ export function SeikoFinalLabelSizing() {
     const controller = startDomEnhancement(() => {
       const page = document.querySelector<HTMLElement>(".packingWorkflowDesigner");
       if (!page) return;
-      const font = controlInput(page, ["Font", "Text size"]);
+      const font = controlInput(page, ["Font", "Text Size"]);
       if (font) { font.min = "4"; font.max = "96"; font.step = ".5"; }
     }, { observer: { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] } });
 
@@ -109,7 +109,7 @@ export function SeikoFinalLabelSizing() {
       const element = (event.target as Element | null)?.closest<HTMLElement>(".packingWorkflowDesigner .packingCanvas .canvasElement.selected");
       const page = element?.closest<HTMLElement>(".packingWorkflowDesigner");
       if (!element || !page) return;
-      const font = controlInput(page, ["Font", "Text size"]);
+      const font = controlInput(page, ["Font", "Text Size"]);
       if (!font) return;
       event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
       const step = event.shiftKey ? 2 : .5;
@@ -122,7 +122,7 @@ export function SeikoFinalLabelSizing() {
       const target = event.target as HTMLInputElement | null;
       const page = target?.closest<HTMLElement>(".packingWorkflowDesigner");
       if (!target || !page) return;
-      const font = controlInput(page, ["Font", "Text size"]);
+      const font = controlInput(page, ["Font", "Text Size"]);
       if (target === font) requestAnimationFrame(() => applySize(page, true));
     };
 

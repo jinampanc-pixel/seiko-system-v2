@@ -1,4 +1,5 @@
 "use client";
+import { uiStatusLabel } from "./lib/ui-copy";
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -70,7 +71,7 @@ export function SeikoMethSync() {
         const card = document.createElement("section");
         card.className = "seikoAccessSettings";
         card.dataset.seikoLegalProfile = "true";
-        card.innerHTML = '<div><b>Legal entity & MeTh manufacturing</b><p>SEIKO invoices MeTh as a separate legal entity for accepted production.</p></div><button type="button" class="secondary">Open</button>';
+        card.innerHTML = '<div><b>Legal Entity & MeTh Manufacturing</b><p>SEIKO invoices MeTh as a separate legal entity for accepted production.</p></div><button type="button" class="secondary">Open</button>';
         card.querySelector("button")?.addEventListener("click", () => setOpen(true));
         settingsPanel.appendChild(card);
       }
@@ -145,12 +146,12 @@ export function SeikoMethSync() {
   const payments = read<IntercompanyPayment[]>(intercompanyStoreKey("payments"), []);
 
   return createPortal(
-    <section className="seikoPhase2Surface" aria-label="SEIKO MeTh manufacturing">
+    <section className="seikoPhase2Surface" aria-label="SEIKO MeTh Manufacturing">
       <header className="seikoPhase2Head">
         <div>
           <button className="secondary appBackControl" onClick={() => {setOpen(false);window.dispatchEvent(new Event("seiko:home"));}}>← Back</button>
           <small>SEIKO ↔ METH</small>
-          <h1>MeTh manufacturing</h1>
+          <h1>MeTh Manufacturing</h1>
           <p>MeTh customer orders stay in MeTh. SEIKO receives only explicit production handoffs and creates a real receivable for chargeable output.</p>
         </div>
       </header>
@@ -159,18 +160,18 @@ export function SeikoMethSync() {
         {notice && <p className="seikoMethNotice" role="status">{notice}</p>}
 
         <section className="seikoMethPanel">
-          <h2>SEIKO legal entity</h2>
+          <h2>SEIKO Legal Entity</h2>
           <div className="seikoMethLegalGrid">
-            <label>Legal name<input value={profile.legalName} onChange={event => saveProfile({ ...profile, legalName: event.target.value, updatedAt: new Date().toISOString() })}/></label>
+            <label>Legal Name<input value={profile.legalName} onChange={event => saveProfile({ ...profile, legalName: event.target.value, updatedAt: new Date().toISOString() })}/></label>
             <label>GSTIN<input value={profile.gstin} onChange={event => saveProfile({ ...profile, gstin: event.target.value, gstRegistered: Boolean(event.target.value), updatedAt: new Date().toISOString() })}/></label>
-            <label>Registered address<input value={profile.registeredAddress} onChange={event => saveProfile({ ...profile, registeredAddress: event.target.value, updatedAt: new Date().toISOString() })}/></label>
-            <label>State code<input value={profile.stateCode} onChange={event => saveProfile({ ...profile, stateCode: event.target.value, updatedAt: new Date().toISOString() })}/></label>
-            <label>Invoice prefix<input value={profile.invoicePrefix} onChange={event => saveProfile({ ...profile, invoicePrefix: event.target.value, updatedAt: new Date().toISOString() })}/></label>
+            <label>Registered Address<input value={profile.registeredAddress} onChange={event => saveProfile({ ...profile, registeredAddress: event.target.value, updatedAt: new Date().toISOString() })}/></label>
+            <label>State Code<input value={profile.stateCode} onChange={event => saveProfile({ ...profile, stateCode: event.target.value, updatedAt: new Date().toISOString() })}/></label>
+            <label>Invoice Prefix<input value={profile.invoicePrefix} onChange={event => saveProfile({ ...profile, invoicePrefix: event.target.value, updatedAt: new Date().toISOString() })}/></label>
           </div>
         </section>
 
         <section className="seikoMethPanel">
-          <h2>Incoming MeTh production handoffs</h2>
+          <h2>Incoming MeTh Production Handoffs</h2>
           <div className="seikoMethList">
             {handoffs.map(item => {
               const editing = quantityDraft?.handoffId === item.id;
@@ -178,13 +179,13 @@ export function SeikoMethSync() {
                 <div className="seikoMethSummary">
                   <strong>{item.id} · {item.productName}</strong>
                   <span>{item.methOrderNumber} · {item.methSku} → {item.seikoProductionSku}</span>
-                  <span>Requested {item.quantityRequested} · accepted {item.quantityAccepted} · completed {item.quantityCompleted} · chargeable {item.quantityChargeable}</span>
-                  <span>Agreed manufacturing rate {money(item.agreedUnitRate)} / unit · GST {item.agreedTaxRate}%</span>
+                  <span>Requested {item.quantityRequested} · Accepted {item.quantityAccepted} · Completed {item.quantityCompleted} · Chargeable {item.quantityChargeable}</span>
+                  <span>Agreed Manufacturing Rate {money(item.agreedUnitRate)} / Unit · GST {item.agreedTaxRate}%</span>
                 </div>
 
                 <div className="seikoMethControls">
                   <select
-                    aria-label={`Production status for ${item.id}`}
+                    aria-label={`Production Status for ${item.id}`}
                     value={item.seikoStatus}
                     onChange={event => changeStatus(item, event.target.value as SeikoProductionStatus)}
                   >
@@ -199,20 +200,20 @@ export function SeikoMethSync() {
                     <option value="cancelled">Cancelled</option>
                   </select>
                   <div className="seikoMethActions">
-                    <button className="secondary" type="button" onClick={() => editing ? setQuantityDraft(null) : beginQuantities(item)}>{editing ? "Close quantities" : "Quantities"}</button>
-                    <button className="primary" type="button" disabled={!canIssueCharge(item)} onClick={() => issueCharge(item)}>{item.intercompanyTransactionId ? "Invoiced" : "Create MeTh charge"}</button>
+                    <button className="secondary" type="button" onClick={() => editing ? setQuantityDraft(null) : beginQuantities(item)}>{editing ? "Close Quantities" : "Quantities"}</button>
+                    <button className="primary" type="button" disabled={!canIssueCharge(item)} onClick={() => issueCharge(item)}>{item.intercompanyTransactionId ? "Invoiced" : "Create MeTh Charge"}</button>
                   </div>
                 </div>
 
                 {editing && quantityDraft && <div className="seikoMethQuantityEditor">
                   <div className="seikoMethQuantityGrid">
-                    <label>Accepted quantity (units)<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.accepted} onChange={event => setQuantityDraft({ ...quantityDraft, accepted: event.target.value })}/></label>
-                    <label>Completed / QC-passed quantity (units)<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.completed} onChange={event => setQuantityDraft({ ...quantityDraft, completed: event.target.value })}/></label>
-                    <label>Chargeable quantity (units)<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.chargeable} onChange={event => setQuantityDraft({ ...quantityDraft, chargeable: event.target.value })}/></label>
+                    <label>Accepted Quantity (Units)<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.accepted} onChange={event => setQuantityDraft({ ...quantityDraft, accepted: event.target.value })}/></label>
+                    <label>Completed / QC-passed Quantity (Units)<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.completed} onChange={event => setQuantityDraft({ ...quantityDraft, completed: event.target.value })}/></label>
+                    <label>Chargeable Quantity (Units)<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.chargeable} onChange={event => setQuantityDraft({ ...quantityDraft, chargeable: event.target.value })}/></label>
                   </div>
                   <p className="seikoMethQuantityHint">Enter quantities only — not rupee amounts. Agreed rate is {money(item.agreedUnitRate)} per unit. Chargeable quantity is capped by completed quantity, and completed quantity is capped by accepted quantity.</p>
                   <div className="seikoMethActions">
-                    <button className="primary" type="button" onClick={() => saveQuantities(item)}>Save quantities</button>
+                    <button className="primary" type="button" onClick={() => saveQuantities(item)}>Save Quantities</button>
                     <button className="secondary" type="button" onClick={() => setQuantityDraft(null)}>Cancel</button>
                   </div>
                 </div>}
@@ -223,13 +224,13 @@ export function SeikoMethSync() {
         </section>
 
         <section className="seikoMethPanel">
-          <h2>MeTh receivable</h2>
+          <h2>MeTh Receivable</h2>
           <div className="seikoMethReceivable">
             {transactions.map(item => {
               const settled = settleIntercompanyTransaction(item, payments);
               return <div className="seikoMethReceivableRow" key={item.id}>
-                <div><strong>{item.sellerInvoiceNumber || item.id}</strong><span>{item.id} · {item.handoffId} · taxable {money(item.taxableAmount)} · GST {money(item.taxAmount)}</span></div>
-                <div><strong>{money(settled.outstandingAmount)}</strong><span>{settled.status} · MeTh payable mirrors this same transaction</span></div>
+                <div><strong>{item.sellerInvoiceNumber || item.id}</strong><span>{item.id} · {item.handoffId} · Taxable {money(item.taxableAmount)} · GST {money(item.taxAmount)}</span></div>
+                <div><strong>{money(settled.outstandingAmount)}</strong><span>{uiStatusLabel(String(settled.status ?? ""))} · MeTh Payable Mirrors This Same Transaction</span></div>
               </div>;
             })}
             {!transactions.length && <div className="seikoMethEmpty">No intercompany charges yet.</div>}

@@ -22,7 +22,7 @@ export function JinamLegacyBrand() {
   }, []);
 
   if (!host) return null;
-  return createPortal(<div className="jinamLegacyIdentity" aria-label="Jinam system">
+  return createPortal(<div className="jinamLegacyIdentity" aria-label="Jinam System">
     <img src="/jinam-mark.svg" alt=""/><strong>Jinam</strong><span aria-hidden="true"/>
   </div>, host);
 }

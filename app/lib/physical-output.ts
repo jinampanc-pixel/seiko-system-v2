@@ -10,7 +10,7 @@ export type PhysicalOutputProfile = {
 export const PHYSICAL_OUTPUT_PROFILES = {
   label50x25: {
     id: "label-50x25",
-    label: "50 × 25 mm label",
+    label: "50 × 25 mm Label",
     widthMm: 50,
     heightMm: 25,
     pagesPerSheet: 1,
@@ -18,7 +18,7 @@ export const PHYSICAL_OUTPUT_PROFILES = {
   },
   roll50x25TwoAcross: {
     id: "roll-50x25-two-across",
-    label: "Two-across 50 × 25 mm labels (4 mm gap)",
+    label: "Two-Across 50 × 25 mm Labels (4 mm Gap)",
     widthMm: 104,
     heightMm: 25,
     pagesPerSheet: 1,

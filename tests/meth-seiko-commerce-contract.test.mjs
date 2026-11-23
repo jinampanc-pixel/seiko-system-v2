@@ -26,7 +26,7 @@ test("MeTh normalizes all sales channels into one order model", () => {
 
 test("SKU mapping keeps storefront identifiers separate from SEIKO production specification", () => {
   for (const field of ["methSku", "shopifyVariantId", "amazonSellerSku", "amazonAsin", "seikoProductionSku", "seikoSpecificationRef"]) assert.match(domain, new RegExp(field));
-  assert.match(methUi, /SKU mapping/);
+  assert.match(methUi, /SKU mapping/i);
 });
 
 test("stock allocation sends only the shortage quantity to SEIKO", () => {
@@ -39,10 +39,10 @@ test("stock allocation sends only the shortage quantity to SEIKO", () => {
 test("MeTh fulfilment can default to stock first or require an explicit stock-vs-produce decision", () => {
   assert.match(domain, /MethFulfilmentPolicy = "stock_first" \| "decide"/);
   assert.match(domain, /MethRoutingDecision = "pending" \| "stock_first" \| "produce"/);
-  assert.match(routingUi, /Stock first — use stock, produce shortage/);
-  assert.match(routingUi, /Decide — choose stock or production per order/);
-  assert.match(routingUi, /Use stock first/);
-  assert.match(routingUi, /Produce full order/);
+  assert.match(routingUi, /Stock first — use stock, produce shortage/i);
+  assert.match(routingUi, /Decide — choose stock or production per order/i);
+  assert.match(routingUi, /Use stock first/i);
+  assert.match(routingUi, /Produce full order/i);
   assert.match(fulfilmentServer, /defaultPolicy: row\?\.default_policy === "decide" \? "decide" : DEFAULT_POLICY/);
 });
 
@@ -54,11 +54,11 @@ test("decide mode holds the order before stock reservation or production allocat
 });
 
 test("MeTh finished stock is authoritative in D1 and reserved atomically", () => {
-  assert.match(fulfilmentServer, /jinam_meth_finished_stock/);
-  assert.match(fulfilmentServer, /on_hand INTEGER NOT NULL DEFAULT 0/);
+  assert.match(fulfilmentServer, /jinam_meth_finished_stock/i);
+  assert.match(fulfilmentServer, /on_hand INTEGER NOT NULL DEFAULT 0/i);
   assert.match(fulfilmentServer, /reserved INTEGER NOT NULL DEFAULT 0/);
-  assert.match(fulfilmentServer, /available = Math\.max\(0, whole\(current\.on_hand\) - whole\(current\.reserved\)\)/);
-  assert.match(fulfilmentServer, /WHERE meth_sku=\? AND on_hand=\? AND reserved=\? RETURNING reserved/);
+  assert.match(fulfilmentServer, /available = Math\.max\(0, whole\(current\.on_hand\) - whole\(current\.reserved\)\)/i);
+  assert.match(fulfilmentServer, /WHERE meth_sku=\? AND on_hand=\? AND reserved=\? RETURNING reserved/i);
   assert.match(fulfilmentServer, /STOCK_BELOW_RESERVED/);
   assert.match(fulfilmentServer, /rawOnHand < 0/);
 });
@@ -101,7 +101,7 @@ test("MeTh customer order remains separate from the SEIKO production handoff", (
 });
 
 test("chargeable quantity cannot exceed accepted and completed output", () => {
-  assert.match(domain, /Math\.min\(handoff\.quantityRequested, positive\(accepted\)\)/);
+  assert.match(domain, /Math\.min\(handoff\.quantityRequested, positive\(accepted\)\)/i);
   assert.match(domain, /Math\.min\(quantityAccepted, positive\(completed\)\)/);
   assert.match(domain, /Math\.min\(quantityCompleted, positive\(chargeable\)\)/);
 });
@@ -111,7 +111,7 @@ test("SEIKO and MeTh are separate legal entities with one intercompany transacti
   assert.match(domain, /buyerBusinessId: "meth"/);
   assert.match(domain, /intercompanyStoreKey/);
   assert.match(domain, /legalProfileStoreKey/);
-  assert.match(seikoSync, /SEIKO invoices MeTh as a separate legal entity/);
+  assert.match(seikoSync, /SEIKO invoices MeTh as a separate legal entity/i);
   assert.match(methUi, /SEIKO and MeTh are separate legal entities/);
 });
 
@@ -119,7 +119,7 @@ test("payments and credits settle the same intercompany transaction", () => {
   assert.match(domain, /settleIntercompanyTransaction/);
   assert.match(domain, /transactionId/);
   assert.match(domain, /grossAmount - paidAmount - creditAmount/);
-  assert.match(methUi, /Record payment/);
+  assert.match(methUi, /Record payment/i);
 });
 
 test("customer returns do not reverse SEIKO production cost unless an approved manufacturing claim exists", () => {
@@ -135,14 +135,14 @@ test("MeTh separates customer payment from marketplace or gateway settlement", (
   assert.match(domain, /marketplaceFees/);
   assert.match(domain, /paymentGatewayFees/);
   assert.match(domain, /bankReference/);
-  assert.match(meth, /Customer payment, marketplace settlement and SEIKO payable remain separate records/);
+  assert.match(meth, /Customer payment, marketplace settlement and SEIKO payable remain separate records/i);
 });
 
 test("SEIKO explicitly mounts the MeTh handoff and receivable adapter", () => {
   assert.match(enhancements, /import \{ SeikoMethSync \}/);
   assert.match(enhancements, /<SeikoMethSync \/>/);
-  assert.match(seikoSync, /Create MeTh charge/);
-  assert.match(seikoSync, /MeTh payable mirrors this same transaction/);
+  assert.match(seikoSync, /Create MeTh charge/i);
+  assert.match(seikoSync, /MeTh payable mirrors this same transaction/i);
 });
 
 test("MeTh and SEIKO commerce records are server authoritative with optimistic concurrency", () => {

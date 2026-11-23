@@ -53,7 +53,7 @@ function createDropZone(page: HTMLElement) {
   zone.className = "labelCanvasDropRemove";
   zone.setAttribute("role", "status");
   zone.setAttribute("aria-live", "polite");
-  zone.innerHTML = '<span aria-hidden="true">×</span><b>Drop to remove</b>';
+  zone.innerHTML = '<span aria-hidden="true">×</span><b>Drop to Remove</b>';
   Object.assign(zone.style, {
     position: "absolute",
     left: "50%",
@@ -299,7 +299,7 @@ export function LabelDesignerInteractions() {
       const shouldRemove = moved && removeArmed && !!page;
       resetRemoveDrag();
       if (!shouldRemove || !page) return;
-      const remove = page.querySelector<HTMLButtonElement>('.labelProperties button[aria-label="Remove selected element"]');
+      const remove = page.querySelector<HTMLButtonElement>('.labelProperties button[aria-label="Remove selected element" i]');
       remove?.click();
     };
 

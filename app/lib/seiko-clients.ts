@@ -5,7 +5,7 @@ export type SeikoClientRecord = ClientLibraryRecord & { type: SeikoClientType };
 
 export const SEIKO_CLIENT_TYPES: { value: SeikoClientType; label: string }[] = [
   { value: "institutional", label: "Institutional" },
-  { value: "custom_tailoring", label: "Custom tailoring" },
+  { value: "custom_tailoring", label: "Custom Tailoring" },
   { value: "retail", label: "Retail" },
 ];
 

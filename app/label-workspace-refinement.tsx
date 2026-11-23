@@ -16,7 +16,7 @@ function cleanHeaderAndSetup(page: HTMLElement) {
 }
 
 function fullRecordText(record: HTMLElement) {
-  const title = record.querySelector("b")?.textContent?.trim() || "Label record";
+  const title = record.querySelector("b")?.textContent?.trim() || "Label Record";
   const compact = record.querySelector("small")?.textContent?.trim() || "";
   const detail = record.dataset.recordPreview?.trim() || compact;
   return { title, detail };
@@ -70,7 +70,7 @@ function removePackingGenericChoices(page: HTMLElement) {
 function openLabelSaveChoice(page: HTMLElement) {
   document.querySelector(".labelSaveChoiceLayer")?.remove();
   const layer = document.createElement("div"); layer.className = "labelSaveChoiceLayer";
-  layer.innerHTML = '<section class="labelSaveChoiceDialog" role="dialog" aria-modal="true" aria-labelledby="label-save-choice-title"><h3 id="label-save-choice-title">Save label work</h3><p>Choose what Ctrl/Cmd + S should save.</p><div><button type="button" class="primary saveSet">Save label set</button><button type="button" class="secondary saveLayout">Save layout</button><button type="button" class="textButton cancel">Cancel</button></div></section>';
+  layer.innerHTML = '<section class="labelSaveChoiceDialog" role="dialog" aria-modal="true" aria-labelledby="label-save-choice-title"><h3 id="label-save-choice-title">Save Label Work</h3><p>Choose what Ctrl/Cmd + S should save.</p><div><button type="button" class="primary saveSet">Save label set</button><button type="button" class="secondary saveLayout">Save layout</button><button type="button" class="textButton cancel">Cancel</button></div></section>';
   const close = () => layer.remove();
   layer.querySelector<HTMLButtonElement>(".cancel")?.addEventListener("click", close);
   layer.addEventListener("click", event => { if (event.target === layer) close(); });

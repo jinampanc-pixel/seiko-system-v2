@@ -45,8 +45,8 @@ test("first login requires a password change before ERP authorization", () => {
 test("new users require administrator-created credentials", () => {
   assert.match(memberships, /CREDENTIAL_REQUIRED/);
   assert.match(memberships, /temporaryPassword/);
-  assert.match(accessUi, /Initial password \*/);
-  assert.match(accessUi, /Set or generate a temporary password now/);
+  assert.match(accessUi, /Initial password \*/i);
+  assert.match(accessUi, /Set or generate a temporary password now/i);
   assert.match(accessUi, /Generate/);
   assert.match(accessUi, /Copy/);
 });
@@ -55,7 +55,7 @@ test("login accepts email or phone and rate limits failures", () => {
   assert.match(auth, /normalizePhone/);
   assert.match(auth, /IDENTITY_FAILURE_LIMIT/);
   assert.match(auth, /IP_FAILURE_LIMIT/);
-  assert.match(accessUi, /Email or phone/);
+  assert.match(accessUi, /Email or phone/i);
 });
 
 test("administrator password reset revokes existing sessions", () => {
@@ -75,11 +75,11 @@ test("founding platform owner is provisioned across the three business systems",
 test("billing is a first-class module with shared commercial document flow", () => {
   assert.match(foundation, /"billing"/);
   assert.match(accessControl, /billing\.quotations\.manage/);
-  assert.match(accessControl, /billing\.purchase_orders\.manage/);
-  assert.match(accessControl, /billing\.delivery_challans\.manage/);
+  assert.match(accessControl, /billing\.purchase_orders\.manage/i);
+  assert.match(accessControl, /billing\.delivery_challans\.manage/i);
   assert.match(accessControl, /billing\.invoices\.manage/);
   assert.match(accessControl, /catalog\.manage/);
-  assert.match(billing, /Quotation → PO → Delivery Challan → Invoice/);
-  assert.match(billing, /same customer, item\/service and pricing source/);
+  assert.match(billing, /Quotation → PO → Delivery Challan → Invoice/i);
+  assert.match(billing, /same customer, item\/service and pricing source/i);
 });
 

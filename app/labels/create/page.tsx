@@ -26,11 +26,11 @@ const BUSINESS_LOGOS: Record<string, string> = {
 };
 
 const SOURCE_MODES: Array<{ value: SourceMode; label: string; help: string }> = [
-  { value: "person_product", label: "Each physical item", help: "One identity for each individual garment, item or workpiece." },
-  { value: "person", label: "Each person / package", help: "One identity for each person or that person's package." },
-  { value: "product", label: "Each product / stock group", help: "One identity for each product or stock group." },
-  { value: "group", label: "Each group / outer package", help: "One identity for a grouped work set or grouped outer package." },
-  { value: "order", label: "Whole order", help: "One identity representing the complete order or its outermost package." },
+  { value: "person_product", label: "Each Physical Item", help: "One identity for each individual garment, item or workpiece." },
+  { value: "person", label: "Each Person / Package", help: "One identity for each person or that person's package." },
+  { value: "product", label: "Each Product / Stock Group", help: "One identity for each product or stock group." },
+  { value: "group", label: "Each Group / Outer Package", help: "One identity for a grouped work set or grouped outer package." },
+  { value: "order", label: "Whole Order", help: "One identity representing the complete order or its outermost package." },
 ];
 
 const DEFAULT_CONFIG: LabelConfiguration = {
@@ -40,11 +40,11 @@ const DEFAULT_CONFIG: LabelConfiguration = {
     { id: "inventory", label: "Inventory", behavior: "inventory", enabled: true, builtin: true },
   ],
   representations: [
-    { id: "production-item", purposeId: "production", label: "Each physical item", sourceMode: "person_product", help: SOURCE_MODES[0].help, enabled: true, builtin: true },
-    { id: "packing-person", purposeId: "packing", label: "Each person / package", sourceMode: "person", help: SOURCE_MODES[1].help, enabled: true, builtin: true },
-    { id: "packing-group", purposeId: "packing", label: "Each group / outer package", sourceMode: "group", help: SOURCE_MODES[3].help, enabled: true, builtin: true },
-    { id: "packing-order", purposeId: "packing", label: "Whole order", sourceMode: "order", help: SOURCE_MODES[4].help, enabled: true, builtin: true },
-    { id: "inventory-product", purposeId: "inventory", label: "Each product / stock group", sourceMode: "product", help: SOURCE_MODES[2].help, enabled: true, builtin: true },
+    { id: "production-item", purposeId: "production", label: "Each Physical Item", sourceMode: "person_product", help: SOURCE_MODES[0].help, enabled: true, builtin: true },
+    { id: "packing-person", purposeId: "packing", label: "Each Person / Package", sourceMode: "person", help: SOURCE_MODES[1].help, enabled: true, builtin: true },
+    { id: "packing-group", purposeId: "packing", label: "Each Group / Outer Package", sourceMode: "group", help: SOURCE_MODES[3].help, enabled: true, builtin: true },
+    { id: "packing-order", purposeId: "packing", label: "Whole Order", sourceMode: "order", help: SOURCE_MODES[4].help, enabled: true, builtin: true },
+    { id: "inventory-product", purposeId: "inventory", label: "Each Product / Stock Group", sourceMode: "product", help: SOURCE_MODES[2].help, enabled: true, builtin: true },
   ],
 };
 
@@ -138,7 +138,7 @@ function ConfigurationEditor({ kind, config, purposeId, onChange, onClose }: { k
     : { ...config, representations: config.representations.map(item => item.id === id ? { ...item, enabled: !item.enabled } : item) });
 
   return <div className="labelManagedEditor" role="dialog">
-    <div className="labelManagedEditorHead"><b>{kind === "purpose" ? "Manage purposes" : "Manage representations"}</b><button type="button" onClick={onClose}>Done</button></div>
+    <div className="labelManagedEditorHead"><b>{kind === "purpose" ? "Manage Purposes" : "Manage Representations"}</b><button type="button" onClick={onClose}>Done</button></div>
     <div className="labelManagedRows">{rows.map(item => <div className={`labelManagedRow ${!item.enabled ? "isHidden" : ""}`} key={item.id}>
       <input value={item.label} onChange={event => updateLabel(item.id, event.target.value)}/>
       <button type="button" className="labelManagedToggle" onClick={() => toggle(item.id)}>{item.enabled ? "Hide" : "Show"}</button>
@@ -146,7 +146,7 @@ function ConfigurationEditor({ kind, config, purposeId, onChange, onClose }: { k
     </div>)}</div>
     <div className="labelManagedAdd">
       <input placeholder={kind === "purpose" ? "New purpose" : "New representation"} value={draftName} onChange={event => setDraftName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); add(); } }}/>
-      {kind === "purpose" ? <select value={draftBehavior} onChange={event => setDraftBehavior(event.target.value as LabelBehavior)}><option value="production">Production behaviour</option><option value="packing">Packing behaviour</option><option value="inventory">Inventory behaviour</option></select> : <select value={draftSource} onChange={event => setDraftSource(event.target.value as SourceMode)}>{SOURCE_MODES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select>}
+      {kind === "purpose" ? <select value={draftBehavior} onChange={event => setDraftBehavior(event.target.value as LabelBehavior)}><option value="production">Production Behaviour</option><option value="packing">Packing Behaviour</option><option value="inventory">Inventory Behaviour</option></select> : <select value={draftSource} onChange={event => setDraftSource(event.target.value as SourceMode)}>{SOURCE_MODES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select>}
       <button type="button" onClick={add}>+ Add</button>
     </div>
   </div>;
@@ -221,23 +221,23 @@ export function LabelCreateWorkspace({context,onClose,onDesigning}: {context?: L
   if (started && selectedOrder) {
     const nativePackingPerson = selectedPurpose.behavior === "packing" && selectedRepresentation.sourceMode === "person";
     return <div className="labelCreateApp app" data-label-source={selectedRepresentation.sourceMode} style={themeVariables(theme) as CSSProperties}>
-      <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>{nativePackingPerson ? <PackingPersonLabelDesigner businessId={businessId} order={referenceOrder||selectedOrder} sourceOrders={referenceOrder?[referenceOrder]:selectedOrders} referenceOnly={Boolean(referenceOrder)} canManageSizes={canManage} backLabel="← Back" onBack={() => { onDesigning?.(false); setStarted(false); }}/> : <LabelDesigner businessId={businessId} order={selectedOrder} sourceOrders={selectedOrders} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} backLabel="← Back" onBack={() => { onDesigning?.(false); setStarted(false); }}/>}</div>
+      <div className="surface"><header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business Logo"/></header>{nativePackingPerson ? <PackingPersonLabelDesigner businessId={businessId} order={referenceOrder||selectedOrder} sourceOrders={referenceOrder?[referenceOrder]:selectedOrders} referenceOnly={Boolean(referenceOrder)} canManageSizes={canManage} backLabel="← Back" onBack={() => { onDesigning?.(false); setStarted(false); }}/> : <LabelDesigner businessId={businessId} order={selectedOrder} sourceOrders={selectedOrders} initialPurpose={selectedPurpose.behavior} initialSourceMode={selectedRepresentation.sourceMode} canManageSizes={canManage} backLabel="← Back" onBack={() => { onDesigning?.(false); setStarted(false); }}/>}</div>
     </div>;
   }
 
   return <div className="labelCreateApp app" style={themeVariables(theme) as CSSProperties}><div className="surface">
-    <header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business logo"/></header>
+    <header className="labelCreateTopbar"><img className={`labelCreateBrand logo-${businessId}`} src={logo} alt="Business Logo"/></header>
     <main className="labelCreateRoute">
-      <section className="labelCreateRouteHead"><div><button type="button" className="secondary contextBackButton appBackControl" onClick={() => { if (onClose) onClose(); else if (window.history.length > 1) window.history.back(); else window.location.href = `/?business=${businessId}`; }}>{selectedOrder ? "← Back" : "← Back"}</button><p className="eyebrow">LABEL CREATION</p><h1>Create labels</h1><p>Choose the source orders, purpose and what each label represents.</p></div></section>
+      <section className="labelCreateRouteHead"><div><button type="button" className="secondary contextBackButton appBackControl" onClick={() => { if (onClose) onClose(); else if (window.history.length > 1) window.history.back(); else window.location.href = `/?business=${businessId}`; }}>{selectedOrder ? "← Back" : "← Back"}</button><p className="eyebrow">LABEL CREATION</p><h1>Create Labels</h1><p>Choose the source orders, purpose and what each label represents.</p></div></section>
       <section className="panel labelCreateOrderChoice">
-        <div className="labelCreateField"><label><span>1 · Order</span><select disabled={!!contextOrderId} value={orderId} onChange={event => {setOrderId(event.target.value);setAdditionalOrderIds([]);}}><option value="">Choose an order…</option>{orders.map(order => <option key={order.orderId} value={order.orderId}>{order.details.orderNo} — {order.details.clientName || "Unnamed client"}</option>)}</select></label></div>
+        <div className="labelCreateField"><label><span>1 · Order</span><select disabled={!!contextOrderId} value={orderId} onChange={event => {setOrderId(event.target.value);setAdditionalOrderIds([]);}}><option value="">Choose an Order…</option>{orders.map(order => <option key={order.orderId} value={order.orderId}>{order.details.orderNo} — {order.details.clientName || "Unnamed client"}</option>)}</select></label></div>
         <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>2 · Purpose</span></div><ManagedDropdown value={selectedPurpose.id} options={purposes} disabled={!selectedOrder} canManage={canManage} manageLabel="Manage purposes…" onChange={changePurpose} onManage={() => setManage("purpose")}/>{manage === "purpose" && canManage && <ConfigurationEditor kind="purpose" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>
-        <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>3 · Label represents</span></div><ManagedDropdown value={selectedRepresentation.id} options={representations} disabled={!selectedOrder || !representations.length} canManage={canManage} manageLabel="Manage representations…" onChange={setRepresentationId} onManage={() => setManage("representation")}/>{manage === "representation" && canManage && <ConfigurationEditor kind="representation" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>
+        <div className="labelCreateField labelManagedField"><div className="labelCreateFieldTitle"><span>3 · Label Represents</span></div><ManagedDropdown value={selectedRepresentation.id} options={representations} disabled={!selectedOrder || !representations.length} canManage={canManage} manageLabel="Manage representations…" onChange={setRepresentationId} onManage={() => setManage("representation")}/>{manage === "representation" && canManage && <ConfigurationEditor kind="representation" config={config} purposeId={selectedPurpose.id} onChange={changeConfig} onClose={() => setManage(null)}/>}</div>
       </section>
-      {selectedOrder && !contextOrderId && <details className="panel labelSourceOrders"><summary>Include other orders · {selectedOrders.length} selected</summary><div>{orders.filter(order => order.orderId !== orderId).map(order => <label key={order.orderId}><input type="checkbox" checked={additionalOrderIds.includes(order.orderId)} onChange={event => setAdditionalOrderIds(current => event.target.checked ? [...current,order.orderId] : current.filter(id => id !== order.orderId))}/>{order.details.orderNo} · {order.details.clientName}</label>)}</div></details>}
-      {selectedOrder&&selectedPurpose.behavior==='packing'&&selectedRepresentation.sourceMode==='person'&&<section className="panel"><label><input type="checkbox" checked={separateList} onChange={event=>setSeparateList(event.target.checked)}/>Use a separate person / garment list</label>{separateList&&<><p>Save these names, classes, sizes and quantities with the label batch. This does not add or change students in the order.</p><p>Products: {selectedOrder.products.map(product=>product.name).join(', ')}</p><label>Person and garment lines<textarea rows={12} value={separateLines} onChange={event=>setSeparateLines(event.target.value)} placeholder="Name | Class / group | Product | Size (or Pending) | Qty | Waist (optional)"/></label><p>Use one line per garment. Repeating the same name and class puts those garments on one person&apos;s label.</p></>}</section>}
+      {selectedOrder && !contextOrderId && <details className="panel labelSourceOrders"><summary>Include Other Orders · {selectedOrders.length} Selected</summary><div>{orders.filter(order => order.orderId !== orderId).map(order => <label key={order.orderId}><input type="checkbox" checked={additionalOrderIds.includes(order.orderId)} onChange={event => setAdditionalOrderIds(current => event.target.checked ? [...current,order.orderId] : current.filter(id => id !== order.orderId))}/>{order.details.orderNo} · {order.details.clientName}</label>)}</div></details>}
+      {selectedOrder&&selectedPurpose.behavior==='packing'&&selectedRepresentation.sourceMode==='person'&&<section className="panel"><label><input type="checkbox" checked={separateList} onChange={event=>setSeparateList(event.target.checked)}/>Use a Separate Person / Garment List</label>{separateList&&<><p>Save these names, classes, sizes and quantities with the label batch. This does not add or change students in the order.</p><p>Products: {selectedOrder.products.map(product=>product.name).join(', ')}</p><label>Person and Garment Lines<textarea rows={12} value={separateLines} onChange={event=>setSeparateLines(event.target.value)} placeholder="Name | Class / group | Product | Size (or Pending) | Qty | Waist (optional)"/></label><p>Use one line per garment. Repeating the same name and class puts those garments on one person&apos;s label.</p></>}</section>}
       {saveError && <p className="labelConfigurationError">{saveError}</p>}
-      <div className="labelCreateRouteActions"><button className="primary" disabled={!selectedOrder || !representations.length} onClick={() => { if(selectedOrder) { try{setReferenceOrder(separateList&&selectedPurpose.behavior==='packing'&&selectedRepresentation.sourceMode==='person'?separateLabelOrder(selectedOrder,separateLines):null);setSaveError('');onDesigning?.(true);setStarted(true);}catch(error){setSaveError((error as Error).message);} } }}>Continue to designer</button></div>
+      <div className="labelCreateRouteActions"><button className="primary" disabled={!selectedOrder || !representations.length} onClick={() => { if(selectedOrder) { try{setReferenceOrder(separateList&&selectedPurpose.behavior==='packing'&&selectedRepresentation.sourceMode==='person'?separateLabelOrder(selectedOrder,separateLines):null);setSaveError('');onDesigning?.(true);setStarted(true);}catch(error){setSaveError((error as Error).message);} } }}>Continue to Designer</button></div>
     </main>
   </div></div>;
 }

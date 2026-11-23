@@ -32,8 +32,8 @@ export function LabelCreateDialog() {
     if (designing && !window.confirm("Close the label workspace? Save your label set first to keep any unsaved design changes.")) return;
     setContext(null);
   };
-  return context ? createPortal(<div className="labelCreateBackdrop"><section className={`labelCreateDialog ${expanded ? "isExpanded" : ""} ${designing ? "isDesigning" : ""}`} role="dialog" aria-modal="true" aria-label="Label workspace">
-    <header className="labelCreateDialogHead"><div><b>Label workspace</b><span>Create, design and save labels</span></div><div><button type="button" className="secondary" aria-pressed={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? "Exit full screen" : "Full screen"}</button><button type="button" className="uiIconButton uiCloseButton" aria-label="Close label workspace" title="Close label workspace" onClick={close}><CloseIcon/></button></div></header>
+  return context ? createPortal(<div className="labelCreateBackdrop"><section className={`labelCreateDialog ${expanded ? "isExpanded" : ""} ${designing ? "isDesigning" : ""}`} role="dialog" aria-modal="true" aria-label="Label Workspace">
+    <header className="labelCreateDialogHead"><div><b>Label Workspace</b><span>Create, Design and Save Labels</span></div><div><button type="button" className="secondary" aria-pressed={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? "Exit Full Screen" : "Full Screen"}</button><button type="button" className="uiIconButton uiCloseButton" aria-label="Close Label Workspace" title="Close Label Workspace" onClick={close}><CloseIcon/></button></div></header>
     <div className="labelCreateDialogBody"><LabelCreateWorkspace context={context} onClose={close} onDesigning={setDesigning}/></div>
   </section></div>, document.body) : null;
 }

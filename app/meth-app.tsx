@@ -64,16 +64,16 @@ function MethHome({ onNavigate }: { onNavigate: (module: MethModule) => void }) 
   return <section className="jinamDashboard">
     <div className="jinamDashboardHead"><div><small>METH</small><h1>Home</h1><p>Channel orders, SEIKO production handoffs, fulfilment and financial settlement.</p></div></div>
     <div className="jinamDashboardGrid">
-      <button className="jinamDashboardCard" onClick={() => onNavigate("orders")}><small>INCOMING ORDERS</small><strong>{metrics.incoming}</strong><span>Across Shopify, Amazon and other channels</span></button>
-      <button className="jinamDashboardCard" onClick={() => onNavigate("production")}><small>IN PRODUCTION</small><strong>{metrics.production}</strong><span>Linked SEIKO production handoffs</span></button>
-      <button className="jinamDashboardCard" onClick={() => onNavigate("production")}><small>READY TO PACK</small><strong>{metrics.pack}</strong><span>Accepted production returned to MeTh</span></button>
-      <button className="jinamDashboardCard" onClick={() => onNavigate("orders")}><small>READY TO DISPATCH</small><strong>{metrics.dispatch}</strong><span>Packed customer orders</span></button>
+      <button className="jinamDashboardCard" onClick={() => onNavigate("orders")}><small>INCOMING ORDERS</small><strong>{metrics.incoming}</strong><span>Across Shopify, Amazon and Other Channels</span></button>
+      <button className="jinamDashboardCard" onClick={() => onNavigate("production")}><small>IN PRODUCTION</small><strong>{metrics.production}</strong><span>Linked SEIKO Production Handoffs</span></button>
+      <button className="jinamDashboardCard" onClick={() => onNavigate("production")}><small>READY TO PACK</small><strong>{metrics.pack}</strong><span>Accepted Production Returned to MeTh</span></button>
+      <button className="jinamDashboardCard" onClick={() => onNavigate("orders")}><small>READY TO DISPATCH</small><strong>{metrics.dispatch}</strong><span>Packed Customer Orders</span></button>
     </div>
-    <section className="jinamDashboardSection"><div className="jinamDashboardSectionHead"><div><h2>Financial control</h2><p>Customer payment, marketplace settlement and SEIKO payable remain separate records.</p></div></div><div className="jinamDashboardList"><button className="jinamDashboardRow" onClick={() => onNavigate("finance")}><strong>SEIKO payable</strong><span>{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(metrics.payable)}</span></button><div className="jinamDashboardRow"><strong>Production cost rule</strong><span>Only accepted, completed and chargeable units create MeTh cost.</span></div></div></section>
+    <section className="jinamDashboardSection"><div className="jinamDashboardSectionHead"><div><h2>Financial Control</h2><p>Customer payment, marketplace settlement and SEIKO payable remain separate records.</p></div></div><div className="jinamDashboardList"><button className="jinamDashboardRow" onClick={() => onNavigate("finance")}><strong>SEIKO Payable</strong><span>{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(metrics.payable)}</span></button><div className="jinamDashboardRow"><strong>Production Cost Rule</strong><span>Only accepted, completed and chargeable units create MeTh cost.</span></div></div></section>
   </section>;
 }
 
 function MethSettings() {
   const openAccess = () => document.querySelector<HTMLButtonElement>(".accessMenuEntry")?.click();
-  return <section className="jinamSettingsPage"><div className="jinamSettingsHead"><small>METH</small><h1>Settings</h1></div><div className="jinamSettingsGrid"><article className="jinamSettingsCard"><h2>Users & access</h2><p>Manage who can enter MeTh and what each person can see or do.</p><button type="button" className="primary" onClick={openAccess}>Open users & access</button></article><MethFulfilmentRoutingSettings/><ChannelConnectionSettings/><MethCommerceSettings/></div></section>;
+  return <section className="jinamSettingsPage"><div className="jinamSettingsHead"><small>METH</small><h1>Settings</h1></div><div className="jinamSettingsGrid"><article className="jinamSettingsCard"><h2>Users & Access</h2><p>Manage who can enter MeTh and what each person can see or do.</p><button type="button" className="primary" onClick={openAccess}>Open Users & Access</button></article><MethFulfilmentRoutingSettings/><ChannelConnectionSettings/><MethCommerceSettings/></div></section>;
 }

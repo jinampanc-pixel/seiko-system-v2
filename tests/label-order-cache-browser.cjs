@@ -1,3 +1,4 @@
+const uiLabel=require("./ui-label.cjs");
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
@@ -19,7 +20,7 @@ const { spawn } = require('node:child_process');
     await page.route('**/api/erp/preferences', route => route.fulfill({ json: { ok: true, data: {} } }));
     await page.goto(`${base}/tests/packing-browser/index.html?label-orders&business=seiko`);
     const picker = page.locator('.labelCreateOrderChoice select');
-    await picker.getByRole('option', { name: /Packing label validation/ }).waitFor({ state: 'attached' });
+    await picker.getByRole('option', { name: uiLabel(/Packing label validation/, false) }).waitFor({ state: 'attached' });
     const initial = await page.evaluate(() => JSON.parse(localStorage.getItem('jinam:seiko:orders-v1')));
     // Simulate ErpOrderSync finishing after the picker mounted, while the old
     // persisted order list cannot be overwritten because browser storage is full.
@@ -35,16 +36,16 @@ const { spawn } = require('node:child_process');
       const { writeOrderCache } = await import('/app/lib/order-cache.ts');
       writeOrderCache('seiko', [fresh, archived, ...initial]);
     }, initial);
-    await picker.getByRole('option', { name: 'FOLLOW-UP — Follow-up only', exact: true }).waitFor({ state: 'attached' });
+    await picker.getByRole('option', { name: uiLabel('FOLLOW-UP — Follow-up only', true), exact: true }).waitFor({ state: 'attached' });
     assert.equal(await picker.locator('option[value="archived-fixture"]').count(), 0);
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('jinam:seiko:orders-v1')).length), initial.length);
-    const search = page.getByRole('searchbox', { name: 'Search orders by order number, client, attention name or phone number' });
+    const search = page.getByRole('searchbox', { name: uiLabel('Search orders by order number, client, attention name or phone number', false) });
     await search.fill('Follow-up only');
-    await page.getByRole('button', { name: /FOLLOW-UP — Follow-up only/ }).click();
+    await page.getByRole('button', { name: uiLabel(/FOLLOW-UP — Follow-up only/, false) }).click();
     assert.equal(await picker.inputValue(), 'follow-up-fixture');
-    await page.getByRole('button', { name: 'Production ⌄', exact: true }).click();
-    await page.getByRole('option', { name: 'Packing', exact: true }).click();
-    await page.getByRole('button', { name: 'Continue to designer', exact: true }).click();
+    await page.getByRole('button', { name: uiLabel('Production ⌄', true), exact: true }).click();
+    await page.getByRole('option', { name: uiLabel('Packing', true), exact: true }).click();
+    await page.getByRole('button', { name: uiLabel('Continue to designer', true), exact: true }).click();
     await page.locator('.physicalPackingEditor').waitFor();
     assert.deepEqual(errors, []);
     console.log('PASS: delayed shared orders remain searchable and open in packing designer when browser storage is full; archived orders stay hidden.');

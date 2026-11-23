@@ -19,20 +19,20 @@ test("order workspace uses spreadsheet row headers rather than checkbox selector
 });
 
 test("order center has detailed filters and a three-dot action menu for each order", () => {
-  for (const field of ["Status", "Client type", "Product", "Delivery"]) assert.match(centers, new RegExp(field));
+  for (const field of ["Status", "Client type", "Product", "Delivery"]) assert.match(centers, new RegExp(field, "i"));
   assert.doesNotMatch(centers, /Records", "records/);
   assert.match(centers, /orderFilterToggle/);
   assert.match(centers, /orderFilterGlyph/);
   assert.match(centers, /matchingProducts/);
   assert.match(centers, /filterState\.clientType/);
-  assert.match(centers, /Due in next 7 days/);
+  assert.match(centers, /Due in next 7 days/i);
   assert.match(centers, /Overdue/);
   assert.match(centers, /orderCenterActionMenu/);
-  assert.match(centers, /Edit setup/);
-  assert.match(centers, /Create labels/);
-  assert.doesNotMatch(centers, /openAction\.textContent = "Open order"/);
-  assert.match(centers, /Archive order/);
-  assert.match(centers, /Restore order/);
+  assert.match(centers, /Edit setup/i);
+  assert.match(centers, /Create labels/i);
+  assert.doesNotMatch(centers, /openAction\.textContent = "Open order"/i);
+  assert.match(centers, /Archive order/i);
+  assert.match(centers, /Restore order/i);
 });
 
 test("label center uses clickable saved-set rows and consistent three-dot menus", () => {
@@ -43,11 +43,11 @@ test("label center uses clickable saved-set rows and consistent three-dot menus"
   assert.doesNotMatch(centers, /openAction\.textContent = "Open label set"/);
   assert.match(centers, /labelOrderResults/);
   assert.match(centers, /labelCenterActionMenu/);
-  assert.match(centers, /Archive label set/);
-  assert.match(centers, /Restore label set/);
-  assert.match(centers, /Delete permanently/);
+  assert.match(centers, /Archive label set/i);
+  assert.match(centers, /Restore label set/i);
+  assert.match(centers, /Delete permanently/i);
   assert.doesNotMatch(centers, /Remove saved set/);
-  assert.match(centers, /Create label set/);
+  assert.match(centers, /Create label set/i);
 });
 
 test("saved labels use one calibrated print action and explicit shared status lists", () => {
@@ -57,7 +57,7 @@ test("saved labels use one calibrated print action and explicit shared status li
   assert.match(read("app/saved-output-record.tsx"), /confirm-printed/);
   assert.match(read("app/saved-output-record.tsx"), /confirm-printed/);
   assert.match(centers, /labels:pdf-records-v1/);
-  assert.match(centers, /Earlier PDF requests/);
+  assert.match(centers, /Earlier PDF requests/i);
   assert.match(centers, /rememberPdf/);
 });
 

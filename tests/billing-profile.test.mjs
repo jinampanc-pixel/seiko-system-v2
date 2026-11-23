@@ -14,7 +14,7 @@ function fixture(){
  const sql=new DatabaseSync(':memory:');for(const file of fs.readdirSync('migrations').sort())sql.exec(fs.readFileSync('migrations/'+file,'utf8'));let role='owner',email='owner@example.com';
  const db={withSession(){return this;},async batch(stmts){sql.exec('BEGIN');try{const result=stmts.map(s=>s.runSync());sql.exec('COMMIT');return result;}catch(e){sql.exec('ROLLBACK');throw e;}},prepare(query){const stmt=sql.prepare(query);let args=[];return {bind(...v){args=v;return this;},runSync(){return {meta:{changes:Number(stmt.run(...args).changes)}};},async run(){return this.runSync();},async first(){return stmt.get(...args)||null;},async all(){return {results:stmt.all(...args)};}};}};
  let grants=[];
- const auth={authenticateActor:async()=>({email,userId:email}),authorizePermission:async(_actor,_business,permission)=>permission.startsWith('billing.documents.')&&role!=='owner'&&!grants.includes(permission)?null:({role})};
+ const auth={authenticateActor:async()=>({email,userId:email}),authorizePermission:async(_actor,_business,permission)=>(permission).toLowerCase().startsWith("billing.documents.")&&role!=='owner'&&!grants.includes(permission)?null:({role})};
  const imports={'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/billing-profile':profiles,'../../../lib/seiko-billing':model};
  const api=load('app/api/erp/billing-profile/route.ts',imports), billing=load('app/api/erp/billing/route.ts',imports);
  const call=(body,route=api)=>route.POST(new Request('https://test.invalid/api/erp/billing-profile',{method:'POST',headers:{origin:'https://test.invalid'},body:JSON.stringify(body)}));
@@ -84,9 +84,9 @@ test('document archive and recoverable deletion enforce delegated permissions, p
 
 test('invoice print uses cream theme, precise payment labels, due date and optional saved signature',()=>{
  const image='data:image/png;base64,AAAA';const d={id:'test-invoice',kind:'invoice',number:'INV-1',clientName:'School',clientContactPerson:'Person <One>',issueDate:'2026-10-22',dueDate:'2026-11-01',taxMode:'non_gst',taxTreatment:'intra_state',lines:[],supplier:{name:'SEIKO Tailors',phone:'1234567890',bank:'',showBank:true,accountName:'SEIKO',accountNumber:'123',ifsc:'BANK001',showUpi:true,upi:'test@upi',showQr:true,paymentQr:image},signatory:{id:'sign-001',name:'Authorised Person',designation:'Owner',signature:image,stamp:image},showSignature:true,showStamp:true,showSigningDate:true,signingDate:'2026-10-22',showTerms:true,terms:'Payment due as stated.'};
- const html=print.billingPrintHtml(d,[],'customer');assert.match(html,/#fbf5ed/);assert.match(html,/Contact person: Person &lt;One&gt;/);assert.match(html,/Payment due/);assert.match(html,/01 Nov 2026/);assert.match(html,/For bank transfer/);assert.match(html,/For UPI payment/);assert.match(html,/UPI ID: test@upi/);assert.match(html,/object-fit:contain/);assert.match(html,/Phone: 1234567890/);assert.match(html,/alt="Authorised signature"/);assert.match(html,/Authorised Person/);assert.match(html,/Payment due as stated/);
- const hidden=print.billingPrintHtml({...d,showSignatory:false,showTerms:false},[],'customer');assert.doesNotMatch(hidden,/alt="Authorised signature"|Authorised Person|Payment due as stated/);
- assert.match(print.billingPrintHtml({...d,dueOnReceipt:true},[],'customer'),/Due on receipt/);
+ const html=print.billingPrintHtml(d,[],'customer');assert.match(html,/#fbf5ed/);assert.match(html,/Contact person: Person &lt;One&gt;/i);assert.match(html,/Payment due/i);assert.match(html,/01 Nov 2026/);assert.match(html,/For bank transfer/i);assert.match(html,/For UPI payment/i);assert.match(html,/UPI ID: test@upi/);assert.match(html,/object-fit:contain/);assert.match(html,/Phone: 1234567890/);assert.match(html,/alt="Authorised signature"/);assert.match(html,/Authorised Person/);assert.match(html,/Payment due as stated/i);
+ const hidden=print.billingPrintHtml({...d,showSignatory:false,showTerms:false},[],'customer');assert.doesNotMatch(hidden,/alt="Authorised signature"|Authorised Person|Payment due as stated/i);
+ assert.match(print.billingPrintHtml({...d,dueOnReceipt:true},[],'customer'),/Due on receipt/i);
  assert.ok(profiles.validateBillingProfile({...profiles.emptyBillingProfile(),supplier:{...profiles.emptyBillingProfile().supplier,paymentQr:'data:image/svg+xml;base64,AAAA'}}));
 });
 
@@ -122,7 +122,7 @@ test('printed detail labels can be renamed or hidden without hiding values',asyn
   const saved=await(await f.call({operation:'get'})).json();assert.deepEqual(saved.profile.printPreferences,profile.printPreferences);
   const d={id:'labels-invoice',number:'INV-LABELS',kind:'invoice',clientName:'School',clientContactPerson:'Person',clientAddress:'Test village',clientPhone:'9999999999',issueDate:'2026-10-22',supplier:{name:'SEIKO',showUpi:true,upi:'sample@upi'},taxMode:'non_gst',lines:[{description:'Uniform',quantity:1,unitRate:100,taxRate:0}],notes:''};
   const html=print.billingPrintHtml(d,[],'customer',undefined,saved.profile.printPreferences);
-  assert.match(html,/Contact person: Person/);assert.match(html,/Address: Test village/);assert.match(html,/9999999999/);assert.doesNotMatch(html,/Phone:|Attn:/);assert.match(html,/Pay via UPI: sample@upi/);
+  assert.match(html,/Contact person: Person/i);assert.match(html,/Address: Test village/);assert.match(html,/9999999999/);assert.doesNotMatch(html,/Phone:|Attn:/);assert.match(html,/Pay via UPI: sample@upi/);
   profile.printPreferences.fieldLabels.contact.label='<script>';assert.match(print.billingPrintHtml(d,[],'customer',undefined,profile.printPreferences),/&lt;script&gt;: Person/);
   profile.printPreferences.fieldLabels.phone.showLabel='yes';assert.match(profiles.validateBillingProfile(profile),/document labels/);
  }finally{f.sql.close();}
@@ -131,5 +131,5 @@ test('printed detail labels can be renamed or hidden without hiding values',asyn
 test('label preferences apply to legacy multiline bank details',()=>{
  const d={id:'legacy-labels',number:'INV',kind:'invoice',issueDate:'2026-10-22',taxMode:'non_gst',lines:[{description:'Uniform',quantity:1,unitRate:100,taxRate:0}],supplier:{name:'SEIKO',showBank:true,bank:'A/c No.: 123456\nIFSC Code: TEST0001\nA/c Name: Merchant'}};
  const html=print.billingPrintHtml(d,[],'customer',undefined,{fieldLabels:{accountNumber:{showLabel:false,label:'Account number'},ifsc:{showLabel:true,label:'Bank code'}}});
- assert.match(html,/<p>123456<\/p>/);assert.match(html,/Bank code: TEST0001/);assert.match(html,/Account name: Merchant/);assert.doesNotMatch(html,/A\/c No\.:/);
+ assert.match(html,/<p>123456<\/p>/);assert.match(html,/Bank code: TEST0001/);assert.match(html,/Account name: Merchant/i);assert.doesNotMatch(html,/A\/c No\.:/);
 });

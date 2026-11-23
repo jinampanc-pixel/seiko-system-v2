@@ -23,7 +23,7 @@ test('PC and Drive failure states are independent, retry the same archive, and c
     exports++; if (failExport) throw Error('private provider error');
     const file = `copy-${exports}.seiko-backup`; fs.writeFileSync(path.join(directory, file), 'encrypted fixture'); return { file, integrity: 'ok' };
   }, driveCopy: async (_config, report) => { copies++; if (failDrive) throw Error('secret token'); return { ...report, driveCopy: 'remote-byte-verified' }; } };
-  await assert.rejects(pcBackup(config, dependencies), /PC backup verified/);
+  await assert.rejects(pcBackup(config, dependencies), /PC backup verified/i);
   const status = JSON.parse(fs.readFileSync(path.join(directory, 'pc-status.json'))); assert.equal(status.localState, 'verified'); assert.equal(status.cloudState, 'failed');
   failDrive = false; assert.equal((await pcBackup(config, dependencies)).cloudState, 'verified'); assert.equal(exports, 1); assert.equal(copies, 2);
   await pcBackup(config, dependencies); assert.equal(copies, 2);

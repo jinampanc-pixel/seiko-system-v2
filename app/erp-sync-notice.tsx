@@ -62,11 +62,11 @@ export function ErpSyncNotice() {
   return <div className="erpConflictLayer">
     <section className="erpConflictDialog" role="alertdialog" aria-modal="true" aria-labelledby="erp-conflict-title" aria-describedby="erp-conflict-message">
       <p className="eyebrow">SHARED ORDER CHANGED</p>
-      <h3 id="erp-conflict-title">Reload the latest order before continuing</h3>
+      <h3 id="erp-conflict-title">Reload the Latest Order Before Continuing</h3>
       <p id="erp-conflict-message">{conflict.message}</p>
       <p>Your local version has been preserved as a recovery copy. JINAM has stopped automatically sending that conflicting copy to the shared database.</p>
-      <div className="erpConflictMeta"><b>Order</b><span>{conflict.orderId}</span>{conflict.recoveryKey && <><b>Recovery</b><span>Saved locally</span></>}</div>
-      <button type="button" className="primary" onClick={reloadLatest}>Reload latest shared version</button>
+      <div className="erpConflictMeta"><b>Order</b><span>{conflict.orderId}</span>{conflict.recoveryKey && <><b>Recovery</b><span>Saved Locally</span></>}</div>
+      <button type="button" className="primary" onClick={reloadLatest}>Reload Latest Shared Version</button>
     </section>
   </div>;
 }

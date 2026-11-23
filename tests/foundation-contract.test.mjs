@@ -24,8 +24,8 @@ test("scanner supports camera, scan gun and offline queue", () => {
   assert.match(page, /BarcodeDetector/);
   assert.match(page, /detector\.detect/);
   assert.match(page, /businessStorageKey\(businessId, "scan-queue"\)/);
-  assert.match(page, /Record scan/);
-  assert.match(page, /Not saved — retry required/);
+  assert.match(page, /Record scan/i);
+  assert.match(page, /Not saved — retry required/i);
   assert.match(page, /setToken\(clean\)/);
 });
 
@@ -53,7 +53,7 @@ test("business context is mandatory and forwarded with authenticated identity", 
   assert.match(route, /BUSINESS_REQUIRED/);
   assert.match(route, /authenticateActor\(request\)/);
   assert.match(serverAuth, /oai-authenticated-user-id/);
-  assert.match(serverAuth, /oai-authenticated-user-email/);
+  assert.match(serverAuth, /oai-authenticated-user-email/i);
   assert.match(serverAuth, /cf-access-jwt-assertion/);
   assert.match(route, /actor: \{ userId: actor\.userId, email: actor\.email \}/);
   assert.match(route, /businessId: businessId \|\| null/);
@@ -79,18 +79,18 @@ test("business themes support presets, manual editing and local logo analysis", 
   assert.match(foundation, /THEME_PRESETS/);
   assert.match(foundation, /deriveThemeFromLogo/);
   assert.match(foundation, /decodeBrowserImage/);
-  assert.match(page, /Automatically derive from company logo/);
+  assert.match(page, /Automatically derive from company logo/i);
   assert.match(page, /businessId === "seiko" \? "theme-v3" : "theme-v2"/);
   assert.match(page, /canAccess\(membership, "admin"\)/);
 });
 
 test("Seiko orders preserve flexible client and person-entry behaviour", () => {
-  assert.match(orderDomain, /CLIENT_TYPE_PRESETS/);
+  assert.match(orderDomain, /CLIENT_TYPE_PRESETS/i);
   assert.match(orderDomain, /attnRequired/);
-  assert.match(orders, /Set different values by group/);
+  assert.match(orders, /Set different values by group/i);
   assert.match(orders, /RuleConditions/);
   assert.match(orders, /removeSourceField/);
-  assert.match(orders, />\+ Add detail<\/button>/);
+  assert.match(orders, />\+ Add detail<\/button>/i);
   assert.doesNotMatch(orders, />\+ Gender<\/button>/);
   assert.doesNotMatch(orderDomain, /Add at least one product\./);
   assert.doesNotMatch(orderDomain, /Every product needs a name\./);
@@ -98,24 +98,24 @@ test("Seiko orders preserve flexible client and person-entry behaviour", () => {
   assert.match(orderDomain, /workspaceColumns/);
   assert.doesNotMatch(orders, /renumberRecords/);
   assert.match(orders, /Math\.max\(0, \.\.\.order\.records\.map\(record => Number\(record\.personId\.match/);
-  assert.match(orders, /Save & close/);
-  assert.match(orders, /Close without saving/);
+  assert.match(orders, /Save & close/i);
+  assert.match(orders, /Close without saving/i);
   assert.match(orders, /Archive/);
   assert.doesNotMatch(orders, /<section className="revisionStrip"/);
-  assert.doesNotMatch(orders, /label="Size\/header"/);
+  assert.doesNotMatch(orders, /label="Size\/header"/i);
   assert.doesNotMatch(orders, />Paste rows</);
-  assert.match(orders, /Search rows/);
-  assert.match(orders, /Same for this product/);
+  assert.match(orders, /Search rows/i);
+  assert.match(orders, /Same for this product/i);
   assert.match(orders, /ArrowDown/);
   assert.match(orders, /event\.key === "Tab"/);
   assert.match(orders, /requiredLabel/);
   assert.match(orders, /order-suggestions-v1/);
   assert.match(orders, /byClientType/);
   assert.match(orders, /suggestionPopup/);
-  assert.match(orders, /Remove \$\{item\} suggestion/);
-  assert.match(orders, /Select from a list/);
-  assert.match(orders, /Open order/);
-  assert.match(orders, /Client name is required/);
+  assert.match(orders, /Remove \$\{item\} suggestion/i);
+  assert.match(orders, /Select from a list/i);
+  assert.match(orders, /Open order/i);
+  assert.match(orders, /Client name is required/i);
   assert.match(orderDomain, /groupLabel/);
   assert.match(orderDomain, /measurement:\$\{measurement\.id\}:product:\$\{product\.id\}/);
 });
@@ -161,41 +161,41 @@ test("label designer preserves exact sizing and editable behaviour", () => {
   assert.match(labelDesigner, /canvasSizeButton/);
   assert.match(labelDesigner, /sequence/);
   assert.match(labelDesigner, /labelHeaderCommandBar/);
-  assert.match(labelDesigner, /aria-label="Label actions"/);
+  assert.match(labelDesigner, /aria-label="Label actions"/i);
   assert.match(labelDesigner, />Print<\/button>/);
   assert.match(labelDesigner, /presets-v1/);
   assert.match(labelDesigner, /templates-v1/);
 });
 
 test("label output can be code only, information only or combined", () => {
-  assert.match(labelDesigner, /Code \+ information/);
-  assert.match(labelDesigner, /Code only/);
-  assert.match(labelDesigner, /Information only/);
-  assert.match(labelDesigner, /Custom selection/);
-  assert.match(labelDesigner, /Production labels/);
-  assert.match(labelDesigner, /Packing labels/);
-  assert.match(labelDesigner, /Label represents/);
-  assert.match(labelDesigner, /Each physical item/);
+  assert.match(labelDesigner, /Code \+ information/i);
+  assert.match(labelDesigner, /Code only/i);
+  assert.match(labelDesigner, /Information only/i);
+  assert.match(labelDesigner, /Custom selection/i);
+  assert.match(labelDesigner, /Production labels/i);
+  assert.match(labelDesigner, /Packing labels/i);
+  assert.match(labelDesigner, /Label represents/i);
+  assert.match(labelDesigner, /Each physical item/i);
   assert.doesNotMatch(labelDesigner, /Derived from the saved order/);
   assert.match(labelDesigner, /flashSaveNotice/);
   assert.doesNotMatch(labelDesigner, /BUILD CUTTING RUNS/);
   assert.match(labelDesigner, /Outer package/);
-  assert.match(labelDesigner, /The preview and print records come only from the selected orders and products/);
+  assert.match(labelDesigner, /The preview and print records come only from the selected orders and products/i);
   assert.match(labelDesigner, /canvasElement\.selected/);
   assert.match(labelDesigner, /item\.kind\s*===\s*"qr"/);
   assert.match(labelDesigner, /preventDefault\(\)/);
   assert.doesNotMatch(orders, /workspaceLabelsButton/);
   assert.doesNotMatch(orders, /workspaceLabelsSplit/);
-  assert.match(orders, /aria-label="More order actions"/);
+  assert.match(orders, /aria-label="More order actions"/i);
   assert.match(orders, /onOpenLabelBatches\(\);}}>Labels<\/button>/);
   assert.match(page, /onOpenLabelBatches=/);
   assert.doesNotMatch(page, /onCreateLabel=/);
   assert.match(labelDesigner, /backLabel \|\| "← Back"/);
   assert.match(labelDesigner, /labelFieldOptions/);
   assert.match(labelDesigner, /spec:\$\{spec\.id\}/);
-  assert.match(labelDesigner, /Find person, product or any order field/);
+  assert.match(labelDesigner, /Find person, product or any order field/i);
   assert.match(labelDesigner, /recordFilterBar/);
-  assert.match(labelDesigner, /Select all/);
+  assert.match(labelDesigner, /Select all/i);
   assert.match(labelDesigner, /recordList/);
   assert.doesNotMatch(labelDesigner, /Page \{safeRecordPage\} of/);
   assert.match(labelDesigner, /labelValue\(row,\s*item\.field\)/);
@@ -213,13 +213,13 @@ test("one garment supports multiple worker operation credits", () => {
   assert.match(productionDomain, /calculatePayroll\?: boolean/);
   assert.match(production, /Use only the steps you need/);
   assert.match(production, /Turning one off never deletes existing history/);
-  assert.match(production, /View history/);
-  assert.match(production, /Complete operation/);
+  assert.match(production, /View history/i);
+  assert.match(production, /Complete operation/i);
 });
 
 test("saving an order generates stable workflow identities without starting work", () => {
   assert.match(orders, /generateOrderArtifacts\(businessId, saved\)/);
-  assert.doesNotMatch(orders, /loaded\.forEach\(order => generateOrderArtifacts/);
+  assert.doesNotMatch(orders, /loaded\.forEach\(order => generateOrderArtifacts/i);
   assert.match(productionDomain, /generated-order-artifacts-v1/);
   assert.match(productionDomain, /garment:\$\{orderId\}:\$\{recordId\}:\$\{productId\}:\$\{unit\}/);
   assert.match(productionDomain, /status: "planned"/);
@@ -228,7 +228,7 @@ test("saving an order generates stable workflow identities without starting work
 });
 
 test("order workspace supports spreadsheet-speed data entry", () => {
-  assert.match(orders, /Number of rows to add/);
+  assert.match(orders, /Number of rows to add/i);
   assert.match(orders, /onPaste=\{event=>pasteAt/);
   assert.match(orders, /event\.clipboardData\.getData\("text\/plain"\)/);
   assert.match(orders, /event\.shiftKey/);

@@ -1,3 +1,4 @@
+const uiLabel=require("./ui-label.cjs");
 const assert = require('node:assert/strict');
 
 module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, ordersApi, session }) => {
@@ -18,10 +19,10 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     assert.ok(await target.locator('.seikoRowActionPanel>button').evaluateAll(buttons=>buttons.every(button=>parseFloat(getComputedStyle(button).fontSize)>=14)), 'Order actions remain readable');
     const bounds = await target.locator('.seikoRowActionPanel').boundingBox(); const viewport = page.viewportSize();
     assert.ok(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height, `Menu fits viewport for ${number}`);
-    await target.getByRole('button', { name, exact: true }).click();
+    await target.getByRole('button', { name: uiLabel(name, true), exact: true }).click();
   };
   for (const number of ['SMOKE-001', 'SECOND-002', 'DELETE-003']) {
-    await row(number).getByLabel(`Status for ${number}`, { exact: true }).waitFor({ state: "visible" });
+    await row(number).getByLabel(uiLabel(`Status for ${number}`, true), { exact: true }).waitFor({ state: "visible" });
   }
   await page.locator('.orderRowClickable').first().waitFor();
   for (const width of [1860, 900, 390]) {
@@ -49,9 +50,9 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.evaluate(draft=>localStorage.setItem('jinam:seiko:order-setup-draft-v1',JSON.stringify(draft)),{...structuredClone(order),orderId:'unrelated-recovery',revisions:[]});
   await action('SMOKE-001', 'Edit setup');
-  const cell = page.getByLabel('Contact person / Attn',{exact:true});
+  const cell = page.getByLabel(uiLabel('Contact person / Attn', true),{exact:true});
   await cell.fill('Persisted through Save and Close'); await cell.press('Tab');assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('jinam:seiko:order-setup-draft-v1')).orderId),'unrelated-recovery','editing a saved order without revisions does not overwrite another new-order draft');
-  await page.getByRole('button', { name: 'Save changes', exact: true }).first().click();
+  await page.getByRole('button', { name: uiLabel('Save changes', true), exact: true }).first().click();
   await row('SMOKE-001').waitFor();
   assert.equal(read(order.orderId).details.contactPerson, 'Persisted through Save and Close');assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('jinam:seiko:order-setup-draft-v1')).orderId),'unrelated-recovery','saving an existing order retains unrelated draft recovery');await page.evaluate(()=>localStorage.removeItem('jinam:seiko:order-setup-draft-v1'));
   for (const [status, body, message] of [[502, '<html>Gateway unavailable</html>', 'unreadable response (HTTP 502)'], [401, '<html>Sign in</html>', 'sign-in session has expired'], [200, '{}', 'did not confirm the save']]) {
@@ -65,12 +66,12 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     });
     await action('SMOKE-001', 'Edit setup');
     await cell.fill('Unsaved failure fixture'); await cell.press('Tab');
-        await page.getByRole('button', { name: 'Save changes', exact: true }).first().click();
+        await page.getByRole('button', { name: uiLabel('Save changes', true), exact: true }).first().click();
     await page.getByRole('alert').filter({ hasText: message }).waitFor();
     assert.equal(await cell.inputValue(), 'Unsaved failure fixture');
     assert.equal(await page.locator('.orderSaveConfirmation').count(), 0, 'Failed saves never show success');
     assert.equal(read(order.orderId).details.contactPerson, 'Persisted through Save and Close');
-        const leave=page.waitForEvent('dialog').then(d=>d.accept());await page.getByRole('button', { name: '← Back', exact: true }).first().click();await leave;
+        const leave=page.waitForEvent('dialog').then(d=>d.accept());await page.getByRole('button', { name: uiLabel('← Back', true), exact: true }).first().click();await leave;
     await row('SMOKE-001').waitFor();
   }
   await page.unroute('**/api/erp/orders');
@@ -89,7 +90,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     if (JSON.parse(request.postData()).operation === 'upsert') await route.fulfill({ status: 503, json: { ok: false, code: 'ERP_STORAGE_ERROR', message: 'Simulated shared save failure' } });
     else await route.fallback();
   });
-  await page.getByRole('button', { name: 'Save changes', exact: true }).first().click();
+  await page.getByRole('button', { name: uiLabel('Save changes', true), exact: true }).first().click();
   await page.getByRole('alert').filter({ hasText: 'Simulated shared save failure' }).waitFor();
   assert.equal(await cell.inputValue(), 'Unsaved failure fixture');
     assert.equal(await page.locator('.orderSaveConfirmation').count(), 0, 'Failed saves never show success');
@@ -99,7 +100,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
     await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
   });
-  await page.getByRole('button', { name: 'Save changes', exact: true }).first().click();
+  await page.getByRole('button', { name: uiLabel('Save changes', true), exact: true }).first().click();
   await row('SMOKE-001').waitFor();
   assert.equal(read(order.orderId).details.contactPerson, 'Unsaved failure fixture');
   await page.reload();
@@ -107,44 +108,44 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await homeRow.locator('select').selectOption('Completed');
   await homeRow.waitFor({ state: 'detached' });
   assert.equal(read(second.orderId).status, 'Completed');
-  assert.match(await page.locator('.seikoMetricCard.active').innerText(), /ACTIVE ORDERS/);
+  assert.match(await page.locator('.seikoMetricCard.active').innerText(), /ACTIVE ORDERS/i);
   assert.equal(await page.locator('.homeOrderOperationalRow').filter({ hasText: 'SMOKE-001' }).isVisible(), true);
   await navigate('Orders');
   await action('SMOKE-001', 'Record payment');
-  const payment = page.getByRole('dialog', { name: 'Record payment · SMOKE-001', exact: true });
-  await payment.getByLabel('Amount received ₹', { exact: true }).fill('25');
-  await payment.getByRole('button', { name: 'Save and print', exact: true }).click();
-  const receipt = page.frameLocator('iframe[title="Billing print preview"]');
-  await receipt.getByText('Against order', { exact: false }).first().waitFor();
+  const payment = page.getByRole('dialog', { name: uiLabel('Record payment · SMOKE-001', true), exact: true });
+  await payment.getByLabel(uiLabel('Amount received ₹', true), { exact: true }).fill('25');
+  await payment.getByRole('button', { name: uiLabel('Save and print', true), exact: true }).click();
+  const receipt = page.frameLocator('iframe[title="Billing print preview" i]');
+  await receipt.getByText(uiLabel('Against order', false), { exact: false }).first().waitFor();
   assert.match(await receipt.locator('body').innerText(), /SMOKE-001/);
   assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM seiko_billing_payments WHERE json_extract(data,'$.orderId') = ?").get(order.orderId).n, 2);
-  await page.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.getByLabel('SEIKO billing').getByRole('button', { name: '← Back', exact: true }).click(); await page.locator('.orderCenterHead').waitFor(); await navigate('Orders');
+  await page.getByRole('button', { name: uiLabel('Close', true), exact: true }).click();
+  await page.getByLabel(uiLabel('SEIKO billing', false)).getByRole('button', { name: uiLabel('← Back', true), exact: true }).click(); await page.locator('.orderCenterHead').waitFor(); await navigate('Orders');
   await action('SECOND-002', 'Record payment');
-  const otherPayment = page.getByRole('dialog', { name: 'Record payment · SECOND-002', exact: true });
-  await otherPayment.getByLabel('Amount received ₹', { exact: true }).fill('15');
-  await otherPayment.getByRole('button', { name: 'Save and print', exact: true }).click();
-  await receipt.getByText('Against order', { exact: false }).first().waitFor();
-  await page.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.getByLabel('SEIKO billing').getByRole('button', { name: '← Back', exact: true }).click(); await page.locator('.orderCenterHead').waitFor(); await navigate('Orders');
+  const otherPayment = page.getByRole('dialog', { name: uiLabel('Record payment · SECOND-002', true), exact: true });
+  await otherPayment.getByLabel(uiLabel('Amount received ₹', true), { exact: true }).fill('15');
+  await otherPayment.getByRole('button', { name: uiLabel('Save and print', true), exact: true }).click();
+  await receipt.getByText(uiLabel('Against order', false), { exact: false }).first().waitFor();
+  await page.getByRole('button', { name: uiLabel('Close', true), exact: true }).click();
+  await page.getByLabel(uiLabel('SEIKO billing', false)).getByRole('button', { name: uiLabel('← Back', true), exact: true }).click(); await page.locator('.orderCenterHead').waitFor(); await navigate('Orders');
   await action('SMOKE-001', 'View payments / receipts');
-  const history = page.getByRole('region', { name: 'Payment history' });
+  const history = page.getByRole('region', { name: uiLabel('Payment history', false) });
   await history.getByRole('button').first().waitFor();
-  assert.match(await history.innerText(), /Smoke School/); assert.doesNotMatch(await history.innerText(), /Other School|SECOND-002/);
+  assert.match(await history.innerText(), /Smoke School/i); assert.doesNotMatch(await history.innerText(), /Other School|SECOND-002/i);
   assert.equal(await history.getByRole('button').count(), 2);
-  await page.getByLabel('SEIKO billing').getByRole('button', { name: '← Back', exact: true }).click(); await page.locator('.orderCenterHead').waitFor(); await navigate('Orders');
+  await page.getByLabel(uiLabel('SEIKO billing', false)).getByRole('button', { name: uiLabel('← Back', true), exact: true }).click(); await page.locator('.orderCenterHead').waitFor(); await navigate('Orders');
   for (const [name, title] of [['Create invoice', 'New invoice'], ['Create delivery challan', 'New delivery challan'], ['Create quotation', 'New quotation']]) {
     await action('SMOKE-001', name);
-    const editor = page.getByRole('dialog', { name: title, exact: true });
-    assert.equal(await editor.getByLabel('Bill source', { exact: true }).inputValue(), order.orderId);
-    assert.equal(await editor.getByLabel('Client name *', { exact: true }).inputValue(), 'Smoke School');
-    await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await page.getByLabel('SEIKO billing').getByRole('button', { name: '← Back', exact: true }).click(); await page.locator('.orderCenterHead').waitFor(); await navigate('Orders');
+    const editor = page.getByRole('dialog', { name: uiLabel(title, true), exact: true });
+    assert.equal(await editor.getByLabel(uiLabel('Bill source', true), { exact: true }).inputValue(), order.orderId);
+    assert.equal(await editor.getByLabel(uiLabel('Client name *', true), { exact: true }).inputValue(), 'Smoke School');
+    await editor.getByRole('button', { name: uiLabel('Cancel', true), exact: true }).click();
+    await page.getByLabel(uiLabel('SEIKO billing', false)).getByRole('button', { name: uiLabel('← Back', true), exact: true }).click(); await page.locator('.orderCenterHead').waitFor(); await navigate('Orders');
   }
   const previousUrl=page.url();await action('SMOKE-001', 'Create labels');
-  const labelDialog=page.getByRole('dialog',{name:'Label workspace',exact:true});await labelDialog.getByRole('heading',{name:'Create labels',exact:true}).waitFor();
+  const labelDialog=page.getByRole('dialog',{name:uiLabel('Label workspace', true),exact:true});await labelDialog.getByRole('heading',{name:uiLabel('Create labels', true),exact:true}).waitFor();
   assert.equal(await labelDialog.locator('.labelCreateOrderChoice select').first().inputValue(),order.orderId);assert.equal(page.url(),previousUrl);
-  await labelDialog.getByRole('button',{name:'Close label workspace',exact:true}).click();await labelDialog.waitFor({state:'detached'});
+  await labelDialog.getByRole('button',{name:uiLabel('Close label workspace', true),exact:true}).click();await labelDialog.waitFor({state:'detached'});
   await action('SMOKE-001', 'Edit setup');
   await page.locator('.orderSetup').waitFor();
   await page.reload(); await navigate('Orders');
@@ -163,8 +164,8 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await action('SMOKE-001', 'Archive order'); await row('SMOKE-001').waitFor({ state: 'detached' });
   assert.equal(read(order.orderId).archived, true);
   await page.reload(); await navigate('Orders'); assert.equal(await row('SMOKE-001').count(), 0);
-  await page.getByRole('button', { name: 'Open order filters', exact: true }).click();
-  await page.getByLabel('Archived only', { exact: true }).check();
+  await page.getByRole('button', { name: uiLabel('Open order filters', true), exact: true }).click();
+  try { await page.getByLabel(uiLabel('Archived only', true), { exact: true }).check(); } catch(error) { require('node:fs').writeFileSync('work/archive-filter-failure.html',await page.content()); console.log(await page.locator('.orderTools').innerText(),await page.locator('.orderAdvancedFilters').innerText()); throw error; }
   await action('SMOKE-001', 'Restore order');
   assert.equal(read(order.orderId).archived, false);
   await page.reload(); await navigate('Orders');
@@ -191,12 +192,12 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
   });
   await fresh.goto(`${base}/tests/packing-browser/smoke.html`);
-  await fresh.getByRole('button', { name: 'Open menu', exact: true }).click();
-  await fresh.getByRole('navigation', { name: 'Modules' }).getByRole('button', { name: /Orders$/ }).click();
+  await fresh.getByRole('button', { name: uiLabel('Open menu', true), exact: true }).click();
+  await fresh.getByRole('navigation', { name: uiLabel('Modules', false) }).getByRole('button', { name: uiLabel(/Orders$/, false) }).click();
   await fresh.locator('.orderRow').filter({ hasText: 'SMOKE-001' }).waitFor();
   assert.equal(await fresh.locator('.orderRow').filter({ hasText: 'DELETE-003' }).count(), 0);
   await fresh.locator('.orderRow').filter({ hasText: 'SMOKE-001' }).locator('summary').click();
-  assert.equal(await fresh.getByRole('button', { name: 'Delete order', exact: true }).count(), 0);
+  assert.equal(await fresh.getByRole('button', { name: uiLabel('Delete order', true), exact: true }).count(), 0);
   await context.close();
   console.log('PASS: shared setup save/reopen/reload, failed save keeps draft, Home status stays Active, visible statuses, scoped payments/receipts/document drafts/setup, archive/restore, confirmed protected deletion, audit tombstone, fresh browser.');
 };
