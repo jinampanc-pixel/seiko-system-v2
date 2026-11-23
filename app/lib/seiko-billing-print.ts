@@ -41,9 +41,9 @@ export function billingPrintHtml(doc: SeikoCommercialDocument, payments: SeikoPa
     const match=/^\s*(A\/c\s*(?:No\.?|Number)|Account number|A\/c\s*Name|Account name|IFSC(?:\s*Code)?|Bank(?:\s*name)?)\s*:\s*(.+)$/i.exec(line);
     if(!match)return `<p>${esc(line)}</p>`;
     const label=match[1].toLowerCase(),key=label.startsWith("ifsc")?"ifsc":label.startsWith("bank")?"bankName":label.includes("name")?"accountName":"accountNumber";
-    return detail(key,({ifsc:"IFSC",bankName:"Bank",accountName:"Account name",accountNumber:"Account number"})[key],match[2]);
+    return detail(key,({ifsc:"IFSC",bankName:"Bank",accountName:"Account Name",accountNumber:"Account Number"})[key],match[2]);
   }).join("");
-  const bank = supplier?.accountNumber ? [["accountName","Account name",supplier.accountName],["bankName","Bank",supplier.bankName],["accountNumber","Account number",supplier.accountNumber],["ifsc","IFSC",supplier.ifsc]].map(([key,label,value])=>detail(key!,label!,value)).join("") : legacyBank;
+  const bank = supplier?.accountNumber ? [["accountName","Account Name",supplier.accountName],["bankName","Bank",supplier.bankName],["accountNumber","Account Number",supplier.accountNumber],["ifsc","IFSC",supplier.ifsc]].map(([key,label,value])=>detail(key!,label!,value)).join("") : legacyBank;
   const payInfo = !challan && ((supplier?.showBank && bank)||(supplier?.showUpi && supplier.upi)||(supplier?.showQr && qr)) ? `<section class="payment"><div class="bankColumn">${supplier?.showBank&&bank?`<div class="bankTransfer"><b>For Bank Transfer</b>${bank}</div>`:""}${acknowledgement}</div>${(supplier?.showUpi&&supplier.upi)||(supplier?.showQr&&qr)?`<div class="upiPayment"><div class="upiDetails"><b>For UPI Payment</b>${supplier?.showUpi&&supplier.upi?detail("upi","UPI ID",supplier.upi):""}${supplier?.showQr&&qr?`<figure><img src="${qr}" alt="UPI payment QR"></figure>`:""}</div>${supplier?.showQr&&qr?`<div class="upiCaption">Scan to pay via UPI</div>`:""}</div>`:""}</section>` : acknowledgement;
   const sign = doc.signatory, signature = image(sign?.signature), stamp = image(sign?.stamp);
   const arranged = sign?.layout && (["signature","stamp","name"] as const).every(key => {
