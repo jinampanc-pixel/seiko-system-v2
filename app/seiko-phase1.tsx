@@ -34,7 +34,7 @@ function openSeikoModule(label: string, afterOpen?: () => void) {
   const toggle = document.querySelector<HTMLButtonElement>(".app .topbar .menuToggle");
   if (toggle?.getAttribute("aria-expanded") !== "true") toggle?.click();
   window.setTimeout(() => {
-    const target = Array.from(document.querySelectorAll<HTMLButtonElement>(".app .moduleMenu .nav")).find(button => button.querySelector("small")?.textContent?.trim() === label);
+    const target = Array.from(document.querySelectorAll<HTMLButtonElement>(".app .moduleMenu .nav")).find(button => (button.querySelector("small")?.textContent?.trim() || "").toLowerCase() === label.toLowerCase());
     target?.click();
     if (afterOpen) window.setTimeout(afterOpen, 60);
   }, 0);
@@ -90,7 +90,7 @@ export function SeikoPhase1() {
         }
         moduleGrid.setAttribute("aria-label", "Quick Access");
         moduleGrid.querySelectorAll<HTMLElement>(".moduleCard").forEach(card => {
-          if (card.querySelector("h3")?.textContent?.trim() === "Orders") card.hidden = true;
+          if ((card.querySelector("h3")?.textContent?.trim() || "").toLowerCase() === "orders") card.hidden = true;
         });
         if (!moduleGrid.querySelector(".seikoProductionQuickCard")) {
           const production = document.createElement("button");
@@ -98,7 +98,7 @@ export function SeikoPhase1() {
           production.className = "moduleCard seikoProductionQuickCard";
           production.innerHTML = "<h3>Production</h3><p>Open production work, progress and operational handoffs.</p><b>Open Production →</b>";
           production.addEventListener("click", () => openSeikoModule("Production"));
-          const labels = Array.from(moduleGrid.querySelectorAll<HTMLElement>(".moduleCard")).find(card => card.querySelector("h3")?.textContent?.trim() === "Labels");
+          const labels = Array.from(moduleGrid.querySelectorAll<HTMLElement>(".moduleCard")).find(card => (card.querySelector("h3")?.textContent?.trim() || "").toLowerCase() === "labels");
           if (labels) moduleGrid.insertBefore(production, labels); else moduleGrid.appendChild(production);
         }
         setDashboardHost(current => current === host ? current : host);
@@ -112,12 +112,12 @@ export function SeikoPhase1() {
       });
 
       const setupBack = document.querySelector<HTMLButtonElement>(".orderSetup .orderPageHead .secondary");
-      if (setupBack && setupBack.textContent?.trim() === "Cancel") setupBack.textContent = "← Back";
+      if (setupBack && (setupBack.textContent?.trim() || "").toLowerCase() === "cancel") setupBack.textContent = "← Back";
       document.querySelectorAll<HTMLButtonElement>("button").forEach(button => {
         const text = button.textContent?.trim();
-        if (text === "Order Center") button.textContent = "← Back";
-        if (text === "Back" && button.closest(".ordersPage,.orderSetup,.workspacePage")) button.textContent = "← Back";
-        if (text === "Back" && button.closest(".labelCreateApp,.labelDesigner")) button.textContent = "← Back";
+        if ((text || "").toLowerCase() === "order center") button.textContent = "← Back";
+        if ((text || "").toLowerCase() === "back" && button.closest(".ordersPage,.orderSetup,.workspacePage")) button.textContent = "← Back";
+        if ((text || "").toLowerCase() === "back" && button.closest(".labelCreateApp,.labelDesigner")) button.textContent = "← Back";
         if ((button.textContent?.trim() || "").toLowerCase().startsWith("← back")) button.classList.add("contextBackButton","appBackControl");
       });
 
@@ -141,7 +141,7 @@ function SeikoDashboard() {
   const [workMode, setWorkMode] = useState<MetricKey>("active");
   const [query, setQuery] = useState(""), [clientType, setClientType] = useState(""), [product, setProduct] = useState(""), [status, setStatus] = useState("");
   useEffect(() => { const load=()=>{try{setOrders(readOrderCache("seiko"));}catch{setOrders([]);}try{setScanQueue(JSON.parse(localStorage.getItem("jinam:seiko:scan-queue")||"[]") as Array<Record<string,unknown>>);}catch{setScanQueue([]);}};queueMicrotask(load);window.addEventListener("storage",load);window.addEventListener("seiko:orders-cache-updated",load as EventListener);window.addEventListener("seiko:scan-queue-updated",load);window.addEventListener("focus",load);return()=>{window.removeEventListener("storage",load);window.removeEventListener("seiko:orders-cache-updated",load as EventListener);window.removeEventListener("seiko:scan-queue-updated",load);window.removeEventListener("focus",load);};},[]);
-  useEffect(()=>{localStorage.setItem(HOME_KEY,JSON.stringify(config));document.querySelectorAll<HTMLButtonElement>(".overview .moduleGrid .moduleCard").forEach(card=>{const title=card.querySelector("h3")?.textContent?.trim();if(title==="Orders"){card.hidden=true;return;}if(title&&title in config.quickAccess)card.hidden=!config.quickAccess[title as QuickAccessKey];});},[config]);
+  useEffect(()=>{localStorage.setItem(HOME_KEY,JSON.stringify(config));document.querySelectorAll<HTMLButtonElement>(".overview .moduleGrid .moduleCard").forEach(card=>{const title=card.querySelector("h3")?.textContent?.trim();if((title || "").toLowerCase()==="orders"){card.hidden=true;return;}if(title&&title in config.quickAccess)card.hidden=!config.quickAccess[title as QuickAccessKey];});},[config]);
   const activeOrders=useMemo(()=>orders.filter(order=>!order.archived&&!["Completed","Cancelled"].includes(order.status)),[orders]);
   const completedOrders=useMemo(()=>orders.filter(order=>!order.archived&&order.status==="Completed"),[orders]);
   const activeStatusOptions=useMemo(()=>ORDER_STATUSES.filter(value=>!["Completed","Cancelled"].includes(value)),[]);

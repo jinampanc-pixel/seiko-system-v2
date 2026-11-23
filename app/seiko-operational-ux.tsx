@@ -44,7 +44,7 @@ function waitForWorkspaceAction(label: string, attempts = 60) {
   if (toggle?.getAttribute("aria-expanded") !== "true") toggle?.click();
   window.setTimeout(() => {
     const action = Array.from(page.querySelectorAll<HTMLButtonElement>(".orderActionMenu button"))
-      .find(button => button.textContent?.trim() === label);
+      .find(button => (button.textContent?.trim() || "").toLowerCase() === label.toLowerCase());
     action?.click();
   }, 0);
 }
@@ -75,7 +75,7 @@ function appendMetaItem(host: HTMLElement, label: string, value: string) {
 }
 
 function enhanceHome() {
-  document.querySelectorAll<HTMLElement>(".overview .moduleGrid .moduleCard").forEach(card => { if (card.querySelector("h3")?.textContent?.trim() === "Orders") card.hidden = true; });
+  document.querySelectorAll<HTMLElement>(".overview .moduleGrid .moduleCard").forEach(card => { if ((card.querySelector("h3")?.textContent?.trim() || "").toLowerCase() === "orders") card.hidden = true; });
 }
 
 function resolvedSpecification(order: SeikoOrder, product: SeikoOrder["products"][number], spec: SeikoOrder["products"][number]["specifications"][number]) {
@@ -204,7 +204,7 @@ function enhanceOrderCenter(page: HTMLElement) {
         waitForWorkspaceAction("Labels");
       });
       const create = Array.from(panel.querySelectorAll<HTMLButtonElement>("button"))
-        .find(button => button.textContent?.trim() === "Create Labels");
+        .find(button => (button.textContent?.trim() || "").toLowerCase() === "create labels");
       if (create) create.insertAdjacentElement("afterend", print); else panel.appendChild(print);
     }
     if (!hasPrintable && print) print.remove();

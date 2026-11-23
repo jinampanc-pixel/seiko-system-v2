@@ -20,7 +20,7 @@ function readOrders(): SeikoOrder[] {
 
 function orderRow(orderNo: string) {
   return Array.from(document.querySelectorAll<HTMLElement>(".ordersPage .orderRow"))
-    .find(row => row.querySelector<HTMLElement>(":scope > div:first-child > b")?.textContent?.trim() === orderNo) || null;
+    .find(row => (row.querySelector<HTMLElement>(":scope > div:first-child > b")?.textContent?.trim() || "").toLowerCase() === orderNo.toLowerCase()) || null;
 }
 
 function clickOrdersModule() {
@@ -28,7 +28,7 @@ function clickOrdersModule() {
   if (toggle?.getAttribute("aria-expanded") !== "true") toggle?.click();
   window.setTimeout(() => {
     const orders = Array.from(document.querySelectorAll<HTMLButtonElement>(".app .moduleMenu .nav"))
-      .find(button => button.querySelector("small")?.textContent?.trim() === "Orders");
+      .find(button => (button.querySelector("small")?.textContent?.trim() || "").toLowerCase() === "orders");
     orders?.click();
   }, 0);
 }
@@ -42,7 +42,7 @@ function waitFor<T extends Element>(find: () => T | null, action: (node: T) => v
 function openWorkspace(orderNo: string) {
   clickOrdersModule();
   waitFor(() => orderRow(orderNo), row => {
-    const workspace = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Open Workspace");
+    const workspace = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(button => (button.textContent?.trim() || "").toLowerCase() === "open workspace");
     if (workspace) workspace.click();
     else row.querySelector<HTMLButtonElement>(".openOrderButton")?.click();
   });
@@ -54,7 +54,7 @@ function openSetup(orderNo: string) {
     const invoke = () => {
       const menu = row.querySelector<HTMLDetailsElement>(".orderCenterActionMenu,.seikoRowActionMenu");
       const edit = Array.from(row.querySelectorAll<HTMLButtonElement>(".seikoRowActionPanel button,button"))
-        .find(button => button.textContent?.trim() === "Edit Setup");
+        .find(button => (button.textContent?.trim() || "").toLowerCase() === "edit setup");
       if (edit) {
         sessionStorage.setItem(SETUP_ORIGIN_KEY, "center");
         if (menu) menu.open = true;
@@ -66,7 +66,7 @@ function openSetup(orderNo: string) {
       open.click();
       waitFor(
         () => Array.from(document.querySelectorAll<HTMLButtonElement>(".workspacePage .orderActionMenu button"))
-          .find(button => button.textContent?.trim() === "Edit Setup") || null,
+          .find(button => (button.textContent?.trim() || "").toLowerCase() === "edit setup") || null,
         button => {
           sessionStorage.setItem(SETUP_ORIGIN_KEY, "center");
           button.click();

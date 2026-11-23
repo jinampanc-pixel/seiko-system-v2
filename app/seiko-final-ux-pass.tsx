@@ -250,7 +250,7 @@ function applyPackingTypography(page: HTMLElement) {
 
 function inspectorInput(page: HTMLElement, labelText: string) {
   return Array.from(page.querySelectorAll<HTMLLabelElement>(".packingInspectorBar label")).find(label =>
-    label.childNodes[0]?.textContent?.trim() === labelText || label.querySelector("span")?.textContent?.trim() === labelText
+    (label.childNodes[0]?.textContent?.trim() || "").toLowerCase() === labelText.toLowerCase() || (label.querySelector("span")?.textContent?.trim() || "").toLowerCase() === labelText.toLowerCase()
   )?.querySelector<HTMLInputElement>("input") || null;
 }
 
@@ -258,7 +258,7 @@ function relabelInspector(page: HTMLElement) {
   const controls = page.querySelector<HTMLElement>(".packingInspectorBar");
   if (!controls) return;
   const rename = (from: string, to: string) => {
-    const label = Array.from(controls.querySelectorAll<HTMLLabelElement>("label")).find(node => node.childNodes[0]?.textContent?.trim() === from);
+    const label = Array.from(controls.querySelectorAll<HTMLLabelElement>("label")).find(node => (node.childNodes[0]?.textContent?.trim() || "").toLowerCase() === from.toLowerCase());
     if (!label) return;
     const node = Array.from(label.childNodes).find(child => child.nodeType === Node.TEXT_NODE);
     if (node) node.textContent = `${to} `;
@@ -382,7 +382,7 @@ function clickModule(label: string) {
   const toggle = document.querySelector<HTMLButtonElement>(".app .topbar .menuToggle");
   if (toggle?.getAttribute("aria-expanded") !== "true") toggle?.click();
   window.setTimeout(() => {
-    const button = Array.from(document.querySelectorAll<HTMLButtonElement>(".app .moduleMenu .nav")).find(node => node.querySelector("small")?.textContent?.trim() === label);
+    const button = Array.from(document.querySelectorAll<HTMLButtonElement>(".app .moduleMenu .nav")).find(node => (node.querySelector("small")?.textContent?.trim() || "").toLowerCase() === label.toLowerCase());
     button?.click();
   }, 0);
 }
@@ -434,18 +434,18 @@ function waitFor(predicate: () => HTMLElement | null, action: (node: HTMLElement
 }
 
 function orderRow(orderNo: string) {
-  return Array.from(document.querySelectorAll<HTMLElement>(".ordersPage .orderRow")).find(row => row.querySelector("b")?.textContent?.trim() === orderNo) || null;
+  return Array.from(document.querySelectorAll<HTMLElement>(".ordersPage .orderRow")).find(row => (row.querySelector("b")?.textContent?.trim() || "").toLowerCase() === orderNo.toLowerCase()) || null;
 }
 
 function openOrderChoice(orderNo: string, action: "setup" | "workspace" | "labels") {
   clickModule("Orders");
   waitFor(() => orderRow(orderNo), row => {
-    if (action === "workspace") { const workspace=Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(button=>button.textContent?.trim()==="Open Workspace"); if(workspace)workspace.click();else row.querySelector<HTMLButtonElement>(".openOrderButton")?.click(); return; }
+    if (action === "workspace") { const workspace=Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(button=>(button.textContent?.trim() || "").toLowerCase()==="open workspace"); if(workspace)workspace.click();else row.querySelector<HTMLButtonElement>(".openOrderButton")?.click(); return; }
     const menu = row.querySelector<HTMLDetailsElement>(".seikoRowActionMenu");
     if (menu) menu.open = true;
     window.setTimeout(() => {
       const label = action === "setup" ? "Edit Setup" : "Labels";
-      const button = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(node => node.textContent?.trim() === label);
+      const button = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(node => (node.textContent?.trim() || "").toLowerCase() === label.toLowerCase());
       button?.click();
     }, 0);
   });

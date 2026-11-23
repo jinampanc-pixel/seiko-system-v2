@@ -19,13 +19,13 @@ function clamp(value: number, min: number, max: number) {
 
 function packageChoice(page: HTMLElement) {
   return Array.from(page.querySelectorAll<HTMLElement>(".packingInfoGrid .fieldChoice")).find(choice =>
-    choice.querySelector("label span")?.textContent?.trim() === "Package contents"
+    (choice.querySelector("label span")?.textContent?.trim() || "").toLowerCase() === "package contents"
   ) || null;
 }
 
 function relabelBoldControls(page: HTMLElement) {
   page.querySelectorAll<HTMLLabelElement>(".packingInfoGrid .fieldChoice .showName").forEach(label => {
-    if (label.textContent?.trim() !== "Bold") return;
+    if ((label.textContent?.trim() || "").toLowerCase() !== "bold") return;
     const textNode = Array.from(label.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
     if (textNode) textNode.textContent = " Value Bold";
   });
@@ -121,7 +121,7 @@ function applyValueBold(element: HTMLElement) {
 
 function inspectorInput(controls: HTMLElement, name: string) {
   return Array.from(controls.querySelectorAll<HTMLLabelElement>("label")).find(label =>
-    label.childNodes[0]?.textContent?.trim() === name
+    (label.childNodes[0]?.textContent?.trim() || "").toLowerCase() === name.toLowerCase()
   )?.querySelector<HTMLInputElement>("input") || null;
 }
 
@@ -361,7 +361,7 @@ function updateReadiness(page: HTMLElement) {
 
   const value = (name: string, text: string) => {
     const node = panel.querySelector<HTMLElement>(`[data-ready-value="${name}"]`);
-    if (node && node.textContent !== text) node.textContent = text;
+    if (node && (node.textContent || "").toLowerCase() !== text.toLowerCase()) node.textContent = text;
   };
   value("order", orderNo || "Current order");
   value("labels", `${labels} label${labels === 1 ? "" : "s"}`);

@@ -9,7 +9,7 @@ function sourceMode() {
 function tidyTopActions(page: HTMLElement) {
 
   const print = Array.from(page.querySelectorAll<HTMLButtonElement>(".labelTopbar button.primary"))
-    .find(item => item.textContent?.toLowerCase().includes("print"));
+    .find(item => /^Print\b/i.test(item.textContent || ""));
   if (print) {
     print.textContent = "Print";
     print.title = "Print the selected labels. Your browser print dialog can also save them as PDF.";
@@ -249,7 +249,7 @@ function manageSetupDrawers(page: HTMLElement) {
   if (!setup) return;
   const labels = Array.from(setup.querySelectorAll<HTMLLabelElement>(":scope > label"));
   const identityLabel = labels[0];
-  const sizeLabel = labels.find(label => label.querySelector(":scope > span")?.textContent?.trim() === "Label Size");
+  const sizeLabel = labels.find(label => (label.querySelector(":scope > span")?.textContent?.trim() || "").toLowerCase() === "label size");
 
   const personPlan = page.querySelector<HTMLElement>(".personPackageSetup");
   const groupPlan = page.querySelector<HTMLElement>(".packageGrouping");

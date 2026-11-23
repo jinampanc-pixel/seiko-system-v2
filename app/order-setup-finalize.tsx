@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { startDomEnhancement } from "./lib/dom-enhancement";
 
 function setText(node: HTMLElement | null | undefined, value: string) {
-  if (node && node.textContent !== value) node.textContent = value;
+  if (node && (node.textContent || "").toLowerCase() !== value.toLowerCase()) node.textContent = value;
 }
 
 function labelText(label: HTMLLabelElement) {
@@ -23,8 +23,8 @@ function restoreNativeSourcePickers(setup: Element) {
 function finalizeClientDetails(setup: Element) {
   setup.querySelectorAll<HTMLLabelElement>(".clientDetails .setupGrid label").forEach(label => {
     const name = labelText(label);
-    label.classList.toggle("seikoDeliveryAddress", name === "Delivery address");
-    label.classList.toggle("seikoBillingAddress", name === "Billing address");
+    label.classList.toggle("seikoDeliveryAddress", (name || "").toLowerCase() === "delivery address");
+    label.classList.toggle("seikoBillingAddress", (name || "").toLowerCase() === "billing address");
   });
 }
 

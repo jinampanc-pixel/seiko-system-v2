@@ -13,7 +13,7 @@ import { startDomEnhancement } from "./lib/dom-enhancement";
 function cleanSpecificationButton() {
   document.querySelectorAll<HTMLButtonElement>('.specActions button[aria-label="Add specification" i]').forEach(button => {
     button.classList.add("specButtonClean");
-    if (button.textContent !== "+ Specification") button.textContent = "+ Specification";
+    if ((button.textContent || "").toLowerCase() !== "+ specification") button.textContent = "+ Specification";
   });
 }
 

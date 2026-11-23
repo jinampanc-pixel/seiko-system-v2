@@ -10,7 +10,7 @@ function setReactInputValue(input: HTMLInputElement, value: string) {
 
 function geometryInput(page: HTMLElement, label: string) {
   return Array.from(page.querySelectorAll<HTMLLabelElement>(".labelGeometryFields label"))
-    .find(node => node.querySelector("span")?.textContent?.trim() === label)
+    .find(node => (node.querySelector("span")?.textContent?.trim() || "").toLowerCase() === label.toLowerCase())
     ?.querySelector<HTMLInputElement>("input") || null;
 }
 

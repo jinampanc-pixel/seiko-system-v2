@@ -198,7 +198,7 @@ export function GlobalNavigation() {
         const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>(".app .topbar .moduleMenu .nav"));
         const target = buttons.find(button => {
           const label = button.querySelector("small")?.textContent?.trim() || "";
-          return label.toLowerCase() === expected.toLowerCase() || (intent === "home" && label === "Overview");
+          return label.toLowerCase() === expected.toLowerCase() || (intent === "home" && (label || "").toLowerCase() === "overview");
         });
         if (target) target.click();
         else if (toggle.getAttribute("aria-expanded") === "true") toggle.click();

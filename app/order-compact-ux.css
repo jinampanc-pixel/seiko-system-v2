@@ -1,3 +1,12 @@
+/* Person-detail editors must fit their own panel, including longer title-cased labels. */
+.orderSetup>.personDetails .policyRow,
+.orderSetup>.personDetails .policyRow:has(.optionEditor){grid-template-columns:minmax(0,1fr) 100px 36px!important;min-width:0}
+.orderSetup>.personDetails .policyRow>input:first-child{grid-column:1!important;grid-row:1!important;min-width:0;width:100%}
+.orderSetup>.personDetails .policyRow>select{grid-column:2!important;grid-row:1!important;min-width:0;width:100%}
+.orderSetup>.personDetails .policyRow>.inlineCheck{grid-column:1/3!important;grid-row:2!important}
+.orderSetup>.personDetails .policyRow>.optionEditor{grid-column:1/-1!important;grid-row:auto!important;min-width:0}
+.orderSetup>.personDetails .policyRow>.iconRemove{grid-column:3!important;grid-row:1!important}
+
 /* Wide-density order setup. Loaded after earlier order styles. */
 .orderSetup{
   width:min(96vw,1640px)!important;

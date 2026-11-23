@@ -184,9 +184,9 @@ export function LabelFinalization() {
       const target = event.target as Element | null;
       const centerButton = target?.closest<HTMLButtonElement>(".labelCenterActionMenu .seikoRowActionPanel button");
       const centerText = centerButton?.textContent?.trim();
-      if (centerButton && centerText === "Save PDF") {
+      if (centerButton && (centerText || "").toLowerCase() === "save pdf") {
         event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-        routeSavedSetPrint(centerButton, centerText === "Save PDF" ? "pdf" : "print");
+        routeSavedSetPrint(centerButton, (centerText || "").toLowerCase() === "save pdf" ? "pdf" : "print");
         return;
       }
       const button = target?.closest<HTMLButtonElement>(".labelDesignerPage .labelHeaderCommandBar > button.primary, .labelDesignerPage .labelTopbar .primary");

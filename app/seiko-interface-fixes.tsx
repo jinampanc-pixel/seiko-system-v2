@@ -5,7 +5,7 @@ import { startDomEnhancement } from "./lib/dom-enhancement";
 
 function pagerButton(root: HTMLElement, label: string) {
   return Array.from(root.querySelectorAll<HTMLButtonElement>("button"))
-    .find(button => button.textContent?.trim() === label);
+    .find(button => (button.textContent?.trim() || "").toLowerCase() === label.toLowerCase());
 }
 
 function pagerSpan(root: HTMLElement, prefix: string) {

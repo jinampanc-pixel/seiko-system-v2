@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 function sectionByTitle(title: string) {
   return Array.from(document.querySelectorAll<HTMLElement>(".orderSetup > .setupSection"))
-    .find(section => section.querySelector(".sectionTitle h3")?.textContent?.trim() === title);
+    .find(section => (section.querySelector(".sectionTitle h3")?.textContent?.trim() || "").toLowerCase() === title.toLowerCase());
 }
 
 function lockIrrelevantDefaults() {

@@ -223,7 +223,7 @@ function addExtra(page: HTMLElement, kind: ExtraKind) {
 }
 function clickInfoChoice(page: HTMLElement, label: string) {
   const choice = Array.from(page.querySelectorAll<HTMLElement>(".packingInfoGrid .fieldChoice"))
-    .find(node => node.querySelector("label span")?.textContent?.trim() === label);
+    .find(node => (node.querySelector("label span")?.textContent?.trim() || "").toLowerCase() === label.toLowerCase());
   choice?.querySelector<HTMLInputElement>('label input[type="checkbox"]')?.click();
 }
 function ensureTraceTools(page: HTMLElement) {
@@ -257,7 +257,7 @@ function stabilizeOrderCenter() {
 }
 function stabilizeHome() {
   document.querySelectorAll<HTMLElement>(".seikoOperationalDashboard").forEach(page => {
-    const button = Array.from(page.querySelectorAll<HTMLButtonElement>("button")).find(node => node.textContent?.trim() === "Customize dashboard");
+    const button = Array.from(page.querySelectorAll<HTMLButtonElement>("button")).find(node => (node.textContent?.trim() || "").toLowerCase() === "customize dashboard");
     if (!button) return;
     let footer = page.querySelector<HTMLElement>(".reviewDashboardFooter");
     if (!footer) {

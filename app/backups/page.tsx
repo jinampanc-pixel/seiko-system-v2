@@ -18,7 +18,7 @@ export default function BackupsPage() {
   const perform = async (action: () => Promise<void>) => { setBusy(true); setMessage('Working…'); try { await action(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'Backup operation failed.'); } finally { setBusy(false); } };
   return <main className={styles.page}>
     {/* Leave the standalone recovery page with a document navigation, including when the client router fails. */}
-    <AppBackLink/><h1>Backup &Amp; Recovery</h1>
+    <AppBackLink/><h1>Backup &amp; Recovery</h1>
     <OwnerRecovery onClearReview={() => { setBackup(null); setSummary(null); setConfirmation(''); }} onReview={async decoded => { setBackup(null); setSummary(null); setConfirmation(''); const result = await call({ operation: 'dry-run', backup: decoded }); setBackup(decoded); setSummary(result.summary); setMessage('Checksum and schema verified. Review the comparison.'); }}/>
     <details><summary>Advanced Recovery — Manual Files and Offline Tools</summary>
     <p>Download an encrypted system backup to this PC, then keep a second encrypted copy in your private Google Drive folder. Owner access to all three businesses is required.</p>

@@ -18,7 +18,7 @@ function enhanceRowCount(page: HTMLElement) {
 
 function realPager(page: HTMLElement) { return page.querySelector<HTMLElement>(":scope > .workspacePager:not(.workspacePagerTop)"); }
 function clickReal(page: HTMLElement, label: string) {
-  Array.from(realPager(page)?.querySelectorAll<HTMLButtonElement>("button") || []).find(item => item.textContent?.trim() === label)?.click();
+  Array.from(realPager(page)?.querySelectorAll<HTMLButtonElement>("button") || []).find(item => (item.textContent?.trim() || "").toLowerCase() === label.toLowerCase())?.click();
 }
 
 function buildTopPager(page: HTMLElement) {
@@ -31,8 +31,8 @@ function buildTopPager(page: HTMLElement) {
   const range = children.find(child => child instanceof HTMLSpanElement && /^Showing\s/i.test(child.textContent || ""));
   const pageStatus = children.find(child => child instanceof HTMLSpanElement && /^Page\s/i.test(child.textContent || ""));
   const native = bottom.querySelector<HTMLInputElement>('input[aria-label="Rows per page" i]');
-  const previous = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Previous");
-  const next = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "Next");
+  const previous = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => (button.textContent?.trim() || "").toLowerCase() === "previous");
+  const next = Array.from(bottom.querySelectorAll<HTMLButtonElement>("button")).find(button => (button.textContent?.trim() || "").toLowerCase() === "next");
   top.replaceChildren();
   if (range) top.appendChild(range.cloneNode(true));
   const label = document.createElement("label"); label.append("Rows ");

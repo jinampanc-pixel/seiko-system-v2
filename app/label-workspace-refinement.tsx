@@ -100,7 +100,7 @@ export function LabelWorkspaceRefinement() {
       const label = chip?.querySelector<HTMLElement>(".labelInfoChipText")?.textContent?.trim()
         || chip?.querySelector<HTMLElement>("span:not(.srOnly)")?.textContent?.trim();
       if (!page || !label) return;
-      const choice = Array.from(page.querySelectorAll<HTMLElement>(".fieldChoice")).find(item => item.querySelector("label span")?.textContent?.trim() === label);
+      const choice = Array.from(page.querySelectorAll<HTMLElement>(".fieldChoice")).find(item => (item.querySelector("label span")?.textContent?.trim() || "").toLowerCase() === label.toLowerCase());
       const checkbox = choice?.querySelector<HTMLInputElement>('input[type="checkbox"]');
       if (!checkbox || !checkbox.checked) return;
       event.preventDefault();

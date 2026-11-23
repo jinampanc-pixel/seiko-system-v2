@@ -24,7 +24,7 @@ function gridEditor(page: HTMLElement) {
 
 function clickMenuAction(page: HTMLElement, label: string) {
   const find = () => Array.from(page.querySelectorAll<HTMLButtonElement>(".orderActionMenu button"))
-    .find(button => button.textContent?.trim() === label);
+    .find(button => (button.textContent?.trim() || "").toLowerCase() === label.toLowerCase());
   const existing = find();
   if (existing) { existing.click(); return; }
   const trigger = page.querySelector<HTMLButtonElement>(".orderActionMenuButton");
@@ -40,7 +40,7 @@ function realPager(page: HTMLElement) {
 function walkPager(page: HTMLElement, label: "Previous" | "Next", done: () => void, step = 0) {
   const pager = realPager(page);
   const button = pager && Array.from(pager.querySelectorAll<HTMLButtonElement>("button"))
-    .find(item => item.textContent?.trim() === label);
+    .find(item => (item.textContent?.trim() || "").toLowerCase() === label.toLowerCase());
   if (!button || button.disabled || step > 500) { window.setTimeout(done, 45); return; }
   button.click();
   window.setTimeout(() => walkPager(page, label, done, step + 1), 35);

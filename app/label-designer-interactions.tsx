@@ -134,7 +134,7 @@ export function LabelDesignerInteractions() {
       if (classification) {
         classification.classList.add("classificationTile");
         const clientChoice = Array.from(checklist.querySelectorAll<HTMLElement>(":scope > .fieldChoice")).find(choice =>
-          choice.querySelector("label span")?.textContent?.trim() === "Client"
+          (choice.querySelector("label span")?.textContent?.trim() || "").toLowerCase() === "client"
         );
         if (classification.parentElement !== checklist || (clientChoice && classification.nextElementSibling !== clientChoice)) {
           if (clientChoice) checklist.insertBefore(classification, clientChoice);
@@ -143,7 +143,7 @@ export function LabelDesignerInteractions() {
       }
     };
 
-    const geometryInput = (page: HTMLElement, label: string) => Array.from(page.querySelectorAll<HTMLLabelElement>(".labelGeometryFields label")).find(node => node.querySelector("span")?.textContent?.trim() === label)?.querySelector<HTMLInputElement>("input") || null;
+    const geometryInput = (page: HTMLElement, label: string) => Array.from(page.querySelectorAll<HTMLLabelElement>(".labelGeometryFields label")).find(node => (node.querySelector("span")?.textContent?.trim() || "").toLowerCase() === label.toLowerCase())?.querySelector<HTMLInputElement>("input") || null;
 
     const fitSelectedTextBounds = (page: HTMLElement) => {
       const element = page.querySelector<HTMLElement>(".canvasElement.selected");

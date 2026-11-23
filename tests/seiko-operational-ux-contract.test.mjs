@@ -21,7 +21,7 @@ test("operational UX refinement remains mounted and late styled", () => {
 test("Home removes duplicate Orders navigation without inventing another Order Center shortcut", () => {
   assert.match(ux, /function enhanceHome\(\)/);
   assert.match(ux, /\.overview \.moduleGrid \.moduleCard/);
-  assert.match(ux, /=== "Orders"/);
+  assert.match(ux, /\.toLowerCase\(\) === "orders"/);
   assert.match(ux, /card\.hidden = true/);
   assert.doesNotMatch(ux, /Order Center →/);
 });

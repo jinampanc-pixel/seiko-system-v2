@@ -22,12 +22,12 @@ function labelText(label: HTMLLabelElement) {
 function markClientFields() {
   document.querySelectorAll<HTMLLabelElement>(".orderSetup .clientDetails .setupGrid label").forEach(label => {
     const name = labelText(label);
-    if (name === "Phone Number") label.classList.add("clientPhoneField");
-    if (name === "Delivery Address" || name === "Billing Address") {
+    if ((name || "").toLowerCase() === "phone number") label.classList.add("clientPhoneField");
+    if ((name || "").toLowerCase() === "delivery address" || (name || "").toLowerCase() === "billing address") {
       label.classList.add("clientLongField");
 
     }
-    if (name === "Client Name" || name === "Contact Person / Attn") label.classList.add("clientFlexibleField");
+    if ((name || "").toLowerCase() === "client name" || (name || "").toLowerCase() === "contact person / attn") label.classList.add("clientFlexibleField");
   });
 }
 

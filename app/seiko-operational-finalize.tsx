@@ -312,7 +312,7 @@ function workspaceAction(page: HTMLElement, text: string) {
   const toggle = page.querySelector<HTMLButtonElement>(".orderActionMenuButton");
   if (toggle?.getAttribute("aria-expanded") !== "true") toggle?.click();
   window.setTimeout(() => {
-    const button = Array.from(page.querySelectorAll<HTMLButtonElement>(".orderActionMenu button")).find(item => item.textContent?.trim() === text);
+    const button = Array.from(page.querySelectorAll<HTMLButtonElement>(".orderActionMenu button")).find(item => (item.textContent?.trim() || "").toLowerCase() === text.toLowerCase());
     button?.click();
   }, 0);
 }
@@ -332,7 +332,7 @@ function enhanceWorkspaceMenu(page: HTMLElement) {
   const menu = page.querySelector<HTMLElement>(".orderActionMenu");
   if (!menu || menu.dataset.unifiedLabelsReady) return;
   const buttons = Array.from(menu.querySelectorAll<HTMLButtonElement>(":scope > button"));
-  const print = buttons.find(button => button.textContent?.trim() === "Print Labels");
+  const print = buttons.find(button => (button.textContent?.trim() || "").toLowerCase() === "print labels");
   if (!print) return;
   menu.dataset.unifiedLabelsReady = "true";
   print.hidden = true;
@@ -349,12 +349,12 @@ function enhanceWorkspaceMenu(page: HTMLElement) {
   const divider = menu.querySelector(".orderMenuDivider");
   divider?.insertAdjacentElement("afterend", labels);
 
-  const edit = buttons.find(button => button.textContent?.trim() === "Edit Setup");
+  const edit = buttons.find(button => (button.textContent?.trim() || "").toLowerCase() === "edit setup");
   edit?.addEventListener("click", () => { if (orderNo) sessionStorage.setItem(SETUP_RETURN_KEY, orderNo); });
   buttons.filter(button => !page.hasAttribute("data-server-order-actions") && ["Save", "Save & Close"].includes(button.textContent?.trim() || "")).forEach(button => {
     if (button.dataset.saveNoticeReady) return;
     button.dataset.saveNoticeReady = "true";
-    button.addEventListener("click", () => window.setTimeout(() => toast(button.textContent?.trim() === "Save & Close" ? "Order saved." : "Changes saved."), 30));
+    button.addEventListener("click", () => window.setTimeout(() => toast((button.textContent?.trim() || "").toLowerCase() === "save & close" ? "Order saved." : "Changes saved."), 30));
   });
 }
 
@@ -396,7 +396,7 @@ function enhanceOrderCenter() {
 
   const requested = sessionStorage.getItem(OPEN_ORDER_KEY);
   if (!requested) return;
-  const row = Array.from(center.querySelectorAll<HTMLElement>(".orderRow")).find(item => item.querySelector("b")?.textContent?.trim() === requested);
+  const row = Array.from(center.querySelectorAll<HTMLElement>(".orderRow")).find(item => (item.querySelector("b")?.textContent?.trim() || "").toLowerCase() === requested.toLowerCase());
   if (!row) return;
   sessionStorage.removeItem(OPEN_ORDER_KEY);
   row.querySelector<HTMLButtonElement>(".openOrderButton")?.click();
@@ -452,7 +452,7 @@ function enhanceLabelLauncher() {
     }
     page.querySelectorAll<HTMLElement>(".labelOrderResults > article").forEach(article => {
       const orderNo = article.querySelector("b")?.textContent?.split("·")[0]?.trim() || "";
-      article.hidden = orderNo !== contextOrder;
+      article.hidden = (orderNo || "").toLowerCase() !== contextOrder.toLowerCase();
     });
     const title = picker.querySelector<HTMLElement>(".labelOrderPickerHead h3");
     if (title) title.textContent = `Create labels for ${contextOrder}`;

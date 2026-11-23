@@ -8,7 +8,7 @@ type LabelPurpose = "production" | "packing" | "inventory";
 const PRINT_PURPOSE_KEY = "jinam:labels:print-purpose";
 
 function buttonByText(root: ParentNode, text: string) {
-  return Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === text);
+  return Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(button => (button.textContent?.trim() || "").toLowerCase() === text.toLowerCase());
 }
 
 function setReactSelectValue(select: HTMLSelectElement, value: string) {
@@ -83,7 +83,7 @@ function enhanceOrderMenu() {
 
     const printButton = buttonByText(menu, "Print Labels");
     const editButton = buttonByText(menu, "Edit Setup");
-    const sectionLabel = Array.from(menu.querySelectorAll<HTMLElement>(".orderMenuSectionLabel")).find(item => item.textContent?.trim() === "Create label");
+    const sectionLabel = Array.from(menu.querySelectorAll<HTMLElement>(".orderMenuSectionLabel")).find(item => (item.textContent?.trim() || "").toLowerCase() === "create label");
     const purposeButtons = Array.from(menu.querySelectorAll<HTMLButtonElement>(".orderMenuIndented"));
     if (!printButton || !editButton || !sectionLabel || purposeButtons.length < 3) return;
 
@@ -116,8 +116,8 @@ function enhanceLabelLauncher() {
     const head = page.querySelector<HTMLElement>(".labelLauncherHead");
     const eyebrow = head?.querySelector<HTMLElement>(".eyebrow");
     const heading = head?.querySelector<HTMLElement>("h2");
-    if (eyebrow && eyebrow.textContent !== "LABEL CENTER") eyebrow.textContent = "LABEL CENTER";
-    if (heading && heading.textContent !== "Labels & printing") heading.textContent = "Labels & Printing";
+    if (eyebrow && (eyebrow.textContent || "").toLowerCase() !== "label center") eyebrow.textContent = "LABEL CENTER";
+    if (heading && (heading.textContent || "").toLowerCase() !== "labels & printing") heading.textContent = "Labels & Printing";
 
     let headActions = head?.querySelector<HTMLElement>(".labelLauncherHeadActions");
     if (head && !headActions) {
@@ -137,19 +137,19 @@ function enhanceLabelLauncher() {
 
     const library = page.querySelector<HTMLElement>(".labelBatchModule");
     const libraryHeading = library?.querySelector<HTMLElement>(".labelBatchModuleHead h3");
-    if (libraryHeading && libraryHeading.textContent !== "Saved labels") libraryHeading.textContent = "Saved Labels";
+    if (libraryHeading && (libraryHeading.textContent || "").toLowerCase() !== "saved labels") libraryHeading.textContent = "Saved Labels";
     const libraryFilter = library?.querySelector<HTMLSelectElement>('select[aria-label="Filter label batches" i]');
     if (libraryFilter) {
       ensurePurposeOption(libraryFilter, "inventory", "Inventory");
       const all = Array.from(libraryFilter.options).find(option => option.value === "all");
-      if (all && all.textContent !== "All Labels") all.textContent = "All Labels";
+      if (all && (all.textContent || "").toLowerCase() !== "all labels") all.textContent = "All Labels";
     }
     const librarySearch = library?.querySelector<HTMLInputElement>('input[aria-label="Find a saved label batch" i]');
     if (librarySearch) librarySearch.placeholder = "Find saved label, order or client";
     library?.querySelectorAll<HTMLElement>(".emptyLibrary").forEach(empty => {
       const text = empty.textContent?.trim();
-      if (text === "No saved batches yet.") empty.textContent = "No saved labels yet.";
-      if (text === "No matching batches.") empty.textContent = "No matching saved labels.";
+      if ((text || "").toLowerCase() === "no saved batches yet.") empty.textContent = "No saved labels yet.";
+      if ((text || "").toLowerCase() === "no matching batches.") empty.textContent = "No matching saved labels.";
     });
 
     const createPanel = page.querySelector<HTMLElement>(".labelOrderPicker");
