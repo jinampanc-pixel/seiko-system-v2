@@ -1,0 +1,54 @@
+/* Phone layouts reflow their controls; document canvases retain their print dimensions. */
+@media (max-width: 700px) {
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body { margin: 0; }
+  :is(.app,.surface,.page,.panel,.phase2Workspace,.productionWorkspace,.orderPersonEntry,.themePanel,.helpCenter) { min-width: 0; }
+  :is(.page,.phase2Workspace,.productionWorkspace) :is(h1,h2,h3) { overflow-wrap: anywhere; }
+  .app .surface { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+  .overview>.moduleGrid { gap: 10px!important; }
+  .overview>.moduleGrid>.moduleCard { min-height: 70px!important; padding: 16px!important; justify-content: center!important; }
+  .overview>.moduleGrid>.moduleCard b { display: none!important; }
+  .overview>.moduleGrid>.moduleCard h3 { margin: 0!important; line-height: 1.4; }
+  body:has(.seikoPhase2Surface) .overview>.moduleGrid { display: none!important; }
+  .seikoDashboardMetrics>button { min-height: 78px!important; padding: 12px!important; }
+  .homeFocusViews { display: grid!important; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px!important; max-width: 100%; }
+  .homeFocusViews>button { min-width: 0; min-height: 48px; padding: 8px 6px!important; font-size: 12px!important; white-space: normal!important; flex-wrap: wrap; justify-content: center; gap: 4px; }
+  .assistantLauncher.primary { width: 48px!important; min-width: 48px!important; height: 48px; padding: 0!important; right: max(12px,env(safe-area-inset-right)); bottom: max(12px,env(safe-area-inset-bottom)); }
+  .assistantLauncher.primary>span { display: none; }
+  .app:has(.setupBottomActions) .assistantLauncher.primary { bottom: calc(82px + env(safe-area-inset-bottom)); }
+  :is(.phase2Scrim,.themeScrim,.serviceScrim) { padding: 0!important; }
+  :is(.themePanel,.phase2Scrim>.phase2Editor,.phase2Scrim>.billingPreview,.helpCenter) { width: 100%!important; max-width: 100%!important; max-height: 100dvh!important; border-radius: 0!important; box-sizing: border-box; }
+  :is(.themePanel,.phase2Editor,.billingPreview,.helpCenter) { overscroll-behavior: contain; }
+  .themePanel { height: 100dvh; padding: max(12px,env(safe-area-inset-top)) 14px max(20px,env(safe-area-inset-bottom))!important; }
+  .themeHead { align-items: center!important; gap: 12px; }
+  .themePanel .settingsModules { gap: 8px; }
+  .themePanel .seikoHomeCustomizer { padding: 14px!important; }
+  .homePreferenceOrder>div { grid-template-columns: minmax(0,1fr) 44px 44px; }
+  .homePreferenceOrder label { overflow-wrap: anywhere; }
+  .orderSetup .setupBottomActions { padding-bottom: max(12px,env(safe-area-inset-bottom))!important; }
+  .orderSetup :is(.clientDetails,.personDetails,.productDetails) { min-width: 0; }
+  .orderSetup :is(input,select,textarea) { max-width: 100%; box-sizing: border-box; }
+  .orderPeopleList { grid-template-columns: minmax(0,1fr)!important; }
+  .orderPeopleList>button { min-width: 0; width: 100%; overflow-wrap: anywhere; }
+  .orderPeopleEntry .measurementGridScroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+  .orderPeopleEntry .measurementEntryGrid { min-width: 0; width: 100%; }
+  .orderPeopleEntry .measurementGridCell :is(input,select) { min-width: 0; width: 100%; }
+  .productionWorkspace .phase2Actions { margin-left: 0; }
+  .productionWorkspace :is(.productionOrderList,.productionSavedList) { min-width: 0; }
+  .billingPreview { height: 100dvh!important; gap: 8px!important; padding: 12px!important; }
+  .billingPreview>header { flex-wrap: nowrap!important; align-items: center; }
+  .billingPreview>header h2 { font-size: 16px!important; line-height: 1.35; min-width: 0; }
+  .billingPreview>header>button { flex: none; min-height: 44px; }
+  .billingPreview .documentViewer { min-height: 0; gap: 8px; }
+  .billingPreview .documentViewerActions { display: grid!important; grid-template-columns: minmax(0,1fr) minmax(0,1fr)!important; gap: 8px!important; }
+  .billingPreview .documentViewerActions>label { grid-column: auto!important; display: grid!important; gap: 4px; min-width: 0; margin: 0; }
+  .billingPreview .documentViewerActions>label select { width: 100%!important; max-width: 100%!important; min-width: 0; }
+  .billingPreview .documentViewer iframe { min-height: 240px!important; flex: 1 1 0; }
+  .billingPreview .documentViewerActions>.outputRecordControl { min-width: 0; }
+  .billingPreview .documentViewerActions :is(button,summary) { max-width: 100%; white-space: normal; }
+  .billingPreview .documentViewerActions>.documentMore:last-child { justify-self: stretch!important; }
+  .billingPreview .documentViewerActions>.documentMore>summary { width: 100%; box-sizing: border-box; }
+  .paymentTargetPicker { height: 100dvh; }
+  .paymentTargetPicker .paymentTargetRow { width: 100%; min-width: 0; }
+  .paymentTargetIdentity { min-width: 0; overflow-wrap: anywhere; }
+}

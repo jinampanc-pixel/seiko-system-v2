@@ -79,7 +79,7 @@ test("billing is a first-class module with shared commercial document flow", () 
   assert.match(accessControl, /billing\.delivery_challans\.manage/i);
   assert.match(accessControl, /billing\.invoices\.manage/);
   assert.match(accessControl, /catalog\.manage/);
-  assert.match(billing, /Quotation → PO → Delivery Challan → Invoice/i);
-  assert.match(billing, /same customer, item\/service and pricing source/i);
+  assert.doesNotMatch(billing, /Quotation → PO → Delivery Challan → Invoice/i);
+  assert.doesNotMatch(billing, /same customer, item\/service and pricing source/i);
 });
 

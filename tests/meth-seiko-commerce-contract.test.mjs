@@ -33,7 +33,7 @@ test("stock allocation sends only the shortage quantity to SEIKO", () => {
   assert.match(domain, /allocateStock/);
   assert.match(domain, /productionRequired: ordered - stock/);
   assert.match(domain, /if \(line\.productionRequired <= 0\) throw new Error/);
-  assert.match(methUi, /Only shortage quantities are sent to SEIKO/);
+  assert.doesNotMatch(methUi, /Only shortage quantities are sent to SEIKO/);
 });
 
 test("MeTh fulfilment can default to stock first or require an explicit stock-vs-produce decision", () => {
@@ -97,7 +97,7 @@ test("MeTh customer order remains separate from the SEIKO production handoff", (
   assert.match(domain, /methOrderId/);
   assert.match(domain, /methOrderLineId/);
   assert.match(domain, /traceId/);
-  assert.match(seikoSync, /MeTh customer orders stay in MeTh/);
+  assert.doesNotMatch(seikoSync, /MeTh customer orders stay in MeTh/);
 });
 
 test("chargeable quantity cannot exceed accepted and completed output", () => {
@@ -111,8 +111,8 @@ test("SEIKO and MeTh are separate legal entities with one intercompany transacti
   assert.match(domain, /buyerBusinessId: "meth"/);
   assert.match(domain, /intercompanyStoreKey/);
   assert.match(domain, /legalProfileStoreKey/);
-  assert.match(seikoSync, /SEIKO invoices MeTh as a separate legal entity/i);
-  assert.match(methUi, /SEIKO and MeTh are separate legal entities/);
+  assert.doesNotMatch(seikoSync, /SEIKO invoices MeTh as a separate legal entity/i);
+  assert.doesNotMatch(methUi, /SEIKO and MeTh are separate legal entities/);
 });
 
 test("payments and credits settle the same intercompany transaction", () => {
@@ -135,7 +135,7 @@ test("MeTh separates customer payment from marketplace or gateway settlement", (
   assert.match(domain, /marketplaceFees/);
   assert.match(domain, /paymentGatewayFees/);
   assert.match(domain, /bankReference/);
-  assert.match(meth, /Customer payment, marketplace settlement and SEIKO payable remain separate records/i);
+  assert.doesNotMatch(meth, /Customer payment, marketplace settlement and SEIKO payable remain separate records/i);
 });
 
 test("SEIKO explicitly mounts the MeTh handoff and receivable adapter", () => {

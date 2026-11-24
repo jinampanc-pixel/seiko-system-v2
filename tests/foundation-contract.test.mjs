@@ -172,8 +172,8 @@ test("label output can be code only, information only or combined", () => {
   assert.match(labelDesigner, /Code only/i);
   assert.match(labelDesigner, /Information only/i);
   assert.match(labelDesigner, /Custom selection/i);
-  assert.match(labelDesigner, /Production labels/i);
-  assert.match(labelDesigner, /Packing labels/i);
+  assert.match(labelDesigner, /purposeLabel\(purpose\)/);
+  assert.match(labelDesigner, /purposeLabel\(purpose\)/);
   assert.match(labelDesigner, /Label represents/i);
   assert.match(labelDesigner, /Each physical item/i);
   assert.doesNotMatch(labelDesigner, /Derived from the saved order/);
@@ -211,8 +211,8 @@ test("one garment supports multiple worker operation credits", () => {
   assert.match(productionDomain, /scans: \[\.\.\.history\.scans, scan\]/);
   assert.match(productionDomain, /parentId\?: string/);
   assert.match(productionDomain, /calculatePayroll\?: boolean/);
-  assert.match(production, /Use only the steps you need/);
-  assert.match(production, /Turning one off never deletes existing history/);
+  assert.doesNotMatch(production, /Use only the steps you need/);
+  assert.doesNotMatch(production, /Turning one off never deletes existing history/);
   assert.match(production, /View history/i);
   assert.match(production, /Complete operation/i);
 });
@@ -236,8 +236,8 @@ test("order workspace supports spreadsheet-speed data entry", () => {
   assert.match(orders, /event\.key === "Tab"/);
   assert.match(orders, /ArrowUp/);
   assert.match(orders, /ArrowDown/);
-  assert.match(orders, /Ctrl\+C, Ctrl\+V/);
-  assert.match(orders, /Ctrl\+Z and Ctrl\+Y/);
+  assert.doesNotMatch(orders, /Ctrl\+C, Ctrl\+V/);
+  assert.doesNotMatch(orders, /Ctrl\+Z and Ctrl\+Y/);
   assert.match(orders, /hiddenColumns/);
   assert.match(orders, /const suggestions\s*=/);
   assert.match(orders, /navigator\.clipboard\.writeText/);

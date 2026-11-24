@@ -132,7 +132,7 @@ export function ModernAccountMethods() {
   const passkeySupported = methods.available.passkey && typeof window !== "undefined" && "PublicKeyCredential" in window;
 
   return <section className="signInMethodsCard">
-    <div className="signInMethodsHead"><div><h3>Sign-in Methods</h3><p>Use any linked method to sign in. ERP permissions still come from your administrator.</p></div></div>
+    <div className="signInMethodsHead"><div><h3>Sign-in Methods</h3></div></div>
     {error && <div className="accessError" role="alert">{error}</div>}
     <div className="signInMethodList">
       <div className="signInMethodRow"><span className="methodIcon">•••</span><span><strong>Password</strong><small>{methods.hasPassword ? "Available for Email or Phone Login" : "No Password Currently Set"}</small></span><span className={`methodStatus ${methods.hasPassword ? "linked" : ""}`}>{methods.hasPassword ? "Ready" : "Not Set"}</span></div>

@@ -243,13 +243,13 @@
 }
 .packingWorkflowDesigner .packingPresentationHead h3 { font-size: 0 !important; margin: 3px 0 5px !important; }
 .packingWorkflowDesigner .packingPresentationHead h3::after {
-  content: "Choose What Belongs In This Label Set";
+  content:none;
   font-size: 18px;
   line-height: 1.2;
 }
 .packingWorkflowDesigner .packingPresentationHead p:last-child { font-size: 0 !important; }
 .packingWorkflowDesigner .packingPresentationHead p:last-child::after {
-  content: "Choose which products from this order should appear on this label set, then decide how each should print. Products, measurements and attributes remain sourced from the order.";
+  content:none;
   display: block;
   font-size: 12px;
   line-height: 1.45;

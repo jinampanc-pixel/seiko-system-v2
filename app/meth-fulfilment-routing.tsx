@@ -73,7 +73,7 @@ export function MethRoutingDecisions({ onRouted }: { onRouted?: () => void }) {
   };
 
   return <section className="jinamDashboardSection">
-    <div className="jinamDashboardSectionHead"><div><h2>Stock Vs Produce Decisions</h2><p>Orders using Decide stay here until you choose. Stock first reserves available MeTh finished stock and sends only the shortage to SEIKO; Produce sends the full quantity to production.</p></div></div>
+    <div className="jinamDashboardSectionHead"><div><h2>Stock Vs Produce Decisions</h2></div></div>
     {error && <p className="phase2Error">{error}</p>}
     <div className="jinamDashboardList">
       {pending.map(order => <div className="jinamDashboardRow" key={order.id}>
@@ -83,7 +83,7 @@ export function MethRoutingDecisions({ onRouted }: { onRouted?: () => void }) {
           <button className="primary" disabled={busyId === order.id} onClick={() => void route(order, "produce")}>Produce Full Order</button>
         </div>
       </div>)}
-      {!pending.length && <div className="jinamDashboardRow"><strong>No Routing Decisions Waiting</strong><span>Stock-first orders route automatically. Decide-mode orders will appear here.</span></div>}
+      {!pending.length && <div className="jinamDashboardRow"><strong>No Routing Decisions Waiting</strong></div>}
     </div>
   </section>;
 }
@@ -149,7 +149,7 @@ export function MethFulfilmentRoutingSettings() {
   return <>
     <section className="jinamSettingsCard">
       <h2>Order Fulfilment Policy</h2>
-      <p>Choose how new MeTh channel orders are routed before any SEIKO production handoff is created.</p>
+
       <div className="phase2EditorGrid">
         <label>Default Routing<select value={policy} onChange={event => setPolicy(event.target.value as MethFulfilmentPolicy)}>
           <option value="stock_first">Stock First — Use Stock, Produce Shortage</option>
@@ -163,7 +163,7 @@ export function MethFulfilmentRoutingSettings() {
 
     <section className="jinamSettingsCard">
       <h2>MeTh Finished Stock</h2>
-      <p>These server-side balances drive Stock first. Reserved units are protected from being promised to another order.</p>
+
       <div className="phase2EditorGrid">
         <label>MeTh SKU<input value={sku} onChange={event => setSku(event.target.value)} placeholder="METH-SKU"/></label>
         <label>On-hand Finished Units<input value={onHand} onChange={event => setOnHand(event.target.value)} type="number" min="0" step="1"/></label>
@@ -171,7 +171,7 @@ export function MethFulfilmentRoutingSettings() {
       <button type="button" className="primary" disabled={busy} onClick={() => void saveStock()}>Update Finished Stock</button>
       <div className="jinamDashboardList">
         {balances.map(balance => <div className="jinamDashboardRow" key={balance.methSku}><strong>{balance.methSku}</strong><span>On Hand {balance.onHand} · Reserved {balance.reserved} · Available {balance.available}</span></div>)}
-        {!balances.length && <div className="jinamDashboardRow"><strong>No Finished-stock Balances Yet</strong><span>Until a SKU has stock here, Stock first treats its available quantity as zero and routes the shortage to production.</span></div>}
+        {!balances.length && <div className="jinamDashboardRow"><strong>No Finished-stock Balances Yet</strong></div>}
       </div>
     </section>
   </>;

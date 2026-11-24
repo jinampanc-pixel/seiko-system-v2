@@ -17,7 +17,7 @@ export function SignatoryLayoutEditor({ signatory, onChange }: { signatory: NonN
   function place(part: Part, placement: SignatoryPlacement) { onChange({...layout,[part]:bounded(placement)}); }
   return <section className="billingFull signatoryLayoutEditor" aria-label="Signatory Arrangement">
     <h4>Arrange Signature, Stamp & Name</h4>
-    <p>Drag each item to place it. Select an item to resize it, or use arrow keys to move it. Save settings to keep this arrangement for future documents.</p>
+
     <div ref={stage} className="signatoryLayoutCanvas" aria-label="Signatory Layout Preview">
       {(["stamp","signature","name"] as Part[]).map(part => <button key={part} type="button" aria-label={`Position ${part}`} aria-pressed={selected===part} className="signatoryLayoutPart" style={{left:layout[part].x+"%",top:layout[part].y+"%",width:layout[part].width+"%",height:layout[part].height+"%",zIndex:part==="signature"?2:part==="name"?3:1}}
         onPointerDown={event=>{event.preventDefault();event.currentTarget.focus();setSelected(part);drag.current={part,x:event.clientX,y:event.clientY,initial:{...layout[part]}};event.currentTarget.setPointerCapture(event.pointerId);}}

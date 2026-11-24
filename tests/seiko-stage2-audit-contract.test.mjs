@@ -14,7 +14,7 @@ const layout = read("app/layout.tsx");
 const pager = read("app/workspace-top-pager.tsx");
 const rowMenu = read("app/workspace-row-menu.tsx");
 const shortcuts = read("app/workspace-shortcuts.tsx");
-const home = read("app/seiko-phase1.tsx");
+const home = read("app/seiko-phase1.tsx") + read("app/lib/home-preferences.ts") + read("app/home-preferences-editor.tsx");
 const erpSync = read("app/erp-order-sync.tsx");
 const erpNotice = read("app/erp-sync-notice.tsx");
 const finalUx = read("app/seiko-workspace-label-final.css");
@@ -46,8 +46,8 @@ test("group quantity UI and domain both use default quantity plus exceptions", (
 });
 
 test("Home metrics switch one configurable operational list and status changes do not open orders", () => {
-  assert.match(home, /HOME_KEY = "jinam:seiko:home-config-v3"/);
-  assert.match(home, /Customize dashboard/i);
+  assert.match(home, /HOME_KEY\s*=\s*"jinam:seiko:home-config-v3"/);
+  assert.match(home, /Home Preferences/);
   assert.match(home, /defaultFocus/);
   assert.match(home, /Starting order view/i);
   assert.match(home, /activeOrderPageSize/);
@@ -218,7 +218,7 @@ test("label package contents use the shared order quantity resolver and exclude 
   assert.match(labelDesigner, /\(Number\(row\.qty\) \|\| 0\) <= 0/);
   assert.match(labelDesigner, /package_products: JSON\.stringify\(packageProductNames\)/);
   assert.match(labelDesigner, /contains_product/i);
-  assert.match(labelDesigner, /Products with a resolved quantity of 0 are excluded/);
+  assert.doesNotMatch(labelDesigner, /Products with a resolved quantity of 0 are excluded/);
 });
 
 test("label information, header commands and preview follow the accepted order-derived model", () => {
@@ -328,6 +328,6 @@ test("label workspace exposes direct representation, custom components, layout m
   assert.match(labelDesigner, /Copy & edit/i);
   assert.match(labelDesigner, /requiredRoll/);
   assert.match(labelDesigner, /fieldRelevantForPurpose/);
-  assert.match(polish, /labelSaveMeaning/);
-  assert.match(polish, /Layout.*reusable physical design/);
+  assert.doesNotMatch(polish, /labelSaveMeaning/);
+  assert.doesNotMatch(polish, /Layout.*reusable physical design/);
 });

@@ -148,7 +148,7 @@ export function MethCommerceSettings() {
   return <>
     <section className="jinamSettingsCard">
       <h2>Legal Entity</h2>
-      <p>MeTh keeps its own GST, banking and invoice identity, separate from SEIKO.</p>
+
       <div className="methCommerceForm methCommerceFormStatic">
         <label>Legal Name<input value={profile.legalName} onChange={event => saveProfile({ ...profile, legalName: event.target.value })}/></label>
         <label>GSTIN<input value={profile.gstin} onChange={event => saveProfile({ ...profile, gstin: event.target.value, gstRegistered: Boolean(event.target.value) })}/></label>
@@ -159,7 +159,7 @@ export function MethCommerceSettings() {
 
     <section className="jinamSettingsCard">
       <h2>SKU Mapping</h2>
-      <p>Map each MeTh selling SKU to the SEIKO production SKU. Shopify can match by its SKU directly; variant ID is optional.</p>
+
       <button type="button" className="primary" onClick={() => { setMappingOpen(value => !value); setMappingMessage(""); }}>{mappingOpen ? "Close Mapping Form" : "Add SKU Mapping"}</button>
       {mappingOpen && <form action={saveMapping} className="methCommerceForm">
         <label>MeTh SKU<input name="methSku" required placeholder="METH-TEST-001" autoComplete="off"/></label>
@@ -172,14 +172,14 @@ export function MethCommerceSettings() {
         <footer><button type="button" className="secondary" onClick={() => setMappingOpen(false)}>Cancel</button><button type="submit" className="primary">Save Mapping</button></footer>
       </form>}
       {mappingMessage && <p className="methCommerceNotice" role="status">{mappingMessage}</p>}
-      <div className="methCommerceList">{mappings.map(item => <div className="jinamDashboardRow" key={item.id}><div><strong>{item.methSku}</strong><span>{item.productName}</span></div><span>SEIKO {item.seikoProductionSku}</span></div>)}{!mappings.length && <div className="jinamDashboardRow"><strong>No SKU Mappings Yet</strong><span>Add one before testing a Shopify production shortage.</span></div>}</div>
+      <div className="methCommerceList">{mappings.map(item => <div className="jinamDashboardRow" key={item.id}><div><strong>{item.methSku}</strong><span>{item.productName}</span></div><span>SEIKO {item.seikoProductionSku}</span></div>)}{!mappings.length && <div className="jinamDashboardRow"><strong>No SKU Mappings Yet</strong></div>}</div>
     </section>
 
     <section className="jinamSettingsCard">
       <h2>SEIKO Manufacturing Rates</h2>
-      <p>Versioned agreed rates are frozen into each handoff so historical costs never change when today&apos;s price changes.</p>
+
       <button type="button" className="primary" disabled={!mappings.some(item => item.active)} onClick={() => { setRateOpen(value => !value); setRateMessage(""); }}>{rateOpen ? "Close Rate Form" : "Add Rate"}</button>
-      {!mappings.some(item => item.active) && <p className="methCommerceNotice">Create an active SKU mapping before adding a manufacturing rate.</p>}
+      {!mappings.some(item => item.active) && null}
       {rateOpen && <form action={saveRate} className="methCommerceForm">
         <label className="methCommerceWide">MeTh SKU<select name="methSku" required defaultValue=""><option value="" disabled>Select Mapped SKU</option>{mappings.filter(item => item.active).map(item => <option key={item.id} value={item.methSku}>{item.methSku} — SEIKO {item.seikoProductionSku}</option>)}</select></label>
         <label>Manufacturing Rate / Pc<input name="rate" type="number" min="0.01" step="0.01" required placeholder="300"/></label>
@@ -188,12 +188,12 @@ export function MethCommerceSettings() {
         <footer><button type="button" className="secondary" onClick={() => setRateOpen(false)}>Cancel</button><button type="submit" className="primary">Save Rate</button></footer>
       </form>}
       {rateMessage && <p className="methCommerceNotice" role="status">{rateMessage}</p>}
-      <div className="methCommerceList">{rates.map(item => <div className="jinamDashboardRow" key={item.id}><div><strong>{item.methSku} · {money(item.rate)}</strong><span>SEIKO {item.seikoProductionSku}</span></div><span>V{item.version} · GST {item.taxRate}% · From {item.effectiveFrom}</span></div>)}{!rates.length && <div className="jinamDashboardRow"><strong>No Manufacturing Rates Yet</strong><span>Add a rate after mapping the SKU.</span></div>}</div>
+      <div className="methCommerceList">{rates.map(item => <div className="jinamDashboardRow" key={item.id}><div><strong>{item.methSku} · {money(item.rate)}</strong><span>SEIKO {item.seikoProductionSku}</span></div><span>V{item.version} · GST {item.taxRate}% · From {item.effectiveFrom}</span></div>)}{!rates.length && <div className="jinamDashboardRow"><strong>No Manufacturing Rates Yet</strong></div>}</div>
     </section>
 
     <section className="jinamSettingsCard">
       <h2>Channel Integrations</h2>
-      <p>Shopify and future adapters use external order, payment, fulfilment and settlement IDs. Real credentials remain encrypted on the server.</p>
+
     </section>
   </>;
 }

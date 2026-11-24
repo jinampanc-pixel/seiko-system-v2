@@ -37,7 +37,7 @@ function showHoverCard(record: HTMLElement) {
   const body = document.createElement("span");
   body.textContent = detail || "No additional saved information for this label.";
   card.append(heading, body);
-  document.body.appendChild(card);
+  (record.closest(".labelCreateBackdrop")||document.body).appendChild(card);
   const box = record.getBoundingClientRect();
   const width = Math.min(420, Math.max(280, box.width + 100));
   card.style.width = `${width}px`;
@@ -53,9 +53,9 @@ function enhanceRecordHover(page: HTMLElement) {
     if (record.dataset.hoverDetailReady === "true") return;
     record.dataset.hoverDetailReady = "true";
     record.addEventListener("pointerenter", () => showHoverCard(record));
-    record.addEventListener("pointerleave", removeHoverCard);
+
     record.addEventListener("focus", () => showHoverCard(record));
-    record.addEventListener("blur", removeHoverCard);
+
   });
 }
 
@@ -70,7 +70,7 @@ function removePackingGenericChoices(page: HTMLElement) {
 function openLabelSaveChoice(page: HTMLElement) {
   document.querySelector(".labelSaveChoiceLayer")?.remove();
   const layer = document.createElement("div"); layer.className = "labelSaveChoiceLayer";
-  layer.innerHTML = '<section class="labelSaveChoiceDialog" role="dialog" aria-modal="true" aria-labelledby="label-save-choice-title"><h3 id="label-save-choice-title">Save Label Work</h3><p>Choose what Ctrl/Cmd + S should save.</p><div><button type="button" class="primary saveSet">Save label set</button><button type="button" class="secondary saveLayout">Save layout</button><button type="button" class="textButton cancel">Cancel</button></div></section>';
+  layer.innerHTML = '<section class="labelSaveChoiceDialog" role="dialog" aria-modal="true" aria-labelledby="label-save-choice-title"><h3 id="label-save-choice-title">Save Label Work</h3><div><button type="button" class="primary saveSet">Save label set</button><button type="button" class="secondary saveLayout">Save layout</button><button type="button" class="textButton cancel">Cancel</button></div></section>';
   const close = () => layer.remove();
   layer.querySelector<HTMLButtonElement>(".cancel")?.addEventListener("click", close);
   layer.addEventListener("click", event => { if (event.target === layer) close(); });
@@ -113,13 +113,15 @@ export function LabelWorkspaceRefinement() {
     document.addEventListener("keydown", saveShortcut, true);
     document.addEventListener("click", removeChip, true);
     document.addEventListener("change", controller.schedule, true);
-    window.addEventListener("scroll", removeHoverCard, true);
+    const outside=(event:PointerEvent)=>{if(!(event.target as Element)?.closest?.(".labelRecordHoverCard,.labelSidebar .recordList .record"))removeHoverCard();};
+    const escape=(event:KeyboardEvent)=>{if(event.key==="Escape"&&document.querySelector(".labelRecordHoverCard")){event.preventDefault();event.stopPropagation();removeHoverCard();}};
+    document.addEventListener("pointerdown",outside,true);document.addEventListener("keydown",escape,true);
     window.addEventListener("resize", removeHoverCard);
     return () => {
       document.removeEventListener("keydown", saveShortcut, true);
       document.removeEventListener("click", removeChip, true);
       document.removeEventListener("change", controller.schedule, true);
-      window.removeEventListener("scroll", removeHoverCard, true);
+      document.removeEventListener("pointerdown",outside,true);document.removeEventListener("keydown",escape,true);
       window.removeEventListener("resize", removeHoverCard);
       removeHoverCard();
       controller.stop();

@@ -123,12 +123,13 @@ assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
  await amendment.getByLabel(uiLabel('Include bank details', true),{exact:true}).check();
  await amendment.getByLabel(uiLabel('Include UPI', true),{exact:true}).check();
  await amendment.getByLabel(uiLabel('Include payment QR scanner', true),{exact:true}).check();
- await amendment.getByLabel(uiLabel('Notes / payment terms', true),{exact:true}).fill(notes);
+ await amendment.getByRole('checkbox',{name:uiLabel('Include Notes',true),exact:true}).check();
+ await amendment.getByLabel(uiLabel('Notes', true),{exact:true}).fill(notes);
  const failAmend=route=>route.request().postDataJSON().operation==='amend'?route.fulfill({status:503,json:{ok:false,message:'Synthetic amendment failure'}}):route.fallback();
  await page.route('**/api/erp/billing',failAmend);
  await amendment.getByRole('button',{name:uiLabel('Save and print', true),exact:true}).click();
  await amendment.getByRole('alert').filter({hasText:'Synthetic amendment failure'}).waitFor();
- assert.equal(await amendment.getByLabel(uiLabel('Notes / payment terms', true),{exact:true}).inputValue(),notes);
+ assert.equal(await amendment.getByLabel(uiLabel('Notes', true),{exact:true}).inputValue(),notes);
  await page.unroute('**/api/erp/billing',failAmend);
 
  await amendment.getByRole('button',{name:uiLabel('Save and print', true),exact:true}).click();

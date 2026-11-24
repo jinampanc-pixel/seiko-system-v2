@@ -65,7 +65,7 @@ test("person-package label filtering uses resolved positive package contents", (
   assert.match(labelDesigner, /contains_product/i);
   assert.match(labelDesigner, /const filterNeedle = recordFilterValue\.trim\(\)\.toLowerCase\(\)/);
   assert.match(labelDesigner, /packageProducts\(record\)\.some\(value => value\.toLowerCase\(\) === filterNeedle\)/);
-  assert.match(labelDesigner, /Products with a resolved quantity of 0 are excluded/);
+  assert.doesNotMatch(labelDesigner, /Products with a resolved quantity of 0 are excluded/);
   assert.match(labelDesigner, /Find person, group or product in the package/i);
   assert.doesNotMatch(labels, /personPackageWorkspace/);
 });

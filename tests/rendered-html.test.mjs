@@ -27,7 +27,11 @@ async function expectApplicationPage(pathname) {
 }
 
 test("renders the Jinam application", async () => {
-  await expectApplicationPage("/");
+  const html=await expectApplicationPage("/");
+  const viewport=html.match(/<meta[^>]+name="viewport"[^>]*>/i)?.[0]||'';
+  assert.match(viewport,/width=device-width/);
+  assert.match(viewport,/initial-scale=1/);
+  assert.doesNotMatch(viewport,/user-scalable=no|maximum-scale=1/);
 });
 
 test("renders the standalone label creation route", async () => {

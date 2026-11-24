@@ -25,7 +25,7 @@ test('proposal review displays nested recipient conditions before confirmation',
   assert.doesNotMatch(html,/Expand the order/);
   // The generic depth guard still applies to unrelated oversized payloads.
   const guarded=renderToStaticMarkup(createElement(exports.AssistantReview,{value:{nested:{}},depth:9}));
-  assert.match(guarded,/Expand the order/);
+  assert.match(guarded,/Additional Details/);
 });
 test('real edit tool proposes from authoritative order and preserves its version and untouched data',async()=>{
   const order={...structuredClone(prompt.assistantOrderExample),orderId:'test-existing-order',status:'Draft',archived:false,details:{...prompt.assistantOrderExample.details,clientName:'TEST CLIENT',contactNumber:'0000000000',orderNo:'2099-01-001',attnRequired:false},updatedAt:'2099-01-01',records:[{recordId:'r1',personId:'P-0001',values:{'field:f-name':'TEST PERSON'}}]};

@@ -10,7 +10,7 @@ const fields = [
 ] as const;
 export function BillingPrintPreferencesEditor({value,onChange}:{value?:BillingPrintPreferences;onChange:(value:BillingPrintPreferences)=>void}) {
   return <details className="billingFull"><summary>Document Detail Labels</summary>
-    <p>Choose which field names appear beside the details on invoices, quotations, challans and receipts. Values remain visible. These display settings apply when viewing or printing existing documents too.</p>
+
     <div className="billingDetailLabels">{fields.map(([key,label,showLabel])=>{
       const current=value?.fieldLabels?.[key]||{label,showLabel};
       const update=(next:typeof current)=>onChange({...value,fieldLabels:{...value?.fieldLabels,[key]:next}});

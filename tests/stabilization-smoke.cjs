@@ -94,7 +94,7 @@ function load(path, imports = {}) {
       '../../../lib/server-erp-auth': auth,
     });
     browser = await chromium.launch({ headless: true, ...(process.env.TEST_DOWNLOAD_DIR?{downloadsPath:process.env.TEST_DOWNLOAD_DIR}:{}), ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
-    const page = await browser.newPage({acceptDownloads:true}); const errors = []; const diagnostics=[]; page.on("console",m=>{if(m.type()==="error")diagnostics.push(m.text());}); page.on("requestfailed",r=>diagnostics.push(r.url()+" "+r.failure()?.errorText));
+    const page = await browser.newPage({acceptDownloads:true,...(process.argv.includes("--mobile-device")?{viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2}:{})}); const errors = []; const diagnostics=[]; page.on("console",m=>{if(m.type()==="error")diagnostics.push(m.text());}); page.on("requestfailed",r=>diagnostics.push(r.url()+" "+r.failure()?.errorText));
     page.on('pageerror', error => errors.push(error.message));
     const session = { user: { displayName: 'Smoke Owner', email: 'smoke@example.invalid' }, businesses: [{
       businessId: 'seiko', businessName: 'SEIKO', logoUrl: load('app/lib/business-catalog.ts').businessCatalogEntry('seiko').logoUrl, role: 'owner',

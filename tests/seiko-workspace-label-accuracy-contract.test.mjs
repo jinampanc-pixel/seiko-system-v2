@@ -120,9 +120,9 @@ test("workspace transient tools and context menus dismiss outside their interact
   const structure = read("app/workspace-structure-interactions.tsx");
   assert.match(shortcuts, /workspaceCompactTools\[open\]/);
   assert.match(shortcuts, /document\.addEventListener\("pointerdown", closeTools, true\)/);
-  assert.match(shortcuts, /document\.addEventListener\("scroll", closeTools, true\)/);
+  assert.doesNotMatch(shortcuts, /document\.addEventListener\("scroll", closeTools, true\)/);
   assert.match(structure, /document\.addEventListener\("pointerdown",outside,true\)/);
-  assert.match(structure, /document\.addEventListener\("scroll",closeTransient,true\)/);
+  assert.doesNotMatch(structure, /document\.addEventListener\("scroll",closeTransient,true\)/);
 });
 
 test("returning to Order Center and Clear all cannot retain invisible filters", () => {

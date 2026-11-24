@@ -59,7 +59,7 @@ export function PhysicalLabelCanvas<T extends PhysicalItem>({ items, onChange, r
         {fit && <option value="fit">Fit ({Math.round(zoom * 100)}%)</option>}{[.5, 1, 2, 3, 4, 5].map(value => <option key={value} value={value}>{value * 100}%</option>)}</select></label>
       <button onClick={arrange}>Auto-arrange</button><span onPointerDown={endWheel}>{children}</span>
     </div>
-    <p className="physicalHint">Drag to move · stretch any edge to resize text · scroll or pinch a field to scale · drag to the bin to remove</p></details>
+    </details>
     <div className="physicalStageWrap"><div className="physicalStage" ref={stage}><div style={{ position: "relative", width: 50 * MM_PX * zoom, height: 25 * MM_PX * zoom, flexShrink: 0 }}>
       {/* The application canvas receives arrow/delete shortcuts, not a button activation. */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}

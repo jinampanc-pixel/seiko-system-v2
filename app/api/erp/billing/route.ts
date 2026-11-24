@@ -122,6 +122,7 @@ export async function POST(request: Request) {
       if(!row)return reply("Receipt not found.",404);
       const original=paymentFromRow(row);
       if(draft.revision!==original.revision||draft.updatedAt!==original.updatedAt)return reply("A newer receipt revision exists. Reload before amending.",409);
+      if(draft.showNotes!==undefined&&typeof draft.showNotes!=="boolean")return reply("Invalid receipt notes setting.");
       if(draft.invoiceId!==original.invoiceId||draft.orderId!==original.orderId)return reply("The receipt's invoice and order cannot be changed.");
       if(!Number.isFinite(draft.amount)||draft.amount<=0||draft.amount>1_000_000_000||roundMoney(draft.amount)!==draft.amount||!validBillingDate(draft.date)||typeof draft.mode!=="string"||!draft.mode.trim())return reply("Enter a positive amount with at most two decimal places, a valid date and payment mode.");
       if(original.invoiceId){
@@ -131,7 +132,7 @@ export async function POST(request: Request) {
       // Keep the authorised original appearance and source snapshot. Receipt corrections
       // cannot replace signature assets or reassign money to another order.
       const now=new Date().toISOString();
-      const saved:SeikoPaymentRecord={...original,allocations:undefined,amount:draft.amount,date:draft.date,mode:draft.mode.trim(),reference:String(draft.reference||""),notes:String(draft.notes||""),updatedAt:now,revision:(original.revision||0)+1,amendedAt:now,amendedBy:actor.email};
+      const saved:SeikoPaymentRecord={...original,allocations:undefined,amount:draft.amount,date:draft.date,mode:draft.mode.trim(),reference:String(draft.reference||""),notes:String(draft.notes||""),showNotes:draft.showNotes??original.showNotes,updatedAt:now,revision:(original.revision||0)+1,amendedAt:now,amendedBy:actor.email};
       const json=JSON.stringify(saved),paise=Math.round(saved.amount*100),oldPaise=Math.round(original.amount*100);
       const results=await db.batch([
         db.prepare("UPDATE seiko_billing_payments SET data=?,amount_paise=? WHERE id=? AND data=? AND (?='' OR ?<=? OR EXISTS(SELECT 1 FROM seiko_billing_documents d WHERE d.id=? AND d.cancelled=0 AND d.total_paise-COALESCE((SELECT SUM(p.amount_paise) FROM seiko_billing_payments p WHERE p.invoice_id=d.id AND p.id<>?),0)>=?))").bind(json,paise,row.id,row.data,original.invoiceId,paise,oldPaise,original.invoiceId,row.id,paise),
@@ -140,6 +141,7 @@ export async function POST(request: Request) {
       if(!results[0].meta.changes)return reply("Receipt or invoice balance changed. Reload and check the amount before amending.",409);
     } else if (body.operation === "payment") {
       const payment = body.payment;
+      if(payment?.showNotes!==undefined&&typeof payment.showNotes!=="boolean")return reply("Invalid receipt notes setting.");
       if (!payment || typeof payment.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(payment.id) || typeof payment.invoiceId !== "string") return reply("Invalid payment.");
       if (!Number.isFinite(payment.amount) || payment.amount <= 0 || payment.amount > 1_000_000_000 || roundMoney(payment.amount) !== payment.amount || !validBillingDate(payment.date) || !payment.mode?.trim()) return reply("Enter a positive amount with at most two decimal places, a valid date and payment mode.");
       if (payment.appearance) {
@@ -158,7 +160,7 @@ export async function POST(request: Request) {
         if (!orderRow) return reply("Order was not found. Save the order before taking payment.", 404);
         if (orderRow.status === "Cancelled") return reply("Cannot receive payment for a cancelled order.");
         const order = JSON.parse(orderRow.document_json) as { details: { orderNo?: string; clientName?: string; contactNumber?: string } };
-        const saved: SeikoPaymentRecord = { id: payment.id, invoiceId: "", orderId: payment.orderId, orderNo: order.details.orderNo || "", clientName: order.details.clientName || "", clientPhone: order.details.contactNumber || "", receiptNumber: "", amount: payment.amount, date: payment.date, mode: payment.mode.trim(), reference: String(payment.reference || ""), notes: String(payment.notes || ""), createdAt: new Date().toISOString() };
+        const saved: SeikoPaymentRecord = { id: payment.id, invoiceId: "", orderId: payment.orderId, orderNo: order.details.orderNo || "", clientName: order.details.clientName || "", clientPhone: order.details.contactNumber || "", receiptNumber: "", amount: payment.amount, date: payment.date, mode: payment.mode.trim(), reference: String(payment.reference || ""), notes: String(payment.notes || ""), showNotes:payment.showNotes, createdAt: new Date().toISOString() };
         saved.appearance = payment.appearance;
         await db.prepare("INSERT INTO seiko_billing_payments(id,invoice_id,amount_paise,data,created_by) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM erp_orders WHERE id = ? AND business_id = 'seiko' AND json_extract(document_json, '$.deletedAt') IS NULL) ON CONFLICT(id) DO NOTHING").bind(saved.id, "", Math.round(saved.amount * 100), JSON.stringify(saved), actor.email, saved.orderId).run();
         const recorded = await db.prepare("SELECT data FROM seiko_billing_payments WHERE id = ?").bind(saved.id).first<{ data: string }>();

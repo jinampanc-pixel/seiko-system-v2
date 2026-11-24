@@ -94,7 +94,7 @@ function ensureInformationDrawer(page: HTMLElement) {
   if (!head) {
     head = document.createElement("div");
     head.className = "finalInfoHead";
-    head.innerHTML = '<div><p class="eyebrow">INFORMATION</p><h3>Information on the Label</h3><p>Choose order fields and decide how their names and values should print.</p></div><button type="button" class="secondary finalInfoCustomize">Customize</button>';
+    head.innerHTML = '<div><p class="eyebrow">INFORMATION</p><h3>Information on the Label</h3></div><button type="button" class="secondary finalInfoCustomize">Customize</button>';
     panel.prepend(head);
     Array.from(panel.children).forEach(child => {
       if (child !== head && !child.classList.contains("packingInfoGrid")) (child as HTMLElement).classList.add("finalInfoLegacyHeading");
@@ -316,21 +316,12 @@ function closePackingMenu(page: HTMLElement) {
   toggle?.click();
 }
 
-function ensureMenuDismissal(page: HTMLElement) {
-  const wrap = page.querySelector<HTMLElement>(".packingMenuWrap");
-  if (!wrap || wrap.dataset.finalDismissReady) return;
-  wrap.dataset.finalDismissReady = "true";
-  wrap.addEventListener("pointerleave", () => window.setTimeout(() => {
-    if (!wrap.matches(":hover") && !wrap.contains(document.activeElement)) closePackingMenu(page);
-  }, 140));
-}
-
 function ensureTraceTools(page: HTMLElement) {
   const sidebar = page.querySelector<HTMLElement>(".labelSidebar");
   if (!sidebar || sidebar.querySelector(".finalTraceTools")) return;
   const tools = document.createElement("div");
   tools.className = "finalTraceTools";
-  tools.innerHTML = '<p class="eyebrow">TRACE & CODES</p><p>Add QR codes, barcodes, fixed text, sequence and full trace fields with the complete label toolset.</p><button type="button" class="secondary">Open trace & code tools</button>';
+  tools.innerHTML = '<p class="eyebrow">TRACE & CODES</p><button type="button" class="secondary">Open trace & code tools</button>';
   tools.querySelector("button")?.addEventListener("click", () => {
     const orderNo = packingOrderNo(page);
     if (!orderNo) return;
@@ -459,7 +450,7 @@ function openOrderChooser(button: HTMLButtonElement) {
   const client = button.querySelector("span")?.textContent?.trim() || "";
   const layer = document.createElement("div");
   layer.className = "finalOrderChooserLayer";
-  layer.innerHTML = `<section class="finalOrderChooser"><header><div><p class="eyebrow">${orderNo}</p><h3>${client || "Choose where to continue"}</h3><p>Open the part of this order you need.</p></div><button type="button" class="uiIconButton uiCloseButton finalChooserClose" aria-label="Close order chooser" title="Close order chooser"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div class="finalOrderDestinations"><button type="button" data-action="setup"><b>Order Page / Setup</b><span>Products, fields, quantities and configuration.</span></button><button type="button" data-action="workspace"><b>Workspace</b><span>Enter and review person / record data.</span></button><button type="button" data-action="labels"><b>Labels</b><span>Create, open and print label sets for this order.</span></button></div></section>`;
+  layer.innerHTML = `<section class="finalOrderChooser"><header><div><p class="eyebrow">${orderNo}</p><h3>${client || "Choose where to continue"}</h3></div><button type="button" class="uiIconButton uiCloseButton finalChooserClose" aria-label="Close order chooser" title="Close order chooser"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div class="finalOrderDestinations"><button type="button" data-action="setup"><b>Order Page / Setup</b></button><button type="button" data-action="workspace"><b>Workspace</b></button><button type="button" data-action="labels"><b>Labels</b></button></div></section>`;
   document.body.appendChild(layer);
   layer.querySelector(".finalChooserClose")?.addEventListener("click", closeOrderChooser);
   layer.addEventListener("pointerdown", event => { if (event.target === layer) closeOrderChooser(); });
@@ -493,7 +484,7 @@ function enhancePacking(page: HTMLElement) {
   ensureInformationDrawer(page);
   ensureProductControls(page);
   relabelInspector(page);
-  ensureMenuDismissal(page);
+
   ensureTraceTools(page);
   applyPackingTypography(page);
   forceSelectedFont(page);
@@ -514,7 +505,7 @@ export function SeikoFinalUxPass() {
     const pointerDown = (event: PointerEvent) => {
       const target = event.target as Element | null;
       if (!target) return;
-      if (!target.closest(".packingMenuWrap")) {
+      if (!target.closest(".packingMenuWrap,.packingHeaderMenu")) {
         const page = document.querySelector<HTMLElement>(".packingWorkflowDesigner");
         if (page) closePackingMenu(page);
       }
@@ -545,12 +536,6 @@ export function SeikoFinalUxPass() {
       if (target.closest(".packingInspectorBar")) requestAnimationFrame(() => forceSelectedFont(page));
     };
 
-    const focus = (event: FocusEvent) => {
-      const target = event.target as Element | null;
-      const page = document.querySelector<HTMLElement>(".packingWorkflowDesigner");
-      if (page && target && !target.closest(".packingMenuWrap")) closePackingMenu(page);
-    };
-
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { closeOrderChooser(); const page = document.querySelector<HTMLElement>(".packingWorkflowDesigner"); if (page) { closePackingMenu(page); closeInfoDrawer(page); } }
     };
@@ -558,7 +543,7 @@ export function SeikoFinalUxPass() {
     document.addEventListener("pointerdown", pointerDown, true);
     document.addEventListener("wheel", wheel, { capture: true, passive: false });
     document.addEventListener("input", input, true);
-    document.addEventListener("focusin", focus, true);
+
     document.addEventListener("keydown", keydown, true);
     window.addEventListener("resize", controller.schedule);
     return () => {
@@ -566,7 +551,7 @@ export function SeikoFinalUxPass() {
       document.removeEventListener("pointerdown", pointerDown, true);
       document.removeEventListener("wheel", wheel, true);
       document.removeEventListener("input", input, true);
-      document.removeEventListener("focusin", focus, true);
+
       document.removeEventListener("keydown", keydown, true);
       window.removeEventListener("resize", controller.schedule);
     };

@@ -151,7 +151,15 @@ export async function deleteSheetPerson(db:DB,actor:Actor,id:string,edit:SheetPe
   const source=await orderRow(db,id),link=await orderSheetLink(db,id);if(!link?.spreadsheet_id)throw new SheetError("This order has no connected sheet.");
   const token=await accessToken(db),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(link.spreadsheet_id),result=await google(token,base+'/values/People?valueRenderOption=UNFORMATTED_VALUE'),table:unknown[][]=result.values||[],keys=(table[0]||[]).map(String),row=table.findIndex((r,i)=>i>=3&&r[0]===edit.recordId),archived=(await deletedSheetPeople(db,id)).find(p=>p.recordId===edit.recordId);
   if(keys[0]!=="_record_id"||keys[1]!=="_person_id")throw new SheetError("Restore the sheet identity headers before deleting an entry.");
-  if(row<0&&!archived)throw new SheetError("This entry changed or was removed. Refresh and review before deleting.");
+  if(row<0&&!archived){
+   const record=source.order.records.find(r=>r.recordId===edit.recordId);
+   if(!record)throw new SheetError("This entry changed or was removed. Refresh and review before deleting.");
+   if(await sheetPersonHasHistory(db,source.order,edit.recordId))throw new SheetError("This entry has production, delivery, issue or billing history. Restore its sheet row or cancel it in Order management.");
+   const columns=orderSheetColumns(source.order),savedRow=orderSheetRows({...source.order,records:[record]},columns)[0],cells=Object.fromEntries(columns.map((c,i)=>[c.id,savedRow[i]??'']));
+   for(const [key,value] of Object.entries(edit.expected||{})){const column=columns.find(c=>c.id===key);if(!column||column.derived||key==='_record_id'||key==='_person_id')continue;if(String(cells[key]??'')!==String(value??''))throw new SheetError("This person changed after it was opened. Reopen the entry before deleting.");}
+   const nameField=source.order.fields.find(f=>/name/i.test(f.name))||source.order.fields[0];
+   await storeDeletedPerson(db,actor,{orderId:id,recordId:edit.recordId,name:String(record.values['field:'+nameField?.id]||record.personId||'Unnamed entry'),cells,enteredValues:Object.fromEntries(Object.entries(cells).map(([key,value])=>[key,sheetCell(value)])),record,deletedAt:new Date().toISOString(),deletedBy:actor.email});
+  }
   if(row>=0){
    const columns=new Map(orderSheetColumns(source.order).map(c=>[c.id,c]));const emptyRow=!keys.some((key,i)=>columns.has(key)&&!key.startsWith('_')&&String(table[row][i]??'').trim());for(const [key,value] of Object.entries(emptyRow?{}:edit.expected||{})){const c=columns.get(key);if(!c||c.derived||key==='_record_id'||key==='_person_id')continue;if(String(table[row][keys.indexOf(key)]??'')!==String(value??''))throw new SheetError("This person changed after it was opened. Reopen the entry before deleting.");}
    const linkedHistory=await sheetPersonHasHistory(db,source.order,edit.recordId);

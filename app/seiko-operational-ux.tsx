@@ -10,7 +10,6 @@ type SavedLabelTask = {
   selectedRows?: string[];
 };
 
-let productHoverCloseTimer = 0;
 let productHoverTarget: HTMLElement | null = null;
 
 function currentBusiness() {
@@ -94,14 +93,12 @@ function orderProductSummary(order: SeikoOrder) {
     return `${product.name} · Qty ${total}${specs.length?` · ${specs.join(" · ")}`:""}`;
   });
 }
-function cancelProductHoverClose(){if(productHoverCloseTimer){window.clearTimeout(productHoverCloseTimer);productHoverCloseTimer=0;}}
-function removeProductHover(){cancelProductHoverClose();productHoverTarget=null;document.querySelector(".orderProductHoverCard")?.remove();}
-function scheduleProductHoverClose(){cancelProductHoverClose();productHoverCloseTimer=window.setTimeout(()=>{productHoverCloseTimer=0;removeProductHover();},120);}
+function removeProductHover(){productHoverTarget=null;document.querySelector(".orderProductHoverCard")?.remove();}
 function showProductHover(target: HTMLElement, order: SeikoOrder){
   removeProductHover();productHoverTarget=target;
   const card=document.createElement("div");card.className="orderProductHoverCard";card.setAttribute("role","dialog");card.setAttribute("aria-label",`${order.details.orderNo} product summary`);
   const title=document.createElement("b");title.textContent=`${order.details.orderNo} products`;const body=document.createElement("div");orderProductSummary(order).forEach(line=>{const row=document.createElement("span");row.textContent=line;body.appendChild(row);});card.append(title,body);
-  card.addEventListener("pointerenter",cancelProductHoverClose);card.addEventListener("pointerleave",scheduleProductHoverClose);card.addEventListener("focusin",cancelProductHoverClose);card.addEventListener("focusout",scheduleProductHoverClose);
+
   document.body.appendChild(card);const box=target.getBoundingClientRect(),measured=card.getBoundingClientRect();card.style.left=`${Math.max(8,Math.min(window.innerWidth-measured.width-8,box.left))}px`;card.style.top=`${Math.max(8,Math.min(window.innerHeight-measured.height-8,box.bottom+6))}px`;
 }
 
@@ -148,10 +145,10 @@ function enhanceOrderCenter(page: HTMLElement) {
       appendMetaItem(meta, "Records", String(order.records.length));
       const productMeta = appendMetaItem(meta, "Products", String(order.products.filter(product => product.name.trim()).length));
       productMeta.classList.add("orderProductMeta"); productMeta.tabIndex = 0;
-      productMeta.addEventListener("pointerenter",()=>{cancelProductHoverClose();showProductHover(productMeta,order);});
-      productMeta.addEventListener("pointerleave",scheduleProductHoverClose);
-      productMeta.addEventListener("focus",()=>{cancelProductHoverClose();showProductHover(productMeta,order);});
-      productMeta.addEventListener("blur",scheduleProductHoverClose);
+      productMeta.addEventListener("pointerenter",()=>{showProductHover(productMeta,order);});
+
+      productMeta.addEventListener("focus",()=>{showProductHover(productMeta,order);});
+
       appendMetaItem(meta, "Delivery", dueLabel(order));
     }
 
@@ -241,18 +238,18 @@ export function SeikoOperationalUx() {
     document.addEventListener("change", schedule, true);
     document.addEventListener("pointerdown", outside, true);
     document.addEventListener("keydown", escape, true);
-    document.addEventListener("scroll", close, true);
+
     window.addEventListener("resize", close);
-    window.addEventListener("blur", close);
+
     window.addEventListener("storage", schedule);
     window.addEventListener("seiko:orders-cache-updated", schedule as EventListener);
     return () => {
       document.removeEventListener("change", schedule, true);
       document.removeEventListener("pointerdown", outside, true);
       document.removeEventListener("keydown", escape, true);
-      document.removeEventListener("scroll", close, true);
+
       window.removeEventListener("resize", close);
-      window.removeEventListener("blur", close);
+
       window.removeEventListener("storage", schedule);
       window.removeEventListener("seiko:orders-cache-updated", schedule as EventListener);
       removeProductHover();

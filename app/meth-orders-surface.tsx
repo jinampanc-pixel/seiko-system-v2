@@ -136,10 +136,10 @@ export function MethOrdersSurface() {
   };
 
   return <section className="jinamDashboard">
-    <div className="jinamDashboardHead"><div><small>METH</small><h1>Orders</h1><p>One operational order model for Shopify, Amazon, marketplaces, B2B and manual sales.</p></div><button className="primary" onClick={() => { setPolicy(defaultPolicy); setError(""); setOpen(true); }}>Add / Import Order</button></div>
+    <div className="jinamDashboardHead"><div><small>METH</small><h1>Orders</h1></div><button className="primary" onClick={() => { setPolicy(defaultPolicy); setError(""); setOpen(true); }}>Add / Import Order</button></div>
     <div className="jinamDashboardSection"><div className="jinamDashboardList">
       {orders.map(order => <div className="jinamDashboardRow" key={order.id}><div><strong>{order.orderNumber}</strong><span>{order.channel.channel.toUpperCase()} · {order.channel.externalOrderNumber || order.channel.externalOrderId} · {order.customerName}</span></div><div><strong>{money(order.lines.reduce((sum, line) => sum + line.quantity * line.unitSellingPrice - line.discount, 0))}</strong><span>{order.customerPaymentStatus} · {order.fulfilmentStatus} · {order.routingDecision === "pending" ? "Decision Required" : order.routingDecision || "stock first"}</span></div></div>)}
-      {!orders.length && <div className="jinamDashboardRow"><strong>No MeTh Orders Yet</strong><span>Connected channel orders will normalize into this same list.</span></div>}
+      {!orders.length && <div className="jinamDashboardRow"><strong>No MeTh Orders Yet</strong></div>}
     </div></div>
     {open && <div className="phase2EditorBackdrop"><form className="phase2Editor" action={createManual}><h2>Add Channel Order</h2>
       {error && <p className="phase2Error">{error}</p>}

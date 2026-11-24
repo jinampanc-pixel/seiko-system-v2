@@ -19,7 +19,8 @@ test("SEIKO quantities use an inline unit editor and show the agreed rate separa
   assert.match(ui, /Completed \/ QC-passed quantity \(units\)/i);
   assert.match(ui, /Chargeable quantity \(units\)/i);
   assert.match(ui, /Agreed manufacturing rate/i);
-  assert.match(ui, /Enter quantities only — not rupee amounts/);
+  assert.doesNotMatch(ui, /Enter quantities only — not rupee amounts/);
+  assert.match(ui, /Agreed Rate: \{money\(item.agreedUnitRate\)\}/);
   assert.match(ui, /Save quantities/i);
   assert.match(css, /\.seikoMethQuantityGrid/);
 });

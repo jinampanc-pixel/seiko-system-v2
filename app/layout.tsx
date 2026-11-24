@@ -44,6 +44,7 @@ import "./packing-workflow-final.css";
 import "./seiko-stable.css";
 import "./seiko-brand-theme.css";
 import "./control-consistency.css";
+import "./mobile-ux.css";
 import { PersonLookup } from "./person-lookup";
 import { AccessProvider } from "./access-control";
 import { BusinessApplicationRouter } from "./business-application-router";
@@ -58,5 +59,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><AccessProvider><PersonLookup/><BusinessApplicationRouter>{children}</BusinessApplicationRouter></AccessProvider></body></html>;
+  return <html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/></head><body><AccessProvider><PersonLookup/><BusinessApplicationRouter>{children}</BusinessApplicationRouter></AccessProvider></body></html>;
 }

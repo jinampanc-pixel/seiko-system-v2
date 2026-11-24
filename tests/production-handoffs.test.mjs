@@ -58,9 +58,9 @@ test('shared production API protects business permissions, fixed releases, dupli
   assert.equal((await call({operation:'list',deliveryFrom:'2026-12-01'})).total,0);
   const selectedPage=await call({operation:'list',page:30,orderIds:[order.orderId,'bulk-1004']});assert.equal(selectedPage.orders.length,2);assert.equal(selectedPage.choices.length,10);
   assert.equal((await call({operation:'list',orderIds:Array.from({length:26},(_,i)=>'bulk-'+i)})).status,400);
-  const listed=await call({operation:'list',orderIds:[order.orderId]});assert.equal(listed.version,0);const h=handoff(domain.productionDemand(listed.orders));
+  const listed=await call({operation:'list',orderIds:[order.orderId]});assert.equal(listed.version,0);const h={...handoff(domain.productionDemand(listed.orders)),notes:"Cut with navy collar",showNotes:true};
   role='viewer';assert.equal((await call({operation:'save',expectedVersion:0,handoff:h})).status,403);role='owner';assert.equal((await call({operation:'list',orderIds:[order.orderId],businessId:'meth'})).status,403);
-  let saved=await call({operation:'save',expectedVersion:0,handoff:h});assert.equal(saved.status,200);assert.equal(saved.version,1);
+  let saved=await call({operation:'save',expectedVersion:0,handoff:h});assert.equal(saved.status,200);assert.equal(saved.version,1);assert.equal(saved.ledger.handoffs[0].notes,h.notes);assert.equal(saved.ledger.handoffs[0].showNotes,true);
   assert.equal((await call({operation:'save',expectedVersion:0,handoff:h})).status,409);
   saved=await call({operation:'release',expectedVersion:1,id:h.id});assert.equal(saved.ledger.handoffs[0].status,'Released');
   assert.equal((await call({operation:'save',expectedVersion:2,handoff:h})).status,409);

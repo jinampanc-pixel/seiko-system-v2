@@ -21,8 +21,8 @@ export default function BackupsPage() {
     <AppBackLink/><h1>Backup &amp; Recovery</h1>
     <OwnerRecovery onClearReview={() => { setBackup(null); setSummary(null); setConfirmation(''); }} onReview={async decoded => { setBackup(null); setSummary(null); setConfirmation(''); const result = await call({ operation: 'dry-run', backup: decoded }); setBackup(decoded); setSummary(result.summary); setMessage('Checksum and schema verified. Review the comparison.'); }}/>
     <details><summary>Advanced Recovery — Manual Files and Offline Tools</summary>
-    <p>Download an encrypted system backup to this PC, then keep a second encrypted copy in your private Google Drive folder. Owner access to all three businesses is required.</p>
-    <p>Includes orders, clients, products stored in shared collections, documents, payments, labels, settings and operational histories. Accounts, passwords, sessions, passkeys and connector secrets are excluded. Unsynced browser drafts must be saved separately.</p>
+
+
     <label>Backup Passphrase (at Least 16 Characters)<input type='password' autoComplete='new-password' value={passphrase} onChange={event => setPassphrase(event.target.value)} style={{ display: 'block', width: '100%', margin: '8px 0' }}/></label>
     <p>Keep this passphrase separately. A lost passphrase cannot be recovered.</p>
     <button type='button' disabled={busy || passphrase.length < 16} onClick={() => void perform(async () => {
@@ -32,7 +32,7 @@ export default function BackupsPage() {
       setMessage('Encrypted download prepared. Check that it was saved to your drive.');
     })}>Download Encrypted Backup</button>
     <h2>Save Available Local Data</h2>
-    <p>If Internet is unavailable while this page is open, save encrypted browser caches and pending changes. This is a partial recovery copy, not a fresh D1 backup. It does not include edits that have not reached browser storage.</p>
+
     <button type='button' disabled={busy || passphrase.length < 16} onClick={() => void perform(async () => {
       const copy = await makeLocalRecovery(localStorage); const encrypted = await encryptLocalRecovery(copy, passphrase);
       const url = URL.createObjectURL(new Blob([JSON.stringify(encrypted)], { type: 'application/octet-stream' }));
@@ -40,7 +40,7 @@ export default function BackupsPage() {
       setMessage(`Encrypted local recovery download prepared: ${Object.keys(copy.entries).length} cached collections. No D1 request was made.`);
     })}>Download Local Recovery Copy</button>
     <ArchiveBrowser passphrase={passphrase}/>
-    <h2>Validate a Recovery Copy</h2><p>Select an encrypted backup and enter its passphrase. Validation compares it with current storage and changes no business records.</p>
+    <h2>Validate a Recovery Copy</h2>
     <label>Encrypted Backup File<input type='file' accept='.seiko-backup,.jinam-local-recovery' disabled={busy} onChange={event => {
       const file = event.target.files?.[0]; setBackup(null); setSummary(null); setConfirmation('');
       if (file) void perform(async () => {
@@ -57,7 +57,7 @@ export default function BackupsPage() {
     </details>
     {summary && <><h2>Recovery Preview</h2><p>New: {summary.new} · Duplicates: {summary.duplicate} · Changed: {summary.changed} · Rejected: {summary.rejected} · Existing: {summary.existing}</p>
       {!summary.numberingCountersIncluded && <p>This older archive has no numbering counters. Numbers above the greatest surviving record cannot be recovered; use a newer backup for complete numbering recovery.</p>}
-      {summary.canRestore ? <><p>Restore is available only into an empty business database. Sign in again first; your ERP session must be less than ten minutes old.</p>
+      {summary.canRestore ? <>
         <label>Type RESTORE EMPTY SYSTEM<input value={confirmation} onChange={event => setConfirmation(event.target.value)}/></label>
         <button type='button' disabled={busy || confirmation !== 'RESTORE EMPTY SYSTEM'} onClick={() => void perform(async () => { const result = await call({ operation: 'restore', backup, confirmation }); setMessage(result.message); setSummary(null); setBackup(null); })}>Restore Empty System</button>
       </> : <p>Existing records are protected. Restore this backup into an isolated recovery database for review.</p>}</>}

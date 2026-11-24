@@ -225,8 +225,8 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
           {formError && <div className="accessError" role="alert">{formError}</div>}
           {!bootstrapOpen && <button className="primary" type="submit" disabled={busy || !identifier.trim() || !password}>{busy ? "Signing In…" : "Sign In"}</button>}
           <button type="button" className="secondary" onClick={() => setBootstrapOpen(value => !value)}>{bootstrapOpen ? "First-owner Setup (One Time)" : "Create First SEIKO Owner"}</button>
-          {bootstrapOpen && <div className="bootstrapPanel"><label><span>Owner Name</span><input value={bootstrapName} onChange={event => setBootstrapName(event.target.value)} /></label><small>Only works while SEIKO has no active owner. Use the email and password above.</small><button type="button" className="primary" onClick={() => void bootstrap()} disabled={busy || !identifier.trim() || password.length < 12}>Create Owner Account</button></div>}
-          <small className="accessLoginHelp">Your administrator creates your account and initial password. Users not listed in the ERP cannot sign in.</small>
+          {bootstrapOpen && <div className="bootstrapPanel"><label><span>Owner Name</span><input value={bootstrapName} onChange={event => setBootstrapName(event.target.value)} /></label><button type="button" className="primary" onClick={() => void bootstrap()} disabled={busy || !identifier.trim() || password.length < 12}>Create Owner Account</button></div>}
+
         </form>
         <ModernLoginOptions onSignedIn={onRetry}/>
       </>}
@@ -236,7 +236,7 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
         <label><span>Confirm Password</span><input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Repeat your password"/></label>
         {formError && <div className="accessError" role="alert">{formError}</div>}
         <button className="primary" type="submit" disabled={busy || newPassword.length < 12 || !confirmPassword}>{busy ? "Saving…" : "Set Password & Continue"}</button>
-        <small className="accessLoginHelp">This replaces the temporary password your administrator gave you.</small>
+
         <button className="secondary" type="button" disabled={busy} onClick={() => void logoutSession()}>Sign Out</button>
       </form>}
 
@@ -294,7 +294,7 @@ function AccessPanel({ onClose }: { onClose: () => void }) {
       </div>}
 
       {tab === "users" && can("users.manage") && <div className="accessPanelBody">
-        <div className="accessUsersToolbar"><div><h3>Users</h3><p>One place to control identity, login and everything each person can see and do.</p></div><button className="primary" onClick={() => setEditing("new")}>+ Add User</button></div>
+        <div className="accessUsersToolbar"><div><h3>Users</h3></div><button className="primary" onClick={() => setEditing("new")}>+ Add User</button></div>
         {error && <div className="accessError">{error}</div>}
         {loadingUsers ? <p>Loading users…</p> : <div className="accessUserList">{users.map(user => <button key={user.email} className={`accessUserRow ${user.active ? "" : "inactive"}`} onClick={() => setEditing(user)}>
           <span className="accessAvatar">{(user.displayName || user.email).slice(0, 1).toUpperCase()}</span>
@@ -434,7 +434,7 @@ function AccessMatrix({ modules, permissions, onModules, onPermissions, readOnly
   const toggleModule = (module: Module) => onModules?.(modules.includes(module) ? modules.filter(item => item !== module) : [...modules, module]);
   const togglePermission = (permission: Permission) => onPermissions?.(permissions.includes(permission) ? permissions.filter(item => item !== permission) : [...permissions, permission]);
   return <div className={`accessMatrix ${readOnly ? "readOnly" : ""}`}>
-    <section><h3>Modules</h3><p>Controls which parts of the system appear for this user.</p><div className="accessModuleGrid">{MODULES.filter(item => item !== "admin").map(module => { const label = module === "home" ? "Home" : module[0].toUpperCase() + module.slice(1); return <label key={module} htmlFor={`access-module-${module}`}><input id={`access-module-${module}`} aria-label={`${label} Module`} type="checkbox" checked={modules.includes(module)} onChange={() => toggleModule(module)} disabled={readOnly}/><span>{label}</span></label>; })}</div></section>
+    <section><h3>Modules</h3><div className="accessModuleGrid">{MODULES.filter(item => item !== "admin").map(module => { const label = module === "home" ? "Home" : module[0].toUpperCase() + module.slice(1); return <label key={module} htmlFor={`access-module-${module}`}><input id={`access-module-${module}`} aria-label={`${label} Module`} type="checkbox" checked={modules.includes(module)} onChange={() => toggleModule(module)} disabled={readOnly}/><span>{label}</span></label>; })}</div></section>
     {groups.map(group => <section key={group}><h3>{group}</h3><div className="permissionGrid">{PERMISSION_DEFINITIONS.filter(item => item.group === group).map(item => <label key={item.key} htmlFor={`access-permission-${item.key}`} title={item.description}><input id={`access-permission-${item.key}`} aria-label={item.label} type="checkbox" checked={permissions.includes(item.key)} onChange={() => togglePermission(item.key)} disabled={readOnly}/><span><strong>{item.label}</strong><small>{item.description}</small></span></label>)}</div></section>)}
   </div>;
 }

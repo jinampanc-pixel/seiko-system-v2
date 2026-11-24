@@ -16,13 +16,6 @@ function tidyTopActions(page: HTMLElement) {
   }
 
   const saveBar = page.querySelector<HTMLElement>(".labelSaveBar");
-  let meaning = page.querySelector<HTMLElement>(".labelSaveMeaning");
-  if (saveBar && !meaning) {
-    meaning = document.createElement("p");
-    meaning.className = "labelSaveMeaning";
-    meaning.innerHTML = "<b>Layout</b> saves the reusable physical design, size, components and placement. <b>Label Set</b> saves this order's selected records for repeat printing.";
-    saveBar.insertAdjacentElement("afterend", meaning);
-  }
   if (saveBar) {
     Array.from(saveBar.querySelectorAll<HTMLButtonElement>("button")).forEach(button => {
       const text = button.textContent?.trim() || "";
@@ -39,7 +32,7 @@ function tidyTopActions(page: HTMLElement) {
     const empty = library.querySelector<HTMLElement>(".emptyLibrary");
     if (eyebrow?.textContent?.toLowerCase().includes("batch")) eyebrow.textContent = "SAVED LABEL SETS";
     if (heading?.textContent?.toLowerCase().includes("batches")) heading.textContent = "Saved Label Sets for This Order";
-    if (empty?.textContent?.toLowerCase().includes("batches")) empty.textContent = "No saved label sets yet. Select the labels you need, then choose Save Label Set.";
+    if (empty?.textContent?.toLowerCase().includes("batches")) empty.textContent = "No saved label sets.";
   });
   page.querySelectorAll<HTMLElement>(".labelSaveNotice").forEach(notice => {
     notice.textContent = notice.textContent?.replace(/Batch/gi, "Label set") || "";
@@ -89,7 +82,7 @@ function organizeInformation(page: HTMLElement) {
     const heading = section.querySelector<HTMLElement>(".simpleDesignerHead h3");
     const note = section.querySelector<HTMLElement>(".simpleDesignerHead small");
     if (heading) heading.textContent = "Label Information";
-    if (note) note.textContent = "Choose the details that should appear on this label.";
+    note?.remove();
 
     const chosenCount = () => section.querySelectorAll(".labelInfoSelectedStripReact .labelInfoChip").length || checklist.querySelectorAll<HTMLInputElement>(':scope > .fieldChoice input[type="checkbox"]:checked').length;
     const toggle = document.createElement("button");
@@ -292,8 +285,6 @@ function cleanCanvasChrome(page: HTMLElement) {
   page.querySelector(".canvasElementResizeControls")?.remove();
   const button = page.querySelector<HTMLButtonElement>(".canvasSizeButton");
   if (button && !button.classList.contains("labelFinalSizeManage")) button.hidden = true;
-  const hint = page.querySelector<HTMLElement>(".canvasToolbar span");
-  if (hint) hint.textContent = "Drag to move. Use the mouse wheel to resize. Arrow keys nudge; Shift + Arrow moves 1 mm.";
 }
 
 function tidyRecordLabels(page: HTMLElement) {

@@ -71,7 +71,7 @@ export function SeikoMethSync() {
         const card = document.createElement("section");
         card.className = "seikoAccessSettings";
         card.dataset.seikoLegalProfile = "true";
-        card.innerHTML = '<div><b>Legal Entity & MeTh Manufacturing</b><p>SEIKO invoices MeTh as a separate legal entity for accepted production.</p></div><button type="button" class="secondary">Open</button>';
+        card.innerHTML = '<div><b>Legal Entity & MeTh Manufacturing</b></div><button type="button" class="secondary">Open</button>';
         card.querySelector("button")?.addEventListener("click", () => setOpen(true));
         settingsPanel.appendChild(card);
       }
@@ -152,7 +152,7 @@ export function SeikoMethSync() {
           <button className="secondary appBackControl" onClick={() => {setOpen(false);window.dispatchEvent(new Event("seiko:home"));}}>← Back</button>
           <small>SEIKO ↔ METH</small>
           <h1>MeTh Manufacturing</h1>
-          <p>MeTh customer orders stay in MeTh. SEIKO receives only explicit production handoffs and creates a real receivable for chargeable output.</p>
+
         </div>
       </header>
 
@@ -211,7 +211,7 @@ export function SeikoMethSync() {
                     <label>Completed / QC-passed Quantity (Units)<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.completed} onChange={event => setQuantityDraft({ ...quantityDraft, completed: event.target.value })}/></label>
                     <label>Chargeable Quantity (Units)<input type="number" min="0" max={item.quantityRequested} step="1" value={quantityDraft.chargeable} onChange={event => setQuantityDraft({ ...quantityDraft, chargeable: event.target.value })}/></label>
                   </div>
-                  <p className="seikoMethQuantityHint">Enter quantities only — not rupee amounts. Agreed rate is {money(item.agreedUnitRate)} per unit. Chargeable quantity is capped by completed quantity, and completed quantity is capped by accepted quantity.</p>
+                  <p className="seikoMethQuantityHint">Agreed Rate: {money(item.agreedUnitRate)} / Unit</p>
                   <div className="seikoMethActions">
                     <button className="primary" type="button" onClick={() => saveQuantities(item)}>Save Quantities</button>
                     <button className="secondary" type="button" onClick={() => setQuantityDraft(null)}>Cancel</button>

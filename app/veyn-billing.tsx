@@ -132,7 +132,7 @@ export function VeynBilling({
     </div>
 
     {!focusOrderId && <div className="panel veynToolbar"><label className="veynSearch"><span>Search</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Institution, order no. or reference"/></label></div>}
-    {focusOrderId && <div className="veynFocusNotice">Showing the selected requirement. Return to Orders to choose another.</div>}
+    {focusOrderId && null}
     {error && <div className="accessError" role="alert">{error}</div>}
 
     <div className="veynPipelineList">

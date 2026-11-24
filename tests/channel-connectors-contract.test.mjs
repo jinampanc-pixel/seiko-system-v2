@@ -45,7 +45,7 @@ test("connector credentials are server references rather than browser secrets", 
   assert.match(connectors, /webhookSecretRef\?: string/);
   assert.match(syncRoute, /jinam_connector_secrets/);
   assert.match(syncRoute, /ciphertext TEXT NOT NULL/);
-  assert.match(settings, /never stored in browser localStorage/);
+  assert.doesNotMatch(settings, /never stored in browser localStorage/);
 });
 
 test("MeTh and SEIKO shared commerce records converge through authoritative D1 changes", () => {

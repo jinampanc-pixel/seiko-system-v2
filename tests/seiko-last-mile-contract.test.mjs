@@ -33,7 +33,7 @@ test("workspace row selection clears when focus leaves row-selection controls", 
   assert.match(structure, /clearTransientRowSelection/);
   assert.match(structure, /workspaceRowHeader,.workspaceRowHeaderCorner,.workspaceContextMenu/);
   assert.match(structure, /document\.addEventListener\("pointerdown",outside,true\)/);
-  assert.match(structure, /document\.addEventListener\("focusin",outside,true\)/);
+  assert.doesNotMatch(structure, /document\.addEventListener\("focusin",outside,true\)/);
 });
 
 test("workspace row drag/drop accepts the whole row and delete uses an in-app confirmation", () => {
@@ -47,11 +47,11 @@ test("workspace row drag/drop accepts the whole row and delete uses an in-app co
 });
 
 test("order product hover popout closes deterministically and cannot leak into Workspace", () => {
-  assert.match(operationalUx, /scheduleProductHoverClose/);
-  assert.match(operationalUx, /productHoverCloseTimer/);
+  assert.doesNotMatch(operationalUx, /scheduleProductHoverClose/);
+  assert.doesNotMatch(operationalUx, /productHoverCloseTimer/);
   assert.match(operationalUx, /enhanceWorkspace[\s\S]{0,240}removeProductHover\(\)/);
   assert.match(operationalUx, /document\.addEventListener\("pointerdown", outside, true\)/);
-  assert.match(operationalUx, /document\.addEventListener\("scroll", close, true\)/);
+  assert.doesNotMatch(operationalUx, /document\.addEventListener\("scroll", close, true\)/);
   assert.match(operationalUx, /event\.key==="Escape"/);
 });
 

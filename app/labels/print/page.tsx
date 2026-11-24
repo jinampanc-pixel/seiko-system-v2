@@ -104,7 +104,7 @@ export default function SavedLabelPrintPage() {
     <section className="savedPrintStatus" style={{ maxWidth: 520, background: "#fff", border: "1px solid #d7e0e6", borderRadius: 14, padding: 24 }}>
       <h1 style={{ marginTop: 0, fontSize: 22 }}>Preparing System Print…</h1>
       <p>{task.name || "Saved label set"} · {labelCount ?? "Preparing"} labels</p>
-      {labelCount === 0 ? <p>No selected people meet this set&apos;s product requirements. Return to Labels to change the selection.</p> : !blocked ? <p>The browser print preview should open automatically.</p> : <><p><b>The embedded browser did not open the system print dialog.</b> Click below once more. If it remains blocked, open this JINAM preview in Chrome or Edge and print there.</p><button type="button" onClick={retry}>Print Now</button></>}
+      {labelCount === 0 ? <p>No selected people meet this set&apos;s product requirements. Return to Labels to change the selection.</p> : !blocked ?  null: <><button type="button" onClick={retry}>Print Now</button></>}
       <button type="button" onClick={() => history.back()} style={{ marginLeft: 10 }}>Cancel</button>
     </section>
     <div className="savedPrintDesigner" aria-hidden="true" style={{ position: "fixed", left: "-200vw", top: 0, width: "1200px", visibility: "hidden", pointerEvents: "none" }}>

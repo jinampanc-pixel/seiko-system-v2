@@ -91,7 +91,7 @@ function enhanceOrderSetup() {
       defaultInput.classList.remove("modeBlockedInput");
       defaultInput.min = "0";
       if (defaultLabel) defaultLabel.textContent = "Default Qty";
-      if (help) help.textContent = "Set the normal quantity once. Add only groups that differ. One exception may contain several values such as 1, 2, 3; quantity 0 means that group does not receive this product.";
+      help?.remove();
       const rules = card.querySelector<HTMLElement>(".quantityGroupRules");
       const summary = rules?.querySelector<HTMLElement>(":scope > summary");
       if (summary) summary.textContent = "Quantity Exceptions by Group";

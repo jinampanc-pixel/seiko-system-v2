@@ -17,6 +17,20 @@ const printing = load("../app/lib/seiko-billing-print.ts", { "./seiko-billing": 
 const invoice = (id = "invoice-test-001") => ({ id, kind: "invoice", clientName: "Test Client", clientPhone: "1234567890", supplier: { name: "SEIKO", address: "", phone: "", bank: "", gstin: "" }, orderId: "", orderNo: "", issueDate: "2026-09-26", taxMode: "non_gst", taxTreatment: "intra_state", lines: [{ id: "line", description: "Vest", quantity: 2, unit: "pc", unitRate: 125, taxRate: 0 }], notes: "", status: "issued" });
 const payment = (id, amount) => ({ id, invoiceId: "invoice-test-001", amount, date: "2026-09-26", mode: "UPI", reference: "test", notes: "" });
 
+test("document notes print only when enabled and nonblank, with no automatic explanatory footer", () => {
+  const bill={...invoice(),notes:"Keep <this> instruction",showNotes:false};
+  assert.doesNotMatch(printing.billingPrintHtml(bill,[],"customer"),/<b>Notes<\/b>|Keep &lt;this&gt;/);
+  const enabled=printing.billingPrintHtml({...bill,showNotes:true},[],"customer");
+  assert.match(enabled,/<b>Notes<\/b><p>Keep &lt;this&gt; instruction<\/p>/);
+  assert.doesNotMatch(printing.billingPrintHtml({...bill,showNotes:true,notes:"  "},[],"customer"),/<b>Notes<\/b>/);
+  const receipt={...payment("notes",50),notes:"Receipt-specific note",showNotes:true};
+  const html=printing.billingPrintHtml({...bill,showNotes:true},[receipt],"customer",receipt);
+  assert.ok(html.includes("Receipt-specific note"));
+  assert.doesNotMatch(html,/Keep &lt;this&gt;|Payment acknowledgement only/);
+  assert.doesNotMatch(printing.billingPrintHtml(bill,[{...receipt,showNotes:false}],"customer",{...receipt,showNotes:false}),/<b>Notes<\/b>|Receipt-specific note/);
+  assert.equal(bill.notes,"Keep <this> instruction");
+});
+
 test("printed status labels are capitalized without changing billing codes or entered text", () => {
   const bill = { ...invoice(), clientName: "aBc School", notes: "keep this exact wording" };
   for (const [payments, code, label] of [[[], "issued", "Issued"], [[payment("part", 50)], "part_paid", "Part Paid"], [[payment("full", 250)], "paid", "Paid"]]) {
@@ -106,7 +120,7 @@ test("Indian money, amount words and professional receipt wording are printed", 
   assert.match(model.formatInr(213000), /2,13,000\.00/); assert.equal(model.amountInWords(213000), "Indian Rupees Two Lakh Thirteen Thousand Only");
   const receipt = { ...payment("payment-01", 213000), invoiceId: "", orderId: "order-1", receiptNumber: "RCP-2026-00001", allocations: [] };
   const html = printing.billingPrintHtml(model.orderReceiptDocument(receipt), [], "customer", receipt);
-  assert.match(html, /Advance balance available/i); assert.match(html, /Payment acknowledgement only; this is not a tax invoice/); assert.doesNotMatch(html, /Unapplied order advance/);
+  assert.match(html, /Advance balance available/i); assert.doesNotMatch(html, /Payment acknowledgement only; this is not a tax invoice/); assert.doesNotMatch(html, /Unapplied order advance/);
 });
 
 test("database persists invoices and idempotent payments, rejecting overpayment and unauthorized writes", async () => {
@@ -146,16 +160,16 @@ test("order advances create receipts before invoices and allocate once across mu
   let manage = true;
   const route = load("../app/api/erp/billing/route.ts", { "cloudflare:workers": { env: { DB: db } }, "../../../lib/seiko-billing": model, "../../../lib/server-erp-auth": { authenticateActor: async () => ({ email: "test@example.invalid" }), authorizePermission: async (_, __, permission) => (permission === "financials.view" || manage) ? { role: "owner" } : null } });
   const call = body => route.POST(new Request("https://test.invalid/api/erp/billing", { method: "POST", body: JSON.stringify(body) }));
-  const advance = { ...payment("order-payment-01", 300), invoiceId: "", orderId: "order-advance", clientName: "Spoofed name", allocations: [{ invoiceId: "wrong", amount: 999 }] };
+  const advance = { ...payment("order-payment-01", 300), invoiceId: "", orderId: "order-advance", clientName: "Spoofed name", notes:"Retained hidden receipt note",showNotes:false, allocations: [{ invoiceId: "wrong", amount: 999 }] };
   try {
     assert.equal((await call({ operation: "payment", payment: { ...advance, orderId: "missing" } })).status, 404);
     let result = await (await call({ operation: "payment", payment: advance })).json();
     assert.equal(result.documents.length, 0);
-    assert.equal(result.payments[0].clientName, "Advance Client");
+    assert.equal(result.payments[0].clientName, "Advance Client");assert.equal(result.payments[0].showNotes,false);assert.equal(result.payments[0].notes,advance.notes);
     assert.equal(result.payments[0].receiptNumber, "RCP-2026-00001");
     assert.equal(model.unappliedOrderPayment(result.payments[0]), 300);
     const html = printing.billingPrintHtml(model.orderReceiptDocument(result.payments[0]), result.payments, "customer", result.payments[0]);
-    assert.match(html, /Against order/i); assert.match(html, /ORD-01/); assert.doesNotMatch(html, /Invoice total|Against invoice/i);
+    assert.doesNotMatch(html,/Retained hidden receipt note/);assert.match(html, /Against order/i); assert.match(html, /ORD-01/); assert.doesNotMatch(html, /Invoice total|Against invoice/i);
     await call({ operation: "payment", payment: advance });
     assert.equal((await call({ operation: "payment", payment: { ...advance, amount: 400 } })).status, 409);
     result = await (await call({ operation: "create", document: { ...invoice("advance-invoice-01"), orderId: "order-advance", issueDate: "2026-09-30" } })).json();
@@ -207,7 +221,7 @@ test("shared client directory saves typed clients, merges duplicate phones and e
 });
 
 test("Home exposes daily billing actions and the billing surface locks background scrolling", () => {
-  const home = fs.readFileSync(new URL("../app/seiko-phase1.tsx", import.meta.url), "utf8");
+  const home = fs.readFileSync(new URL("../app/seiko-phase1.tsx", import.meta.url), "utf8") + fs.readFileSync(new URL("../app/lib/home-preferences.ts", import.meta.url), "utf8");
   const phase2 = fs.readFileSync(new URL("../app/seiko-phase2.tsx", import.meta.url), "utf8");
   const polish = fs.readFileSync(new URL("../app/seiko-billing-polish.css", import.meta.url), "utf8");
   for (const label of ["+ New order", "Record payment", "Create invoice", "Delivery challan", "Quotation", "Packing labels"]) assert.match(home, new RegExp(label.replace("+", "\\+"), "i"));

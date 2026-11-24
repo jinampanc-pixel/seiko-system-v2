@@ -14,7 +14,7 @@ export function Billing({ can }: { businessId: string; can: (permission: Permiss
     <div className="panel billingHero">
       <p className="eyebrow">BILLING</p>
       <h2>Commercial Documents</h2>
-      <p>Quotation → PO → Delivery Challan → Invoice. All four use the same customer, item/service and pricing source so values do not have to be entered again.</p>
+
     </div>
 
     <div className="billingDocumentGrid">
@@ -29,7 +29,7 @@ export function Billing({ can }: { businessId: string; can: (permission: Permiss
       <div>
         <p className="eyebrow">SHARED COMMERCIAL MASTER</p>
         <h3>Products, Services & Catalog</h3>
-        <p>The item/service master used while preparing quotations becomes the source for the business catalog. The catalog is a presentation of the same records—not another product database.</p>
+
       </div>
       <div className="billingCatalogActions">
         <button type="button" className="secondary" disabled={!can("catalog.view")}>View Catalog</button>

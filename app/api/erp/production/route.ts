@@ -66,6 +66,7 @@ export async function POST(request:Request) {
       const previous=ledger.handoffs.find(item=>item.id===input.id);
       if(previous && previous.status!=='Draft')return reply('Released handoffs are fixed. Create an additional handoff for changes.',409);
       if(!['normal','rework','extra','reference'].includes(input.purpose)||typeof input.reason!=='string')return reply('Invalid handoff purpose.');
+      if(input.notes!==undefined&&(typeof input.notes!=='string'||input.notes.length>4000)||input.showNotes!==undefined&&typeof input.showNotes!=='boolean')return reply('Invalid handoff notes.');
       if(input.sourceGroups&&(typeof input.sourceGroups!=='object'||Array.isArray(input.sourceGroups)||Object.entries(input.sourceGroups).some(([id,group])=>!ids.includes(id)||!validOrderGroup(group))))return reply('Choose valid source order groups.');
       const demand=productionDemand(orders,input.sourceGroups);const seen=new Set<string>();
       let allocations=[];
@@ -81,6 +82,7 @@ export async function POST(request:Request) {
       const layIds=new Set<string>();
       for(const lay of input.lays){if(typeof lay.id!=='string'||!lay.id||layIds.has(lay.id)||['pattern','fabric','width','stretch','grain','direction','checks'].some(key=>typeof lay[key as keyof typeof lay]!=='string')||typeof lay.confirmed!=='boolean')return reply('Invalid cutting lay.');layIds.add(lay.id);}
       target={id:input.id,number:previous?.number||`PH-${String((await db.prepare("SELECT COUNT(*) AS total FROM jinam_shared_records WHERE scope=? AND collection=? AND id!='ledger'").bind(business,collection).first<{total:number}>())!.total+1).padStart(5,'0')}`,name:input.name.trim(),status:'Draft',...(input.sourceGroups?{sourceGroups:input.sourceGroups}:{}),purpose:input.purpose,reason:input.reason,allocations,lays:input.lays,events:[],createdAt:previous?.createdAt||now,history:[...(previous?.history||[]),{at:now,actor:actor.email,action:'Draft saved'}]};
+      target.notes=input.notes??previous?.notes??'';target.showNotes=input.showNotes??previous?.showNotes??false;
       if(previous)ledger.handoffs=ledger.handoffs.map(item=>item.id===target!.id?target!:item);else ledger.handoffs.push(target);
       if(body.release){try{validateRelease(target,ledger,demand);reserveMembers(target,ledger,demand);}catch(error){return reply((error as Error).message,409);}guards.push(...orders.filter(item=>target!.allocations.some(row=>row.orderId===item.order.orderId)));target.status="Released";target.history.push({at:now,actor:actor.email,action:"Released to production"});}
     }else{

@@ -49,6 +49,7 @@ export type SeikoCommercialDocument = {
   taxTreatment: "intra_state" | "inter_state";
   lines: SeikoBillingLine[];
   notes: string;
+  showNotes?: boolean;
   status: "draft" | "issued" | "cancelled" | "paid" | "part_paid";
   createdAt: string;
   updatedAt: string;
@@ -92,6 +93,7 @@ export type SeikoPaymentRecord = {
   mode: string;
   reference: string;
   notes: string;
+  showNotes?: boolean;
   createdAt: string;
 };
 

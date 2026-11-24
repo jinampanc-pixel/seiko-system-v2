@@ -80,11 +80,12 @@ export function WorkspaceStructureInteractions(){useEffect(()=>{
   const clear=()=>clearDropHints();
   const outside=(event:Event)=>{const target=event.target as Element|null;if(!target?.closest?.(".workspaceContextMenu,.seikoConfirmLayer"))closeContextMenu();if(!target?.closest?.(".workspaceRowHeader,.workspaceRowHeaderCorner,.workspaceContextMenu,.seikoConfirmLayer"))clearTransientRowSelection();};
   const closeTransient=()=>closeContextMenu();
+  const escape=(event:KeyboardEvent)=>{if(event.key==="Escape"&&document.querySelector(".workspaceContextMenu")){event.preventDefault();event.stopPropagation();closeContextMenu();}};
   document.addEventListener("dragend",clear,true);
   document.addEventListener("pointerdown",outside,true);
-  document.addEventListener("focusin",outside,true);
-  document.addEventListener("scroll",closeTransient,true);
+  document.addEventListener("keydown",escape,true);
+
   window.addEventListener("resize",closeTransient);
-  window.addEventListener("blur",closeTransient);
-  return()=>{document.removeEventListener("dragend",clear,true);document.removeEventListener("pointerdown",outside,true);document.removeEventListener("focusin",outside,true);document.removeEventListener("scroll",closeTransient,true);window.removeEventListener("resize",closeTransient);window.removeEventListener("blur",closeTransient);clearDropHints();clearTransientRowSelection();closeContextMenu();document.querySelector(".seikoConfirmLayer")?.remove();controller.stop();};
+
+  return()=>{document.removeEventListener("dragend",clear,true);document.removeEventListener("pointerdown",outside,true);document.removeEventListener("keydown",escape,true);window.removeEventListener("resize",closeTransient);clearDropHints();clearTransientRowSelection();closeContextMenu();document.querySelector(".seikoConfirmLayer")?.remove();controller.stop();};
 },[]);return null;}

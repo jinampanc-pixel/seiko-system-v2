@@ -43,6 +43,7 @@ import "../../app/packing-workflow-final.css";
 import "../../app/seiko-stable.css";
 import "../../app/seiko-brand-theme.css";
 import "../../app/control-consistency.css";
+import "../../app/mobile-ux.css";
 import { createRoot } from "react-dom/client";
 import { PersonLookup } from "../../app/person-lookup";
 import { AccessProvider } from "../../app/access-control";

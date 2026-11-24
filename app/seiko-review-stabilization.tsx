@@ -229,7 +229,7 @@ function clickInfoChoice(page: HTMLElement, label: string) {
 function ensureTraceTools(page: HTMLElement) {
   const host = page.querySelector<HTMLElement>(".finalTraceTools"); if (!host || host.dataset.reviewReady) return;
   host.dataset.reviewReady = "true";
-  host.innerHTML = '<p class="eyebrow">TRACE & CODES</p><p>Add trace information here without leaving this packing-label workspace.</p><div class="finalTraceGrid"><button type="button" data-tool="number">Label number</button><button type="button" data-tool="order">Order number</button><button type="button" data-tool="sequence">Sequence</button><button type="button" data-tool="text">Fixed text</button><button type="button" data-tool="qr">QR code</button><button type="button" data-tool="barcode">Barcode</button></div>';
+  host.innerHTML = '<p class="eyebrow">TRACE & CODES</p><div class="finalTraceGrid"><button type="button" data-tool="number">Label number</button><button type="button" data-tool="order">Order number</button><button type="button" data-tool="sequence">Sequence</button><button type="button" data-tool="text">Fixed text</button><button type="button" data-tool="qr">QR code</button><button type="button" data-tool="barcode">Barcode</button></div>';
   host.querySelectorAll<HTMLButtonElement>("[data-tool]").forEach(button => button.addEventListener("click", () => {
     const tool = button.dataset.tool || "";
     if (tool === "number") clickInfoChoice(page, "Label number / total");

@@ -224,15 +224,11 @@ export function WorkspaceShortcuts() {
     observer.observe(document.body, { childList: true, subtree: true });
     document.addEventListener("keydown", onKeyDown, true);
     document.addEventListener("pointerdown", closeTools, true);
-    document.addEventListener("focusin", closeTools, true);
-    document.addEventListener("scroll", closeTools, true);
     window.addEventListener("resize", closeTools);
     return () => {
       observer.disconnect();
       document.removeEventListener("keydown", onKeyDown, true);
       document.removeEventListener("pointerdown", closeTools, true);
-      document.removeEventListener("focusin", closeTools, true);
-      document.removeEventListener("scroll", closeTools, true);
       window.removeEventListener("resize", closeTools);
     };
   }, []);

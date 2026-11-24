@@ -37,7 +37,7 @@ export function ProductQuantitySetup({ order, product, onChange, nameControl, re
     </div>
     {product.recipientWhen && <div className="productRecipientRules">
       {single ? <label><span>{single.name} Values</span><input aria-label="Recipient Matching Values" list={listId} placeholder="Value, list or range" value={conditions[0].match} onChange={event => onChange({ ...product, recipientWhen: { ...product.recipientWhen, conditions: [{ fieldId: single.id, match: event.target.value }] } })}/><datalist id={listId}>{single.options.map(value => <option key={value} value={value}/>)}</datalist></label> : <RuleConditions fields={fields} rule={product.recipientWhen} onChange={recipientWhen => onChange({ ...product, recipientWhen })}/>}
-      <p>Only matching people receive this product. Use the values entered in Person details; commas and ranges are supported.</p>
+
     </div>}
     {product.quantityMode === "same_for_all" && <button type="button" className="textButton productQuantityOptions" aria-expanded={advanced} onClick={() => setShowRules(value => !value)}>Quantity Options</button>}
     {advanced && <div className="productQuantityRules">

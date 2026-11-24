@@ -30,9 +30,9 @@ test("workspace keeps its two header bands together without covering row one", (
 test("workspace transient menus close when work continues elsewhere", () => {
   assert.match(shortcuts, /workspaceCompactTools\[open\]/);
   assert.match(shortcuts, /document\.addEventListener\("pointerdown", closeTools, true\)/);
-  assert.match(shortcuts, /document\.addEventListener\("scroll", closeTools, true\)/);
+  assert.doesNotMatch(shortcuts, /document\.addEventListener\("scroll", closeTools, true\)/);
   assert.match(structure, /document\.addEventListener\("pointerdown",outside,true\)/);
-  assert.match(structure, /window\.addEventListener\("blur",closeTransient\)/);
+  assert.doesNotMatch(structure, /window\.addEventListener\("blur",closeTransient\)/);
 });
 
 test("Order Center cannot return with invisible stale filters", () => {

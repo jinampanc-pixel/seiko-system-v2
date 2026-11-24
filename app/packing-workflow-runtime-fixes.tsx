@@ -193,10 +193,6 @@ function ensureInspector(page: HTMLElement) {
     fitButton.title = "Tighten the field area around the current text so it can move farther to the edge.";
     fitButton.addEventListener("click", () => requestAnimationFrame(() => fitSelectedBox(page, false)));
     controls.appendChild(fitButton);
-    const hint = document.createElement("small");
-    hint.className = "packingInspectorHint";
-    hint.textContent = "Wheel changes text size · Fit box removes unused area · long records still shrink only when needed.";
-    controls.appendChild(hint);
   }
 }
 

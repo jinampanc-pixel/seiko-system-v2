@@ -1,4 +1,5 @@
 "use client";
+import { HelpCenter } from "./help-center";
 import { CloseIcon } from "./ui-icons";
 
 /* Exact business logos are intentionally rendered as supplied assets. */
@@ -129,6 +130,7 @@ function StandaloneNavigation({ businesses, businessId, onBusinessChange }: {
         {visible.map(item => <button type="button" className={`nav ${item.intent === "labels" ? "active" : ""}`} key={item.intent} onClick={() => goToRoot(item.intent)}>
           <span>{item.icon}</span><small>{item.label}</small>
         </button>)}
+        <button type="button" className="nav" onClick={()=>{setOpen(false);window.dispatchEvent(new Event("jinam:open-help"));}}><span>?</span><small>Help & Training</small></button>
         {canAccess(membership, "admin") && <div className="moduleMenuSettings">
           <button type="button" className="nav" onClick={() => goToRoot("settings")}><span>⚙</span><small>Settings</small></button>
         </div>}
@@ -225,7 +227,7 @@ export function GlobalNavigation() {
     else window.location.assign(rootUrl(nextBusinessId));
   };
 
-  return <>
+  return <><HelpCenter/>
     {menuHost && !standaloneLabels && createPortal(<><BusinessNavigator businesses={visibleBusinesses} businessId={businessId} onChange={changeBusiness}/></>, menuHost)}
     {createHeader && standaloneLabels && createPortal(<StandaloneNavigation businesses={visibleBusinesses} businessId={businessId} onBusinessChange={changeBusiness}/>, createHeader)}
   </>;
