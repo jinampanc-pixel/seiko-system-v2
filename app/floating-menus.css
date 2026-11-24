@@ -1,0 +1,7 @@
+.floatingMenuPanel:popover-open{position:fixed!important;inset:auto!important;margin:0!important;box-sizing:border-box!important;display:grid!important;gap:4px!important;width:260px;overflow:auto!important;overscroll-behavior:contain;padding:8px!important;border:1px solid var(--gold,#c3a06c)!important;border-radius:10px!important;background:var(--paper,#fbf5ed)!important;color:var(--navy,#173c5e)!important;box-shadow:0 12px 32px #173c5e30!important;z-index:2147483000!important}
+.floatingMenuPanel:popover-open>:is(button,a){display:flex!important;align-items:center!important;justify-content:flex-start!important;text-align:left!important;white-space:normal!important;width:100%!important;min-height:44px!important;height:auto!important;margin:0!important;padding:10px 12px!important;border:0!important;border-radius:6px!important;background:transparent!important;color:inherit!important;line-height:1.35!important;font:inherit}
+.floatingMenuPanel:popover-open>:is(button,a):hover{background:color-mix(in srgb,var(--gold,#c3a06c) 18%,transparent)!important}
+.floatingMenuPanel:popover-open>:is(button,a):focus-visible{outline:2px solid currentColor;outline-offset:-2px}
+.floatingMenuPanel:popover-open>button:disabled{opacity:.5}
+.floatingMenuPanel:popover-open>b{padding:8px 12px;font-size:13px}
+.floatingMenuPanel.billingFilterPanel:popover-open{width:330px;gap:12px!important}

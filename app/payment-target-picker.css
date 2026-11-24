@@ -2,3 +2,5 @@
 .phase2Scrim.billingFormScrim>.paymentTargetPicker{width:min(800px,100%);max-width:100%;min-width:0;box-sizing:border-box}
 body[data-seiko-palette="true"] .paymentTargetTabs button[aria-pressed=true]{background:#173c5e!important;color:#fbf5ed!important;border-color:#173c5e!important}
 body[data-seiko-palette="true"] .paymentTargetTabs button[aria-pressed=true] span{color:inherit!important}
+
+.paymentPickerScrim{z-index:2200!important}.quickPaymentAction{width:100%;min-height:44px;margin-bottom:14px}

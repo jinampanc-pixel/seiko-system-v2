@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
-import { allocateOrderPayments, documentTotals, roundMoney, validBillingDate, validateBillingDocument, type SeikoCommercialDocument, type SeikoPaymentRecord } from "../../../lib/seiko-billing";
+import { allocateOrderPayments, invoiceOutstanding, documentTotals, roundMoney, validBillingDate, validateBillingDocument, type SeikoCommercialDocument, type SeikoPaymentRecord } from "../../../lib/seiko-billing";
 import { billingSnapshotError, type BillingProfile } from "../../../lib/billing-profile";
 
 type DocumentRow = { sequence: number; id: string; data: string; cancelled: number };
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const reader = request.body?.getReader();
   const chunks: Uint8Array[] = []; let size = 0;
   if (reader) { for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.byteLength; if (size > 1024 * 1024) { await reader.cancel(); return reply("Document is too large.", 413); } chunks.push(part.value); } }
-  let body: { requestedBy?:string; operation?: string; id?: string; orderId?: string; taxMode?: "gst" | "non_gst"; document?: SeikoCommercialDocument; payment?: SeikoPaymentRecord };
+  let body: { requestedBy?:string; operation?: string; id?: string; orderId?: string; taxMode?: "gst" | "non_gst"; document?: SeikoCommercialDocument; payment?: SeikoPaymentRecord; invoiceId?:string; expectedRevision?:number; expectedUpdatedAt?:string };
   try { const bytes = new Uint8Array(size); let offset = 0; for (const part of chunks) { bytes.set(part, offset); offset += part.length; } body = JSON.parse(new TextDecoder().decode(bytes)); }
   catch { return reply("Invalid request."); }
   if(body.requestedBy&&body.requestedBy!==actor.email)return reply("This pending document belongs to another signed-in user.",403);
@@ -115,6 +115,43 @@ export async function POST(request: Request) {
       // Check both the original revision and payments in the same statement as the amendment.
       const amended = await db.prepare("UPDATE seiko_billing_documents SET data = ?, total_paise = ? WHERE id = ? AND data = ? AND cancelled = 0 AND (? <> 'invoice' OR ? >= COALESCE((SELECT SUM(amount_paise) FROM seiko_billing_payments WHERE invoice_id = ?),0) OR ? >= ?)").bind(JSON.stringify(saved), totalPaise, saved.id, row.data, saved.kind, totalPaise, saved.id, totalPaise, Math.round(documentTotals(original).total*100)).run();
       if (!amended.meta?.changes) return reply("This document or its payments changed while you were editing. Refresh before amending again.", 409);
+    } else if (body.operation === "link_payment") {
+      if(typeof body.id!=="string"||typeof body.invoiceId!=="undefined"&&(typeof body.invoiceId!=="string"||body.invoiceId.length>200)||(!body.orderId&&!body.invoiceId)||body.orderId&&body.invoiceId)return reply("Choose one order or invoice.");
+      const row=await db.prepare("SELECT sequence,id,data FROM seiko_billing_payments WHERE id=?").bind(body.id).first<PaymentRow>();
+      if(!row)return reply("Payment slip not found.",404);
+      const original=paymentFromRow(row);
+      if(original.invoiceId||original.orderId)return reply("This receipt is already linked. Refresh the payment list.",409);
+      if((original.revision||0)!==(body.expectedRevision||0)||original.updatedAt!==body.expectedUpdatedAt)return reply("This receipt changed. Reload before linking it.",409);
+      const now=new Date().toISOString();
+      let target:{invoiceId:string;orderId:string;orderNo:string;clientName:string;clientPhone:string};
+      let invoiceData="";
+      // Guard the complete payment snapshot: concurrent receipts/advances cannot consume the same balance.
+      const stampSql="COALESCE((SELECT group_concat(id || ':' || data, '|') FROM (SELECT id,data FROM seiko_billing_payments ORDER BY id)),'')";
+      const docStampSql="COALESCE((SELECT group_concat(id || ':' || data || ':' || cancelled, '|') FROM (SELECT id,data,cancelled FROM seiko_billing_documents ORDER BY id)),'')";
+      const stamp=await db.prepare("SELECT "+stampSql+" AS stamp, "+docStampSql+" AS docs").first<{stamp:string;docs:string}>();
+      if(body.invoiceId){
+        const invoiceRow=await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE id=?").bind(body.invoiceId).first<DocumentRow>();
+        if(!invoiceRow||invoiceRow.cancelled)return reply("Choose an active invoice.",409);
+        const invoice=documentFromRow(invoiceRow);invoiceData=invoiceRow.data;
+        if(invoice.kind!=="invoice"||invoice.deletedAt||original.date<invoice.issueDate)return reply("Choose an invoice issued on or before the payment date.");
+        const documents=await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents").all<DocumentRow>();
+        const payments=await db.prepare("SELECT sequence,id,data FROM seiko_billing_payments ORDER BY sequence DESC").all<PaymentRow>();
+        const allocated=allocateOrderPayments(documents.results.map(documentFromRow),payments.results.map(paymentFromRow));
+        if(original.amount>invoiceOutstanding(invoice,allocated))return reply("The slip exceeds this invoice's balance. Link it to the order to keep the excess as an advance.",409);
+        target={invoiceId:invoice.id,orderId:invoice.orderId||"",orderNo:invoice.orderNo||"",clientName:invoice.clientName,clientPhone:invoice.clientPhone||""};
+      }else{
+        const order=await db.prepare("SELECT document_json,status FROM erp_orders WHERE id=? AND business_id='seiko' AND json_extract(document_json,'$.deletedAt') IS NULL").bind(body.orderId).first<{document_json:string;status:string}>();
+        if(!order||order.status==="Cancelled")return reply("Choose an active order.",409);
+        const details=JSON.parse(order.document_json).details;
+        target={invoiceId:"",orderId:body.orderId!,orderNo:details.orderNo||"",clientName:details.clientName||"",clientPhone:details.contactNumber||""};
+      }
+      const saved:SeikoPaymentRecord={...original,...target,linkedAt:now,linkedBy:actor.email,originalPayer:original.clientName,originalPhone:original.clientPhone,updatedAt:now,revision:(original.revision||0)+1};
+      const json=JSON.stringify(saved);
+      const result=await db.batch([
+        db.prepare("UPDATE seiko_billing_payments SET invoice_id=?,data=? WHERE id=? AND data=? AND "+stampSql+"=? AND "+docStampSql+"=? AND (?='' OR EXISTS(SELECT 1 FROM seiko_billing_documents WHERE id=? AND data=? AND cancelled=0)) AND (?='' OR EXISTS(SELECT 1 FROM erp_orders WHERE id=? AND business_id='seiko' AND status<>'Cancelled' AND json_extract(document_json,'$.deletedAt') IS NULL))").bind(saved.invoiceId,json,row.id,row.data,stamp?.stamp||"",stamp?.docs||"",saved.invoiceId,saved.invoiceId,invoiceData,body.orderId||"",body.orderId||""),
+        db.prepare("INSERT INTO erp_audit_events(id,business_id,entity_type,entity_id,action,version,actor_user_id,actor_email,at,snapshot_json) SELECT ?,'seiko','billing-payment',?,'link',?,?,?,?,? WHERE EXISTS(SELECT 1 FROM seiko_billing_payments WHERE id=? AND data=?)").bind(crypto.randomUUID(),row.id,saved.revision,actor.userId,actor.email,now,JSON.stringify({before:original,after:saved}),row.id,json)
+      ]);
+      if(!result[0].meta.changes)return reply("Receipt, order or invoice balance changed. Refresh before linking.",409);
     } else if (body.operation === "amend_payment") {
       const draft=body.payment;
       if(!draft?.id)return reply("Choose a receipt to amend.");
@@ -143,7 +180,7 @@ export async function POST(request: Request) {
       const payment = body.payment;
       if(payment?.showNotes!==undefined&&typeof payment.showNotes!=="boolean")return reply("Invalid receipt notes setting.");
       if (!payment || typeof payment.id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(payment.id) || typeof payment.invoiceId !== "string") return reply("Invalid payment.");
-      if (!Number.isFinite(payment.amount) || payment.amount <= 0 || payment.amount > 1_000_000_000 || roundMoney(payment.amount) !== payment.amount || !validBillingDate(payment.date) || !payment.mode?.trim()) return reply("Enter a positive amount with at most two decimal places, a valid date and payment mode.");
+      if (!Number.isFinite(payment.amount) || payment.amount <= 0 || payment.amount > 1_000_000_000 || roundMoney(payment.amount) !== payment.amount || !validBillingDate(payment.date) || (typeof payment.mode!=="string"||!payment.mode.trim())) return reply("Enter a positive amount with at most two decimal places, a valid date and payment mode.");
       if (payment.appearance) {
         // Appearance is a snapshot only; it must not override receipt/invoice financial fields.
         const { supplier, signatory, showSignatory, showSignature, showStamp, showSigningDate, signingDate } = payment.appearance;
@@ -153,8 +190,16 @@ export async function POST(request: Request) {
         if (showSigningDate && (!signingDate || !validBillingDate(signingDate))) return reply("Choose a valid signing date.");
         if ((showSignature && !signatory?.signature) || (showStamp && !signatory?.stamp)) return reply("Choose a saved signatory with the selected assets.");
       }
-      // A receipt belongs either to a verified order or to a standalone invoice.
-      if (!payment.invoiceId) {
+      // Payments may be collected first and linked to a verified source later.
+      if (!payment.invoiceId && !payment.orderId) {
+        if(typeof payment.clientName!=="string"||!payment.clientName.trim()||payment.clientName.length>200||String(payment.clientPhone||"").length>80)return reply("Enter the payer name and a valid phone number.");
+        const now=new Date().toISOString();
+        const saved:SeikoPaymentRecord={id:payment.id,invoiceId:"",orderId:"",receiptNumber:"",clientName:payment.clientName.trim(),clientPhone:String(payment.clientPhone||""),amount:payment.amount,date:payment.date,mode:payment.mode.trim(),reference:String(payment.reference||""),notes:String(payment.notes||""),showNotes:payment.showNotes,appearance:payment.appearance,createdAt:now};
+        await db.prepare("INSERT INTO seiko_billing_payments(id,invoice_id,amount_paise,data,created_by) VALUES (?,'',?,?,?) ON CONFLICT(id) DO NOTHING").bind(saved.id,Math.round(saved.amount*100),JSON.stringify(saved),actor.email).run();
+        const stored=await db.prepare("SELECT data FROM seiko_billing_payments WHERE id=?").bind(saved.id).first<{data:string}>();
+        const existing=stored&&JSON.parse(stored.data);
+        if(!existing||existing.invoiceId||existing.orderId||existing.amount!==saved.amount||existing.date!==saved.date||existing.clientName!==saved.clientName||existing.clientPhone!==saved.clientPhone||existing.mode!==saved.mode||existing.reference!==saved.reference||existing.notes!==saved.notes)return reply("This payment reference was already saved with different details.",409);
+      } else if (!payment.invoiceId) {
         if (typeof payment.orderId !== "string" || !payment.orderId) return reply("Choose an order for this payment.");
         const orderRow = await db.prepare("SELECT document_json,status FROM erp_orders WHERE id = ? AND business_id = 'seiko' AND json_extract(document_json, '$.deletedAt') IS NULL").bind(payment.orderId).first<{ document_json: string; status: string }>();
         if (!orderRow) return reply("Order was not found. Save the order before taking payment.", 404);

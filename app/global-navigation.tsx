@@ -1,4 +1,6 @@
 "use client";
+import { useMenuArrangement } from "./menu-arrangement";
+import { FloatingMenus } from "./floating-menus";
 import { HelpCenter } from "./help-center";
 import { CloseIcon } from "./ui-icons";
 
@@ -141,6 +143,7 @@ function StandaloneNavigation({ businesses, businessId, onBusinessChange }: {
 }
 
 export function GlobalNavigation() {
+  useMenuArrangement();
 
   const [businesses, setBusinesses] = useState<BusinessMembership[]>(fallbackBusinesses);
   const [businessId, setBusinessId] = useState(currentBusinessId);
@@ -228,7 +231,7 @@ export function GlobalNavigation() {
     else window.location.assign(rootUrl(nextBusinessId));
   };
 
-  return <><HelpCenter/>
+  return <><HelpCenter/><FloatingMenus/>
     {menuHost && !standaloneLabels && createPortal(<><BusinessNavigator businesses={visibleBusinesses} businessId={businessId} onChange={changeBusiness}/></>, menuHost)}
     {createHeader && standaloneLabels && createPortal(<StandaloneNavigation businesses={visibleBusinesses} businessId={businessId} onBusinessChange={changeBusiness}/>, createHeader)}
   </>;

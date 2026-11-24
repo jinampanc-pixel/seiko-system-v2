@@ -75,6 +75,7 @@ export type SeikoCommercialDocument = {
 };
 
 export type SeikoPaymentRecord = {
+  linkedAt?:string; linkedBy?:string; originalPayer?:string; originalPhone?:string;
   updatedAt?: string;
   revision?: number;
   amendedAt?: string;
@@ -240,7 +241,7 @@ export function unappliedOrderPayment(payment: SeikoPaymentRecord) {
   return payment.invoiceId ? 0 : Math.max(0, roundMoney(payment.amount - (payment.allocations || []).reduce((sum,a) => sum + a.amount, 0)));
 }
 export function orderReceiptDocument(payment: SeikoPaymentRecord): SeikoCommercialDocument {
-  return { ...payment.appearance, id: "receipt:" + payment.id, kind: "payment_receipt", number: payment.receiptNumber, orderId: payment.orderId, orderNo: payment.orderNo || payment.orderId, clientName: payment.clientName || "Order payment", clientPhone: payment.clientPhone || "", issueDate: payment.date, taxMode: "non_gst", taxTreatment: "intra_state", lines: [], notes: "", status: "issued", createdAt: payment.createdAt, updatedAt: payment.createdAt };
+  return { ...payment.appearance, id: "receipt:" + payment.id, kind: "payment_receipt", number: payment.receiptNumber, orderId: payment.orderId, orderNo: payment.orderNo || payment.orderId, clientName: payment.clientName || "Payment", clientPhone: payment.clientPhone || "", issueDate: payment.date, taxMode: "non_gst", taxTreatment: "intra_state", lines: [], notes: "", status: "issued", createdAt: payment.createdAt, updatedAt: payment.createdAt };
 }
 
 /** Display-only labels; persisted billing status codes stay unchanged. */

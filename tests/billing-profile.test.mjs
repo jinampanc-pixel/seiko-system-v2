@@ -11,14 +11,14 @@ const profiles=load('app/lib/billing-profile.ts');
 const model=load('app/lib/seiko-billing.ts');
 const print=load('app/lib/seiko-billing-print.ts',{'./seiko-billing':model});
 function fixture(){
- const sql=new DatabaseSync(':memory:');for(const file of fs.readdirSync('migrations').sort())sql.exec(fs.readFileSync('migrations/'+file,'utf8'));let role='owner',email='owner@example.com';
- const db={withSession(){return this;},async batch(stmts){sql.exec('BEGIN');try{const result=stmts.map(s=>s.runSync());sql.exec('COMMIT');return result;}catch(e){sql.exec('ROLLBACK');throw e;}},prepare(query){const stmt=sql.prepare(query);let args=[];return {bind(...v){args=v;return this;},runSync(){return {meta:{changes:Number(stmt.run(...args).changes)}};},async run(){return this.runSync();},async first(){return stmt.get(...args)||null;},async all(){return {results:stmt.all(...args)};}};}};
+ const sql=new DatabaseSync(':memory:');for(const file of fs.readdirSync('migrations').sort())sql.exec(fs.readFileSync('migrations/'+file,'utf8'));let role='owner',email='owner@example.com',beforeBatch=null;
+ const db={withSession(){return this;},async batch(stmts){if(beforeBatch){const hook=beforeBatch;beforeBatch=null;hook(sql);}sql.exec('BEGIN');try{const result=stmts.map(s=>s.runSync());sql.exec('COMMIT');return result;}catch(e){sql.exec('ROLLBACK');throw e;}},prepare(query){const stmt=sql.prepare(query);let args=[];return {bind(...v){args=v;return this;},runSync(){return {meta:{changes:Number(stmt.run(...args).changes)}};},async run(){return this.runSync();},async first(){return stmt.get(...args)||null;},async all(){return {results:stmt.all(...args)};}};}};
  let grants=[];
  const auth={authenticateActor:async()=>({email,userId:email}),authorizePermission:async(_actor,_business,permission)=>(permission).toLowerCase().startsWith("billing.documents.")&&role!=='owner'&&!grants.includes(permission)?null:({role})};
  const imports={'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/billing-profile':profiles,'../../../lib/seiko-billing':model};
  const api=load('app/api/erp/billing-profile/route.ts',imports), billing=load('app/api/erp/billing/route.ts',imports);
  const call=(body,route=api)=>route.POST(new Request('https://test.invalid/api/erp/billing-profile',{method:'POST',headers:{origin:'https://test.invalid'},body:JSON.stringify(body)}));
- return {sql,call,billing,profileApi:api,actor:(r,e)=>{role=r;email=e;},grant:(...v)=>{grants=v;}};
+ return {sql,call,billing,beforeBatch:fn=>{beforeBatch=fn;},profileApi:api,actor:(r,e)=>{role=r;email=e;},grant:(...v)=>{grants=v;}};
 }
 test('profile ownership, delegated access, version conflicts and audit history are enforced server-side',async()=>{
  const f=fixture();try{
@@ -132,4 +132,31 @@ test('label preferences apply to legacy multiline bank details',()=>{
  const d={id:'legacy-labels',number:'INV',kind:'invoice',issueDate:'2026-10-22',taxMode:'non_gst',lines:[{description:'Uniform',quantity:1,unitRate:100,taxRate:0}],supplier:{name:'SEIKO',showBank:true,bank:'A/c No.: 123456\nIFSC Code: TEST0001\nA/c Name: Merchant'}};
  const html=print.billingPrintHtml(d,[],'customer',undefined,{fieldLabels:{accountNumber:{showLabel:false,label:'Account number'},ifsc:{showLabel:true,label:'Bank code'}}});
  assert.match(html,/<p>123456<\/p>/);assert.match(html,/Bank code: TEST0001/);assert.match(html,/Account name: Merchant/i);assert.doesNotMatch(html,/A\/c No\.:/);
+});
+test('quick slips save once, link without duplication and reject stale, overpaid or repeated links',async()=>{
+ const f=fixture();try{
+  const call=async body=>{const response=await f.call(body,f.billing);return {status:response.status,...await response.json()};};
+  const slip={id:'quick-slip-0001',invoiceId:'',orderId:'',receiptNumber:'',clientName:'Walk-in payer',clientPhone:'9999999999',amount:75,date:'2026-10-23',mode:'Cash',reference:'cash-1',notes:'',createdAt:''};
+  let r=await call({operation:'payment',payment:slip});assert.equal(r.status,200,JSON.stringify(r));
+  const saved=r.payments[0],number=saved.receiptNumber;assert.ok(number);assert.equal(saved.orderId,'');
+  r=await call({operation:'payment',payment:slip});assert.equal(r.payments.length,1);
+  assert.equal((await call({operation:'payment',payment:{...slip,amount:90}})).status,409);
+  const html=print.billingPrintHtml(model.orderReceiptDocument(saved),[saved],'customer',saved);assert.match(html,/Unlinked Payment Slip/);assert.doesNotMatch(html,/Against Order/);
+  const invoice={id:'quick-invoice-01',kind:'invoice',orderId:'',orderNo:'',clientName:'Invoice client',clientPhone:'1234567890',issueDate:'2026-10-22',taxMode:'non_gst',taxTreatment:'intra_state',lines:[{id:'line',description:'Uniform',quantity:1,unit:'pc',unitRate:100,taxRate:0}],notes:'',supplier:{name:'SEIKO'}};
+  assert.equal((await call({operation:'create',document:invoice})).status,200);
+  assert.equal((await call({operation:'link_payment',id:slip.id,invoiceId:invoice.id,expectedRevision:99})).status,409);
+  r=await call({operation:'link_payment',id:slip.id,invoiceId:invoice.id});assert.equal(r.status,200,JSON.stringify(r));
+  assert.equal(r.payments.length,1);assert.equal(r.payments[0].receiptNumber,number);assert.equal(r.payments[0].amount,75);assert.equal(r.payments[0].originalPayer,'Walk-in payer');assert.equal(r.payments[0].linkedBy,'owner@example.com');assert.equal(model.invoiceOutstanding(r.documents[0],r.payments),25);
+  assert.equal(f.sql.prepare("SELECT count(*) n FROM erp_audit_events WHERE entity_type='billing-payment' AND action='link'").get().n,1);
+  assert.equal((await call({operation:'link_payment',id:slip.id,invoiceId:invoice.id})).status,409);
+  await call({operation:'payment',payment:{...slip,id:'quick-slip-0002',amount:30}});
+  assert.equal((await call({operation:'link_payment',id:'quick-slip-0002',invoiceId:invoice.id})).status,409);
+  await call({operation:'payment',payment:{...slip,id:'quick-slip-race',amount:10}});
+  f.beforeBatch(sql=>sql.prepare("UPDATE seiko_billing_documents SET data=json_set(data,'$.notes','Concurrent invoice edit') WHERE id=?").run(invoice.id));
+  assert.equal((await call({operation:'link_payment',id:'quick-slip-race',invoiceId:invoice.id})).status,409,'concurrent invoice edit requires refresh');
+  assert.equal(JSON.parse(f.sql.prepare("SELECT data FROM seiko_billing_payments WHERE id='quick-slip-race'").get().data).invoiceId,'');
+  const order={orderId:'quick-order',details:{orderNo:'Q-01',clientName:'School',contactNumber:'123'}};
+  f.sql.prepare("INSERT INTO erp_orders(id,business_id,order_no,status,document_json,version,created_at,created_by_user_id,created_by_email,updated_at,updated_by_user_id,updated_by_email) VALUES (?,'seiko','Q-01','Active',?,1,'now','owner','owner','now','owner','owner')").run(order.orderId,JSON.stringify(order));
+  r=await call({operation:'link_payment',id:'quick-slip-0002',orderId:order.orderId});assert.equal(r.status,200,JSON.stringify(r));assert.equal(r.payments.find(p=>p.id==='quick-slip-0002').orderNo,'Q-01');
+ }finally{f.sql.close();}
 });

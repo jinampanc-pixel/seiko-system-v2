@@ -5,7 +5,7 @@ export function ActionMenu({label,children,menuRef}:{label:string;children:React
  const owned=useRef<HTMLDetailsElement>(null),ref=menuRef||owned;
  useEffect(()=>{
   const outside=(event:PointerEvent)=>{if(ref.current?.open&&!ref.current.contains(event.target as Node))ref.current.open=false;};
-  const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&ref.current?.open){event.preventDefault();event.stopPropagation();ref.current.open=false;ref.current.querySelector('summary')?.focus();}};
+  const escape=(event:KeyboardEvent)=>{if(!event.defaultPrevented&&event.key==='Escape'&&ref.current?.open){event.preventDefault();event.stopPropagation();ref.current.open=false;ref.current.querySelector('summary')?.focus();}};
   document.addEventListener('pointerdown',outside,true);window.addEventListener('keydown',escape,true);
   return()=>{document.removeEventListener('pointerdown',outside,true);window.removeEventListener('keydown',escape,true);};
  },[ref]);

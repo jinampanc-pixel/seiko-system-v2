@@ -199,6 +199,7 @@ function load(path, imports = {}) {
     if(process.argv.includes('--save-print')){await require('./save-print-browser.cjs')({page,navigate,seed,order});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--home-workspace')){await require('./home-workspace-browser.cjs')({page,navigate,seed,order});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--invoice-brief')){await require('./invoice-brief-browser.cjs')({page,seed,navigate,order,sqlite});assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--menu-payment')){await require('./menu-payment-browser.cjs')({page,navigate,billing,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--dialog-ux')){await require('./dialog-interactions-browser.cjs')({page,navigate,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-rules')){await require('./order-rules-browser.cjs')({page,seed,navigate,order,sqlite,domain,sheetModel:load('app/lib/order-sheet-model.ts',{'./order-domain':domain})});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--responsive-audit')){await require('./responsive-audit-browser.cjs')({page,navigate,billing,base});assert.deepEqual(errors,[]);return;}

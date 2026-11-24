@@ -29,7 +29,7 @@ export function SeikoMenuClickFix() {
     const onClick = (event: MouseEvent) => {
       const target = event.target as Element | null;
       const button = target?.closest<HTMLButtonElement>(".app .topbar .moduleMenu .nav, .globalStandaloneMenu .nav");
-      if (!button) return;
+      if (!button || button.closest(".menuArrangeEditing")) return;
       const label = button.querySelector("small")?.textContent?.trim() || button.textContent?.trim() || "";
       const intent = targetByLabel[label];
       if (!intent) return;
