@@ -1,5 +1,6 @@
 "use client";
 import { uiStatusLabel } from "./lib/ui-copy";
+import { MenuLayoutEditor } from "./menu-layout-editor";
 import { HomePreferencesEditor } from "./home-preferences-editor";
 import { rememberSettingsReturn } from "./app-back-link";
 import { RetainedScreen } from "./retained-screen";
@@ -366,7 +367,7 @@ function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessNam
   const [billingProfile,setBillingProfile]=useState<ProfileState|null>(null);
   const [settingsError,setSettingsError]=useState("");
   const [draft, setDraft] = useState(theme);
-  const [section, setSection] = useState<"appearance" | "users" | "billing" | "home">("appearance");
+  const [section, setSection] = useState<"appearance" | "users" | "billing" | "home" | "menu">("appearance");
   const [message, setMessage] = useState("");
   const colourFields: Array<[keyof BusinessTheme, string]> = [["primary", "Primary"], ["primaryAlt", "Secondary"], ["accent", "Accent"], ["background", "Background"], ["surface", "Surface"], ["ink", "Text"]];
 
@@ -386,6 +387,7 @@ function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessNam
   return <div className="themeScrim" style={themeVariables(theme) as CSSProperties} role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className="themePanel" role="dialog" aria-modal="true" aria-labelledby="theme-title">
     <div className="themeHead"><div><p className="eyebrow">SYSTEM SETTINGS</p><h2 id="theme-title">Settings · {businessName}</h2></div><button title="Close Settings" type="button" className="uiIconButton uiCloseButton" onClick={onClose} aria-label="Close Settings"><CloseIcon/></button></div>
     <nav className="settingsModuleNav" aria-label="Settings Modules">
+      {businessId==="seiko"&&<button type="button" className={section==="menu"?"active":""} onClick={()=>setSection("menu")}>Menu Layout</button>}
       {businessId==="seiko"&&<button type="button" className={section==="home"?"active":""} onClick={()=>setSection("home")}>Home</button>}
       {can("audit.view")&&<a href={"/activity?business="+encodeURIComponent(businessId)} onClick={rememberSettingsReturn}>Activity history</a>}
       {membership?.role === "owner" && <a href="/backups" onClick={rememberSettingsReturn}>Backup &amp; recovery</a>}
@@ -393,7 +395,7 @@ function ThemeCustomizer({ businessName, theme, onSave, onClose }: { businessNam
       {can("users.manage")&&<button type="button" className={section === "users" ? "active" : ""} onClick={() => setSection("users")}><span>Users & Access</span></button>}
       {businessId==="seiko"&&can("financials.view")&&<button type="button" className={section === "billing" ? "active" : ""} onClick={()=>setSection("billing")}>Billing & Assets</button>}
     </nav>
-    {section === "home" ? <HomePreferencesEditor/> : section === "appearance" ? <div className="settingsAppearanceModule">
+    {section === "menu" ? <MenuLayoutEditor/> : section === "home" ? <HomePreferencesEditor/> : section === "appearance" ? <div className="settingsAppearanceModule">
       <h3 className="settingsSectionTitle">Appearance</h3>
       <label className="themeField"><span>Preset Mood</span><select value="" onChange={event => { const preset = THEME_PRESETS[event.target.value]; if (preset) setDraft(preset); }}><option value="">Custom / Current</option><option value="seiko">Seiko · Operational</option><option value="veyn">Veyn · Clinical Organic</option><option value="meth">MeTh · Retail Energy</option></select></label>
       <label className="logoPicker"><span>Automatically Derive from Company Logo</span><input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={event => analyseLogo(event.target.files?.[0])}/></label>

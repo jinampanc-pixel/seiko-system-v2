@@ -1,12 +1,16 @@
 .moduleMenu .nav{position:relative}
-:is(.app .topbar .moduleMenu,.globalStandaloneMenu) .nav[data-menu-key="settings"]{border-top:1px solid var(--line,#c3a06c)!important;border-radius:0!important;margin-top:8px!important;padding-top:12px!important}
-:is(.app .topbar .moduleMenu,.globalStandaloneMenu) .nav>.menuDragHandle{display:none!important}
-:is(.app .topbar .moduleMenu,.globalStandaloneMenu).menuArrangeEditing .nav{grid-template-columns:32px minmax(0,1fr) 36px!important}
-:is(.app .topbar .moduleMenu,.globalStandaloneMenu).menuArrangeEditing .nav>.menuDragHandle{display:grid!important;width:36px!important;height:36px!important;place-items:center;touch-action:none;cursor:grab;font-size:22px!important;background:transparent!important}
+:is(.app .topbar .moduleMenu,.globalStandaloneMenu) .nav[data-menu-key="settings"],.menuLayoutPreview .nav[data-menu-key="settings"]{border-top:1px solid var(--line,#c3a06c)!important;border-radius:0!important;margin-top:8px!important;padding-top:12px!important}
+.moduleMenu .menuDragHandle{display:none!important}
 .menuDragging{outline:2px solid var(--gold,#c3a06c);opacity:.7}
-.moduleMenu .menuArrangeToggle{order:900;flex:none;margin:10px 0;padding:10px 12px;min-height:44px;border:1px solid var(--line,#c3a06c);border-radius:8px;background:transparent;color:inherit;text-align:center;font:inherit;cursor:pointer}
-
-.moduleMenu>.moduleMenuSettings{order:800!important}.moduleMenu>.globalBusinessNavigator{order:1000!important}
-
-.app .topbar .moduleMenu,.globalStandaloneMenu{position:fixed!important;top:86px!important;bottom:0!important;right:0!important;max-height:calc(100dvh - 86px)!important}
-@media(max-width:700px){.app .topbar .moduleMenu,.globalStandaloneMenu{top:70px!important;max-height:calc(100dvh - 70px)!important}}
+.moduleMenu>.moduleMenuSettings{order:800!important}
+.app .topbar .moduleMenu,.globalStandaloneMenu{position:fixed!important;top:86px!important;bottom:auto!important;right:0!important;height:auto!important;max-height:calc(100dvh - 98px)!important;overflow-y:auto!important}
+.app .topbar .moduleMenu .nav,.globalStandaloneMenu .nav{flex:0 0 auto!important;min-height:44px!important;height:auto!important}
+.app .topbar .moduleMenu>.globalBusinessNavigator,.globalStandaloneMenu>.globalBusinessNavigator{order:1000!important;margin-top:10px!important}
+@media(max-width:700px){.app .topbar .moduleMenu,.globalStandaloneMenu{top:70px!important;max-height:calc(100dvh - 82px)!important}}
+.menuLayoutEditor>header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.menuLayoutPreview{display:flex;flex-direction:column;gap:4px;max-width:480px;max-height:60dvh;overflow:auto;overscroll-behavior:contain;padding:10px;border:1px solid var(--line,#c3a06c);border-radius:10px;background:var(--paper,#fbf5ed)}
+.menuLayoutPreview .moduleMenuSettings{display:grid;gap:4px;order:800;border-top:1px solid var(--line,#c3a06c);padding-top:10px;margin-top:8px;flex:none}
+.menuLayoutPreview .nav{display:grid;grid-template-columns:32px minmax(0,1fr) 40px;align-items:center;gap:10px;width:100%;min-height:48px;flex:none;padding:6px 10px;border:0;border-radius:8px;background:transparent;color:var(--navy,#173c5e);text-align:left;font:inherit}
+.menuLayoutPreview .nav small{font:inherit}
+.menuLayoutPreview .menuDragHandle{display:grid;width:40px;height:40px;place-items:center;touch-action:none;cursor:grab;font-size:24px}
+.menuLayoutPreview .nav:focus-visible{outline:2px solid var(--gold,#c3a06c);outline-offset:-2px}

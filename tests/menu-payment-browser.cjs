@@ -1,7 +1,9 @@
 const assert=require('node:assert/strict');
 module.exports=async({page,navigate,billing,base})=>{
+ if(!process.argv.includes('--mobile-device'))await page.setViewportSize({width:1280,height:1100});
  await navigate('Home');await page.getByRole('button',{name:'Open Menu',exact:true}).click();
- const menu=page.getByRole('navigation',{name:'Modules',exact:true});await menu.getByRole('button',{name:'Reorder Menu',exact:true}).click();
+ const mainMenu=page.getByRole('navigation',{name:'Modules',exact:true});const menuBounds=await mainMenu.boundingBox();assert.ok(menuBounds.height<=await page.evaluate(()=>innerHeight-70),'menu fits screen');assert.ok(await mainMenu.locator('.nav').evaluateAll(es=>es.every(e=>e.getBoundingClientRect().height>=43)),'menu rows retain their height');if(!process.argv.includes('--mobile-device'))assert.ok(menuBounds.height<950,'menu height follows its contents');assert.equal(await mainMenu.getByRole('button',{name:'Reorder Menu',exact:true}).count(),0);await mainMenu.getByRole('button',{name:/Settings$/,exact:false}).click();
+ const settingsDialog=page.getByRole('dialog',{name:/Settings ·/});await settingsDialog.getByRole('button',{name:'Menu Layout',exact:true}).click();const menu=page.locator('.menuLayoutPreview');
  const orders=menu.locator('.nav[data-menu-key="orders"]'),labels=menu.locator('.nav[data-menu-key="labels"]');
  const before=await labels.evaluate(e=>Number(e.style.order));
  await labels.focus();await page.keyboard.press('ArrowUp');assert.equal(await labels.evaluate(e=>Number(e.style.order)),before-1);
@@ -14,9 +16,9 @@ module.exports=async({page,navigate,billing,base})=>{
  if(await labels.evaluate(e=>Number(e.style.order))!==before)console.log('DRAG TRACE',JSON.stringify({from,to,events:await page.evaluate(()=>window.touchTrace),touch:await labels.locator('.menuDragHandle').evaluate(e=>getComputedStyle(e).touchAction)}));
  assert.equal(await labels.evaluate(e=>Number(e.style.order)),before,'pointer drag moves the item');
  await labels.focus();await page.keyboard.press('ArrowDown');const reordered=await labels.evaluate(e=>Number(e.style.order));
- await menu.getByRole('button',{name:'Done',exact:true}).click();
+
  const settings=menu.locator('.nav[data-menu-key="settings"]');assert.ok(await settings.evaluate(e=>parseFloat(getComputedStyle(e).borderTopWidth)>0),'separate divider above Settings');
- await page.mouse.click(5,5);await page.reload();await page.getByRole('button',{name:'Open Menu',exact:true}).click();assert.equal(await page.locator('.moduleMenu .nav[data-menu-key="labels"]').evaluate(e=>Number(e.style.order)),reordered,'menu arrangement persists');await page.mouse.click(5,5);
+ await settingsDialog.getByRole('button',{name:'Close Settings',exact:true}).click();await page.mouse.click(5,5);await page.reload();await page.getByRole('button',{name:'Open Menu',exact:true}).click();assert.equal(await page.locator('.moduleMenu .nav[data-menu-key="labels"]').evaluate(e=>Number(e.style.order)),reordered,'menu arrangement persists');await page.mouse.click(5,5);
  await navigate('Billing');
  const region=page.getByRole('region',{name:/SEIKO Billing/i});
  for(const width of [390,1280]){
