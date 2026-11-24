@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: seiko-production-deploy
@@ -43,5 +44,6 @@ jobs:
       - name: Verify main CI, export D1, apply migrations and deploy
         run: npm run deploy:cloudflare
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -10,8 +10,10 @@ const git = (...args) => {
 const sha = git('rev-parse', 'HEAD');
 if (git('status', '--porcelain')) throw new Error('Production deployment requires clean committed state.');
 const read = async resource => {
-  const response = await fetch(`https://api.github.com/repos/${repo}/${resource}`, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'seiko-production-release' }, signal: AbortSignal.timeout(30000) });
-  if (!response.ok) throw new Error('Cannot verify GitHub CI; production deployment refused.');
+  const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'seiko-production-release' };
+  if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  const response = await fetch(`https://api.github.com/repos/${repo}/${resource}`, { headers, signal: AbortSignal.timeout(30000) });
+  if (!response.ok) throw new Error(`Cannot verify GitHub CI (HTTP ${response.status}); production deployment refused.`);
   return response.json();
 };
 const deadline = Date.now() + 10 * 60 * 1000;
