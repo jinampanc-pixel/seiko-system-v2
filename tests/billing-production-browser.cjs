@@ -65,8 +65,9 @@ module.exports=async({page,billing,navigate,base,seed,order,sqlite})=>{
   assert.equal(await row(invoice.number).locator('.billingDocumentMenu').evaluate(node=>node.open),false,'Outside click dismisses document menu');
   await row(invoice.number).getByLabel(uiLabel(`Actions for ${invoice.number}`, true),{exact:true}).click();
   await surface.evaluate(node=>{node.scrollTop=node.scrollTop>0?0:20;});
-  await page.waitForFunction(()=>!document.querySelector('.billingDocumentMenu[open]')); 
-  assert.equal(await row(invoice.number).locator('.billingDocumentMenu').evaluate(node=>node.open),false,'Page scroll dismisses document menu');
+  assert.equal(await row(invoice.number).locator('.billingDocumentMenu').evaluate(node=>node.open),true,'Page scroll keeps the action menu available');
+  await page.keyboard.press('Escape');
+  assert.equal(await row(invoice.number).locator('.billingDocumentMenu').evaluate(node=>node.open),false,'Escape dismisses the repositioned menu');
   if(size.width===1365||size.width===390)await capture('billing-'+size.width);
   await row(invoice.number).getByLabel(uiLabel(`Actions for ${invoice.number}`, true),{exact:true}).click();
   await row(invoice.number).locator('.billingDocumentMenu>div').waitFor({state:'visible'});
