@@ -157,6 +157,7 @@ assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
  await frame.getByText(uiLabel(amended.notes, true),{exact:true}).waitFor();
  if(process.env.BILLING_ASSET_SCREENSHOTS)await preview.screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/invoice-amendment-fixed.png'});
 
+ assert.equal(await preview.locator('.documentMore[open]').count(),0,'choosing a document action closes its menu before PDF controls are used');
  await preview.getByLabel(/^Print Copies/).selectOption('customer');
  // Exercise actual PDF downloads at narrow mobile widths, independently of browser printing.
  for(const width of [390,360]){console.log("PDF download check",width);await page.setViewportSize({width,height:844});await preview.getByLabel(uiLabel('Preview zoom', true),{exact:true}).selectOption('fit');await page.waitForTimeout(100);const bounds=await frame.locator('.copy').first().boundingBox();const frameBox=await page.locator('iframe[title="Billing print preview" i]').boundingBox();assert.ok(bounds.width<=frameBox.width+2,'A4 preview fits mobile width');const button=preview.getByRole('button',{name:uiLabel('Download PDF', true),exact:true});const style=await button.evaluate(el=>({color:getComputedStyle(el).color,background:getComputedStyle(el).backgroundColor}));assert.notEqual(style.color,style.background,'PDF download label is readable');const downloading=page.waitForEvent('download');await button.click();const downloaded=await downloading;assert.match(downloaded.suggestedFilename(),/\.pdf$/);const data=fs.readFileSync(await downloaded.path());assert.equal(data.subarray(0,5).toString(),'%PDF-');assert.ok(data.length>10000,'PDF contains rendered document pages');assert.equal((data.toString('latin1').match(/\/Type\s*\/Page\b/g)||[]).length,1,'one recipient copy fits one A4 page without a thin footer continuation');if(process.env.BILLING_ASSET_SCREENSHOTS){fs.writeFileSync(process.env.BILLING_ASSET_SCREENSHOTS+'/mobile-invoice-'+width+'.pdf',data);await preview.screenshot({path:process.env.BILLING_ASSET_SCREENSHOTS+'/mobile-invoice-'+width+'.png'});}}
@@ -180,17 +181,22 @@ assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
  await surface.locator('.billingCreateMenu > summary').click();
  await surface.getByRole('button',{name:uiLabel('+ Invoice', true),exact:true}).click();assert.equal(await form.getByLabel(uiLabel('Document tax mode', true),{exact:true}).inputValue(),'gst');
  await form.getByRole('button',{name:uiLabel('Cancel', true),exact:true}).click();
+ if(!await surface.locator('.billingFilters').evaluate(e=>e.open))await surface.locator('.billingFilters > summary').click();
  await surface.getByRole('button',{name:uiLabel('Non-GST documents', true),exact:true}).click();assert.equal(await documentLink.count(),1);
  // Owner lifecycle actions operate only on this isolated synthetic invoice.
  const row=surface.locator('.billingDocumentRow').filter({hasText:number});
  await row.getByLabel(uiLabel(`Actions for ${number}`, true),{exact:true}).click();await row.getByRole('button',{name:uiLabel('Archive document', true),exact:true}).click();await documentLink.waitFor({state:'detached'});
+ if(!await surface.locator('.billingFilters').evaluate(e=>e.open))await surface.locator('.billingFilters > summary').click();
  await surface.getByLabel(uiLabel('Document storage', true),{exact:true}).selectOption('archived');await documentLink.waitFor();
  await row.getByLabel(uiLabel(`Actions for ${number}`, true),{exact:true}).click();await row.getByRole('button',{name:uiLabel('Restore document', true),exact:true}).click();await documentLink.waitFor({state:'detached'});
+ if(!await surface.locator('.billingFilters').evaluate(e=>e.open))await surface.locator('.billingFilters > summary').click();
  await surface.getByLabel(uiLabel('Document storage', true),{exact:true}).selectOption('active');await documentLink.waitFor();
  await row.getByLabel(uiLabel(`Actions for ${number}`, true),{exact:true}).click();await row.getByRole('button',{name:uiLabel('Delete document', true),exact:true}).click();
  await page.getByRole('dialog',{name:uiLabel('Delete billing document', true),exact:true}).getByRole('button',{name:uiLabel('Move to Trash', true),exact:true}).click();await documentLink.waitFor({state:'detached'});
+ if(!await surface.locator('.billingFilters').evaluate(e=>e.open))await surface.locator('.billingFilters > summary').click();
  await surface.getByLabel(uiLabel('Document storage', true),{exact:true}).selectOption('trash');await documentLink.waitFor();
  await row.getByLabel(uiLabel(`Actions for ${number}`, true),{exact:true}).click();await row.getByRole('button',{name:uiLabel('Recover document', true),exact:true}).click();await documentLink.waitFor({state:'detached'});
+ if(!await surface.locator('.billingFilters').evaluate(e=>e.open))await surface.locator('.billingFilters > summary').click();
  await surface.getByLabel(uiLabel('Document storage', true),{exact:true}).selectOption('active');await documentLink.waitFor();
  await surface.locator('.billingFilters > summary').click();
  if(process.env.BILLING_ASSET_SCREENSHOTS){

@@ -9,5 +9,5 @@ export function ActionMenu({label,children,menuRef}:{label:string;children:React
   document.addEventListener('pointerdown',outside,true);window.addEventListener('keydown',escape,true);
   return()=>{document.removeEventListener('pointerdown',outside,true);window.removeEventListener('keydown',escape,true);};
  },[ref]);
- return <details ref={ref} name="output-actions" className="documentMore"><summary>{label}</summary><div>{children}</div></details>;
+ return <details ref={ref} name="output-actions" className="documentMore"><summary>{label}</summary><div onClickCapture={event=>{if((event.target as Element).closest("button,a")&&ref.current)ref.current.open=false;}}>{children}</div></details>;
 }
