@@ -61,10 +61,10 @@ export function SeikoMethSync() {
         button.type = "button";
         button.className = "nav";
         button.dataset.seikoMeth = "true";
-        button.innerHTML = "<span>↔</span><small>MeTh jobs</small>";
+        button.innerHTML = "<span>↔</span><small>MeTh Jobs</small>";
         button.addEventListener("click", () => { setOpen(true); document.querySelector<HTMLButtonElement>('.menuToggle[aria-expanded="true"]')?.click(); });
         const settings = menu.querySelector(".moduleMenuSettings");
-        if (settings) menu.insertBefore(button, settings); else menu.appendChild(button);
+        if (settings) settings.prepend(button); else menu.appendChild(button);
       }
       const settingsPanel = document.querySelector<HTMLElement>(".themePanel .settingsAppearanceModule");
       if (settingsPanel && !settingsPanel.querySelector('[data-seiko-legal-profile="true"]')) {

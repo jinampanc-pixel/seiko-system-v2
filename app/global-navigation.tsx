@@ -55,7 +55,6 @@ const standaloneItems: Array<{ intent: NavIntent; label: string; icon: string; m
   { intent: "scan", label: "Scan", icon: "⌗", module: "scan" },
   { intent: "trace", label: "Trace", icon: "◎", module: "trace" },
   { intent: "production", label: "Production", icon: "•", module: "production" },
-  { intent: "meth jobs", label: "MeTh Jobs", icon: "↔" },
   { intent: "clients", label: "Clients", icon: "◎" },
   { intent: "products", label: "Products", icon: "◇" },
   { intent: "billing", label: "Billing", icon: "₹" },
@@ -130,10 +129,12 @@ function StandaloneNavigation({ businesses, businessId, onBusinessChange }: {
         {visible.map(item => <button type="button" className={`nav ${item.intent === "labels" ? "active" : ""}`} key={item.intent} onClick={() => goToRoot(item.intent)}>
           <span>{item.icon}</span><small>{item.label}</small>
         </button>)}
+
+        <div className="moduleMenuSettings">
+          <button type="button" className="nav" onClick={() => goToRoot("meth jobs")}><span>↔</span><small>MeTh Jobs</small></button>
+          {canAccess(membership, "admin") && <button type="button" className="nav" onClick={() => goToRoot("settings")}><span>⚙</span><small>Settings</small></button>}
         <button type="button" className="nav" onClick={()=>{setOpen(false);window.dispatchEvent(new Event("jinam:open-help"));}}><span>?</span><small>Help & Training</small></button>
-        {canAccess(membership, "admin") && <div className="moduleMenuSettings">
-          <button type="button" className="nav" onClick={() => goToRoot("settings")}><span>⚙</span><small>Settings</small></button>
-        </div>}
+        </div>
       </nav>
     </>}
   </>;
