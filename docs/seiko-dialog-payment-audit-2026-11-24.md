@@ -12,7 +12,7 @@ Link to Order / Invoice preserves the receipt ID, number, amount and original pa
 
 ## Menu Arrangement
 
-The lower section has its existing divider above MeTh Jobs and a separate divider above Settings. Settings → Menu Layout contains the drag handles; mouse drag, touch hold-and-drag and keyboard Arrow Up/Down reorder items within their main/lower groups. The main menu contains no editing controls. Its height follows the content, with fixed minimum row heights and scrolling only when needed. Preferences are per business on the current device and do not alter permissions. Tab follows visual order; the drawer stays inside the viewport while scrolling.
+The lower section has its existing divider above MeTh Jobs and a separate divider above Settings. Settings → Menu Layout contains the drag handles; mouse drag, touch hold-and-drag and keyboard Arrow Up/Down reorder items within their main/lower groups. The main menu contains no editing controls. It fills the viewport from top to bottom, uses Seiko’s cream/navy/gold palette, keeps the business switcher at the top and aligns labels beside fixed icon slots. Rows retain their height and scroll when necessary. Preferences are per business on the current device and do not alter permissions. Tab follows visual order; the drawer stays inside the viewport while scrolling.
 
 ## Validation
 
