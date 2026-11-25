@@ -4,7 +4,7 @@ import { referenceAllocations, validOrderGroup, processedQuantity, productionDem
 
 const collection = 'production-handoffs-v1';
 const reply = (message:string,status=400,code?:string) => Response.json({ok:false,message,...(code?{code}:{})},{status,headers:{'Cache-Control':'no-store'}});
-type Body = { requestedBy?:string; release?:boolean; refreshSources?:boolean; orderIds?:string[]; search?:string; status?:string; deliveryFrom?:string; deliveryTo?:string; page?:number; handoffPage?:number; handoffSearch?:string; handoffStatus?:string; businessId?:string; operation?:string; expectedVersion?:number; handoff?:ProductionHandoff; id?:string; reason?:string; event?:{allocationKey:string;operation:string;quantity:number;rejects:number;extras:number;reason:string} };
+type Body = { product?:string; requestedBy?:string; release?:boolean; refreshSources?:boolean; orderIds?:string[]; search?:string; status?:string; deliveryFrom?:string; deliveryTo?:string; page?:number; handoffPage?:number; handoffSearch?:string; handoffStatus?:string; businessId?:string; operation?:string; expectedVersion?:number; handoff?:ProductionHandoff; id?:string; reason?:string; event?:{allocationKey:string;operation:string;quantity:number;rejects:number;extras:number;reason:string} };
 export async function POST(request:Request) {
   if (request.headers.get('origin') && request.headers.get('origin') !== new URL(request.url).origin) return reply('Invalid request origin.',403);
   try {
@@ -40,11 +40,14 @@ export async function POST(request:Request) {
     if(body.operation==='list'){
       const page=Math.max(1,Math.min(100000,Math.trunc(Number(body.page)||1))),handoffPage=Math.max(1,Math.min(100000,Math.trunc(Number(body.handoffPage)||1)));
       const search=String(body.search||'').trim().toLowerCase().slice(0,120);
+      const product=String(body.product||'').trim().slice(0,240);
       let where="business_id=? AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL";
       const args:unknown[]=[business];
       if(body.status&&body.status!=='All'&&body.status!=='Open'){where+=' AND status=?';args.push(body.status);}else if(body.status!=='All')where+=" AND status NOT IN ('Cancelled','Completed')";
       if(search){where+=" AND (instr(lower(order_no),?)>0 OR instr(lower(status),?)>0 OR EXISTS(SELECT 1 FROM json_tree(document_json) detail WHERE detail.type IN ('text','integer','real') AND instr(lower(CAST(detail.atom AS TEXT)),?)>0))";args.push(search,search,search);}
       for(const [value,operator] of [[body.deliveryFrom,'>='],[body.deliveryTo,'<=']])if(value){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value)))return reply('Choose a valid delivery date.');where+=` AND json_extract(document_json,'$.details.deliveryDate')${operator}?`;args.push(value);}
+      const productChoices=await db.prepare(`SELECT min(trim(json_extract(p.value,'$.name'))) AS name,COUNT(DISTINCT erp_orders.id) AS orders FROM erp_orders,json_each(document_json,'$.products') p WHERE ${where} AND trim(json_extract(p.value,'$.name'))!='' GROUP BY lower(trim(json_extract(p.value,'$.name'))) ORDER BY name COLLATE NOCASE`).bind(...args).all();
+      if(product){where+=" AND EXISTS(SELECT 1 FROM json_each(document_json,'$.products') p WHERE trim(json_extract(p.value,'$.name'))=? COLLATE NOCASE)";args.push(product);}
       const total=await db.prepare(`SELECT COUNT(*) AS total FROM erp_orders WHERE ${where}`).bind(...args).first<{total:number}>();
       const choices=await db.prepare(`SELECT id AS orderId,order_no AS orderNo,status,json_extract(document_json,'$.details.clientName') AS client,json_extract(document_json,'$.details.deliveryDate') AS deliveryDate,(SELECT group_concat(name,', ') FROM (SELECT DISTINCT trim(json_extract(p.value,'$.name')) AS name FROM json_each(document_json,'$.products') p WHERE trim(json_extract(p.value,'$.name'))!='')) AS products FROM erp_orders WHERE ${where} ORDER BY updated_at DESC,id DESC LIMIT 10 OFFSET ?`).bind(...args,(page-1)*10).all();
       const hs=String(body.handoffSearch||'').trim().toLowerCase().slice(0,120);
@@ -54,7 +57,7 @@ export async function POST(request:Request) {
       if(hs){hw+=" AND (instr(lower(json_extract(document_json,'$.name')),?)>0 OR instr(lower(json_extract(document_json,'$.number')),?)>0)";ha.push(hs,hs);}
       const ht=await db.prepare(`SELECT COUNT(*) AS total FROM jinam_shared_records WHERE ${hw}`).bind(...ha).first<{total:number}>();
       const handoffs=await db.prepare(`SELECT id,json_extract(document_json,'$.number') AS number,json_extract(document_json,'$.name') AS name,json_extract(document_json,'$.status') AS status,json_extract(document_json,'$.purpose') AS purpose,json_extract(document_json,'$.archivedAt') AS archivedAt,json_extract(document_json,'$.deletedAt') AS deletedAt FROM jinam_shared_records WHERE ${hw} ORDER BY created_at DESC,id DESC LIMIT 25 OFFSET ?`).bind(...ha,(handoffPage-1)*25).all();
-      return Response.json({ok:true,ledger,version,orders,choices:choices.results,total:total?.total||0,page,handoffs:handoffs.results,handoffTotal:ht?.total||0,handoffPage},{headers:{'Cache-Control':'no-store'}});
+      return Response.json({ok:true,ledger,version,orders,product,productChoices:productChoices.results,choices:choices.results,total:total?.total||0,page,handoffs:handoffs.results,handoffTotal:ht?.total||0,handoffPage},{headers:{'Cache-Control':'no-store'}});
     }
     if(!await authorizePermission(actor,business,'production.manage'))return reply('You cannot change production for this business.',403);
     if(body.expectedVersion!==version)return reply('Production changed on another device. Your open edits remain; refresh and review before retrying.',409);
