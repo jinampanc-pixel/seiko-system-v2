@@ -245,7 +245,7 @@ export async function passkeyRegistrationOptions(request: Request) {
     challengeId,
     publicKey: {
       challenge,
-      rp: { id: rpId, name: "Jinam ERP" },
+      rp: { id: rpId, name: "SEIKO TAILORS" },
       user: { id: toBase64Url(new TextEncoder().encode(user.id)), name: user.email, displayName: user.displayName },
       pubKeyCredParams: [{ type: "public-key", alg: -7 }],
       timeout: 60_000,

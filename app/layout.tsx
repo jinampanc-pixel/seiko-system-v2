@@ -50,12 +50,12 @@ import { AccessProvider } from "./access-control";
 import { BusinessApplicationRouter } from "./business-application-router";
 
 export const metadata: Metadata = {
-  title: "Jinam",
-  description: "One secure platform for the separate SEIKO, véyn health and MeTh business applications.",
-  icons: { icon: "/favicon.svg?v=4", shortcut: "/favicon.svg?v=4", apple: "/app-icon.svg?v=4" },
-  manifest: "/manifest.webmanifest?v=4",
-  applicationName: "Jinam",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Jinam" },
+  title: "SEIKO TAILORS",
+  description: "SEIKO TAILORS order, measurement, production and billing workspace.",
+  icons: { icon: [{ url: "/favicon.svg?v=5", type: "image/svg+xml" }, { url: "/favicon-32.png?v=5", sizes: "32x32", type: "image/png" }], shortcut: "/favicon.svg?v=5", apple: "/apple-touch-icon.png?v=5" },
+  manifest: "/manifest.webmanifest?v=5",
+  applicationName: "SEIKO TAILORS",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "SEIKO TAILORS" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

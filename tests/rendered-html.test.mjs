@@ -21,12 +21,12 @@ async function expectApplicationPage(pathname) {
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") || "", /^text\/html/i);
   const html = await response.text();
-  assert.match(html, /Jinam/i);
+  assert.match(html, /<title>SEIKO TAILORS<\/title>/i);
   assert.doesNotMatch(html, /Your site is taking shape|Building your site|codex-preview/i);
   return html;
 }
 
-test("renders the Jinam application", async () => {
+test("renders the SEIKO TAILORS application", async () => {
   const html=await expectApplicationPage("/");
   const viewport=html.match(/<meta[^>]+name="viewport"[^>]*>/i)?.[0]||'';
   assert.match(viewport,/width=device-width/);

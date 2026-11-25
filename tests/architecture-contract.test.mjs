@@ -58,16 +58,14 @@ test("business shell shows only active business identity while Jinam remains the
   assert.doesNotMatch(enhancements, /JinamLegacyBrand/);
 });
 
-test("installed system identity is Jinam with the S and integrated J money mark", () => {
-  assert.match(manifest, /"name": "Jinam"/);
-  assert.match(manifest, /"short_name": "Jinam"/);
-  assert.match(manifest, /"theme_color": "#050505"/);
-  assert.match(favicon, /fill="#050505"/);
-  assert.match(favicon, /M45\.5 17\.5/);
-  assert.match(favicon, /M33 9\.5V42\.3/);
-  assert.match(layout, /favicon\.svg\?v=4/);
-  assert.match(serviceWorker, /jinam-shell-v4/);
-  assert.match(serviceWorker, /favicon\.svg\?v=4/);
+test("installed app identity is SEIKO TAILORS with the approved navy and gold collar", () => {
+  const installed=JSON.parse(manifest);
+  assert.equal(installed.name,"SEIKO TAILORS");assert.equal(installed.short_name,"SEIKO TAILORS");
+  assert.equal(installed.theme_color,"#173c5e");assert.equal(installed.background_color,"#fbf5ed");
+  for(const size of ['192x192','512x512'])assert.ok(installed.icons.some(icon=>icon.sizes===size&&icon.type==='image/png'));
+  assert.match(favicon,/SEIKO TAILORS Collar/);assert.match(favicon,/#06365f/);assert.match(favicon,/#b78e3b/);
+  assert.match(layout,/title: "SEIKO TAILORS"/);assert.match(layout,/favicon\.svg\?v=5/);assert.match(layout,/apple-touch-icon\.png\?v=5/);
+  assert.match(serviceWorker,/seiko-tailors-shell-v5/);assert.match(serviceWorker,/app-icon-512\.png\?v=5/);
 });
 
 test("Phase 1 removes prototype UI from the visible SEIKO home and menu", () => {

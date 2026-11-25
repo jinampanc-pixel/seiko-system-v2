@@ -213,7 +213,7 @@ function AccessGate({ status, message, onRetry }: { status: AccessStatus; messag
 
   return <div className="accessGate" role="main">
     <div className="accessGateCard">
-      <div className="accessGateMark">J</div>
+      <div className="accessGateMark"><img src="/app-icon.svg?v=5" width="52" height="52" alt="SEIKO TAILORS"/></div>
       <p className="eyebrow">SECURE ERP ACCESS</p>
       <h1>{heading}</h1>
       <p>{message}</p>
