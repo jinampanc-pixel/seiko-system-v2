@@ -1,5 +1,5 @@
-const CACHE = "seiko-tailors-shell-v6";
-const SHELL = ["/", "/manifest.webmanifest?v=5", "/app-icon.svg?v=6", "/favicon.svg?v=6", "/app-icon-192.png?v=6", "/app-icon-512.png?v=6", "/apple-touch-icon.png?v=6", "/favicon-32.png?v=6"];
+const CACHE = "seiko-tailors-shell-v7";
+const SHELL = ["/", "/manifest.webmanifest?v=5", "/icons/seiko-collar-gold-v7.svg", "/icons/seiko-collar-gold-v7-192.png", "/icons/seiko-collar-gold-v7-512.png", "/icons/seiko-collar-gold-v7-180.png", "/icons/seiko-collar-gold-v7-32.png"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));

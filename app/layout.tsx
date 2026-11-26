@@ -1,3 +1,4 @@
+import {APP_ICONS} from "./lib/app-icons";
 import type { Metadata } from "next";
 import "./globals.css";
 import "./business-assistant.css";
@@ -52,7 +53,7 @@ import { BusinessApplicationRouter } from "./business-application-router";
 export const metadata: Metadata = {
   title: "SEIKO TAILORS",
   description: "SEIKO TAILORS order, measurement, production and billing workspace.",
-  icons: { icon: [{ url: "/favicon.svg?v=6", type: "image/svg+xml" }, { url: "/favicon-32.png?v=6", sizes: "32x32", type: "image/png" }], shortcut: "/favicon.svg?v=6", apple: "/apple-touch-icon.png?v=6" },
+  icons: { icon: [{ url: APP_ICONS.svg, type: "image/svg+xml" }, { url: APP_ICONS.small, sizes: "32x32", type: "image/png" }], shortcut: APP_ICONS.svg, apple: [{url:APP_ICONS.apple,sizes:"180x180",type:"image/png"}] },
   manifest: "/manifest.webmanifest?v=5",
   applicationName: "SEIKO TAILORS",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "SEIKO TAILORS" },

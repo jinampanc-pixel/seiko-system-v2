@@ -1,4 +1,5 @@
 "use client";
+import {APP_ICONS} from "./lib/app-icons";
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useState } from "react";
@@ -23,6 +24,6 @@ export function JinamLegacyBrand() {
 
   if (!host) return null;
   return createPortal(<div className="jinamLegacyIdentity" aria-label="SEIKO TAILORS">
-    <img src="/app-icon.svg?v=5" alt=""/><strong>SEIKO TAILORS</strong><span aria-hidden="true"/>
+    <img src={APP_ICONS.svg} alt=""/><strong>SEIKO TAILORS</strong><span aria-hidden="true"/>
   </div>, host);
 }

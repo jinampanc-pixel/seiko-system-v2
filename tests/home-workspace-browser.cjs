@@ -55,6 +55,7 @@ module.exports=async({page,navigate,seed,order})=>{
  await page.evaluate(()=>{window.__installPrompts=0;const event=new Event('beforeinstallprompt',{cancelable:true});event.prompt=async()=>{window.__installPrompts++;};event.userChoice=Promise.resolve({outcome:'dismissed'});window.dispatchEvent(event);});
  await appControls.getByRole('button',{name:'Install App',exact:true}).click();await appControls.getByRole('status').filter({hasText:'Installation Cancelled'}).waitFor();assert.equal(await page.evaluate(()=>window.__installPrompts),1);
  await appControls.getByRole('button',{name:'Install App',exact:true}).click();await appControls.getByText(/same account, records and releases/).waitFor();
+ for(const name of ["Desktop Icon","Android Icon","iPhone & iPad Icon"])await appControls.getByRole("heading",{name,exact:true}).waitFor();
  for(const width of [360,390,1366]){await page.setViewportSize({width,height:900});assert.ok(await appControls.evaluate(el=>el.scrollWidth<=el.clientWidth+1),'Installation controls fit narrow screens');}await page.setViewportSize({width:1366,height:900});
  await page.context().setOffline(true);await appControls.getByRole('button',{name:'Reload Latest Version',exact:true}).click();await appControls.getByRole('status').filter({hasText:/Connect to the Internet/}).waitFor();await page.context().setOffline(false);
  await page.evaluate(()=>{window.__reloadGuard=event=>{window.__reloadProtected=true;event.preventDefault();};window.addEventListener('jinam:before-navigation',window.__reloadGuard);});

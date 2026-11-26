@@ -22,6 +22,8 @@ async function expectApplicationPage(pathname) {
   assert.match(response.headers.get("content-type") || "", /^text\/html/i);
   const html = await response.text();
   assert.match(html, /<title>SEIKO TAILORS<\/title>/i);
+  assert.match(html,/icons\/seiko-collar-gold-v7-180\.png/);
+  assert.match(html,/icons\/seiko-collar-gold-v7\.svg/);
   assert.doesNotMatch(html, /Your site is taking shape|Building your site|codex-preview/i);
   return html;
 }

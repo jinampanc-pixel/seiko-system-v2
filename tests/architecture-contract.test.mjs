@@ -66,14 +66,16 @@ test("installed app identity is SEIKO TAILORS with the approved navy and gold co
   assert.equal(installed.theme_color,"#173c5e");assert.equal(installed.background_color,"#fbf5ed");
   for(const size of ['192x192','512x512'])assert.ok(installed.icons.some(icon=>icon.sizes===size&&icon.type==='image/png'));
   assert.match(favicon,/SEIKO TAILORS Collar/);assert.match(favicon,/#06365f/);assert.match(favicon,/#b78e3b/);
-  assert.match(layout,/title: "SEIKO TAILORS"/);assert.match(layout,/favicon\.svg\?v=6/);assert.match(layout,/apple-touch-icon\.png\?v=6/);
+  assert.match(layout,/title: "SEIKO TAILORS"/);assert.match(layout,/icon:.*APP_ICONS.svg/);assert.match(layout,/apple:.*APP_ICONS.apple/);
   for(const file of ["app-icon-192.png","app-icon-512.png","favicon-32.png","apple-touch-icon.png"]){
     const png=readFileSync(new URL("../public/"+file,import.meta.url));assert.equal(png[25],6,"Icon exports include alpha");
     const chunks=[];for(let offset=8;offset<png.length;){const size=png.readUInt32BE(offset);if(png.toString("ascii",offset+4,offset+8)==="IDAT")chunks.push(png.subarray(offset+8,offset+8+size));offset+=size+12;}
     assert.equal(inflateSync(Buffer.concat(chunks))[4],0,"Icon corner is transparent");
   }
   assert.doesNotMatch(favicon,/<rect/);
-  assert.match(serviceWorker,/seiko-tailors-shell-v6/);assert.match(serviceWorker,/app-icon-512\.png\?v=6/);
+  assert.match(serviceWorker,/seiko-tailors-shell-v7/);assert.match(serviceWorker,/seiko-collar-gold-v7-512\.png/);
+  for(const icon of installed.icons){assert.ok(icon.src.startsWith("/icons/seiko-collar-gold-v7"));assert.ok(!icon.src.includes("?"));assert.ok(readFileSync(new URL("../public"+icon.src,import.meta.url)).length>0);assert.ok(serviceWorker.includes(icon.src));}
+  assert.match(layout,/manifest: "\/manifest.webmanifest\?v=5"/);
 });
 
 test("Phase 1 removes prototype UI from the visible SEIKO home and menu", () => {
