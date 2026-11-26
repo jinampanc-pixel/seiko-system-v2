@@ -126,3 +126,8 @@
 .billingPreview>p:empty{display:none}
 .seikoBillingWorkspace .phase2Toolbar>.phase2Actions{gap:8px;align-items:end}
 @media(max-width:650px){.billingPreview>.documentMore{position:relative;top:auto;right:auto;align-self:flex-start}.billingPreview>header h2{padding-right:0;font-size:16px}.billingPreview{padding:12px}}
+
+/* Editing and preview use independent scroll panes; draft output is read-only. */
+.phase2Scrim>.phase2Editor.billingLiveEditor{width:min(1600px,100%);height:94dvh;max-height:94dvh;display:flex;flex-direction:column;overflow:hidden}
+.billingLiveContent{min-height:0;overflow:auto}.billingLiveEditor>.billingLiveContent{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);flex:1;overflow:hidden}.billingLiveEditor .billingFormBody{overflow:auto;min-width:0;min-height:0;margin:0}.billingLivePreview{min-width:0;min-height:0;display:flex;flex-direction:column;padding:12px;border-left:1px solid var(--gold,#b78e3b);background:var(--paper,#fbf5ed)}.billingLivePreview h3{margin:0 0 8px;font-size:16px}.billingLivePreview .documentViewer{display:flex;flex-direction:column;flex:1;min-height:0}.billingLivePreview iframe{flex:1;min-height:0;width:100%}.billingLiveTabs{display:none}.billingLiveEditor>header,.billingLiveEditor>footer{flex-shrink:0}
+@media(max-width:1000px){.billingLiveEditor>.billingLiveContent{grid-template-columns:minmax(0,1fr)}.billingLiveEditor>.billingLiveTabs{display:flex;gap:8px;padding:8px 16px}.billingLiveEditor .billingLivePreview{display:none;border-left:0}.billingLiveEditor.billingShowPreview .billingFormBody{display:none}.billingLiveEditor.billingShowPreview .billingLivePreview{display:flex}.billingLiveTabs button[aria-pressed=true]{background:var(--navy,#173e60);color:var(--paper,#fbf5ed)}}

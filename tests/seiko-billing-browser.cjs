@@ -49,6 +49,17 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   assert.equal(await form.getByLabel(uiLabel('Client name *', true),{exact:true}).inputValue(),'Standalone customer');
   await form.getByLabel(uiLabel('Description', true),{exact:true}).fill('Uniform stitching');
   await form.getByLabel(uiLabel('Quantity', true),{exact:true}).fill('2'); await form.getByLabel(uiLabel('Rate ₹', true),{exact:true}).fill('125');
+  const liveFrame = form.frameLocator('iframe[title="Live Document Preview"]');
+  await liveFrame.getByText('Uniform stitching',{exact:true}).first().waitFor();
+  assert.match(await liveFrame.locator('body').innerText(),/250.00/);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM seiko_billing_documents').get().n,0);
+  assert.equal(await form.locator('.billingLivePreview').getByRole('button',{name:'Print',exact:true}).count(),0);
+  await page.setViewportSize({width:390,height:844});
+  await form.getByRole('button',{name:'Live Preview',exact:true}).click();
+  await form.locator('.billingLivePreview').waitFor({state:'visible'});
+  await form.getByRole('button',{name:'Edit Document',exact:true}).click();
+  assert.equal(await form.getByLabel(uiLabel('Description',true),{exact:true}).inputValue(),'Uniform stitching');
+  await page.setViewportSize({width:1440,height:1000});
   await form.getByRole('button',{name:uiLabel('Save and print', true),exact:true}).click();
   await page.getByRole('dialog').getByRole('button',{name:uiLabel('Record payment', true),exact:true}).waitFor();
   let preview=page.frameLocator('iframe[title="Billing print preview" i]');

@@ -8,8 +8,8 @@ import { OutputRecordMenu } from "./output-record-menu";
 import "./outputs/outputs.css";
 import { recordOutput, pendingOutputCount, type OutputContext, type OutputAction } from "./lib/output-activity";
 
-export function DocumentViewer({ html, title, filename, copies, beforeOutput, activity, controls, outputDisabled = false }: {
-  controls?: ReactNode; activity?: OutputContext; html: string; title: string; filename: string; outputDisabled?: boolean;
+export function DocumentViewer({ html, title, filename, copies, beforeOutput, activity, controls, outputDisabled = false, previewOnly = false }: {
+  previewOnly?: boolean; controls?: ReactNode; activity?: OutputContext; html: string; title: string; filename: string; outputDisabled?: boolean;
   copies?: BillingCopies; beforeOutput?: () => Promise<unknown>;
 }) {
   const [syncPending,setSyncPending]=useState(0);
@@ -88,15 +88,15 @@ export function DocumentViewer({ html, title, filename, copies, beforeOutput, ac
   }
   return <div className="documentViewer" aria-busy={Boolean(busy)}>{syncPending>0&&<p role="status">Output record pending sync. Printing and downloads remain available.</p>}
     <div className="documentViewerActions">
-      <button className="primary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void printDocument()}>{busy === "print" ? "Opening Print…" : "Print"}</button>
-      <button className="secondary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void downloadPdf()}>{busy === "download" ? "Downloading PDF…" : "Download PDF"}</button>
+      {!previewOnly && <><button className="primary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void printDocument()}>{busy === "print" ? "Opening Print…" : "Print"}</button>
+      <button className="secondary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void downloadPdf()}>{busy === "download" ? "Downloading PDF…" : "Download PDF"}</button></>}
       {controls}<label>Preview Zoom<select aria-label="Preview Zoom" value={zoom} onChange={e => setZoom(e.target.value)}><option value="fit">Fit Screen</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></label>
       {activity && !outputDisabled && <OutputRecordMenu context={activity} content={html} beforeSave={beforeOutput}/>}
-      <ActionMenu label="More Options">
+      {!previewOnly && <ActionMenu label="More Options">
         <button className="secondary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={openDocument}>Open Document In New Tab</button>
         {file && <a className="secondary" href={download} target="_blank" rel="noopener noreferrer">Open downloaded PDF</a>}
         {file && typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] }) && <button className="secondary" type="button" onClick={() => void share()}>Share PDF</button>}
-      </ActionMenu>
+      </ActionMenu>}
     </div>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     <iframe ref={frame} title={title} srcDoc={html} onLoad={() => void load()}/>

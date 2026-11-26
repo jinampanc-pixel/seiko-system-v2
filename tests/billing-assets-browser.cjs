@@ -58,6 +58,20 @@ module.exports=async({page,navigate,sqlite,base,printing})=>{
  const form=page.getByRole('dialog',{name:uiLabel('New invoice', true),exact:true});
  await form.getByRole('combobox',{name:uiLabel('Bill source', true),exact:true}).selectOption('smoke-order');
  await form.getByLabel(uiLabel('Attn / contact person', true),{exact:true}).fill('Sample contact');
+ const live=form.frameLocator('iframe[title="Live Document Preview"]');
+ await live.getByText('Sample contact',{exact:false}).first().waitFor();
+ assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM seiko_billing_documents').get().n,0);
+ assert.equal(await form.locator('.billingLivePreview').getByRole('button',{name:'Print',exact:true}).count(),0);
+ const originalViewport=page.viewportSize();
+ await page.setViewportSize({width:390,height:844});
+ await form.getByRole('button',{name:'Live Preview',exact:true}).click();
+ await form.locator('.billingLivePreview').waitFor({state:'visible'});
+ assert.equal(await form.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
+ await form.getByRole('button',{name:'Edit Document',exact:true}).click();
+ assert.equal(await form.getByLabel(uiLabel('Attn / contact person',true),{exact:true}).inputValue(),'Sample contact');
+ await page.setViewportSize(originalViewport);
+ await page.screenshot({path:"work/live-document-editor.png",fullPage:false});
+
  await form.getByLabel(uiLabel('Payment due', true),{exact:true}).selectOption('date');
  await form.getByLabel(uiLabel('Payment due date', true),{exact:true}).fill('2027-01-31');
  await form.getByText(uiLabel('Signature & terms on this document', true),{exact:true}).click();
@@ -125,6 +139,11 @@ assert.deepEqual(document.signatory.layout,stored.signatories[0].layout);
  await amendment.getByLabel(uiLabel('Include payment QR scanner', true),{exact:true}).check();
  await amendment.getByRole('checkbox',{name:uiLabel('Include Notes',true),exact:true}).check();
  await amendment.getByLabel(uiLabel('Notes', true),{exact:true}).fill(notes);
+ const amendedLive=amendment.frameLocator('iframe[title="Live Document Preview"]');
+ await amendedLive.getByText('Amended school',{exact:true}).first().waitFor({state:'attached'});
+ await amendedLive.getByText(notes,{exact:true}).first().waitFor({state:'attached'});
+ assert.notEqual(JSON.parse(sqlite.prepare('SELECT data FROM seiko_billing_documents WHERE id=?').get(document.id).data).clientName,'Amended school');
+
  const failAmend=route=>route.request().postDataJSON().operation==='amend'?route.fulfill({status:503,json:{ok:false,message:'Synthetic amendment failure'}}):route.fallback();
  await page.route('**/api/erp/billing',failAmend);
  await amendment.getByRole('button',{name:uiLabel('Save and print', true),exact:true}).click();
