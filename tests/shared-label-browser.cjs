@@ -180,6 +180,7 @@ const { DatabaseSync } = require('node:sqlite');
     const codes=await general.page.locator('.printSheet .fakeQr').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label')));
     assert.equal(new Set(codes).size,52);
     assert.ok(codes.some(code=>code.includes('another-order')));
+    const hoverRow=selection.page.locator('.physicalRecord').first();await hoverRow.hover();await selection.page.getByRole('tooltip').waitFor();await selection.page.mouse.move(0,0);await selection.page.getByRole('tooltip').waitFor({state:'detached'});await hoverRow.getByRole('button').focus();assert.equal(await selection.page.getByRole('tooltip').count(),0,'focused records do not keep hover details visible');await hoverRow.hover();await selection.page.getByRole('tooltip').waitFor();await selection.page.mouse.move(0,0);await selection.page.getByRole('tooltip').waitFor({state:'detached'});
     // Keep an early preview while scrolling/selecting far beyond the virtual window.
     const range=await context(null);await range.page.goto(base+'/tests/packing-browser/index.html?selection');await range.page.getByRole('button',{name:'Clear All',exact:true}).click();
     await range.page.getByRole('button',{name:'Preview Person 1',exact:true}).click();await range.page.getByRole('checkbox',{name:'Select Person 1',exact:true}).check();

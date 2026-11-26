@@ -52,9 +52,9 @@ function enhanceRecordHover(page: HTMLElement) {
   page.querySelectorAll<HTMLElement>(".labelSidebar .recordList .record").forEach(record => {
     if (record.dataset.hoverDetailReady === "true") return;
     record.dataset.hoverDetailReady = "true";
-    record.addEventListener("pointerenter", () => showHoverCard(record));
-
-    record.addEventListener("focus", () => showHoverCard(record));
+    record.addEventListener("pointerenter", event => { if(event.pointerType!=="touch")showHoverCard(record); });
+    record.addEventListener("pointerleave", removeHoverCard);
+    record.addEventListener("pointercancel", removeHoverCard);
 
   });
 }
@@ -117,12 +117,14 @@ export function LabelWorkspaceRefinement() {
     const escape=(event:KeyboardEvent)=>{if(event.key==="Escape"&&document.querySelector(".labelRecordHoverCard")){event.preventDefault();event.stopPropagation();removeHoverCard();}};
     document.addEventListener("pointerdown",outside,true);document.addEventListener("keydown",escape,true);
     window.addEventListener("resize", removeHoverCard);
+    document.addEventListener("scroll",removeHoverCard,true);
     return () => {
       document.removeEventListener("keydown", saveShortcut, true);
       document.removeEventListener("click", removeChip, true);
       document.removeEventListener("change", controller.schedule, true);
       document.removeEventListener("pointerdown",outside,true);document.removeEventListener("keydown",escape,true);
       window.removeEventListener("resize", removeHoverCard);
+      document.removeEventListener("scroll",removeHoverCard,true);
       removeHoverCard();
       controller.stop();
     };

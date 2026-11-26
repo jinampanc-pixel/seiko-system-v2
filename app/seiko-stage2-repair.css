@@ -86,7 +86,7 @@
 .labelLauncher .labelOrderPicker{display:none!important}
 .labelLauncher.labelCreateOpen .labelOrderPicker{display:block!important}
 .labelLauncher .labelBatchModule{margin-bottom:12px!important}
-.labelLauncher .labelBatchModuleList{max-height:430px!important;overflow:auto!important}
+.labelLauncher .labelBatchModuleList{max-height:none!important;overflow:visible!important}
 .labelLauncher .labelOrderPicker{margin-top:12px!important}
 .labelLauncher.labelLauncherFocused .labelOrderPicker{border-color:color-mix(in srgb,var(--brand) 28%,var(--line))!important}
 .labelLauncher .labelReturnToOrder{white-space:nowrap!important}
