@@ -18,6 +18,7 @@ function load(path, imports = {}, expose = "") {
 const domain = load("../app/lib/order-domain.ts", { "./order-statuses": load("../app/lib/order-statuses.ts") });
 const model = load("../app/lib/packing-label-model.ts", { "./order-domain": domain });
 const designer = load("../app/packing-person-label-designer.tsx", {
+  "./lib/label-record-selection": load("../app/lib/label-record-selection.ts"),
   "./output-record-menu": {}, "./outputs/outputs.css": {},
   "./ui-icons": load("../app/ui-icons.tsx", {"react/jsx-runtime": {}}),
   "./lib/label-sources": load("../app/lib/label-sources.ts", {"./order-domain":domain}),
