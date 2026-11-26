@@ -16,7 +16,7 @@ test('shared label API enforces scope, permissions, versions, safe adoption and 
     let signedIn = true; let write = true;
     const exports = {};
     vm.runInNewContext(ts.transpileModule(fs.readFileSync('app/api/erp/labels/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
-      exports, Response, Request, URL, TextDecoder, Uint8Array,
+      exports, Response, Request, URL, TextDecoder, Uint8Array, AbortSignal,
       require(name) { return name === 'cloudflare:workers' ? { env: { DB: db } } : { authenticateActor: async () => signedIn ? { email: 'owner@example.invalid' } : null, authorizePermission: async (_actor, business, permission) => business === 'seiko' && (permission === 'labels.view' || write) ? { role: 'owner' } : null }; },
     });
     const call = async body => { const response = await exports.POST(new Request('https://test.invalid/api/erp/labels', { method: 'POST', body: JSON.stringify({ businessId: 'seiko', ...body }) })); return { status: response.status, ...await response.json() }; };
@@ -54,7 +54,7 @@ test('full browser cache still saves labels to shared storage and reopens them',
   function client() {
     const exports = {};
     vm.runInNewContext(source, {
-      exports,
+      exports, AbortSignal,
       localStorage: { getItem() { return null; }, setItem() { throw new Error('QuotaExceededError'); } },
       window: { dispatchEvent(event) { messages.push(event.detail.message); } },
       CustomEvent: class { constructor(type, options) { this.detail = options.detail; } },

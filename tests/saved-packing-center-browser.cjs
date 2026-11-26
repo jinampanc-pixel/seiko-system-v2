@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
  await page.getByRole('button',{name:uiLabel('Apply', true),exact:true}).click();
  assert.equal(await page.locator('.physicalPackingEditor').getAttribute('data-selected-count'),'258');
  assert.match(await page.locator('.physicalCanvas').innerText(),/Vest:.*Qty/,'new product formats include order quantity');
- await page.getByRole('button',{name:uiLabel('Save label set', true),exact:true}).click();
+ await page.getByRole('button',{name:uiLabel('Save label set', true),exact:true}).click();await require('./label-set-name.cjs')(page);
  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('jinam:seiko:labels:tasks-v1'))[0]);
  const texts=await page.locator('.physicalCanvas svg').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-label')));
  await page.goto(url+'?center');

@@ -19,7 +19,13 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     assert.ok(await target.locator('.seikoRowActionPanel>button').evaluateAll(buttons=>buttons.every(button=>parseFloat(getComputedStyle(button).fontSize)>=14)), 'Order actions remain readable');
     const bounds = await target.locator('.seikoRowActionPanel').boundingBox(); const viewport = page.viewportSize();
     assert.ok(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height, `Menu fits viewport for ${number}`);
-    await target.getByRole('button', { name: uiLabel(name, true), exact: true }).click();
+    const button = target.getByRole('button', { name: uiLabel(name, true), exact: true, includeHidden:true });
+    const section = button.locator('xpath=ancestor::details[contains(@class,"orderMenuSection")]');
+    if (await section.count() && !await section.evaluate(node => node.open)) {
+      await section.locator(':scope > summary').click();
+      assert.equal(await target.locator('details').first().evaluate(node => node.open), true, 'Expanding a section preserves the order menu');
+    }
+    await button.click();
   };
   for (const number of ['SMOKE-001', 'SECOND-002', 'DELETE-003']) {
     await row(number).getByLabel(uiLabel(`Status for ${number}`, true), { exact: true }).waitFor({ state: "visible" });
@@ -128,7 +134,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await receipt.getByText(uiLabel('Against order', false), { exact: false }).first().waitFor();
   await page.getByRole('button', { name: uiLabel('Close', true), exact: true }).click();
   await page.getByLabel(uiLabel('SEIKO billing', false)).getByRole('button', { name: uiLabel('← Back', true), exact: true }).click(); await page.locator('.orderCenterHead').waitFor(); await navigate('Orders');
-  await action('SMOKE-001', 'View payments / receipts');
+  await action('SMOKE-001', 'Payments & Receipts');
   const history = page.getByRole('region', { name: uiLabel('Payment history', false) });
   await history.getByRole('button').first().waitFor();
   assert.match(await history.innerText(), /Smoke School/i); assert.doesNotMatch(await history.innerText(), /Other School|SECOND-002/i);
@@ -196,7 +202,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await fresh.getByRole('navigation', { name: uiLabel('Modules', false) }).getByRole('button', { name: uiLabel(/Orders$/, false) }).click();
   await fresh.locator('.orderRow').filter({ hasText: 'SMOKE-001' }).waitFor();
   assert.equal(await fresh.locator('.orderRow').filter({ hasText: 'DELETE-003' }).count(), 0);
-  await fresh.locator('.orderRow').filter({ hasText: 'SMOKE-001' }).locator('summary').click();
+  await fresh.locator('.orderRow').filter({ hasText: 'SMOKE-001' }).locator('.seikoRowActionMenu > summary').click();
   assert.equal(await fresh.getByRole('button', { name: uiLabel('Delete order', true), exact: true }).count(), 0);
   await context.close();
   console.log('PASS: shared setup save/reopen/reload, failed save keeps draft, Home status stays Active, visible statuses, scoped payments/receipts/document drafts/setup, archive/restore, confirmed protected deletion, audit tombstone, fresh browser.');

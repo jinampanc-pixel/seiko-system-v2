@@ -171,7 +171,7 @@ export function Orders({ onAssistantContext, businessId, canManageSuggestions = 
       <label className="orderListStatus orderCenterInlineStatus"><span className="srOnly">Status for {order.details.orderNo}</span><select aria-label={`Status for ${order.details.orderNo}`} disabled={busy} className={`status-${order.status.toLowerCase().replace(" ", "-")}`} value={order.status} onChange={event => void changeStatus(order, event.target.value as OrderStatus)}>{ORDER_STATUSES.map(status => <option key={status}>{uiStatusLabel(String(status ?? ""))}</option>)}</select></label>
       <button className="openOrderButton" onClick={() => openSetup(order)}>Open Order</button>
       <details className="seikoRowActionMenu orderCenterActionMenu" onToggle={event => {
-        const menu = event.currentTarget; if (!menu.open) return;
+        const menu = event.currentTarget; if (event.target !== menu || !menu.open) return;
         document.querySelectorAll<HTMLDetailsElement>(".seikoRowActionMenu[open]").forEach(other => { if (other !== menu) other.open = false; });
         const anchor = menu.querySelector("summary")!.getBoundingClientRect();
         const panel = menu.querySelector<HTMLElement>(".seikoRowActionPanel")!;
@@ -180,18 +180,18 @@ export function Orders({ onAssistantContext, businessId, canManageSuggestions = 
         panel.style.left = `${Math.max(8, Math.min(window.innerWidth - width - 8, anchor.right - width))}px`;
         const top = Math.max(8, Math.min(window.innerHeight - panel.getBoundingClientRect().height - 8, anchor.bottom + 5));
         panel.style.top = `${top}px`; panel.style.maxHeight = `${window.innerHeight - top - 8}px`;
-      }}><summary aria-label={`Actions for ${order.details.orderNo}`}>•••</summary><div className="seikoRowActionPanel" onClickCapture={event => { if ((event.target as Element).closest("button")) event.currentTarget.closest("details")!.open = false; }} style={{ position: "fixed", right: "auto", zIndex: 12000, boxSizing: "border-box", maxHeight: "calc(100dvh - 16px)", overflowY: "auto" }}>
-        <div className="orderMenuContext"><b>{order.details.orderNo}</b><span>{order.details.clientName}</span></div><p className="orderMenuGroupLabel">Order</p><button disabled={busy} onClick={() => openWorkspace(order)}>Open Workspace</button>
-        <p className="orderMenuGroupLabel">Billing & Documents</p><button onClick={() => openOrderFinancialAction(order.orderId, "payment")}>Record Payment</button>
-        <button onClick={() => openOrderFinancialAction(order.orderId, "payments")}>View Payments / Receipts</button>
+      }}><summary aria-label={`Actions for ${order.details.orderNo}`}>•••</summary><div className="seikoRowActionPanel" onClickCapture={event => { if ((event.target as Element).closest("button")) event.currentTarget.closest("details.orderCenterActionMenu")!.removeAttribute("open"); }} style={{ position: "fixed", right: "auto", zIndex: 12000, boxSizing: "border-box", maxHeight: "calc(100dvh - 16px)", overflowY: "auto" }}>
+        <div className="orderMenuContext"><b>{order.details.orderNo}</b><span>{order.details.clientName}</span></div><button disabled={busy} onClick={() => openWorkspace(order)}>Open Workspace</button>
+        <button onClick={() => openOrderFinancialAction(order.orderId, "payment")}>Record Payment</button>
+        <details className="orderMenuSection"><summary>Billing & Documents</summary><button onClick={() => openOrderFinancialAction(order.orderId, "payments")}>Payments & Receipts</button>
         <button onClick={() => openOrderFinancialAction(order.orderId,"invoice")}>Create Invoice</button>
         <button onClick={() => setHandoverOrder(structuredClone(order))}>Student Handover List / PDF</button><button onClick={() => openOrderFinancialAction(order.orderId, "challan")}>Create Delivery Challan</button>
         <button onClick={() => openOrderFinancialAction(order.orderId, "quotation")}>Create Quotation</button>
-        {businessId==="seiko"&&<button onClick={()=>{setCurrent(structuredClone(order));setServiceGroup("all");setServiceOrigin("center");setServicePerson("");setView("service");}}>Order Management</button>}{membership?.modules.includes("production")&&<button onClick={()=>window.dispatchEvent(new CustomEvent("seiko:production-order",{detail:order.orderId}))}>Production Handoff</button>}<p className="orderMenuGroupLabel">Setup & Labels</p><button onClick={() => { setupBase.current=structuredClone(order); setCurrent(structuredClone(order)); setSetupReturnView("center"); setView("setup"); }}>Edit Setup</button>
+        </details>{businessId==="seiko"&&<button onClick={()=>{setCurrent(structuredClone(order));setServiceGroup("all");setServiceOrigin("center");setServicePerson("");setView("service");}}>Order Management</button>}{membership?.modules.includes("production")&&<button onClick={()=>window.dispatchEvent(new CustomEvent("seiko:production-order",{detail:order.orderId}))}>Production Handoff</button>}<details className="orderMenuSection"><summary>Setup & Labels</summary><button onClick={() => { setupBase.current=structuredClone(order); setCurrent(structuredClone(order)); setSetupReturnView("center"); setView("setup"); }}>Edit Setup</button>
         <button onClick={() => { openLabelCreation({businessId,orderId:order.orderId}); }}>Create Labels</button>
-        <p className="orderMenuGroupLabel">Manage order</p><button disabled={busy} onClick={() => void archiveOrder(order)}>{order.archived ? "Restore Order" : "Archive Order"}</button>
+        </details><details className="orderMenuSection orderMenuMaintenance"><summary>Manage Order</summary><button disabled={busy} onClick={() => void archiveOrder(order)}>{order.archived ? "Restore Order" : "Archive Order"}</button>
         {membership?.role === "owner" && <button disabled={busy} className="dangerText" onClick={() => deleteOrder(order)}>Delete Order</button>}
-      </div></details>
+      </details></div></details>
     </article>) : <div className="orderEmpty"><b>{archivedOnly ? "No Archived Orders" : "No Orders Yet"}</b></div>}</section>
     <nav className="workspacePager" aria-label="Order Pages"><span>{filtered.length} Matching Orders</span><button disabled={safeCenterPage <= 1} onClick={() => setCenterPage(safeCenterPage - 1)}>Previous</button><span>Page {safeCenterPage} Of {centerPageCount}</span><button disabled={safeCenterPage >= centerPageCount} onClick={() => setCenterPage(safeCenterPage + 1)}>Next</button></nav>
   </div>;

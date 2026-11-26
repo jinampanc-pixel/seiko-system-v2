@@ -19,7 +19,7 @@ const fixture=require('./fixtures/packing-quantity-regression.json');
  await open();await page.getByRole('radio',{name:uiLabel('All selected products', true),exact:true}).check();
  await page.getByRole('dialog').getByRole('button',{name:uiLabel('Cancel', true),exact:true}).last().click();
  assert.equal(Number(await page.locator('.physicalPackingEditor').getAttribute('data-selected-count')),expected);
- await page.getByRole('button',{name:uiLabel('Save label set', true),exact:true}).click();
+ await page.getByRole('button',{name:uiLabel('Save label set', true),exact:true}).click();await require('./label-set-name.cjs')(page);
  await page.goto(url+'?center');
  await page.locator('.labelBatchModuleList article').getByRole('button',{name:uiLabel('Open', true),exact:true}).click();
  await page.locator('.physicalPackingEditor').waitFor();

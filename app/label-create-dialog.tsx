@@ -4,18 +4,25 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { LabelCreateWorkspace } from "./labels/create/page";
 import type { LabelCreationContext } from "./lib/label-creation";
+import {useAccess} from "./access-control";
+import {SavedLabelWorkspace} from "./saved-label-workspace";
+import {useCachedOrders} from "./lib/use-cached-orders";
+import type {LabelPurpose} from "./label-designer";
 import { CloseIcon } from "./ui-icons";
 import "./label-create-dialog.css";
 
 export function LabelCreateDialog() {
   const [context, setContext] = useState<LabelCreationContext | null>(null);
+  const {membership}=useAccess();
+  const orders=useCachedOrders(context?.businessId||"seiko");
+  const savedOrder=orders.find(order=>order.orderId===context?.orderId);
   const [expanded, setExpanded] = useState(false);
   const [designing, setDesigning] = useState(false);
   useEffect(() => {
     const open = (event: Event) => {
       const detail = (event as CustomEvent<LabelCreationContext>).detail;
       if (!detail?.businessId) return;
-      setDesigning(false);
+      setDesigning(Boolean(detail.taskId));
       setExpanded(false);
       setContext(detail);
     };
@@ -34,6 +41,6 @@ export function LabelCreateDialog() {
   };
   return context ? createPortal(<div className="labelCreateBackdrop"><section className={`labelCreateDialog ${expanded ? "isExpanded" : ""} ${designing ? "isDesigning" : ""}`} role="dialog" aria-modal="true" aria-label="Label Workspace">
     <header className="labelCreateDialogHead"><div><b>Label Workspace</b><span>Create, Design and Save Labels</span></div><div><button type="button" className="secondary" aria-pressed={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? "Exit Full Screen" : "Full Screen"}</button><button type="button" className="uiIconButton uiCloseButton" aria-label="Close Label Workspace" title="Close Label Workspace" onClick={close}><CloseIcon/></button></div></header>
-    <div className="labelCreateDialogBody"><LabelCreateWorkspace context={context} onClose={close} onDesigning={setDesigning}/></div>
+    <div className="labelCreateDialogBody">{context.taskId ? savedOrder ? <SavedLabelWorkspace key={context.taskId} businessId={context.businessId} order={savedOrder} initialPurpose={context.purpose as LabelPurpose} canManageSizes={membership?.role==="owner"||membership?.role==="admin"} onBack={close} backLabel="← Back"/> : <p role="status">Loading Order…</p> : <LabelCreateWorkspace context={context} onClose={close} onDesigning={setDesigning}/>}</div>
   </section></div>, document.body) : null;
 }

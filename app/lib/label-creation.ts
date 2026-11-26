@@ -1,4 +1,4 @@
-export type LabelCreationContext = { businessId: string; orderId?: string; purpose?: string };
+export type LabelCreationContext = { businessId: string; orderId?: string; purpose?: string; taskId?: string };
 
 /** One entry point keeps label creation in the current business and order context. */
 export function openLabelCreation(context: LabelCreationContext) {

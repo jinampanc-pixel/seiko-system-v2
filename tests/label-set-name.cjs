@@ -1,0 +1,1 @@
+module.exports=async(page,name='Test Label Set')=>{const dialog=page.locator('dialog.labelSetNameDialog');await dialog.waitFor({state:'visible'});const input=dialog.getByRole('textbox');if(!await input.inputValue())await input.fill(name);await dialog.getByRole('button',{name:'Save',exact:true}).click();await dialog.waitFor({state:'detached'});};

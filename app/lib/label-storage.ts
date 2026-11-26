@@ -41,7 +41,7 @@ function entries(collection: string, id: string, value: unknown): Array<{ id: st
   return value.map(item => { if (!item || typeof item.id !== "string" || !item.id) throw new Error("Saved label has no ID; the original browser copy is retained."); return { id: item.id, value: item }; });
 }
 async function request(business: string, body: object): Promise<SharedRecord[]> {
-  const response = await fetch("/api/erp/labels", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ businessId: business, ...body }) });
+  const response = await fetch("/api/erp/labels", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ businessId: business, ...body }), signal: AbortSignal.timeout(8000) });
   const result = await response.json();
   if (!response.ok || !result.ok) { const error = new Error(result.message || "Shared label storage is unavailable."); Object.assign(error, { status: response.status }); throw error; }
   return result.records;

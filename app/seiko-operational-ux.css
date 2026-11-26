@@ -170,3 +170,12 @@
 .orderCenterActionMenu .orderMenuContext b,.orderCenterActionMenu .orderMenuContext span{font-size:14px!important;line-height:1.4!important}
 
 /* Home's row heights match its bounded scroll window. */
+
+/* Order Center: common actions first; secondary actions expand on click. */
+.orderCenterActionMenu .orderMenuSection{border:0;border-top:1px solid var(--line,#d4b78b);margin:4px 0 0;padding:0;background:transparent}
+.orderCenterActionMenu .orderMenuSection>summary{display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:10px 12px;font-size:14px;font-weight:700;cursor:pointer;list-style:none}
+.orderCenterActionMenu .orderMenuSection>summary::-webkit-details-marker{display:none}
+.orderCenterActionMenu .orderMenuSection>summary:after{content:"+";font-size:18px}
+.orderCenterActionMenu .orderMenuSection[open]>summary:after{content:"−"}
+.orderCenterActionMenu .orderMenuSection>button{display:block;width:100%;min-height:44px;padding:10px 16px;text-align:left;font-size:14px;line-height:1.4}
+.orderCenterActionMenu .orderMenuSection>summary:focus-visible{outline:2px solid var(--navy,#173e60);outline-offset:-3px}

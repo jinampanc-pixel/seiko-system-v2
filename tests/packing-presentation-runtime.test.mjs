@@ -23,6 +23,7 @@ const designer = load("../app/packing-person-label-designer.tsx", {
   "./ui-icons": load("../app/ui-icons.tsx", {"react/jsx-runtime": {}}),
   "./lib/label-sources": load("../app/lib/label-sources.ts", {"./order-domain":domain}),
   "./lib/output-activity": {recordOutput:async()=>{}},
+  "./label-set-name": {},
   "./lib/label-storage": load("../app/lib/label-storage.ts"), react: {}, "react-dom": {}, "react/jsx-runtime": {}, "./physical-label-canvas": {},
   "./physical-label-editor.css": {}, "./lib/physical-output": load("../app/lib/physical-output.ts"),
   "./lib/order-sheet-client": {ensureOrderSheetFreshForOutput:async()=>{}}, "./lib/order-domain": domain, "./lib/packing-label-model": model,

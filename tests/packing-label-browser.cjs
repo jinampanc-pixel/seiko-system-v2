@@ -46,7 +46,7 @@ const fs = require('node:fs');
  await page.getByRole('button',{name:uiLabel('Auto-arrange', false)}).click();
  await page.getByRole('button',{name:uiLabel('Fit', true),exact:true}).click();
  const preview=await page.locator('.physicalCanvas .physicalText').allTextContents();
- await page.getByRole('button',{name:uiLabel('Save and print (63)', true),exact:true}).click();
+ await page.getByRole('button',{name:uiLabel('Save and print (63)', true),exact:true}).click();await require('./label-set-name.cjs')(page);
  await page.waitForFunction(()=>window.printCalls===1);
  assert.equal(await page.locator('.physicalPrintedLabel').count(),63);
  const printed=await page.locator('.physicalPrintedLabel').first().locator('.physicalText').allTextContents(); assert.deepEqual(printed,preview);
@@ -67,7 +67,7 @@ const fs = require('node:fs');
  assert.equal((pdf.match(/\/Type\s*\/Page\b/g)||[]).length,32);
  // A real saved task restores its manual selections as well as product rules.
  await page.locator('.physicalRecord input').first().uncheck();
- await page.getByRole('button',{name:uiLabel('Save label set', true),exact:true}).click();
+ await page.getByRole('button',{name:uiLabel('Save label set', true),exact:true}).click();await require('./label-set-name.cjs')(page);
  await page.evaluate(()=>sessionStorage.setItem('jinam:seiko:labels:open-task',JSON.parse(localStorage.getItem('jinam:seiko:labels:tasks-v1'))[0].id));
  await page.reload();
  await page.waitForSelector('.physicalRecords h3');
