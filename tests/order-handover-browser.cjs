@@ -11,7 +11,8 @@ module.exports = async ({ page, sqlite, order, seed, navigate }) => {
   sqlite.prepare('INSERT INTO seiko_billing_documents(id,data,total_paise,created_by) VALUES(?,?,?,?)').run(doc.id,JSON.stringify(doc),1414000,'owner');
   await page.getByPlaceholder('Search order, client, type or status').fill('HANDOVER-001');
   const row = page.locator('.orderRow').filter({hasText:'HANDOVER-001'});
-  await row.locator('summary').click();
+  await row.locator('.seikoRowActionMenu > summary').click();
+  await row.locator('.orderMenuSection > summary').filter({hasText:'Billing & Documents'}).click();
   await row.getByRole('button',{name:uiLabel('Student handover list / PDF', true),exact:true}).click();
   const dialog=page.getByRole('dialog',{name:uiLabel('Student handover list', true),exact:true});
   const preview=page.frameLocator('iframe[title="Student handover print preview" i]');
