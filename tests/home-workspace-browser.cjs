@@ -39,6 +39,7 @@ module.exports=async({page,navigate,seed,order})=>{
  const taskId=await savedRow.getAttribute('data-label-task-id');
  await page.evaluate(()=>{window.__directLabelPrints=0;window.print=()=>{window.__directLabelPrints++;window.dispatchEvent(new Event('beforeprint'));};});
  await savedRow.locator('.labelCenterActionMenu > summary').click();
+ assert.ok(await savedRow.locator('.seikoRowActionPanel button').evaluateAll(buttons=>buttons.every(button=>parseFloat(getComputedStyle(button).fontSize)>=14)),'Label action text is readable');
  await savedRow.getByRole('button',{name:'Print',exact:true}).click();
  await page.waitForFunction(()=>window.__directLabelPrints===1);
  assert.equal(page.url(),originalUrl,'Saved-set printing stays in the app dialog');

@@ -145,9 +145,11 @@ function enhanceOrderCenter(page: HTMLElement) {
       appendMetaItem(meta, "Records", String(order.records.length));
       const productMeta = appendMetaItem(meta, "Products", String(order.products.filter(product => product.name.trim()).length));
       productMeta.classList.add("orderProductMeta"); productMeta.tabIndex = 0;
-      productMeta.addEventListener("pointerenter",()=>{showProductHover(productMeta,order);});
+      productMeta.addEventListener("pointerenter",event=>{if(event.pointerType!=="touch")showProductHover(productMeta,order);});
+      productMeta.addEventListener("pointerleave",removeProductHover);
+      productMeta.addEventListener("pointercancel",removeProductHover);
 
-      productMeta.addEventListener("focus",()=>{showProductHover(productMeta,order);});
+
 
       appendMetaItem(meta, "Delivery", dueLabel(order));
     }

@@ -170,8 +170,13 @@ export function Orders({ onAssistantContext, businessId, canManageSuggestions = 
       <div className="orderCenterInfo"><b>{order.details.orderNo}</b><span>{order.details.clientName}</span><small>{order.details.clientType} · {order.records.length} Person/Record Entries · {order.revisions.length} Revisions</small></div>
       <label className="orderListStatus orderCenterInlineStatus"><span className="srOnly">Status for {order.details.orderNo}</span><select aria-label={`Status for ${order.details.orderNo}`} disabled={busy} className={`status-${order.status.toLowerCase().replace(" ", "-")}`} value={order.status} onChange={event => void changeStatus(order, event.target.value as OrderStatus)}>{ORDER_STATUSES.map(status => <option key={status}>{uiStatusLabel(String(status ?? ""))}</option>)}</select></label>
       <button className="openOrderButton" onClick={() => openSetup(order)}>Open Order</button>
-      <details className="seikoRowActionMenu orderCenterActionMenu" onToggle={event => {
-        const menu = event.currentTarget; if (event.target !== menu || !menu.open) return;
+      <details className="seikoRowActionMenu orderCenterActionMenu" onPointerLeave={event=>{
+        if(event.pointerType==="touch")return;
+        const menu=event.currentTarget;
+        if(event.relatedTarget instanceof Node&&menu.contains(event.relatedTarget))return;
+        window.setTimeout(()=>{if(menu.isConnected&&!menu.matches(":hover"))menu.open=false;},150);
+      }} onToggle={event => {
+        const menu = event.currentTarget; if(event.target!==menu)return; if(!menu.open){menu.querySelectorAll<HTMLDetailsElement>(".orderMenuSection[open]").forEach(section=>{section.open=false;});return;}
         document.querySelectorAll<HTMLDetailsElement>(".seikoRowActionMenu[open]").forEach(other => { if (other !== menu) other.open = false; });
         const anchor = menu.querySelector("summary")!.getBoundingClientRect();
         const panel = menu.querySelector<HTMLElement>(".seikoRowActionPanel")!;

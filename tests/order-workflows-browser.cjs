@@ -27,6 +27,17 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     }
     await button.click();
   };
+  const firstMenu=row('SMOKE-001').locator('.orderCenterActionMenu');
+  await firstMenu.locator(':scope > summary').click();
+  await firstMenu.locator('.seikoRowActionPanel').hover();
+  assert.equal(await firstMenu.evaluate(el=>el.open),true,'Moving into the action panel keeps it open');
+  await firstMenu.locator('.orderMenuSection > summary').filter({hasText:'Setup & Labels'}).click();
+  assert.ok(await firstMenu.locator('.orderMenuSection > button').evaluateAll(buttons=>buttons.every(button=>parseFloat(getComputedStyle(button).fontSize)>=14)),'Submenu actions stay readable');
+  await page.mouse.move(5,5);await page.waitForFunction(()=>!document.querySelector('.orderCenterActionMenu[open]'));
+  const productInfo=row('SMOKE-001').locator('.orderProductMeta');await productInfo.hover();await page.locator('.orderProductHoverCard').waitFor();
+  assert.ok(await page.locator('.orderProductHoverCard span').evaluateAll(rows=>rows.every(el=>parseFloat(getComputedStyle(el).fontSize)>=14)));
+  await page.mouse.move(5,5);await page.locator('.orderProductHoverCard').waitFor({state:'detached'});
+  await productInfo.focus();assert.equal(await page.locator('.orderProductHoverCard').count(),0,'Focus cannot leave a product hover popup stuck open');
   for (const number of ['SMOKE-001', 'SECOND-002', 'DELETE-003']) {
     await row(number).getByLabel(uiLabel(`Status for ${number}`, true), { exact: true }).waitFor({ state: "visible" });
   }
