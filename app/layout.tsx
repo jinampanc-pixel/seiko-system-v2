@@ -52,7 +52,7 @@ import { BusinessApplicationRouter } from "./business-application-router";
 export const metadata: Metadata = {
   title: "SEIKO TAILORS",
   description: "SEIKO TAILORS order, measurement, production and billing workspace.",
-  icons: { icon: [{ url: "/favicon.svg?v=5", type: "image/svg+xml" }, { url: "/favicon-32.png?v=5", sizes: "32x32", type: "image/png" }], shortcut: "/favicon.svg?v=5", apple: "/apple-touch-icon.png?v=5" },
+  icons: { icon: [{ url: "/favicon.svg?v=6", type: "image/svg+xml" }, { url: "/favicon-32.png?v=6", sizes: "32x32", type: "image/png" }], shortcut: "/favicon.svg?v=6", apple: "/apple-touch-icon.png?v=6" },
   manifest: "/manifest.webmanifest?v=5",
   applicationName: "SEIKO TAILORS",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "SEIKO TAILORS" },

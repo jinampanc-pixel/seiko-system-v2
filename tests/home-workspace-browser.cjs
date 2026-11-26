@@ -49,5 +49,16 @@ module.exports=async({page,navigate,seed,order})=>{
  page.once('dialog',dialog=>dialog.accept());
  await page.locator('article[data-label-task-id="'+taskId+'"]').getByRole('button',{name:'Delete Label Set',exact:true}).click();
  await page.waitForFunction(id=>!JSON.parse(localStorage.getItem('jinam:seiko:labels:tasks-v1')||'[]').some(task=>task.id===id),taskId);
+ const appSettings=await require('./open-home-settings.cjs')(page);
+ await appSettings.getByRole('button',{name:'App & Updates',exact:true}).click();
+ const appControls=appSettings.locator('.appInstallationSettings');await appControls.getByRole('heading',{name:'App & Updates',exact:true}).waitFor();
+ await page.evaluate(()=>{window.__installPrompts=0;const event=new Event('beforeinstallprompt',{cancelable:true});event.prompt=async()=>{window.__installPrompts++;};event.userChoice=Promise.resolve({outcome:'dismissed'});window.dispatchEvent(event);});
+ await appControls.getByRole('button',{name:'Install App',exact:true}).click();await appControls.getByRole('status').filter({hasText:'Installation Cancelled'}).waitFor();assert.equal(await page.evaluate(()=>window.__installPrompts),1);
+ await appControls.getByRole('button',{name:'Install App',exact:true}).click();await appControls.getByText(/same account, records and releases/).waitFor();
+ await page.context().setOffline(true);await appControls.getByRole('button',{name:'Reload Latest Version',exact:true}).click();await appControls.getByRole('status').filter({hasText:/Connect to the Internet/}).waitFor();await page.context().setOffline(false);
+ await page.evaluate(()=>{window.__reloadGuard=event=>{window.__reloadProtected=true;event.preventDefault();};window.addEventListener('jinam:before-navigation',window.__reloadGuard);});
+ await appControls.getByRole('button',{name:'Reload Latest Version',exact:true}).click();await page.waitForFunction(()=>window.__reloadProtected);assert.equal(page.url(),originalUrl,'Reload respects unsaved-navigation cancellation');
+ await page.evaluate(()=>window.removeEventListener('jinam:before-navigation',window.__reloadGuard));
+ await appSettings.getByRole('button',{name:uiLabel('Close Settings',true),exact:true}).click();
  console.log('PASS: useful Home filters, persisted preferences, readable rows and in-app label designer with state-preserving full screen.');
 };

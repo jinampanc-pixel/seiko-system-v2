@@ -1,3 +1,4 @@
+import {inflateSync} from "node:zlib";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -60,12 +61,19 @@ test("business shell shows only active business identity while Jinam remains the
 
 test("installed app identity is SEIKO TAILORS with the approved navy and gold collar", () => {
   const installed=JSON.parse(manifest);
+  assert.equal(installed.id,"/");assert.equal(installed.scope,"/");
   assert.equal(installed.name,"SEIKO TAILORS");assert.equal(installed.short_name,"SEIKO TAILORS");
   assert.equal(installed.theme_color,"#173c5e");assert.equal(installed.background_color,"#fbf5ed");
   for(const size of ['192x192','512x512'])assert.ok(installed.icons.some(icon=>icon.sizes===size&&icon.type==='image/png'));
   assert.match(favicon,/SEIKO TAILORS Collar/);assert.match(favicon,/#06365f/);assert.match(favicon,/#b78e3b/);
-  assert.match(layout,/title: "SEIKO TAILORS"/);assert.match(layout,/favicon\.svg\?v=5/);assert.match(layout,/apple-touch-icon\.png\?v=5/);
-  assert.match(serviceWorker,/seiko-tailors-shell-v5/);assert.match(serviceWorker,/app-icon-512\.png\?v=5/);
+  assert.match(layout,/title: "SEIKO TAILORS"/);assert.match(layout,/favicon\.svg\?v=6/);assert.match(layout,/apple-touch-icon\.png\?v=6/);
+  for(const file of ["app-icon-192.png","app-icon-512.png","favicon-32.png","apple-touch-icon.png"]){
+    const png=readFileSync(new URL("../public/"+file,import.meta.url));assert.equal(png[25],6,"Icon exports include alpha");
+    const chunks=[];for(let offset=8;offset<png.length;){const size=png.readUInt32BE(offset);if(png.toString("ascii",offset+4,offset+8)==="IDAT")chunks.push(png.subarray(offset+8,offset+8+size));offset+=size+12;}
+    assert.equal(inflateSync(Buffer.concat(chunks))[4],0,"Icon corner is transparent");
+  }
+  assert.doesNotMatch(favicon,/<rect/);
+  assert.match(serviceWorker,/seiko-tailors-shell-v6/);assert.match(serviceWorker,/app-icon-512\.png\?v=6/);
 });
 
 test("Phase 1 removes prototype UI from the visible SEIKO home and menu", () => {

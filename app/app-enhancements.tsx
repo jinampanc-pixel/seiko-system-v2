@@ -1,4 +1,5 @@
 "use client";
+import {AppInstallationRuntime} from "./app-installation";
 
 import { DocumentSaveSync } from "./pending-documents";
 import { LabelCreateDialog } from "./label-create-dialog";
@@ -33,6 +34,7 @@ import { MethServerSync } from "./meth-server-sync";
 
 export function AppEnhancements() {
   return <>
+    <AppInstallationRuntime/>
     <DocumentSaveSync/>
     <LabelCreateDialog/>
     <ErpOrderSync />
