@@ -5,6 +5,9 @@ module.exports=async({page,navigate,seed,order})=>{
  const blank=structuredClone(order);blank.orderId='home-needs-entries';blank.details.orderNo='HOME-EMPTY';blank.details.clientName='A long client name that needs room to be read';blank.records=[];blank.details.deliveryDate=new Date().toISOString().slice(0,10);await seed(blank);
  await page.reload();await navigate('Home');
  const home=page.locator('.seikoOperationalDashboard');
+ await navigate('Orders');await page.locator('.app .topbar').getByRole('button',{name:'Go to Home',exact:true}).click();await home.waitFor({state:'visible'});
+ await navigate('Billing');await page.locator('.phase2BrandHeader').getByRole('button',{name:'Go to Home',exact:true}).click();await page.locator('.seikoPhase2Surface').waitFor({state:'detached'});await home.waitFor({state:'visible'});
+
  await home.getByRole('button',{name:uiLabel(/Needs Entries/, true)}).click();await home.locator('.homeOrderOpen').filter({hasText:'HOME-EMPTY'}).waitFor();assert.equal(await home.locator('.homeOrderOpen').filter({hasText:'SMOKE-001'}).count(),0);
  await home.getByRole('button',{name:uiLabel(/Due Soon/, true)}).click();await home.locator('.homeOrderOpen').filter({hasText:'HOME-EMPTY'}).waitFor();
  assert.equal(await home.getByRole('button',{name:/Customize/i}).count(),0,'Home has no customization controls');
@@ -15,6 +18,12 @@ module.exports=async({page,navigate,seed,order})=>{
  await settings.getByRole('button',{name:uiLabel('Close Settings',true),exact:true}).click();
  assert.equal(await home.getByRole('button',{name:uiLabel('Quotation',true),exact:true}).count(),1);
  await page.reload();await home.getByRole('button',{name:uiLabel(/Needs Entries/,true)}).waitFor();assert.equal(await home.getByRole('button',{name:uiLabel(/Needs Entries/,true)}).getAttribute('aria-pressed'),'true');
+ settings=await require('./open-home-settings.cjs')(page);
+
+ const viewControls=settings.getByRole('group',{name:'Order View Buttons',exact:true});
+ for(const name of ['All Active','Needs Entries','Due Soon'])await viewControls.getByRole('checkbox',{name,exact:true}).uncheck();
+ await settings.getByRole('button',{name:uiLabel('Close Settings',true),exact:true}).click();assert.equal(await home.locator('.homeFocusViews').count(),0);assert.ok(await home.locator('.homeOrderOpen').count()>0);
+ await page.reload();assert.equal(await home.locator('.homeFocusViews').count(),0);
  settings=await require('./open-home-settings.cjs')(page);
  const quick=settings.getByRole('group',{name:'Quick Access',exact:true});
  await settings.getByRole('button',{name:uiLabel('Reset Home',true),exact:true}).click();

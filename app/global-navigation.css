@@ -35,3 +35,5 @@
 .app .topbar .moduleMenu .moduleMenuSettings .accessMenuEntry,
 .globalStandaloneMenu .moduleMenuSettings .accessMenuEntry{width:100%!important;min-height:44px!important}
 
+
+button.globalHomeLogo{display:inline-flex;align-items:center;justify-content:flex-start;gap:0;padding:0!important;border:0!important;border-radius:4px;background:transparent!important;box-shadow:none;cursor:pointer;min-width:0;color:inherit}.phase2BrandHeader>button.globalHomeLogo{order:0!important}.globalHomeLogo:focus-visible{outline:3px solid var(--gold,#c3a06c)!important;outline-offset:4px}

@@ -75,7 +75,7 @@ export function SeikoPhase2() {
   };
 
   useEffect(() => {
-    const close=()=>setView(null);window.addEventListener("jinam:open-settings",close);return()=>window.removeEventListener("jinam:open-settings",close);
+    const close=()=>setView(null);window.addEventListener("jinam:open-settings",close);window.addEventListener("seiko:home-arrived",close);return()=>{window.removeEventListener("jinam:open-settings",close);window.removeEventListener("seiko:home-arrived",close);};
   },[]);
 
   useEffect(() => {
@@ -156,7 +156,7 @@ export function SeikoPhase2() {
   if (!view || typeof document === "undefined") return null;
 
   return createPortal(<section className="seikoPhase2Surface" style={reviewingOrder?{display:"none"}:undefined} aria-label={`SEIKO ${view}`}>
-    <header className="phase2BrandHeader"><img src="/brands/seiko-logo-approved.webp" alt="SEIKO Tailors"/><button type="button" className="menuToggle" aria-label="Open Billing Navigation" onClick={()=>requestAppNavigation(()=>{setView(null);document.querySelector<HTMLButtonElement>('.app .topbar .menuToggle[aria-expanded="false"]')?.click();})}><span/><span/><span/></button></header><header className="seikoPhase2Head"><div><button type="button" className="secondary appBackControl" onClick={() => requestAppNavigation(()=>setView(null))}>← Back</button><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
+    <header className="phase2BrandHeader"><button type="button" className="globalHomeLogo" aria-label="Go to Home" onClick={()=>window.dispatchEvent(new Event("seiko:home"))}><img src="/brands/seiko-logo-approved.webp" alt="SEIKO Tailors"/></button><button type="button" className="menuToggle" aria-label="Open Billing Navigation" onClick={()=>requestAppNavigation(()=>{setView(null);document.querySelector<HTMLButtonElement>('.app .topbar .menuToggle[aria-expanded="false"]')?.click();})}><span/><span/><span/></button></header><header className="seikoPhase2Head"><div><button type="button" className="secondary appBackControl" onClick={() => requestAppNavigation(()=>setView(null))}>← Back</button><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
     {view === "clients" && <SeikoClientDirectory legacyRecords={clients}/>} {/* shared client directory */}
     {libraryError&&<p role="alert">{libraryError}</p>}
     {view === "products" && <ProductLibrary records={products} onChange={saveProducts} error={libraryError}/>} {/* browser product library */}
