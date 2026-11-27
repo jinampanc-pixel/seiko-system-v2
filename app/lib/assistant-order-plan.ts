@@ -56,11 +56,12 @@ export function compileAssistantOrderPlan(value: unknown): SeikoOrder {
     measurements.push(measurement(row, [...new Set(ids)], true));
   }
   const rules: PriceRule[] = (plan.prices ? list(plan.prices, 100) : []).map(obj).map(price => {
-    const mode = String(price.mode || "package") as PriceRule["mode"], rate = price.rate, taxRate = price.taxRate === undefined ? 0 : price.taxRate;
+    const mode = String(price.mode || "package") as PriceRule["mode"], packageCharge=price.packageCharge, rate = price.rate, taxRate = price.taxRate === undefined ? 0 : price.taxRate;
     if (!["package", "product", "fixed"].includes(mode) || typeof rate !== "number" || !Number.isFinite(rate) || rate < 0 || typeof taxRate !== "number" || !Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) throw new Error("Package prices and taxes must be explicit valid numbers.");
     const contents = Object.entries(price.contents ? obj(price.contents) : {}).map(([product, count]) => { const productId = productMap.get(key(product)); if (!productId) throw new Error("A package refers to an unknown garment: " + product); return { productId, quantity: quantity(count) }; });
+    if(packageCharge!==undefined&&(mode!=="package"||typeof packageCharge!=="string"||!["person","set"].includes(packageCharge)))throw new Error("Choose per-person or per-set package pricing.");
     if (mode !== "fixed" && !contents.length) throw new Error("A package price must specify its garment contents.");
-    return { id: crypto.randomUUID(), name: text(price.name), mode, rate, taxRate, hsnSac: text(price.hsnSac, true), fieldId: "", match: "", ...predicate(price.when, price.match), contents };
+    return { id: crypto.randomUUID(), name: text(price.name), mode, ...(packageCharge?{packageCharge:packageCharge as "person"|"set"}:{}), rate, taxRate, hsnSac: text(price.hsnSac, true), fieldId: "", match: "", ...predicate(price.when, price.match), contents };
   });
   return { orderId: "", status: "Draft", archived: false, updatedAt: "", revisions: [], records: [], details: { orderNo: "", orderDate: "", clientName: text(details.clientName), clientType: text(details.clientType || "Custom"), contactPerson: text(details.contactPerson, true), contactNumber: text(details.contactNumber), attnRequired: details.attnRequired === true, shipTo: text(details.shipTo, true), billTo: text(details.billTo, true), deliveryDate: text(details.deliveryDate, true), remarks: text(details.remarks, true) }, fields, products, measurements, commerce: { rules, people: {}, deliveries: [], issues: [] } };
 }

@@ -89,3 +89,9 @@ test('compact plan recipient conditions compile from person fields without chang
  const f=order.fields.find(f=>f.name==='Gender');assert.equal(domain.quantityForRecord(order.products[0],{recordId:'test',values:{['field:'+f.id]:'Male'}}),0);
  p.products[0].recipients={unknown:'Female'};assert.throws(()=>compile(p),/unknown person field/);
 });
+
+
+test('assistant plans preserve explicit per-set pricing instead of silently charging per person',()=>{
+ const proposal=complex();proposal.prices[0].packageCharge='set';const order=compile(proposal);assert.equal(order.commerce.rules[0].packageCharge,'set');
+ proposal.prices[0].packageCharge='unknown';assert.throws(()=>compile(proposal),/per-person or per-set/);
+});

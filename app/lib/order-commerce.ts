@@ -1,8 +1,12 @@
 import { recordInOrderGroup, validOrderGroup } from './order-domain';
 import { packingQuantities } from "./packing-label-model";
-import { orderRuleErrors, predicateState, specificationForRecord, recordRuleIssues, measurementRequired, type RulePredicate, workspaceColumns, type OrderRecord, type SeikoOrder } from "./order-domain";
+import { conditionValue, groupRuleValues, ruleConditions, ruleSourceFields, predicateErrors, predicatesOverlap, orderRuleErrors, predicateState, specificationForRecord, recordRuleIssues, measurementRequired, type RulePredicate, workspaceColumns, type OrderRecord, type SeikoOrder } from "./order-domain";
 
-export type PriceRule = RulePredicate & { id:string; name:string; mode:"package"|"product"|"fixed"; rate:number; taxRate:number; hsnSac:string; fieldId:string; match:string; contents:{productId:string;quantity:number;alternatives?:string[]}[] };
+export type PriceRule = RulePredicate & { id:string; name:string; mode:"package"|"product"|"fixed"; packageCharge?:"person"|"set"; rate:number; taxRate:number; hsnSac:string; fieldId:string; match:string; contents:{productId:string;quantity:number;alternatives?:string[]}[] };
+export function changePriceBasis(rule:PriceRule,basis:"package"|"set"|"product"|"fixed"):PriceRule {
+ const mode=basis==="set"?"package":basis;
+ return {...rule,mode,packageCharge:mode==="package"?(basis==="set"?"set":"person"):undefined,contents:mode===rule.mode?rule.contents:mode==="product"?rule.contents.slice(0,1).map(x=>({...x,alternatives:undefined})):mode==="fixed"?[]:rule.contents,...(mode==="fixed"?{fieldId:"",match:"",conditions:undefined,conditionMode:undefined}:{})};
+}
 /** A garment can belong to only one component of a package. */
 export function selectPriceProduct(rule:PriceRule, productId:string, selected:boolean):PriceRule["contents"] {
  const primary=rule.contents.find(x=>x.productId===productId);
@@ -10,6 +14,34 @@ export function selectPriceProduct(rule:PriceRule, productId:string, selected:bo
  if(selected&&(primary||alternative))return rule.contents;
  if(selected)return [...(rule.mode==="product"?[]:rule.contents),{productId,quantity:1}];
  return rule.contents.filter(x=>x.productId!==productId).map(x=>({...x,alternatives:x.alternatives?.filter(id=>id!==productId)}));
+}
+
+/** Move a garment into an alternative slot without leaving a duplicate primary component. */
+export function setPriceAlternative(rule:PriceRule, primaryId:string, alternativeId:string, enabled:boolean):PriceRule["contents"] {
+ if(primaryId===alternativeId||!rule.contents.some(x=>x.productId===primaryId))return rule.contents;
+ if(enabled&&rule.contents.some(x=>x.productId===alternativeId&&x.alternatives?.length))return rule.contents;
+ return rule.contents.filter(x=>!enabled||x.productId!==alternativeId).map(x=>({...x,alternatives:x.productId===primaryId&&enabled?[...(x.alternatives||[]).filter(id=>id!==alternativeId),alternativeId]:(x.alternatives||[]).filter(id=>id!==alternativeId)}));
+}
+export function pricingValueOptions(order:SeikoOrder):Record<string,string[]> {
+ const result:Record<string,string[]>={};const add=(field:string,values:string[])=>{const key=field.replace(/^field:/,""),all=[...(result[key]||[]),...values].map(value=>String(value).trim()).filter(Boolean);const unique=new Map<string,string>();for(const value of all)if(!unique.has(value.toLocaleLowerCase()))unique.set(value.toLocaleLowerCase(),value);result[key]=[...unique.values()];};
+ for(const field of ruleSourceFields(order))add(field.id,[...(field.options||[]),...order.records.map(record=>conditionValue(record,field.id))]);
+ const addRule=(rule:Parameters<typeof ruleConditions>[0],field?:string)=>{for(const condition of ruleConditions(rule,field))add(condition.fieldId,groupRuleValues(condition.match));};
+ for(const product of order.products){if(product.recipientWhen)addRule(product.recipientWhen);for(const rule of product.quantityMode==="by_group"?product.quantityGroupRules||[]:[])addRule(rule,product.quantityGroupFieldId);for(const spec of product.specifications)for(const rule of spec.mode==="by_group"?spec.groupRules||[]:[])addRule(rule,spec.groupFieldId);}
+ for(const measurement of order.measurements)if(measurement.requiredWhen)addRule(measurement.requiredWhen);
+ return result;
+}
+export function pricingRuleIssues(order:SeikoOrder):Record<string,string[]> {
+ const rules=commerceOf(order).rules,issues:Record<string,string[]>={};const add=(id:string,message:string)=>{(issues[id]||=[]).push(message);};
+ for(const r of rules){
+  if(!r.name.trim())add(r.id,"Enter a price description.");
+  if(!Number.isFinite(r.rate)||r.rate<0||r.rate>1e9||cents(r.rate)!==r.rate)add(r.id,"Enter a valid rate with up to two decimal places.");
+  if(!Number.isFinite(r.taxRate)||r.taxRate<0||r.taxRate>100)add(r.id,"GST must be between 0 and 100%.");
+  if(r.mode!=="fixed"&&!r.contents.length)add(r.id,"Select the garments to price.");
+  if(r.contents.some(x=>!Number.isInteger(x.quantity)||x.quantity<=0))add(r.id,"Garment quantities must be positive whole numbers.");
+  for(const message of predicateErrors(order,r))add(r.id,message);
+ }
+ for(let i=0;i<rules.length;i++)for(let j=i+1;j<rules.length;j++){const a=rules[i],b=rules[j];if(a.mode!==b.mode||a.mode==="fixed"||!(a.conditions?.length||b.conditions?.length))continue;const ids=(r:PriceRule)=>r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])]);if(ids(a).some(id=>ids(b).includes(id))&&predicatesOverlap(a,a.fieldId,b,b.fieldId)){add(a.id,"Overlaps rule "+(j+1)+": "+b.name+" at ₹"+b.rate+". Set distinct groups.");add(b.id,"Overlaps rule "+(i+1)+": "+a.name+" at ₹"+a.rate+". Set distinct groups.");}}
+ return issues;
 }
 
 export type PersonCommercial = { state:"active"|"awaiting"|"hold"|"cancelled"; reason:string; overrideReason?:string; readySize?:string; batch?:string; rateOverrides?:Record<string,number> };
@@ -83,23 +115,31 @@ export function pricingQuote(order:SeikoOrder,basis:"eligible"|"delivered"="elig
       const condition=predicateState(rule,record,rule.fieldId);if(condition!=="match"){if(condition==="pending")excluded.push({recordId:record.recordId,ruleId:rule.id,reason:"Pricing conditions pending"});continue;}
       const resolve=(r:PriceRule)=>r.contents.filter(x=>x.quantity>0).map(x=>({...x,productId:[x.productId,...(x.alternatives||[])].find(id=>assignedQuantity(order,record,id,quantities)>0)||x.productId}));
       const contents=resolve(rule);
-      const state=rule.mode==="fixed"||bulk?{eligible:order.status!=="Cancelled",reason:"Order cancelled"}:recordEligibility(order,record,contents.map(x=>x.productId),quantities);
+      const state=rule.mode==="fixed"||bulk?{eligible:order.status!=="Cancelled",reason:"Order cancelled"}:recordEligibility(order,record,rule.packageCharge==="set"?rule.contents.flatMap(x=>[x.productId,...(x.alternatives||[])]).filter(id=>assignedQuantity(order,record,id,quantities)>0):contents.map(x=>x.productId),quantities);
       if(!state.eligible){excluded.push({recordId:record.recordId,ruleId:rule.id,reason:state.reason});continue;}
       const matching=c.rules.filter(r=>r.mode!=="fixed"&&predicateState(r,record,r.fieldId)==="match");
       const signature=(r:PriceRule)=>r.contents.map(x=>`${[x.productId,...(x.alternatives||[])].sort().join("/")}:${x.quantity}`).sort().join("|");
       if(rule.mode!=="fixed"&&matching.filter(r=>r.mode===rule.mode&&signature(r)===signature(rule)).length>1){excluded.push({recordId:record.recordId,ruleId:rule.id,reason:"Overlapping price rules. Make their groups distinct."});continue;}
-      const packageQuantity=(id:string)=>matching.filter(r=>r.mode==="package").reduce((n,r)=>n+resolve(r).filter(x=>x.productId===id).reduce((a,x)=>a+x.quantity,0),0);
-      let quantity=1;
+      const packageCount=(r:PriceRule)=>{
+        if(r.packageCharge!=="set")return 1;
+        const parts=r.contents;if(!parts.length||parts.some(x=>!Number.isInteger(x.quantity)||x.quantity<=0))return 0;
+        return Math.max(0,Math.min(...parts.map(x=>Math.floor([x.productId,...(x.alternatives||[])].reduce((sum,id)=>sum+assignedQuantity(order,record,id,quantities),0)/x.quantity))));
+      };
+      const packageQuantity=(id:string)=>matching.filter(r=>r.mode==="package").reduce((sum,r)=>{
+        if(r.packageCharge!=="set")return sum+resolve(r).filter(x=>x.productId===id).reduce((n,x)=>n+x.quantity,0);
+        return sum+r.contents.reduce((total,part)=>{let needed=part.quantity*packageCount(r),reserved=0;for(const candidate of [part.productId,...(part.alternatives||[])]){const used=Math.min(needed,assignedQuantity(order,record,candidate,quantities));if(candidate===id)reserved+=used;needed-=used;}return total+reserved;},0);
+      },0);
+      let quantity=rule.mode==="package"?packageCount(rule):1;
       if(rule.mode==="product") {const p=order.products.find(p=>p.id===contents[0]?.productId);quantity=p?Math.max(0,assignedQuantity(order,record,p.id,quantities)-packageQuantity(p.id)):0;}
       if(rule.mode==="package"&&contents.some(x=>{const p=order.products.find(p=>p.id===x.productId);return !p||assignedQuantity(order,record,p.id,quantities)<packageQuantity(x.productId);})){excluded.push({recordId:record.recordId,ruleId:rule.id,reason:"Incomplete package quantity"});continue;}
       if(basis==="delivered"){
         if(rule.mode==="product")quantity=Math.min(quantity,Math.max(0,deliveredQuantity(order,record.recordId,contents[0]?.productId)-packageQuantity(contents[0]?.productId)));
-        else if(rule.mode==="package"&&contents.some(x=>deliveredQuantity(order,record.recordId,x.productId)<x.quantity))quantity=0;
+        else if(rule.mode==="package"){if(rule.packageCharge==="set")quantity=Math.min(quantity,...rule.contents.map(x=>Math.floor([x.productId,...(x.alternatives||[])].reduce((sum,id)=>sum+Math.max(0,Math.min(assignedQuantity(order,record,id,quantities),deliveredQuantity(order,record.recordId,id))),0)/x.quantity)));else if(contents.some(x=>deliveredQuantity(order,record.recordId,x.productId)<x.quantity))quantity=0;}
         else if(rule.mode==="fixed"&&order.status!=="Completed")quantity=0;
       }
       if(quantity<=0){excluded.push({recordId:record.recordId,ruleId:rule.id,reason:basis==="delivered"?"Delivery pending":"No items ordered"});continue;}
       const rate=c.people[record.recordId]?.rateOverrides?.[rule.id]??rule.rate;
-      units.push({key:`${rule.id}:${record.recordId}:tax${rule.taxRate||0}`,ruleId:rule.id,recordId:record.recordId,unit:rule.mode==="package"?"student":rule.mode==="fixed"?"order":"pc",personName:personName(order,record.recordId),description:rule.name+(rule.mode==="package"?" ("+rule.contents.map(x=>`${x.quantity} ${[x.productId,...(x.alternatives||[])].map(id=>order.products.find(p=>p.id===id)?.name||"item").join("/")}`).join(" + ")+")":""),quantity,rate,amount:cents(quantity*rate),taxRate:rule.taxRate||0,hsnSac:rule.hsnSac||""});
+      units.push({key:`${rule.id}:${record.recordId}:tax${rule.taxRate||0}`,ruleId:rule.id,recordId:record.recordId,unit:rule.mode==="package"?(rule.packageCharge==="set"?"set":"student"):rule.mode==="fixed"?"order":"pc",personName:personName(order,record.recordId),description:rule.name+(rule.mode==="package"?" ("+rule.contents.map(x=>`${x.quantity} ${[x.productId,...(x.alternatives||[])].map(id=>order.products.find(p=>p.id===id)?.name||"item").join("/")}`).join(" + ")+")":""),quantity,rate,amount:cents(quantity*rate),taxRate:rule.taxRate||0,hsnSac:rule.hsnSac||""});
     }
   }
   for(const issue of c.issues.filter(i=>i.chargeable&&i.extraCharge>0&&i.status==="resolved"))units.push({key:`issue:${issue.id}:tax${issue.taxRate||0}`,ruleId:`issue:${issue.id}`,recordId:issue.recordId,personName:personName(order,issue.recordId),description:`Extra work: ${issue.description}`,quantity:1,rate:issue.extraCharge,amount:issue.extraCharge,taxRate:issue.taxRate||0,hsnSac:issue.hsnSac||""});
@@ -125,7 +165,7 @@ export function validateCommerce(order:SeikoOrder, previous?:SeikoOrder):string 
   const c=order.commerce;
   if(!Array.isArray(c.rules)||!Array.isArray(c.deliveries)||!Array.isArray(c.issues)||!c.people||typeof c.people!=="object")return "Invalid order commercial details.";
   if(c.rules.length>100||c.deliveries.length>10000||c.issues.length>3000)return "Commercial record limit reached.";
-  if(new Set(c.rules.map(r=>r.id)).size!==c.rules.length||c.rules.some(r=>!r.id||!r.name?.trim()||!["package","product","fixed"].includes(r.mode)||!Number.isFinite(r.rate)||r.rate<0||r.rate>1e9||cents(r.rate)!==r.rate||!Number.isFinite(r.taxRate)||r.taxRate<0||r.taxRate>100||!Array.isArray(r.contents)||(r.mode!=="fixed"&&!r.contents.length)||new Set(r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])])).size!==r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])]).length||r.mode==="product"&&r.contents.length!==1||r.contents.some(x=>![x.productId,...(x.alternatives||[])].every(id=>order.products.some(p=>p.id===id))||!Number.isInteger(x.quantity)||x.quantity<=0)||(!r.conditions?.length&&r.fieldId&&(!order.fields.some(f=>f.id===r.fieldId)||!r.match?.trim()))))return "Complete every price rule, product, group and rate.";
+  if(new Set(c.rules.map(r=>r.id)).size!==c.rules.length||c.rules.some(r=>!r.id||!r.name?.trim()||!["package","product","fixed"].includes(r.mode)||!Number.isFinite(r.rate)||r.rate<0||r.rate>1e9||cents(r.rate)!==r.rate||!Number.isFinite(r.taxRate)||r.taxRate<0||r.taxRate>100||!Array.isArray(r.contents)||(r.mode!=="fixed"&&!r.contents.length)||new Set(r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])])).size!==r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])]).length||(r.packageCharge!==undefined&&(!["person","set"].includes(r.packageCharge)||r.mode!=="package"))||r.mode==="product"&&r.contents.length!==1||r.contents.some(x=>![x.productId,...(x.alternatives||[])].every(id=>order.products.some(p=>p.id===id))||!Number.isInteger(x.quantity)||x.quantity<=0)||(!r.conditions?.length&&r.fieldId&&(!order.fields.some(f=>f.id===r.fieldId)||!r.match?.trim()))))return "Complete every price rule, product, group and rate.";
   for(const [id,p] of Object.entries(c.people)){
     const record=order.records.find(r=>r.recordId===id),label=record?.personId||id;
     if(!record){

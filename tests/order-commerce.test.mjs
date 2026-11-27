@@ -184,3 +184,42 @@ test('delivery print identifies partial acknowledgement and escapes client and p
 });
 
 test('reviewed additions append a dated section to the original invoice without replacing payments',async()=>{const r=runtime();try{let review=await r.call({operation:'review'});let applied=await r.call({operation:'apply',token:review.token,reason:'Original supply'});assert.equal(applied.status,200,JSON.stringify(applied));const row=r.sqlite.prepare('SELECT id,data FROM seiko_billing_documents').get(),original=JSON.parse(row.data);r.sqlite.prepare('INSERT INTO seiko_billing_payments(id,invoice_id,amount_paise,data,created_by) VALUES(?,?,?,?,?)').run('advance',row.id,10000,JSON.stringify({id:'advance',invoiceId:row.id,amount:100,date:'2026-10-30',receiptNumber:'RCP-TEST'}),'owner');const added=structuredClone(r.o.records[0]);added.recordId='new';added.personId='NEW';added.values['field:name']='New person';r.o.records.push(added);r.o.commerce.people.new={batch:'Second visit',state:'active',reason:''};r.save(r.o);review=await r.call({operation:'review',group:'batch:Second visit'});assert.equal(review.status,200,JSON.stringify(review));assert.equal(review.quote.total,900);assert.equal(review.delta.reduce((n,u)=>n+u.amount,0),900);applied=await r.call({operation:'apply',group:'batch:Second visit',token:review.token,reason:'Additional supply',updateInvoiceId:row.id,sectionLabel:'Additional supply',sectionDate:'2026-10-30'});assert.equal(applied.status,200,JSON.stringify(applied));const updated=JSON.parse(r.sqlite.prepare('SELECT data FROM seiko_billing_documents WHERE id=?').get(row.id).data);assert.equal(updated.number,original.number);assert.equal(updated.issueDate,original.issueDate);assert.deepEqual(updated.lines.slice(0,original.lines.length),original.lines);assert.deepEqual(updated.lines.at(-1).section,{label:'Additional supply',date:'2026-10-30'});assert.equal(billing.documentTotals(updated).total,2850);assert.equal(r.sqlite.prepare('SELECT count(*) n FROM seiko_billing_documents').get().n,1);assert.equal(r.sqlite.prepare('SELECT amount_paise FROM seiko_billing_payments').get().amount_paise,10000);const again=await r.call({operation:'review',group:'batch:Second visit'});assert.equal(again.delta.length,0);assert.equal((await r.call({operation:'apply',group:'batch:Second visit',token:review.token,reason:'Retry',updateInvoiceId:row.id})).status,409);}finally{r.sqlite.close();}});
+
+
+test('explicit per-set pricing bills two formal pairs and one sports pair, while legacy per-person packages stay once',()=>{
+ const o=order();o.records=o.records.slice(0,2);for(const r of o.records)o.commerce.people[r.recordId]={state:'active',reason:'',readySize:'M'};
+ for(const [index,rule] of o.commerce.rules.entries()){rule.packageCharge='set';rule.rate=index?360:320;rule.contents.forEach(x=>x.quantity=1);}
+ for(const id of ['tee','track'])o.products.push({...o.products[0],id,name:id,defaultQuantity:1});
+ o.commerce.rules.push(...o.commerce.rules.slice(0,2).map(r=>({...r,id:r.id+'-sports',name:'Sports '+r.id,contents:[{productId:'tee',quantity:1},{productId:'track',quantity:1}]})));
+ let q=commerce.pricingQuote(o);assert.equal(q.total,2040);assert.equal(q.billablePeople,2);assert.equal(q.units.find(u=>u.ruleId==='lower').quantity,2);assert.equal(q.units.find(u=>u.ruleId==='lower-sports').quantity,1);assert.ok(q.units.every(u=>u.unit==='set'));
+ const lines=commerce.pricingLines(q.units);assert.equal(lines.find(l=>l.id.startsWith('lower:')).quantity,2);assert.equal(commerce.validateCommerce(o),'');
+ o.products[0].defaultQuantity=3;o.commerce.rules.push({id:'extra-shirt',name:'Extra shirt',mode:'product',rate:100,taxRate:0,hsnSac:'',fieldId:'',match:'',contents:[{productId:'shirt',quantity:1}]});
+ assert.equal(commerce.pricingQuote(o).total,2240,'one extra shirt for each of two students is outside two complete sets');
+ const date='2026-11-27';o.commerce.deliveries=['shirt','pant','tee','track'].map(productId=>({id:productId,date,at:date,reference:'DEL',recordId:'a',productId,quantity:1,kind:'delivery'}));
+ assert.equal(commerce.pricingQuote(o,'delivered').total,640,'only one delivered formal set and one sports set are billable');
+ o.commerce.deliveries.push({id:'return-pant',date,at:date,reference:'RETURN',recordId:'a',productId:'pant',quantity:1,kind:'return'});assert.equal(commerce.pricingQuote(o,'delivered').total,320);
+ o.commerce.rules=o.commerce.rules.slice(0,4);o.products[0].defaultQuantity=2;for(const rule of o.commerce.rules)delete rule.packageCharge;assert.equal(commerce.pricingQuote(o).total,1360,'existing packages still charge once per person');
+});
+
+test('complete sets handle gender alternatives and mixed variants without losing quantities',()=>{
+ const o=order();o.records=o.records.slice(0,2);o.products.push({...o.products[1],id:'pinafore',name:'Pinafore'});for(const r of o.records)o.commerce.people[r.recordId]={state:'active',reason:'',readySize:'M'};
+ for(const [index,r] of o.commerce.rules.entries()){r.packageCharge='set';r.rate=index?360:320;r.contents=[{productId:'shirt',quantity:1},{productId:'pant',quantity:1},{productId:'pinafore',quantity:1}];r.contents=commerce.setPriceAlternative(r,'pant','pinafore',true);assert.equal(r.contents.length,2);assert.equal(r.contents[1].alternatives[0],'pinafore');}
+ o.records[0].values['product:pant:assigned_qty']=1;o.records[0].values['product:pinafore:assigned_qty']=1;o.records[1].values['product:pant:assigned_qty']=0;o.records[1].values['product:pinafore:assigned_qty']=2;
+ const q=commerce.pricingQuote(o);assert.equal(q.total,1360);assert.ok(q.units.every(u=>u.quantity===2));assert.equal(commerce.validateCommerce(o),'');
+ const broken=structuredClone(o);broken.commerce.rules[0].conditions=[{fieldId:'class',match:'1-8'}];broken.commerce.rules[1].conditions=[{fieldId:'class',match:'5-8'}];const issues=commerce.pricingRuleIssues(broken);assert.match(issues.lower.join(' '),/Overlaps rule 2/);assert.match(issues.upper.join(' '),/Overlaps rule 1/);
+});
+
+
+test('pricing choices come from configured options, setup conditions and actual entries for any detail',()=>{
+ const o=order();o.fields.push({id:'gender',name:'Gender',type:'dropdown',options:['Male','Female'],required:false},{id:'house',name:'House',type:'text',options:[],required:false});o.records[0].values['field:house']='Blue';
+ o.products[0].quantityMode='by_group';o.products[0].quantityGroupFieldId='class';o.products[0].quantityGroupRules=[{match:'BV,1-4',quantity:2}];
+ const choices=commerce.pricingValueOptions(o);assert.ok(choices.class.includes('BV'));assert.ok(choices.class.includes('1'));assert.ok(choices.class.includes('4'));assert.ok(choices.class.includes('5'));assert.equal(choices.gender.join(','),'Male,Female');assert.equal(choices.house[0],'Blue');
+});
+
+
+test('switching price basis preserves package contents but fixed order charges cannot retain hidden person conditions',()=>{
+ const o=order(),r={...o.commerce.rules[0],conditions:[{fieldId:'class',match:'1-4'}]};
+ const perSet=commerce.changePriceBasis(r,'set');assert.equal(perSet.packageCharge,'set');assert.equal(perSet.contents,r.contents);assert.equal(perSet.conditions,r.conditions);
+ const perPerson=commerce.changePriceBasis(perSet,'package');assert.equal(perPerson.packageCharge,'person');assert.equal(perPerson.contents,r.contents);
+ const fixed=commerce.changePriceBasis(perSet,'fixed');assert.equal(fixed.conditions,undefined);assert.equal(fixed.fieldId,'');assert.equal(fixed.contents.length,0);o.commerce.rules=[fixed];const quote=commerce.pricingQuote(o);assert.equal(quote.total,r.rate);assert.equal(quote.units.length,1);assert.equal(quote.units[0].recordId,'order');
+});

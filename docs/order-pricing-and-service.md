@@ -60,3 +60,10 @@ The saved `SeikoOrder` remains the parent. `commerce.fulfilment` stores immutabl
 App module Back follows the actual navigation path. Order setup, workspace, order management and invoice review have explicit source-owned return contexts. Reviewing an order from an unfinished invoice keeps the editor mounted and restores its draft on Back. Dirty order setup, person entry, billing/receipt, delivery and production drafts guard navigation before the destination clears their state. No DOM-generated Back button is added beside a native control.
 
 Validation includes model tests for immutable history, quantity limits, linked cases, unknown dates and retries; private evidence API tests; browser confirmation/dispatch/partial handover/written and signed acknowledgement/case flows; invoice-draft return and discarded-Back protection; and mobile/tablet/desktop layouts. Tests use synthetic records and do not create historical acknowledgements in live orders.
+
+
+## Pricing basis and setup-derived choices
+
+The pricing editor supports per garment, per complete pair/set, once per person, and fixed order amounts. Per-set rules persist as mode package with packageCharge set; their quantities define ONE set. Complete-set counts come from actual assigned quantities, including alternative garment variants. Delivered billing uses complete delivered sets, net of returns. Existing package rules without packageCharge continue charging once per person. Changing setup does not rewrite issued invoice snapshots; billing review calculates the difference.
+
+Pricing conditions offer configured options, existing record values, and active upstream setup-rule values. Values can be selected individually; custom lists/ranges remain available. Rule cards expose their conditions and local validation, and Pricing Check shows calculated units, amounts and excluded entries. A selected primary garment can be moved into another component's alternative slot without leaving duplicate package contents.
