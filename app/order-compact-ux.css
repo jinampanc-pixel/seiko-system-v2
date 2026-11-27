@@ -378,3 +378,14 @@
 .orderSetup .setupLongText{field-sizing:content;resize:vertical}
 
 .orderSetup .productRecipientRules{max-width:940px;margin:12px 16px;min-width:0}.orderSetup .productRecipientRules>label{display:grid;gap:6px;max-width:520px}.orderSetup .productRecipientRules input{width:100%;min-width:0}.orderSetup .productRecipientRules p{font-size:12px;line-height:1.5;margin:8px 0}.orderSetup .productRecipientRules .ruleConditions{display:grid;gap:8px}.orderSetup .productQuantityOptions{margin:8px 16px}.orderSetup .productRecipientRules .ruleCondition{display:flex;gap:8px;flex-wrap:wrap}.orderSetup .productRecipientRules .ruleCondition select,.orderSetup .productRecipientRules .ruleCondition input{flex:1 1 180px;min-width:0}
+
+/* On phones, a whole rule and its remove action occupy separate rows. */
+@media(max-width:760px){
+ .orderSetup .specBlock .groupRules>div:has(>.iconRemove),.orderSetup .quantityGroupRules>div:has(>.iconRemove){grid-template-columns:minmax(0,1fr)!important;row-gap:10px!important}
+ .orderSetup .specBlock .groupRules>div>.ruleConditions,.orderSetup .specBlock .groupRules>div>.ruleResult,.orderSetup .quantityGroupRules>div>.ruleConditions,.orderSetup .quantityGroupRules>div>input{grid-column:1/-1!important}
+ .orderSetup .specBlock .groupRules>div>.iconRemove,.orderSetup .quantityGroupRules>div>.iconRemove{grid-column:1!important;grid-row:auto!important;margin-top:0!important;justify-self:end;min-width:0!important;max-width:100%;align-self:start!important}
+ .orderSetup .specBlock .ruleJoin,.orderSetup .quantityGroupRules .ruleJoin,.orderCommercial .ruleJoin{height:auto!important;min-height:0!important;display:flex!important;flex-direction:row!important;flex-wrap:wrap;min-width:0;max-width:100%;width:100%}
+ .ruleJoin select{flex:1;min-width:0;width:auto;max-width:100%}
+}
+
+@media(max-width:760px){.orderSetup .specBlock .groupRules>div>.iconRemove,.orderSetup .quantityGroupRules>div>.iconRemove{min-height:44px!important;height:auto!important;font-size:13px!important;gap:6px!important;padding:8px 10px!important}}
