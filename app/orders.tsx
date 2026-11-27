@@ -31,7 +31,7 @@ function loadSuggestions(businessId: string): OrderSuggestions { try { const sav
 function newOrder(sequence = 1): SeikoOrder {
   const now = new Date();
   const date = now.toISOString().slice(0, 10);
-  return { orderId: crypto.randomUUID(), status: "Draft", archived: false, details: { orderNo: `${date.slice(0, 7)}-${String(sequence).padStart(3, "0")}`, orderDate: date, deliveryDate: "", clientName: "", clientType: "School / Institution", contactPerson: "", attnRequired: false, contactNumber: "", shipTo: "", billTo: "", remarks: "" }, fields: CLIENT_TYPE_PRESETS["School / Institution"].map(item => ({ ...item, id: crypto.randomUUID() })), products: [blankProduct()], measurements: [], records: [], revisions: [], updatedAt: now.toISOString() };
+  return { orderId: crypto.randomUUID(), status: "Draft", archived: false, details: { orderNo: `${date.slice(0, 7)}-${String(sequence).padStart(3, "0")}`, orderDate: date, deliveryDate: "", clientName: "", clientType: "School / Institution", contactPerson: "", attnRequired: false, contactNumber: "", shipTo: "", billTo: "", remarks: "" }, fields: CLIENT_TYPE_PRESETS["School / Institution"].map(item => ({ ...item, id: crypto.randomUUID() })), products: [blankProduct()], measurements: [], records: [], revisions: [], commerce: {quantityBasis:"ordered",rules:[],people:{},deliveries:[],issues:[]}, updatedAt: now.toISOString() };
 }
 
 function loadOrders(businessId: string): SeikoOrder[] {

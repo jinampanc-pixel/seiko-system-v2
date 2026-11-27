@@ -67,3 +67,8 @@ Validation includes model tests for immutable history, quantity limits, linked c
 The pricing editor supports per garment, per complete pair/set, once per person, and fixed order amounts. Per-set rules persist as mode package with packageCharge set; their quantities define ONE set. Complete-set counts come from actual assigned quantities, including alternative garment variants. Delivered billing uses complete delivered sets, net of returns. Existing package rules without packageCharge continue charging once per person. Changing setup does not rewrite issued invoice snapshots; billing review calculates the difference.
 
 Pricing conditions offer configured options, existing record values, and active upstream setup-rule values. Values can be selected individually; custom lists/ranges remain available. Rule cards expose their conditions and local validation, and Pricing Check shows calculated units, amounts and excluded entries. A selected primary garment can be moved into another component's alternative slot without leaving duplicate package contents.
+# Ordered Quantities and Zero Exceptions
+
+New orders price the quantities defined by setup and person entries. A missing measurement does not remove an agreed charge; production and delivery readiness remain separate checks. Explicit numeric or text zero overrides are preserved and shown as **Not Ordered**, not a pricing error. An incomplete person quantity or unresolved recipient/group condition still needs attention.
+
+Existing orders keep their measured-entry inference until **Pricing Quantities → Order Setup / Entered Quantities** is selected. This preserves older sparse orders where a garment was historically inferred from measurement presence. Existing invoice snapshots are unchanged.

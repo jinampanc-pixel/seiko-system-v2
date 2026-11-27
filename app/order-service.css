@@ -29,3 +29,4 @@
 .priceConditions .ruleValueChoice{flex-direction:row!important;justify-content:flex-start;margin:0!important;min-height:44px;padding:6px;border-radius:6px;font-size:14px}.priceConditions .ruleValueChoice:has(input:checked){background:color-mix(in srgb,var(--gold,#c3a06c) 16%,transparent)}.ruleValueChoice>span{min-width:0;overflow-wrap:anywhere}
 
 .priceConditions .ruleValueChoice>span{font-size:14px!important;font-weight:500!important;line-height:1.4!important}
+.pricingQuantityBasis{display:grid;gap:6px;max-width:420px;margin:8px 0 16px;font-size:14px}.pricingQuantityBasis select{width:100%;min-width:0;min-height:44px}
