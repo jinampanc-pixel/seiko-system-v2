@@ -133,7 +133,7 @@ test('label preferences apply to legacy multiline bank details',()=>{
  const html=print.billingPrintHtml(d,[],'customer',undefined,{fieldLabels:{accountNumber:{showLabel:false,label:'Account number'},ifsc:{showLabel:true,label:'Bank code'}}});
  assert.match(html,/<p>123456<\/p>/);assert.match(html,/Bank code: TEST0001/);assert.match(html,/Account name: Merchant/i);assert.doesNotMatch(html,/A\/c No\.:/);
 });
-test('quick slips save once, link without duplication and reject stale, overpaid or repeated links',async()=>{
+test('quick slips save once, retry the same link and reject stale, overpaid or different links',async()=>{
  const f=fixture();try{
   const call=async body=>{const response=await f.call(body,f.billing);return {status:response.status,...await response.json()};};
   const slip={id:'quick-slip-0001',invoiceId:'',orderId:'',receiptNumber:'',clientName:'Walk-in payer',clientPhone:'9999999999',amount:75,date:'2026-10-23',mode:'Cash',reference:'cash-1',notes:'',createdAt:''};
@@ -148,7 +148,9 @@ test('quick slips save once, link without duplication and reject stale, overpaid
   r=await call({operation:'link_payment',id:slip.id,invoiceId:invoice.id});assert.equal(r.status,200,JSON.stringify(r));
   assert.equal(r.payments.length,1);assert.equal(r.payments[0].receiptNumber,number);assert.equal(r.payments[0].amount,75);assert.equal(r.payments[0].originalPayer,'Walk-in payer');assert.equal(r.payments[0].linkedBy,'owner@example.com');assert.equal(model.invoiceOutstanding(r.documents[0],r.payments),25);
   assert.equal(f.sql.prepare("SELECT count(*) n FROM erp_audit_events WHERE entity_type='billing-payment' AND action='link'").get().n,1);
-  assert.equal((await call({operation:'link_payment',id:slip.id,invoiceId:invoice.id})).status,409);
+  assert.equal((await call({operation:'link_payment',id:slip.id,invoiceId:invoice.id})).status,200);
+  assert.equal((await call({operation:'link_payment',id:slip.id,invoiceId:'another-invoice'})).status,409);
+  assert.equal(f.sql.prepare("SELECT count(*) n FROM erp_audit_events WHERE entity_type='billing-payment' AND action='link'").get().n,1);
   await call({operation:'payment',payment:{...slip,id:'quick-slip-0002',amount:30}});
   assert.equal((await call({operation:'link_payment',id:'quick-slip-0002',invoiceId:invoice.id})).status,409);
   await call({operation:'payment',payment:{...slip,id:'quick-slip-race',amount:10}});

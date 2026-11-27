@@ -179,6 +179,9 @@ export async function POST(request: Request) {
       const row=await db.prepare("SELECT sequence,id,data FROM seiko_billing_payments WHERE id=?").bind(body.id).first<PaymentRow>();
       if(!row)return reply("Payment slip not found.",404);
       const original=paymentFromRow(row);
+      // A lost response may leave the caller retrying a successful link. The
+      // same target is a read-only replay; another target is still forbidden.
+      if(original.linkedAt&&(body.invoiceId?original.invoiceId===body.invoiceId:!original.invoiceId&&original.orderId===body.orderId))return await respondLedger();
       if(original.refundOf||await db.prepare("SELECT id FROM seiko_billing_payments WHERE json_extract(data,'$.refundOf')=? LIMIT 1").bind(original.id).first())return reply("Refunded receipts cannot be relinked.",409);
       if(original.invoiceId||original.orderId)return reply("This receipt is already linked. Refresh the payment list.",409);
       if((original.revision||0)!==(body.expectedRevision||0)||original.updatedAt!==body.expectedUpdatedAt)return reply("This receipt changed. Reload before linking it.",409);
