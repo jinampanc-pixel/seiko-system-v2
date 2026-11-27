@@ -7,6 +7,7 @@ export type CatalogGarment = { name:string; sizeHeader:string; specifications:Ar
 export type CatalogEntry = {
   id:string; kind:'garment'|'set'; name:string; category:string; archived:boolean;
   familyId?:string; familyName?:string; aliases?:string[];
+  unit?:string; costPrice?:number;
   garment?:CatalogGarment; components:Array<{garmentId:string;quantity:number;alternatives:string[]}>;
   prices:CatalogPrice[]; images:ArtworkAttachment[]; sourceOrderIds:string[];
   version:number; updatedAt:string; updatedBy?:string;
@@ -23,6 +24,7 @@ const signature=(value:unknown)=>stableLibraryId('catalog',JSON.stringify(value)
 function catalogFingerprint(familyId:string,g:CatalogGarment){const sorted=(values:unknown[])=>values.sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));return signature({familyId,name:norm(g.name),sizeHeader:norm(g.sizeHeader),specifications:sorted(g.specifications.map(s=>({name:norm(s.name),role:s.role,value:norm(s.value),required:s.required,attachments:s.attachments.map(f=>f.storageKey).sort()}))),measurements:sorted(g.measurements.map(m=>({name:norm(m.name),type:m.type,requiredMode:m.requiredMode})))});}
 export function sameCatalogVariant(a:CatalogEntry,b:CatalogEntry){return Boolean(a.garment&&b.garment&&(a.familyId||catalogFamilyId(a.garment.name))===(b.familyId||catalogFamilyId(b.garment.name))&&catalogFingerprint(a.familyId||catalogFamilyId(a.garment.name),a.garment)===catalogFingerprint(b.familyId||catalogFamilyId(b.garment.name),b.garment)&&a.images.map(f=>f.storageKey).sort().join('|')===b.images.map(f=>f.storageKey).sort().join('|'));}
 export function sameCatalogSet(a:CatalogEntry,b:CatalogEntry){const key=(e:CatalogEntry)=>JSON.stringify(e.components.map(c=>({...c,alternatives:[...c.alternatives].sort()})).sort((x,y)=>x.garmentId.localeCompare(y.garmentId)));return a.kind==='set'&&b.kind==='set'&&norm(a.name)===norm(b.name)&&key(a)===key(b);}
+export function isOriginalCatalogVariant(order:SeikoOrder,product:ProductPolicy){return Boolean(product.catalogSnapshotSignature&&product.catalogSnapshotSignature===catalogFingerprint(product.catalogFamilyId||catalogFamilyId(product.name),garmentSnapshot(order,product)));}
 export function garmentSnapshot(order:SeikoOrder,product:ProductPolicy):CatalogGarment {
   return {name:product.name.trim(),sizeHeader:product.sizeHeader||'Size',specifications:product.specifications.map(s=>({name:s.name,role:s.role,value:s.mode==='same_for_all'||s.mode==='default_with_exceptions'?s.defaultValue:'',required:s.required,attachments:copy((s.attachments||[]).filter(f=>f.storageKey.startsWith('shared:')))})),measurements:order.measurements.filter(m=>m.appliesTo.includes(product.id)).map(m=>({name:m.name,type:m.type,requiredMode:m.requiredMode==='Always'?'Always':m.requiredMode==='Optional'?'Optional':'When present'}))};
 }
@@ -49,8 +51,10 @@ export function catalogFromOrders(orders:SeikoOrder[],legacy:ProductLibraryRecor
     }
   }
   for(const record of legacy.filter(p=>!p.archived)){
-    if([...entries.values()].some(e=>e.kind==='garment'&&norm(e.name)===norm(record.name)))continue;
-    add({id:signature({legacy:record.id}),kind:'garment',familyId:catalogFamilyId(record.name),familyName:record.name,name:record.name,category:record.category,garment:{name:record.name,sizeHeader:'Size',specifications:[],measurements:[]},components:[],prices:record.sellingPrice?[{label:'Standard',rate:record.sellingPrice,basis:'product',taxRate:record.taxRate,hsnSac:record.hsnSac}]:[],images:[],archived:false,sourceOrderIds:record.sourceOrderIds,version:0,updatedAt:record.updatedAt});
+    const existing=[...entries.values()].find(e=>e.kind==='garment'&&norm(e.name)===norm(record.name));
+    const prices:CatalogPrice[]=record.sellingPrice?[{label:'Standard',rate:record.sellingPrice,basis:'product',taxRate:record.taxRate,hsnSac:record.hsnSac}]:[];
+    if(existing){existing.unit=record.unit;existing.costPrice=record.costPrice;existing.category=existing.category||record.category;existing.prices.push(...prices.filter(p=>!existing.prices.some(v=>JSON.stringify(v)===JSON.stringify(p))));continue;}
+    add({id:signature({legacy:record.id}),kind:'garment',familyId:catalogFamilyId(record.name),familyName:record.name,name:record.name,category:record.category,unit:record.unit,costPrice:record.costPrice,garment:{name:record.name,sizeHeader:'Size',specifications:[],measurements:[]},components:[],prices,images:[],archived:false,sourceOrderIds:record.sourceOrderIds,version:0,updatedAt:record.updatedAt});
   }
   const all=[...entries.values()],garments=all.filter(entry=>entry.kind==='garment'&&catalogErrors(entry,all).length===0);return [...garments,...all.filter(entry=>entry.kind==='set'&&catalogErrors(entry,garments).length===0)];
 }
@@ -61,6 +65,7 @@ export function catalogErrors(entry:CatalogEntry,all:CatalogEntry[]):string[]{
   if(entry.kind==='garment'&&entry.familyName&&(!entry.familyName.trim()||entry.familyName.length>160||entry.familyId!==catalogFamilyId(entry.familyName)))errors.push('Choose a valid main product for this variant.');
   if(entry.aliases?.some(a=>!a.trim()||catalogFamilies(all.filter(e=>e.id!==entry.id)).some(f=>f.id!==entry.familyId&&[f.name,...f.aliases].some(v=>nameKey(v)===nameKey(a)))))errors.push('An abbreviation must belong to only one main product.');
   if(!Array.isArray(entry.sourceOrderIds)||entry.sourceOrderIds.some(id=>typeof id!=='string'||id.length>120))errors.push('Invalid source order references.');
+  if(entry.costPrice!==undefined&&(!Number.isFinite(entry.costPrice)||entry.costPrice<0))errors.push('Enter a valid cost price.');
   if(entry.kind==='set'&&(!entry.components?.length||entry.components.some(c=>!Number.isSafeInteger(c.quantity)||c.quantity<1||![c.garmentId,...c.alternatives].every(id=>all.some(e=>e.id===id&&e.kind==='garment')))))errors.push('Choose valid garments and whole quantities for every set component.');
   const used=entry.components?.flatMap(c=>[c.garmentId,...c.alternatives])||[];
   if(new Set(used).size!==used.length)errors.push('A garment can appear only once in a set, including alternatives.');
