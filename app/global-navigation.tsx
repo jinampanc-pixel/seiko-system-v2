@@ -58,7 +58,7 @@ const standaloneItems: Array<{ intent: NavIntent; label: string; icon: string; m
   { intent: "trace", label: "Trace", icon: "◎", module: "trace" },
   { intent: "production", label: "Production", icon: "•", module: "production" },
   { intent: "clients", label: "Clients", icon: "◎" },
-  { intent: "products", label: "Products", icon: "◇" },
+  { intent: "products", label: "Catalog", icon: "◇" },
   { intent: "billing", label: "Billing", icon: "₹" },
 ];
 

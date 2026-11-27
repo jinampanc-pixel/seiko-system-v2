@@ -1,7 +1,7 @@
 import { checksum, encryptPayload, decryptPayload } from './backup-format.mjs';
 
 // Operational caches only. Do not sweep all browser storage into a recovery file.
-const businessKey = /^jinam:(seiko|meth|veyn-health):(?:orders-v1|erp-conflict(?:-active)?:.*|generated-order-artifacts-v1|scan-queue|library:(clients|products):v1|billing:(documents|payments|templates):v1|labels:(?:tasks-v1|templates-v1|layouts-v2|presets-v1|shared-pending-v1|browser-adoption-backup-v1|classification:.*)|packing-person-(?:presentation|package-layout):.*)$/;
+const businessKey = /^jinam:(seiko|meth|veyn-health):(?:orders-v1|erp-conflict(?:-active)?:.*|generated-order-artifacts-v1|scan-queue|library:(clients|products):v1|catalog:v1|billing:(documents|payments|templates):v1|labels:(?:tasks-v1|templates-v1|layouts-v2|presets-v1|shared-pending-v1|browser-adoption-backup-v1|classification:.*)|packing-person-(?:presentation|package-layout):.*)$/;
 const forbidden = /(?:password|secret|credential|session|oauth|access-token|refresh-token|passkey|channel-connection)/i;
 export async function makeLocalRecovery(storage, now = new Date()) {
   const entries = {};

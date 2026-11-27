@@ -1,5 +1,7 @@
 "use client";
-import { CloseIcon } from "./ui-icons";
+import { GarmentCatalog } from "./garment-catalog";
+import { learnCatalog } from "./lib/catalog-client";
+
 
 
 import { requestAppNavigation } from "./app-navigation";
@@ -14,7 +16,6 @@ import { orderStoreKey, type SeikoOrder } from "./lib/order-domain";
 import {
   learnLibrariesFromOrders,
   libraryStoreKey,
-  stableLibraryId,
   type ClientLibraryRecord,
   type ProductLibraryRecord,
 } from "./lib/business-library";
@@ -66,7 +67,9 @@ export function SeikoPhase2() {
       learnedOrders.current = orderSnapshot;
       writeStore(libraryStoreKey(businessId, "clients"), learned.clients);
       writeStore(libraryStoreKey(businessId, "products"), learned.products);
+
     }
+    void learnCatalog(readStore<SeikoOrder[]>(orderStoreKey(businessId), []), learned.products).then(()=>setLibraryError("")).catch(error=>setLibraryError("Catalog update pending: "+error.message));
     setClients(learned.clients);
     setProducts(learned.products);
     setDocuments(readStore<SeikoCommercialDocument[]>(billingStoreKey(businessId), []));
@@ -119,7 +122,7 @@ export function SeikoPhase2() {
           if (settings) menu.insertBefore(button, settings); else menu.appendChild(button);
         };
         addNav("clients", "Clients", "◎");
-        addNav("products", "Products", "◇");
+        addNav("products", "Catalog", "◇");
         addNav("billing", "Billing", "₹");
       }
 
@@ -150,32 +153,18 @@ export function SeikoPhase2() {
     return () => controller.stop();
   }, [clients, products]);
 
-  const saveProducts = (next: ProductLibraryRecord[]) => { try { writeStore(libraryStoreKey(businessId, "products"), next); setProducts(next); setLibraryError(""); return true; } catch { setLibraryError("Product changes could not be saved on this device. Your editor remains open; keep a copy before leaving."); return false; } };
   const saveTemplates = (next: SeikoTemplateSet) => { setTemplates(next); writeStore(templateStoreKey(businessId), next); };
 
   if (!view || typeof document === "undefined") return null;
 
   return createPortal(<section className="seikoPhase2Surface" style={reviewingOrder?{display:"none"}:undefined} aria-label={`SEIKO ${view}`}>
-    <header className="phase2BrandHeader"><button type="button" className="globalHomeLogo" aria-label="Go to Home" onClick={()=>window.dispatchEvent(new Event("seiko:home"))}><img src="/brands/seiko-logo-approved.webp" alt="SEIKO Tailors"/></button><button type="button" className="menuToggle" aria-label="Open Billing Navigation" onClick={()=>requestAppNavigation(()=>{setView(null);document.querySelector<HTMLButtonElement>('.app .topbar .menuToggle[aria-expanded="false"]')?.click();})}><span/><span/><span/></button></header><header className="seikoPhase2Head"><div><button type="button" className="secondary appBackControl" onClick={() => requestAppNavigation(()=>setView(null))}>← Back</button><h1>{view === "clients" ? "Client Library" : view === "products" ? "Product Library" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
+    <header className="phase2BrandHeader"><button type="button" className="globalHomeLogo" aria-label="Go to Home" onClick={()=>window.dispatchEvent(new Event("seiko:home"))}><img src="/brands/seiko-logo-approved.webp" alt="SEIKO Tailors"/></button><button type="button" className="menuToggle" aria-label="Open Billing Navigation" onClick={()=>requestAppNavigation(()=>{setView(null);document.querySelector<HTMLButtonElement>('.app .topbar .menuToggle[aria-expanded="false"]')?.click();})}><span/><span/><span/></button></header><header className="seikoPhase2Head"><div><button type="button" className="secondary appBackControl" onClick={() => requestAppNavigation(()=>setView(null))}>← Back</button><h1>{view === "clients" ? "Client Library" : view === "products" ? "Catalog" : view === "templates" ? "Document Templates" : "Billing"}</h1></div></header>
     {view === "clients" && <SeikoClientDirectory legacyRecords={clients}/>} {/* shared client directory */}
-    {libraryError&&<p role="alert">{libraryError}</p>}
-    {view === "products" && <ProductLibrary records={products} onChange={saveProducts} error={libraryError}/>} {/* browser product library */}
+    {libraryError&&view==="products"&&<p role="alert">{libraryError}</p>}
+    {view === "products" && <GarmentCatalog/>} {/* shared garment and set Catalog */}
     {view === "billing" && <SeikoBillingWorkspace suspended={reviewingOrder} key={billingRequestId} initialOrderId={billingOrderId} orders={orders} legacyDocuments={documents} legacyPayments={payments} initialAction={billingAction} onActionHandled={() => setBillingAction(null)}/>}
     {view === "templates" && <TemplateManager templates={templates} onChange={saveTemplates}/>} 
   </section>, document.body);
-}
-
-function ProductLibrary({ records, onChange, error }: { records: ProductLibraryRecord[]; onChange: (records: ProductLibraryRecord[]) => boolean; error?: string }) {
-  const [query, setQuery] = useState(""); const [archived, setArchived] = useState(false); const [editing, setEditing] = useState<ProductLibraryRecord | null>(null);
-  const visible = records.filter(record => record.archived === archived && `${record.name} ${record.category} ${record.hsnSac}`.toLowerCase().includes(query.toLowerCase()));
-  const blank = (): ProductLibraryRecord => ({ id: crypto.randomUUID(), name: "", category: "", unit: "pc", costPrice: 0, sellingPrice: 0, taxRate: 0, hsnSac: "", archived: false, sourceOrderIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-  const save = () => { if (!editing?.name.trim()) return; const duplicate = records.find(item => item.id !== editing.id && item.name.trim().toLowerCase() === editing.name.trim().toLowerCase()); const record = { ...editing, id: duplicate?.id || stableLibraryId("product", editing.name), updatedAt: new Date().toISOString() }; if(onChange([record, ...records.filter(item => item.id !== editing.id && item.id !== duplicate?.id)])) setEditing(null); };
-  return <LibraryFrame query={query} setQuery={setQuery} archived={archived} setArchived={setArchived} onAdd={() => setEditing(blank())} addLabel="Add product">
-
-    {visible.map(record => <LibraryRow key={record.id} title={record.name} meta={`${record.category || "Uncategorised"} · ₹${record.sellingPrice || 0} / ${record.unit}`} archived={record.archived} onEdit={() => setEditing({ ...record })} onArchive={() => onChange(records.map(item => item.id === record.id ? { ...item, archived: !item.archived, updatedAt: new Date().toISOString() } : item))}/>)}
-    {!visible.length && <Empty text={archived ? "No archived products." : "No products match this view."}/>} 
-    {editing && <Editor title="Product" onCancel={() => setEditing(null)} onSave={save}>{error&&<p role="alert">{error}</p>}<Input label="Product Name" value={editing.name} onChange={name => setEditing({ ...editing, name })}/><Input label="Category" value={editing.category} onChange={category => setEditing({ ...editing, category })}/><Input label="Unit" value={editing.unit} onChange={unit => setEditing({ ...editing, unit })}/><NumberInput label="Cost Price" value={editing.costPrice} onChange={costPrice => setEditing({ ...editing, costPrice })}/><NumberInput label="Selling Price" value={editing.sellingPrice} onChange={sellingPrice => setEditing({ ...editing, sellingPrice })}/><NumberInput label="GST Rate %" value={editing.taxRate} onChange={taxRate => setEditing({ ...editing, taxRate })}/><Input label="HSN / SAC" value={editing.hsnSac} onChange={hsnSac => setEditing({ ...editing, hsnSac })}/></Editor>}
-  </LibraryFrame>;
 }
 
 function TemplateManager({ templates, onChange }: { templates: SeikoTemplateSet; onChange: (templates: SeikoTemplateSet) => void }) {
@@ -183,12 +172,7 @@ function TemplateManager({ templates, onChange }: { templates: SeikoTemplateSet;
   return <div className="phase2Workspace"><section className="phase2TemplateBaseline"><h2>SEIKO Invoice Baseline</h2></section><div className="phase2EditorInline"><Input label="Invoice Title" value={draft.title} onChange={title => setDraft({ ...draft, title })}/>{(["showPaymentTerms","showBankDetails","showQrLink","showTerms","showAuthorizedSignatory","showCustomerAcknowledgement"] as const).map(key => <label className="phase2Check" key={key}><input type="checkbox" checked={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.checked })}/>{templateLabel(key)}</label>)}<label>Terms, One Per Line<textarea value={draft.terms.join("\n")} onChange={event => setDraft({ ...draft, terms: event.target.value.split("\n") })}/></label><button className="primary" onClick={save}>Save Invoice Template</button></div></div>;
 }
 
-function LibraryFrame({ query,setQuery,archived,setArchived,onAdd,addLabel,children }: { query:string;setQuery:(v:string)=>void;archived:boolean;setArchived:(v:boolean)=>void;onAdd:()=>void;addLabel:string;children:React.ReactNode }) { return <div className="phase2Workspace"><div className="phase2Toolbar"><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search library"/><label className="phase2Check"><input type="checkbox" checked={archived} onChange={event=>setArchived(event.target.checked)}/>Archived</label><button className="primary" onClick={onAdd}>+ {addLabel}</button></div><section className="phase2LibraryList">{children}</section></div>; }
-function LibraryRow({ title,meta,archived,onEdit,onArchive }: { title:string;meta:string;archived:boolean;onEdit:()=>void;onArchive:()=>void }) { return <article className="phase2LibraryRow"><div><b>{title}</b><small>{meta || "No additional details"}</small></div><div><button className="secondary" onClick={onEdit}>Edit</button><button className="secondary" onClick={onArchive}>{archived ? "Restore" : "Archive"}</button></div></article>; }
-function Editor({ title,onCancel,onSave,children }: { title:string;onCancel:()=>void;onSave:()=>void;children:React.ReactNode }) { return <div className="phase2Scrim"><section className="phase2Editor" role="dialog" aria-modal="true" aria-label={title}><header><h2>{title}</h2><button title="Close" className="uiIconButton uiCloseButton" type="button" aria-label="Close" onClick={onCancel}><CloseIcon/></button></header><div className="phase2EditorBody">{children}</div><footer><button className="secondary" onClick={onCancel}>Cancel</button><button className="primary" onClick={onSave}>Save</button></footer></section></div>; }
 function Input({ label,value,onChange }: { label:string;value:string;onChange:(value:string)=>void }) { return <label>{label}<input value={value} onChange={event=>onChange(event.target.value)}/></label>; }
-function NumberInput({ label,value,onChange }: { label:string;value:number;onChange:(value:number)=>void }) { return <label>{label}<input type="number" min="0" step="0.01" value={value} onChange={event=>onChange(Number(event.target.value))}/></label>; }
-function Empty({ text }: { text:string }) { return <div className="phase2Empty">{text}</div>; }
 function templateLabel(key:string) { return ({ showPaymentTerms:"Payment terms",showBankDetails:"Bank details",showQrLink:"QR / document link",showTerms:"Terms",showAuthorizedSignatory:"Authorized signatory",showCustomerAcknowledgement:"Customer acknowledgement" } as Record<string,string>)[key] || key; }
 function escapeHtml(value:string) { return value.replace(/[&<>"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[char] || char)); }
 

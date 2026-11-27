@@ -94,7 +94,7 @@ test("SEIKO Phase 2 exposes real owner/admin libraries and billing without leaki
   assert.match(seikoPhase2Gate, /businessId !== "seiko"/);
   assert.match(seikoPhase2Gate, /\["owner", "admin"\]/);
   assert.match(seikoPhase2, /Client Library/);
-  assert.match(seikoPhase2, /Product Library/);
+  assert.match(seikoPhase2, /GarmentCatalog/);
   assert.match(seikoPhase2, /Billing/);
   assert.match(seikoPhase2, /Document Templates/);
   assert.doesNotMatch(veynApp, /SeikoPhase2/);
