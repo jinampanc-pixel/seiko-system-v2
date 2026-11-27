@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { providerFailure } from './storage-diagnostics.mjs';
 
 export function legacySharedUpgrade(columns) {
   if (!columns.length) return [];
@@ -22,7 +23,7 @@ export function migrate(args = process.argv.slice(2), runProcess = spawnSync) {
   const run = (command, json = false, quiet = false) => {
     const storage = target === '--local' && process.env.SEIKO_D1_LOCAL_DIR ? ['--persist-to', process.env.SEIKO_D1_LOCAL_DIR] : [];
     const result = runProcess(process.execPath, [cli, ...command, '--config', 'wrangler.jsonc', ...storage], { encoding: 'utf8', env: { ...process.env, CI: 'true' }, stdio: json || quiet ? 'pipe' : 'inherit' });
-    if (result.status !== 0) throw new Error('D1 command failed; deployment must stop.');
+    if (result.status !== 0) throw new Error(`D1 command failed; deployment must stop (${providerFailure(result)}).`);
     return json ? JSON.parse(result.stdout) : null;
   };
   // Never publish a full database export as a public CI artifact: it contains PII and auth records.
