@@ -2,10 +2,10 @@ import { recordInOrderGroup, validOrderGroup, quantityForRecord } from './order-
 import { packingQuantities } from "./packing-label-model";
 import { conditionValue, groupRuleValues, ruleConditions, ruleSourceFields, predicateErrors, predicatesOverlap, orderRuleErrors, predicateState, specificationForRecord, recordRuleIssues, measurementRequired, type RulePredicate, workspaceColumns, type OrderRecord, type SeikoOrder } from "./order-domain";
 
-export type PriceRule = RulePredicate & { id:string; name:string; mode:"package"|"product"|"fixed"; packageCharge?:"person"|"set"; rate:number; taxRate:number; hsnSac:string; fieldId:string; match:string; contents:{productId:string;quantity:number;alternatives?:string[]}[] };
+export type PriceRule = RulePredicate & { id:string; name:string; mode:"package"|"product"|"fixed"; packageCharge?:"person"|"set"; fixedCoverage?:{productId:string;quantity:number}[]; zeroPriceReason?:string; rate:number; taxRate:number; hsnSac:string; fieldId:string; match:string; contents:{productId:string;quantity:number;alternatives?:string[]}[] };
 export function changePriceBasis(rule:PriceRule,basis:"package"|"set"|"product"|"fixed"):PriceRule {
  const mode=basis==="set"?"package":basis;
- return {...rule,mode,packageCharge:mode==="package"?(basis==="set"?"set":"person"):undefined,contents:mode===rule.mode?rule.contents:mode==="product"?rule.contents.slice(0,1).map(x=>({...x,alternatives:undefined})):mode==="fixed"?[]:rule.contents,...(mode==="fixed"?{fieldId:"",match:"",conditions:undefined,conditionMode:undefined}:{})};
+ return {...rule,mode,fixedCoverage:mode==="fixed"?rule.fixedCoverage:undefined,packageCharge:mode==="package"?(basis==="set"?"set":"person"):undefined,contents:mode===rule.mode?rule.contents:mode==="product"?rule.contents.slice(0,1).map(x=>({...x,alternatives:undefined})):mode==="fixed"?[]:rule.contents,...(mode==="fixed"?{fieldId:"",match:"",conditions:undefined,conditionMode:undefined}:{})};
 }
 /** A garment can belong to only one component of a package. */
 export function selectPriceProduct(rule:PriceRule, productId:string, selected:boolean):PriceRule["contents"] {
@@ -35,6 +35,7 @@ export function pricingRuleIssues(order:SeikoOrder):Record<string,string[]> {
  for(const r of rules){
   if(!r.name.trim())add(r.id,"Enter a price description.");
   if(!Number.isFinite(r.rate)||r.rate<0||r.rate>1e9||cents(r.rate)!==r.rate)add(r.id,"Enter a valid rate with up to two decimal places.");
+  if(commerceOf(order).quantityBasis==="ordered"&&r.rate===0&&!r.zeroPriceReason?.trim())add(r.id,"Record why this price is approved at zero.");
   if(!Number.isFinite(r.taxRate)||r.taxRate<0||r.taxRate>100)add(r.id,"GST must be between 0 and 100%.");
   if(r.mode!=="fixed"&&!r.contents.length)add(r.id,"Select the garments to price.");
   if(r.contents.some(x=>!Number.isInteger(x.quantity)||x.quantity<=0))add(r.id,"Garment quantities must be positive whole numbers.");
@@ -44,29 +45,29 @@ export function pricingRuleIssues(order:SeikoOrder):Record<string,string[]> {
  return issues;
 }
 
-export type PersonCommercial = { state:"active"|"awaiting"|"hold"|"cancelled"; reason:string; overrideReason?:string; readySize?:string; batch?:string; rateOverrides?:Record<string,number> };
+export type PersonCommercial = { state:"active"|"awaiting"|"hold"|"cancelled"; reason:string; zeroPriceReason?:string; overrideReason?:string; readySize?:string; batch?:string; rateOverrides?:Record<string,number> };
 export type DeliveryEntry = { id:string; date:string; historical?:boolean; dateUnknown?:boolean; recordId:string; productId:string; quantity:number; kind:"delivery"|"return"|"replacement"; issueId?:string; batchId?:string; batchLineId?:string; batchEventId?:string; sourceDeliveryId?:string; reference:string; at:string };
 export type ServiceIssue = { id:string; recordId:string; productId:string; deliveryId?:string; type:"fitting"|"missing"|"wrong_item"|"new_person"|"removal"|"return"|"defect"|"other"; description:string; owner:string; promisedDate:string; status:"open"|"in_progress"|"resolved"; chargeable:boolean; extraCharge:number; taxRate?:number; hsnSac?:string; history:{at:string;status:string;note:string}[] };
 export type OrderCommerce = { quantityBasis?:"ordered"|"measured"; rules:PriceRule[]; people:Record<string,PersonCommercial>; deliveries:DeliveryEntry[]; issues:ServiceIssue[]; fulfilment?:OrderFulfilment };
-export type PriceUnit = { unit?:string; personName?:string; key:string; ruleId:string; recordId:string; description:string; quantity:number; rate:number; amount:number; taxRate:number; hsnSac:string };
+export type PriceUnit = { unit?:string; personName?:string; zeroPriceReason?:string; key:string; ruleId:string; recordId:string; description:string; quantity:number; rate:number; amount:number; taxRate:number; hsnSac:string };
 export type PricingSnapshot = { orderUpdatedAt:string; basis:"eligible"|"delivered"; units:PriceUnit[]; baseline?:boolean };
 export const emptyCommerce = ():OrderCommerce => ({rules:[],people:{},deliveries:[],issues:[]});
 export const commerceOf = (order:SeikoOrder):OrderCommerce => ({...emptyCommerce(),...order.commerce});
 export function redactCommercialPrices(order:SeikoOrder):SeikoOrder{
  if(!order.commerce)return order;const c=commerceOf(order);
- return {...order,commerce:{...c,rules:c.rules.map(r=>({...r,rate:0,taxRate:0,hsnSac:""})),people:Object.fromEntries(Object.entries(c.people).map(([id,p])=>{const visible={...p};delete visible.rateOverrides;return [id,visible];})),issues:c.issues.map(i=>({...i,extraCharge:0,taxRate:0,hsnSac:""}))}};
+ return {...order,commerce:{...c,rules:c.rules.map(r=>({...r,rate:0,taxRate:0,hsnSac:"",zeroPriceReason:undefined})),people:Object.fromEntries(Object.entries(c.people).map(([id,p])=>{const visible={...p};delete visible.rateOverrides;delete visible.zeroPriceReason;return [id,visible];})),issues:c.issues.map(i=>({...i,extraCharge:0,taxRate:0,hsnSac:""}))}};
 }
 export const cents = (n:number) => Math.round((n+Number.EPSILON)*100)/100;
 const present = (v:unknown) => v!==undefined&&v!==null&&String(v).trim()!==""&&String(v).trim()!=="0";
 export function personName(order:SeikoOrder, recordId:string) { const r=order.records.find(r=>r.recordId===recordId);const f=order.fields.find(f=>/name/i.test(f.name));return r?String(r.values[`field:${f?.id}`]||r.personId||r.recordId):recordId==="order"?"Whole order":"Removed person"; }
 const assignedCache=new WeakMap<SeikoOrder,ReturnType<typeof packingQuantities>>();
 export function assignedQuantities(order:SeikoOrder){let q=assignedCache.get(order);if(!q){q=packingQuantities(order);assignedCache.set(order,q);}return q;}
-export function assignedQuantity(order:SeikoOrder,record:OrderRecord,productId:string,q=assignedQuantities(order)){const p=order.products.find(p=>p.id===productId);return p?.quantityMode==="order_total"&&record.recordId==="order"?p.orderTotal:q.get(record.recordId)?.[productId]||0;}
+export function assignedQuantity(order:SeikoOrder,record:OrderRecord,productId:string,q=assignedQuantities(order)){const p=order.products.find(p=>p.id===productId);return p?.quantityMode==="order_total"&&record.recordId==="order"?(q.get("order")?.[productId]??p.orderTotal):q.get(record.recordId)?.[productId]||0;}
 const eligibilityColumns=new WeakMap<SeikoOrder,ReturnType<typeof workspaceColumns>>();
-function inactiveRecordReason(order:SeikoOrder,record:OrderRecord):string {
+function inactiveRecordReason(order:SeikoOrder,record:OrderRecord,allowAwaiting=false):string {
  const person=commerceOf(order).people[record.recordId];
  if(order.status==="Cancelled")return "Order cancelled";
- if(person&&person.state!=="active")return person.state+": "+person.reason;
+ if(person&&person.state!=="active"&&!(allowAwaiting&&person.state==="awaiting"))return person.state+": "+person.reason;
  if(record.held)return "On hold";
  if(order.fields.some(f=>/status|cancel/i.test(f.name)&&/^(cancelled|canceled|removed)$/i.test(String(record.values[`field:${f.id}`]||"").trim())))return "Cancelled in person details";
  return "";
@@ -94,7 +95,7 @@ export function recordEligibility(order:SeikoOrder,record:OrderRecord,productIds
   }
   return {eligible:true,reason:"Ready"};
 }
-export function deliveredQuantity(order:SeikoOrder,recordId:string,productId:string) { return cents(commerceOf(order).deliveries.filter(d=>d.recordId===recordId&&d.productId===productId&&d.kind!=="replacement").reduce((n,d)=>n+(d.kind==="return"?-d.quantity:d.quantity),0)); }
+export function deliveredQuantity(order:SeikoOrder,recordId:string,productId:string) { return cents(commerceOf(order).deliveries.filter(d=>d.recordId===recordId&&d.productId===productId&&(commerceOf(order).quantityBasis==="ordered"||d.kind!=="replacement")).reduce((n,d)=>n+(d.kind==="return"?-d.quantity:d.quantity),0)); }
 export function fulfilmentSummary(order:SeikoOrder){
  const c=commerceOf(order),quantities=packingQuantities(order);let ordered=0,pending=0,completePeople=0,partialPeople=0;
  for(const r of order.records.filter(r=>c.people[r.recordId]?.state!=="cancelled")){
@@ -103,27 +104,35 @@ export function fulfilmentSummary(order:SeikoOrder){
   if(expected&&given>=expected)completePeople++;else if(given)partialPeople++;
  }
  for(const p of order.products.filter(p=>p.quantityMode==="order_total")){ordered+=p.orderTotal;pending+=Math.max(0,p.orderTotal-deliveredQuantity(order,"order",p.id));}
- const delivered=c.deliveries.reduce((n,d)=>n+(d.kind==="delivery"?d.quantity:d.kind==="return"?-d.quantity:0),0),replacements=c.deliveries.filter(d=>d.kind==="replacement").reduce((n,d)=>n+d.quantity,0);
+ const delivered=c.deliveries.reduce((n,d)=>n+(d.kind==="delivery"||c.quantityBasis==="ordered"&&d.kind==="replacement"?d.quantity:d.kind==="return"?-d.quantity:0),0),replacements=c.deliveries.filter(d=>d.kind==="replacement").reduce((n,d)=>n+d.quantity,0);
  return {ordered,delivered,pending,completePeople,partialPeople,replacements};
 }
 /** Ordered pricing is independent of measurement/production readiness. Legacy orders retain measured-entry inference until explicitly switched. */
 export function pricingQuantities(order:SeikoOrder){
  if(commerceOf(order).quantityBasis!=="ordered")return packingQuantities(order);
- return new Map(order.records.map((record,index)=>[record.recordId,Object.fromEntries(order.products.map(product=>{
+ const net=new Map<string,number>();for(const d of commerceOf(order).deliveries){const key=d.recordId+":"+d.productId;net.set(key,(net.get(key)||0)+(d.kind==="return"?-d.quantity:d.quantity));}
+ const result=new Map(order.records.map(record=>[record.recordId,Object.fromEntries(order.products.map(product=>{
+   if(product.quantityMode==="order_total")return [product.id,0];
    const explicit=[`product:${product.id}:assigned_qty`,`product:${product.id}:qty_override`,`product:${product.id}:qty`].some(key=>record.values[key]!==undefined&&String(record.values[key]).trim()!=="");
-   return [product.id,product.quantityMode==="per_person"&&!explicit?0:quantityForRecord(product,record,index===0)];
+   const retained=Math.max(0,net.get(record.recordId+":"+product.id)||0),planned=product.quantityMode==="per_person"&&!explicit?0:quantityForRecord(product,record);
+   return [product.id,pricingCancelled(order,record)?retained:Math.max(planned,retained)];
  }))]));
+ result.set("order",Object.fromEntries(order.products.filter(p=>p.quantityMode==="order_total").map(p=>{const retained=Math.max(0,net.get("order:"+p.id)||0);return [p.id,order.status==="Cancelled"?retained:Math.max(p.orderTotal,retained)];})));
+ return result;
 }
+function pricingCancelled(order:SeikoOrder,record:OrderRecord){return order.status==="Cancelled"||commerceOf(order).people[record.recordId]?.state==="cancelled"||order.fields.some(f=>/status|cancel/i.test(f.name)&&/^(cancelled|canceled|removed)$/i.test(String(record.values[`field:${f.id}`]||"").trim()));}
+function pricingInactiveReason(order:SeikoOrder,record:OrderRecord,quantities:ReturnType<typeof pricingQuantities>){return commerceOf(order).quantityBasis!=="ordered"?inactiveRecordReason(order,record):pricingCancelled(order,record)&&!order.products.some(p=>assignedQuantity(order,record,p.id,quantities)>0)?"Cancelled with no retained garments":"";}
+export function fixedPriceCoverage(order:SeikoOrder){const quantities=pricingQuantities(order),bulk={recordId:"order",personId:"",values:{}} as OrderRecord;return order.products.map(p=>({productId:p.id,quantity:p.quantityMode==="order_total"?assignedQuantity(order,bulk,p.id,quantities):order.records.reduce((n,r)=>n+assignedQuantity(order,r,p.id,quantities),0)})).filter(p=>p.quantity>0);}
 function pricingEligibility(order:SeikoOrder,record:OrderRecord,productIds:string[],quantities:ReturnType<typeof pricingQuantities>){
  if(commerceOf(order).quantityBasis!=="ordered")return recordEligibility(order,record,productIds,quantities);
- const inactive=inactiveRecordReason(order,record);if(inactive)return {eligible:false,reason:inactive};
+ const inactive=pricingInactiveReason(order,record,quantities);if(inactive)return {eligible:false,reason:inactive};
  const products=order.products.filter(p=>productIds.includes(p.id));
  const issues=recordRuleIssues({...order,products:products.map(p=>({...p,specifications:[]})),measurements:[]},record);
  if(issues.length)return {eligible:false,reason:issues.join('; ')};
  if(!products.some(p=>assignedQuantity(order,record,p.id,quantities)>0))return {eligible:false,reason:products.some(p=>p.quantityMode==="per_person")?"Quantity not entered":"No garments assigned by setup or entry quantities"};
  return {eligible:true,reason:"Ordered quantities"};
 }
-export function pricingQuote(order:SeikoOrder,basis:"eligible"|"delivered"="eligible") {
+export function pricingQuote(order:SeikoOrder,basis:"eligible"|"delivered"="eligible"):{units:PriceUnit[];excluded:{recordId:string;ruleId:string;reason:string}[];notOrdered:{recordId:string;ruleId:string}[];unpriced:{recordId:string;productId:string;quantity:number}[];total:number;billablePeople:number} {
   const c=commerceOf(order),quantities=pricingQuantities(order),units:PriceUnit[]=[],excluded:{recordId:string;ruleId:string;reason:string}[]=[],notOrdered:{recordId:string;ruleId:string}[]=[];
   for(const rule of c.rules){
     const bulk=rule.mode==="product"&&order.products.find(p=>p.id===rule.contents[0]?.productId)?.quantityMode==="order_total";
@@ -133,10 +142,11 @@ export function pricingQuote(order:SeikoOrder,basis:"eligible"|"delivered"="elig
       const configuredProducts=order.products.filter(p=>rule.contents.some(part=>[part.productId,...(part.alternatives||[])].includes(p.id)));
       const assignmentIssues=recordRuleIssues({...order,products:configuredProducts.map(p=>({...p,specifications:[]})),measurements:[]},record);
       const missingQuantity=configuredProducts.some(p=>p.quantityMode==="per_person"&&(!p.recipientWhen||predicateState(p.recipientWhen,record)==="match")&&![`product:${p.id}:assigned_qty`,`product:${p.id}:qty_override`,`product:${p.id}:qty`].some(key=>record.values[key]!==undefined&&String(record.values[key]).trim()!==""));
-      if(rule.mode!=="fixed"&&!bulk&&!inactiveRecordReason(order,record)&&configuredProducts.length&&!assignmentIssues.length&&!missingQuantity&&configuredProducts.every(p=>quantityForRecord(p,record)===0)){notOrdered.push({recordId:record.recordId,ruleId:rule.id});continue;}
+      if(rule.mode!=="fixed"&&!bulk&&!pricingInactiveReason(order,record,quantities)&&configuredProducts.length&&!assignmentIssues.length&&!missingQuantity&&configuredProducts.every(p=>(c.quantityBasis==="ordered"?assignedQuantity(order,record,p.id,quantities):quantityForRecord(p,record))===0)){notOrdered.push({recordId:record.recordId,ruleId:rule.id});continue;}
       const resolve=(r:PriceRule)=>r.contents.filter(x=>x.quantity>0).map(x=>({...x,productId:[x.productId,...(x.alternatives||[])].find(id=>assignedQuantity(order,record,id,quantities)>0)||x.productId}));
       const contents=resolve(rule);
-      const state=rule.mode==="fixed"||bulk?{eligible:order.status!=="Cancelled",reason:"Order cancelled"}:pricingEligibility(order,record,rule.packageCharge==="set"?rule.contents.flatMap(x=>[x.productId,...(x.alternatives||[])]):contents.map(x=>x.productId),quantities);
+      const variablePerson=rule.mode==="package"&&rule.packageCharge==="person"&&c.quantityBasis==="ordered";
+      const state=rule.mode==="fixed"?{eligible:order.status!=="Cancelled",reason:"Order cancelled"}:bulk?{eligible:c.quantityBasis==="ordered"?!pricingInactiveReason(order,record,quantities):order.status!=="Cancelled",reason:"Order cancelled"}:pricingEligibility(order,record,rule.packageCharge==="set"?rule.contents.flatMap(x=>[x.productId,...(x.alternatives||[])]):contents.map(x=>x.productId),quantities);
       if(!state.eligible){excluded.push({recordId:record.recordId,ruleId:rule.id,reason:state.reason});continue;}
       const matching=c.rules.filter(r=>r.mode!=="fixed"&&predicateState(r,record,r.fieldId)==="match");
       const signature=(r:PriceRule)=>r.contents.map(x=>`${[x.productId,...(x.alternatives||[])].sort().join("/")}:${x.quantity}`).sort().join("|");
@@ -147,28 +157,58 @@ export function pricingQuote(order:SeikoOrder,basis:"eligible"|"delivered"="elig
         return Math.max(0,Math.min(...parts.map(x=>Math.floor([x.productId,...(x.alternatives||[])].reduce((sum,id)=>sum+assignedQuantity(order,record,id,quantities),0)/x.quantity))));
       };
       const packageQuantity=(id:string)=>matching.filter(r=>r.mode==="package").reduce((sum,r)=>{
+        if(r.packageCharge==="person"&&c.quantityBasis==="ordered")return sum+(r.contents.some(x=>[x.productId,...(x.alternatives||[])].includes(id))?assignedQuantity(order,record,id,quantities):0);
         if(r.packageCharge!=="set")return sum+resolve(r).filter(x=>x.productId===id).reduce((n,x)=>n+x.quantity,0);
         return sum+r.contents.reduce((total,part)=>{let needed=part.quantity*packageCount(r),reserved=0;for(const candidate of [part.productId,...(part.alternatives||[])]){const used=Math.min(needed,assignedQuantity(order,record,candidate,quantities));if(candidate===id)reserved+=used;needed-=used;}return total+reserved;},0);
       },0);
       let quantity=rule.mode==="package"?packageCount(rule):1;
       if(rule.mode==="product") {const p=order.products.find(p=>p.id===contents[0]?.productId);quantity=p?Math.max(0,assignedQuantity(order,record,p.id,quantities)-packageQuantity(p.id)):0;}
-      if(rule.mode==="package"&&contents.some(x=>{const p=order.products.find(p=>p.id===x.productId);return !p||assignedQuantity(order,record,p.id,quantities)<packageQuantity(x.productId);})){excluded.push({recordId:record.recordId,ruleId:rule.id,reason:"Incomplete package quantity"});continue;}
+      if(rule.mode==="package"&&!variablePerson&&contents.some(x=>{const p=order.products.find(p=>p.id===x.productId);return !p||assignedQuantity(order,record,p.id,quantities)<packageQuantity(x.productId);})){excluded.push({recordId:record.recordId,ruleId:rule.id,reason:"Incomplete package quantity"});continue;}
       if(basis==="delivered"){
         if(rule.mode==="product")quantity=Math.min(quantity,Math.max(0,deliveredQuantity(order,record.recordId,contents[0]?.productId)-packageQuantity(contents[0]?.productId)));
-        else if(rule.mode==="package"){if(rule.packageCharge==="set")quantity=Math.min(quantity,...rule.contents.map(x=>Math.floor([x.productId,...(x.alternatives||[])].reduce((sum,id)=>sum+Math.max(0,Math.min(assignedQuantity(order,record,id,quantities),deliveredQuantity(order,record.recordId,id))),0)/x.quantity)));else if(contents.some(x=>deliveredQuantity(order,record.recordId,x.productId)<x.quantity))quantity=0;}
+        else if(rule.mode==="package"){if(rule.packageCharge==="set")quantity=Math.min(quantity,...rule.contents.map(x=>Math.floor([x.productId,...(x.alternatives||[])].reduce((sum,id)=>sum+Math.max(0,Math.min(assignedQuantity(order,record,id,quantities),deliveredQuantity(order,record.recordId,id))),0)/x.quantity)));else if(variablePerson?rule.contents.some(x=>[x.productId,...(x.alternatives||[])].some(id=>deliveredQuantity(order,record.recordId,id)<assignedQuantity(order,record,id,quantities))):contents.some(x=>deliveredQuantity(order,record.recordId,x.productId)<x.quantity))quantity=0;}
         else if(rule.mode==="fixed"&&order.status!=="Completed")quantity=0;
       }
       if(quantity<=0){excluded.push({recordId:record.recordId,ruleId:rule.id,reason:basis==="delivered"?"Delivery pending":"No items ordered"});continue;}
       const rate=c.people[record.recordId]?.rateOverrides?.[rule.id]??rule.rate;
-      units.push({key:`${rule.id}:${record.recordId}:tax${rule.taxRate||0}`,ruleId:rule.id,recordId:record.recordId,unit:rule.mode==="package"?(rule.packageCharge==="set"?"set":"student"):rule.mode==="fixed"?"order":"pc",personName:personName(order,record.recordId),description:rule.name+(rule.mode==="package"?" ("+rule.contents.map(x=>`${x.quantity} ${[x.productId,...(x.alternatives||[])].map(id=>order.products.find(p=>p.id===id)?.name||"item").join("/")}`).join(" + ")+")":""),quantity,rate,amount:cents(quantity*rate),taxRate:rule.taxRate||0,hsnSac:rule.hsnSac||""});
+      const zeroPriceReason=c.people[record.recordId]?.rateOverrides?.[rule.id]!==undefined?c.people[record.recordId]?.zeroPriceReason:rule.zeroPriceReason;
+      if(rate===0&&c.quantityBasis==="ordered"&&!zeroPriceReason?.trim()){excluded.push({recordId:record.recordId,ruleId:rule.id,reason:"Zero price requires recorded approval"});continue;}
+      units.push({...(rate===0&&zeroPriceReason?{zeroPriceReason:zeroPriceReason.trim()}:{}),key:`${rule.id}:${record.recordId}:tax${rule.taxRate||0}`,ruleId:rule.id,recordId:record.recordId,unit:rule.mode==="package"?(rule.packageCharge==="set"?"set":"student"):rule.mode==="fixed"?"order":"pc",personName:personName(order,record.recordId),description:rule.name+(rule.mode==="package"?" ("+rule.contents.map(x=>`${variablePerson?"":x.quantity+" "}${[x.productId,...(x.alternatives||[])].map(id=>order.products.find(p=>p.id===id)?.name||"item").join("/")}`).join(" + ")+(variablePerson?"; Per Person":"")+")":""),quantity,rate,amount:cents(quantity*rate),taxRate:rule.taxRate||0,hsnSac:rule.hsnSac||""});
     }
   }
   for(const issue of c.issues.filter(i=>i.chargeable&&i.extraCharge>0&&i.status==="resolved"))units.push({key:`issue:${issue.id}:tax${issue.taxRate||0}`,ruleId:`issue:${issue.id}`,recordId:issue.recordId,personName:personName(order,issue.recordId),description:`Extra work: ${issue.description}`,quantity:1,rate:issue.extraCharge,amount:issue.extraCharge,taxRate:issue.taxRate||0,hsnSac:issue.hsnSac||""});
-  return {units,excluded,notOrdered,total:cents(units.reduce((n,u)=>n+u.amount,0)),billablePeople:new Set(units.filter(u=>u.recordId!=="order").map(u=>u.recordId)).size};
+  const unpriced:{recordId:string;productId:string;quantity:number}[]=basis==="delivered"?pricingQuote(order,"eligible").unpriced:[];
+  if(basis!=="delivered"&&!(c.quantityBasis!=="ordered"&&units.some(u=>u.recordId==="order"&&c.rules.some(r=>r.id===u.ruleId&&r.mode==="fixed")))){
+    const globalCoverage=new Map<string,number>();for(const unit of units){const rule=c.rules.find(r=>r.id===unit.ruleId);if(rule?.mode==="fixed")for(const part of rule.fixedCoverage||[])globalCoverage.set(part.productId,(globalCoverage.get(part.productId)||0)+part.quantity);}
+    const records=[...order.records,...(order.products.some(p=>p.quantityMode==="order_total")?[{recordId:"order",personId:"",values:{}} as OrderRecord]:[])];
+    for(const record of records){
+      if(pricingInactiveReason(order,record,quantities))continue;
+      // Legacy orders report entirely ineligible people through excluded; do not
+      // reinterpret their old measurement-based assignments as new charges.
+      if(c.quantityBasis!=="ordered"&&!units.some(u=>u.recordId===record.recordId))continue;
+      const covered=new Map<string,number>();
+      for(const unit of units.filter(u=>u.recordId===record.recordId)){
+        const rule=c.rules.find(r=>r.id===unit.ruleId);if(!rule)continue;
+        if(rule.mode==="package"&&rule.packageCharge==="person"&&c.quantityBasis==="ordered"){
+          for(const part of rule.contents)for(const id of [part.productId,...(part.alternatives||[])])covered.set(id,assignedQuantity(order,record,id,quantities));
+          continue;
+        }
+        for(const part of rule.contents){
+          let remaining=rule.mode==="product"?unit.quantity:part.quantity*unit.quantity;
+          for(const id of [part.productId,...(part.alternatives||[])]){
+            const take=Math.min(remaining,Math.max(0,assignedQuantity(order,record,id,quantities)-(covered.get(id)||0)));
+            covered.set(id,(covered.get(id)||0)+take);remaining-=take;
+          }
+        }
+      }
+      for(const p of order.products){const remaining=assignedQuantity(order,record,p.id,quantities)-(covered.get(p.id)||0),take=Math.min(Math.max(0,remaining),globalCoverage.get(p.id)||0);globalCoverage.set(p.id,(globalCoverage.get(p.id)||0)-take);if(remaining>take)unpriced.push({recordId:record.recordId,productId:p.id,quantity:remaining-take});}
+    }
+  }
+  return {units,excluded,notOrdered,unpriced,total:cents(units.reduce((n,u)=>n+u.amount,0)),billablePeople:new Set(units.filter(u=>u.recordId!=="order").map(u=>u.recordId)).size};
 }
 export function pricingLines(units:PriceUnit[]) {
-  const groups=new Map<string,{id:string;description:string;quantity:number;unit:string;unitRate:number;taxRate:number;hsnSac:string}>();
-  for(const u of units){const key=`${u.ruleId}:${u.rate}:${u.taxRate}`;const old=groups.get(key);if(old)old.quantity+=u.quantity;else groups.set(key,{id:key,description:u.description,quantity:u.quantity,unit:u.unit||"unit",unitRate:u.rate,taxRate:u.taxRate,hsnSac:u.hsnSac});}
+  const groups=new Map<string,{id:string;description:string;quantity:number;unit:string;unitRate:number;taxRate:number;hsnSac:string;zeroPriceReason?:string}>();
+  for(const u of units){const key=`${u.ruleId}:${u.rate}:${u.taxRate}`;const old=groups.get(key);if(old)old.quantity+=u.quantity;else groups.set(key,{id:key,description:u.description,quantity:u.quantity,unit:u.unit||"unit",unitRate:u.rate,taxRate:u.taxRate,hsnSac:u.hsnSac,...(u.zeroPriceReason?{zeroPriceReason:u.zeroPriceReason}:{})});}
   return [...groups.values()];
 }
 /** The same invoice rows are used by billing reconciliation and its inline brief. */
@@ -188,6 +228,11 @@ export function validateCommerce(order:SeikoOrder, previous?:SeikoOrder):string 
   if(!Array.isArray(c.rules)||!Array.isArray(c.deliveries)||!Array.isArray(c.issues)||!c.people||typeof c.people!=="object")return "Invalid order commercial details.";
   if(c.rules.length>100||c.deliveries.length>10000||c.issues.length>3000)return "Commercial record limit reached.";
   if(new Set(c.rules.map(r=>r.id)).size!==c.rules.length||c.rules.some(r=>!r.id||!r.name?.trim()||!["package","product","fixed"].includes(r.mode)||!Number.isFinite(r.rate)||r.rate<0||r.rate>1e9||cents(r.rate)!==r.rate||!Number.isFinite(r.taxRate)||r.taxRate<0||r.taxRate>100||!Array.isArray(r.contents)||(r.mode!=="fixed"&&!r.contents.length)||new Set(r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])])).size!==r.contents.flatMap(x=>[x.productId,...(x.alternatives||[])]).length||(r.packageCharge!==undefined&&(!["person","set"].includes(r.packageCharge)||r.mode!=="package"))||r.mode==="product"&&r.contents.length!==1||r.contents.some(x=>![x.productId,...(x.alternatives||[])].every(id=>order.products.some(p=>p.id===id))||!Number.isInteger(x.quantity)||x.quantity<=0)||(!r.conditions?.length&&r.fieldId&&(!order.fields.some(f=>f.id===r.fieldId)||!r.match?.trim()))))return "Complete every price rule, product, group and rate.";
+  if(c.rules.some(r=>r.zeroPriceReason!==undefined&&(typeof r.zeroPriceReason!=="string"||r.zeroPriceReason.length>2000)))return "Use a zero-price approval reason up to 2,000 characters.";
+  for(const r of c.rules)if(r.fixedCoverage!==undefined){
+    if(r.mode!=="fixed"||!Array.isArray(r.fixedCoverage)||r.fixedCoverage.length>order.products.length||new Set(r.fixedCoverage.map(p=>p.productId)).size!==r.fixedCoverage.length||r.fixedCoverage.some(p=>!order.products.some(product=>product.id===p.productId)||!Number.isFinite(p.quantity)||p.quantity<=0||p.quantity>1e9))return "Use valid fixed-price garment quantities.";
+    if(JSON.stringify(r.fixedCoverage)!==JSON.stringify(previous?.commerce?.rules.find(old=>old.id===r.id)?.fixedCoverage)){const current=new Map(fixedPriceCoverage(order).map(p=>[p.productId,p.quantity]));if(r.fixedCoverage.some(p=>current.get(p.productId)!==p.quantity))return "Approve fixed-price coverage from the current assigned garment quantities.";}
+  }
   for(const [id,p] of Object.entries(c.people)){
     const record=order.records.find(r=>r.recordId===id),label=record?.personId||id;
     if(!record){
@@ -201,6 +246,7 @@ export function validateCommerce(order:SeikoOrder, previous?:SeikoOrder):string 
     // of reason; only a hold/cancellation requires a separate explanation.
     if(["hold","cancelled"].includes(p.state)&&(typeof p.reason!=="string"||!p.reason.trim()))return `Record the ${p.state} reason for person ${label}.`;
     // An empty optional override is unset, never permission to bill.
+    if(p.zeroPriceReason!==undefined&&(typeof p.zeroPriceReason!=="string"||p.zeroPriceReason.length>2000))return "Use a zero-price approval reason up to 2,000 characters.";
     if(p.overrideReason!==undefined&&typeof p.overrideReason!=="string")return `Use a text billing override reason for person ${label}.`;
     if(Object.values(p.rateOverrides||{}).some(n=>!Number.isFinite(n)||n<0||n>1e9||cents(n)!==n))return `Use valid nonnegative prices with at most two decimal places for person ${label}.`;
   }
@@ -209,7 +255,8 @@ export function validateCommerce(order:SeikoOrder, previous?:SeikoOrder):string 
   if(old&&[...old.deliveries,...old.issues].some(x=>x.recordId!=="order"&&!order.records.some(r=>r.recordId===x.recordId)))return "Preserve people with delivery or query history. Cancel them in People & eligibility instead of deleting their row.";
   if(old&&JSON.stringify(c.deliveries.slice(0,old.deliveries.length))!==JSON.stringify(old.deliveries))return "Delivery history is permanent. Add a return or correction entry instead.";
   const net=new Map<string,number>();
-  for(const [deliveryIndex,d] of c.deliveries.entries()){const key=`${d.recordId}:${d.productId}`,p=order.products.find(p=>p.id===d.productId),record=order.records.find(r=>r.recordId===d.recordId)||(d.recordId==="order"&&p?.quantityMode==="order_total"?{recordId:"order",personId:"",values:{}}:undefined);if(!d.id||!record||!p||!Number.isInteger(d.quantity)||d.quantity<=0||!["delivery","return","replacement"].includes(d.kind)||!(d.historical===true&&d.dateUnknown===true&&d.date===""||!d.dateUnknown&&/^\d{4}-\d{2}-\d{2}$/.test(d.date))||d.historical!==undefined&&typeof d.historical!=="boolean"||d.dateUnknown!==undefined&&typeof d.dateUnknown!=="boolean"||d.historical===true&&d.kind!=="delivery"||!d.reference?.trim())return "Complete delivery person, product, date (or historical date unknown), quantity and reference.";if(d.kind==="delivery"&&Boolean(previous)&&deliveryIndex>=(old?.deliveries.length||0)&&(record.recordId==="order"?order.status==="Cancelled":Boolean(d.historical?inactiveRecordReason(order,record):!recordEligibility({...order,commerce:{...c,deliveries:c.deliveries.slice(0,deliveryIndex)}},record,[p.id]).eligible)))return "Only eligible active people can receive new delivery. Record returns or linked replacements separately.";if(d.kind==="replacement"){if(!c.issues.some(i=>i.id===d.issueId&&i.recordId===d.recordId&&i.productId===d.productId))return "Link replacement supply to its issue.";continue;}const qty=(net.get(key)||0)+(d.kind==="return"?-d.quantity:d.quantity);if(qty<0||d.kind==="delivery"&&deliveryIndex>=(old?.deliveries.length||0)&&qty>assignedQuantity(order,record,p.id))return "Delivery exceeds the ordered quantity or return exceeds deliveries. Use a linked replacement for extra supply.";net.set(key,qty);}
+  for(const [deliveryIndex,d] of c.deliveries.entries()){const key=`${d.recordId}:${d.productId}`,p=order.products.find(p=>p.id===d.productId),record=order.records.find(r=>r.recordId===d.recordId)||(d.recordId==="order"&&p?.quantityMode==="order_total"?{recordId:"order",personId:"",values:{}}:undefined);if(!d.id||!record||!p||!Number.isInteger(d.quantity)||d.quantity<=0||!["delivery","return","replacement"].includes(d.kind)||!(d.historical===true&&d.dateUnknown===true&&d.date===""||!d.dateUnknown&&/^\d{4}-\d{2}-\d{2}$/.test(d.date))||d.historical!==undefined&&typeof d.historical!=="boolean"||d.dateUnknown!==undefined&&typeof d.dateUnknown!=="boolean"||d.historical===true&&d.kind!=="delivery"||!d.reference?.trim())return "Complete delivery person, product, date (or historical date unknown), quantity and reference.";if(d.kind==="delivery"&&Boolean(previous)&&deliveryIndex>=(old?.deliveries.length||0)&&(record.recordId==="order"?order.status==="Cancelled":Boolean(d.historical?inactiveRecordReason(order,record):!recordEligibility({...order,commerce:{...c,deliveries:c.deliveries.slice(0,deliveryIndex)}},record,[p.id]).eligible)))return "Only eligible active people can receive new delivery. Record returns or linked replacements separately.";if(d.kind==="replacement"){if(!c.issues.some(i=>i.id===d.issueId&&i.recordId===d.recordId&&i.productId===d.productId))return "Link replacement supply to its issue.";if(c.quantityBasis==="ordered"){const prior=c.deliveries.slice(0,deliveryIndex).filter(entry=>entry.recordId===d.recordId&&entry.productId===d.productId);if(deliveryIndex>=(old?.deliveries.length||0)){const available=prior.reduce((n,entry)=>n+(entry.kind==="return"?entry.quantity:entry.kind==="replacement"?-entry.quantity:0),0);if(pricingCancelled(order,record)||!prior.some(entry=>entry.kind==="delivery")||d.quantity>available||(net.get(key)||0)+d.quantity>assignedQuantity(order,record,p.id))return "Record the original supply and returned quantity before a free replacement. Extra or unreturned garments need their own approved order pricing.";}net.set(key,(net.get(key)||0)+d.quantity);}continue;}const qty=(net.get(key)||0)+(d.kind==="return"?-d.quantity:d.quantity);if(qty<0||d.kind==="delivery"&&deliveryIndex>=(old?.deliveries.length||0)&&qty>assignedQuantity(order,record,p.id))return "Delivery exceeds the ordered quantity or return exceeds deliveries. Use a linked replacement for extra supply.";net.set(key,qty);}
+  if(c.quantityBasis==="ordered"&&previous){const newHandovers=c.deliveries.slice(old?.deliveries.length||0).filter(d=>(d.kind==="delivery"||d.kind==="replacement")&&!d.historical);if(newHandovers.length){const quote=pricingQuote(order);if(newHandovers.some(d=>quote.unpriced.some(item=>item.recordId===d.recordId&&item.productId===d.productId)))return "Complete and approve pricing for the supplied garment quantities before recording this handover.";}}
   if(new Set(c.deliveries.map(d=>d.id)).size!==c.deliveries.length)return "Duplicate delivery entry.";
   for(const i of c.issues){if(!i.id||!(order.records.some(r=>r.recordId===i.recordId)||i.recordId==="order"&&order.products.some(p=>p.quantityMode==="order_total"))||i.productId&&!order.products.some(p=>p.id===i.productId)||!["fitting","missing","wrong_item","new_person","removal","return","defect","other"].includes(i.type)||!i.description?.trim()||!i.owner?.trim()||!["open","in_progress","resolved"].includes(i.status)||!Number.isFinite(i.extraCharge)||i.extraCharge<0||cents(i.extraCharge)!==i.extraCharge||i.taxRate!==undefined&&(!Number.isFinite(i.taxRate)||i.taxRate<0||i.taxRate>100)||!Array.isArray(i.history)||!i.history.length||i.history.at(-1)?.status!==i.status)return "Complete issue description, person, owner, status and charge.";const before=old?.issues.find(x=>x.id===i.id);if(before&&(before.recordId!==i.recordId||before.productId!==i.productId||before.deliveryId&&before.deliveryId!==i.deliveryId))return "Keep the case linked to its original person, product and handover.";if(before&&JSON.stringify(i.history.slice(0,before.history.length))!==JSON.stringify(before.history))return "Issue history cannot be rewritten.";if(before&&JSON.stringify(i)!==JSON.stringify(before)&&i.history.length<=before.history.length)return "Record a reason for the issue update.";}
   if(old?.issues.some(i=>!c.issues.some(n=>n.id===i.id)))return "Issues cannot be removed; resolve them with a note.";
@@ -310,7 +357,7 @@ export function validateFulfilment(order:SeikoOrder,previous?:SeikoOrder):string
 }
 
 export function groupPricingQuote(order:SeikoOrder,basis:"eligible"|"delivered"="eligible",group="all"){
- const quote=pricingQuote(order,basis);if(group==="all")return quote;const units=quote.units.filter(u=>recordInOrderGroup(order,u.recordId,group));return {...quote,units,excluded:quote.excluded.filter(u=>recordInOrderGroup(order,u.recordId,group)),total:cents(units.reduce((n,u)=>n+u.amount,0)),billablePeople:new Set(units.filter(u=>u.recordId!=="order").map(u=>u.recordId)).size};
+ const quote=pricingQuote(order,basis);if(group==="all")return quote;const units=quote.units.filter(u=>recordInOrderGroup(order,u.recordId,group));return {...quote,units,excluded:quote.excluded.filter(u=>recordInOrderGroup(order,u.recordId,group)),notOrdered:quote.notOrdered.filter(u=>recordInOrderGroup(order,u.recordId,group)),unpriced:quote.unpriced.filter(u=>recordInOrderGroup(order,u.recordId,group)),total:cents(units.reduce((n,u)=>n+u.amount,0)),billablePeople:new Set(units.filter(u=>u.recordId!=="order").map(u=>u.recordId)).size};
 }
 
 export { recordInOrderGroup, validOrderGroup, orderGroupOptions } from './order-domain';

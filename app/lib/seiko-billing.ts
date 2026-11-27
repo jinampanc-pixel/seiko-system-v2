@@ -14,6 +14,7 @@ export type SeikoBillingLine = {
   unitRate: number;
   taxRate: number;
   hsnSac?: string;
+  zeroPriceReason?:string;
 };
 
 export type SeikoCommercialDocument = {
@@ -75,6 +76,7 @@ export type SeikoCommercialDocument = {
 };
 
 export type SeikoPaymentRecord = {
+  refundOf?:string; refundReceiptNumber?:string; refundedAmount?:number; refundedBy?:string;
   linkedAt?:string; linkedBy?:string; originalPayer?:string; originalPhone?:string;
   updatedAt?: string;
   revision?: number;
@@ -154,11 +156,11 @@ export function documentTotals(document: Pick<SeikoCommercialDocument, "taxMode"
 }
 
 export function paymentsForInvoice(payments: SeikoPaymentRecord[], invoiceId: string) {
-  return roundMoney(payments.reduce((sum, payment) => sum + paymentAppliedToInvoice(payment, invoiceId), 0));
+  return payments.reduce((sum, payment) => sum + Math.round(paymentAppliedToInvoice(payment, invoiceId)*100), 0)/100;
 }
 
 export function invoiceOutstanding(invoice: SeikoCommercialDocument, payments: SeikoPaymentRecord[]) {
-  if (invoice.kind !== "invoice") return 0;
+  if (invoice.kind !== "invoice" || invoice.status === "cancelled" || invoice.deletedAt) return 0;
   return Math.max(0, roundMoney(documentTotals(invoice).total - paymentsForInvoice(payments, invoice.id)));
 }
 
@@ -179,7 +181,8 @@ export function amountInWords(value: number) {
   const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
   const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
   const under1000 = (n: number) => `${n >= 100 ? `${ones[Math.floor(n / 100)]} Hundred ` : ""}${n % 100 < 20 ? ones[n % 100] : `${tens[Math.floor((n % 100) / 10)]}${n % 10 ? ` ${ones[n % 10]}` : ""}`}`.trim();
-  let rupees = Math.floor(Math.abs(value)); const paise = Math.round((Math.abs(value) - rupees) * 100); const parts: string[] = [];
+  const totalPaise = Math.round(Math.abs(value) * 100);
+  let rupees = Math.floor(totalPaise / 100); const paise = totalPaise % 100; const parts: string[] = [];
   for (const [size, label] of [[10_000_000, "Crore"], [100_000, "Lakh"], [1_000, "Thousand"]] as const) if (rupees >= size) { parts.push(`${under1000(Math.floor(rupees / size))} ${label}`); rupees %= size; }
   if (rupees) parts.push(under1000(rupees));
   return `Indian Rupees ${parts.join(" ") || "Zero"}${paise ? ` and ${under1000(paise)} Paise` : ""} Only`;
@@ -207,15 +210,17 @@ export function validateBillingDocument(document: SeikoCommercialDocument): stri
   if (document.taxMode === "gst" && document.taxTreatment === "inter_state" && !document.placeOfSupply?.trim()) return "Enter the place of supply for an interstate GST document.";
   if (!Array.isArray(document.lines) || !document.lines.length || document.lines.length > 200) return "Add between 1 and 200 item lines.";
   if (document.lines.some(line => !line.description?.trim() || !Number.isFinite(line.quantity) || line.quantity <= 0 || !Number.isFinite(line.unitRate) || line.unitRate < 0 || !Number.isFinite(line.taxRate) || line.taxRate < 0 || line.taxRate > 100)) return "Each item needs a description, positive quantity and valid rate/tax.";
+  if(["invoice","quotation"].includes(document.kind)&&document.lines.some(line=>line.unitRate===0&&(typeof line.zeroPriceReason!=="string"||!line.zeroPriceReason.trim()||line.zeroPriceReason.length>2000)))return "Every zero-price item needs a recorded approval reason.";
   if (document.lines.some(line=>line.section&&(typeof line.section.label!=="string"||!line.section.label.trim()||line.section.label.length>120||line.section.date!==undefined&&!validBillingDate(line.section.date)))) return "Use a section label up to 120 characters and a valid optional date.";
   if (document.taxMode === "gst" && document.lines.some(line => !line.hsnSac?.trim())) return "Every GST item needs an HSN/SAC code.";
-  if (documentTotals(document).total > 1_000_000_000) return "Invoice total is too large.";
+  if (!Number.isFinite(documentTotals(document).total) || documentTotals(document).total > 1_000_000_000) return "Invoice total is too large.";
   return "";
 }
 
 export function validBillingDate(value: string) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 }
+export function billingToday(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());}
 
 // Order money is applied oldest-invoice-first in integer paise. Original receipts
 // remain immutable; allocations are a derived view, never additional payments.
@@ -223,22 +228,73 @@ export function paymentAppliedToInvoice(payment: SeikoPaymentRecord, invoiceId: 
   return payment.invoiceId === invoiceId ? payment.amount : (payment.allocations || []).filter(item => item.invoiceId === invoiceId).reduce((sum, item) => sum + item.amount, 0);
 }
 export function allocateOrderPayments(documents: SeikoCommercialDocument[], payments: SeikoPaymentRecord[]) {
-  const ordered = [...documents].filter(d => d.kind === "invoice" && d.status !== "cancelled").sort((a,b) => (a.createdAt || "").localeCompare(b.createdAt || "") || a.number.localeCompare(b.number) || a.id.localeCompare(b.id));
-  const remaining = new Map(ordered.map(d => [d.id, Math.max(0, Math.round(documentTotals(d).total * 100) - payments.filter(p => p.invoiceId === d.id).reduce((sum,p) => sum + Math.round(p.amount * 100), 0))]));
+  const refunded=new Map<string,number>();
+  for(const p of payments)if(p.refundOf&&p.amount<0)refunded.set(p.refundOf,(refunded.get(p.refundOf)||0)+Math.round(-p.amount*100));
+  const ordered = [...documents].filter(d => d.kind === "invoice" && d.status !== "cancelled" && !d.deletedAt).sort((a,b) => a.issueDate.localeCompare(b.issueDate) || (a.createdAt || "").localeCompare(b.createdAt || "") || a.number.localeCompare(b.number) || a.id.localeCompare(b.id));
+  const direct=new Map<string,number>(),byOrder=new Map<string,SeikoCommercialDocument[]>(),cursor=new Map<string,number>();
+  for(const p of payments)if(p.invoiceId)direct.set(p.invoiceId,(direct.get(p.invoiceId)||0)+Math.round(p.amount*100));
+  for(const d of ordered){const group=byOrder.get(d.orderId)||[];group.push(d);byOrder.set(d.orderId,group);}
+  const remaining = new Map(ordered.map(d => [d.id, Math.max(0, Math.round(documentTotals(d).total * 100) - (direct.get(d.id)||0))]));
   const allocations = new Map<string, { invoiceId: string; amount: number }[]>();
   for (const payment of [...payments].sort((a,b) => (a.createdAt || "").localeCompare(b.createdAt || "") || a.receiptNumber.localeCompare(b.receiptNumber) || a.id.localeCompare(b.id))) {
-    if (payment.invoiceId || !payment.orderId) continue;
-    let available = Math.round(payment.amount * 100); const applied = [];
-    for (const invoice of ordered.filter(d => d.orderId === payment.orderId)) {
+    if (payment.refundOf || payment.invoiceId || !payment.orderId) continue;
+    let available = Math.max(0,Math.round(payment.amount * 100)-(refunded.get(payment.id)||0)); const applied = [];
+    const group=byOrder.get(payment.orderId)||[];
+    for (let index=cursor.get(payment.orderId)||0;index<group.length&&available>0;index++) {
+      const invoice=group[index];
       const amount = Math.min(available, remaining.get(invoice.id) || 0);
       if (amount > 0) { applied.push({ invoiceId: invoice.id, amount: amount / 100 }); remaining.set(invoice.id, remaining.get(invoice.id)! - amount); available -= amount; }
+      cursor.set(payment.orderId,remaining.get(invoice.id)?index:index+1);
     }
     allocations.set(payment.id, applied);
   }
-  return payments.map(p => ({ ...p, allocations: allocations.get(p.id) || [] }));
+  return payments.map(p => {const next={...p,allocations:allocations.get(p.id)||[]};delete next.refundedAmount;if(refunded.has(p.id))next.refundedAmount=(refunded.get(p.id)||0)/100;return next;});
 }
 export function unappliedOrderPayment(payment: SeikoPaymentRecord) {
-  return payment.invoiceId ? 0 : Math.max(0, roundMoney(payment.amount - (payment.allocations || []).reduce((sum,a) => sum + a.amount, 0)));
+  return payment.invoiceId || payment.refundOf ? 0 : Math.max(0,Math.round(payment.amount*100)-Math.round((payment.refundedAmount||0)*100)-(payment.allocations||[]).reduce((sum,a)=>sum+Math.round(a.amount*100),0))/100;
+}
+export function refundablePaymentAmount(payment:SeikoPaymentRecord,documents:SeikoCommercialDocument[],payments:SeikoPaymentRecord[]){
+  if(payment.refundOf||payment.amount<=0)return 0;
+  const allocated=allocateOrderPayments(documents,payments),current=allocated.find(p=>p.id===payment.id);if(!current)return 0;
+  const retained=Math.max(0,roundMoney(current.amount-(current.refundedAmount||0)));
+  if(!current.invoiceId)return current.orderId?Math.min(retained,unappliedOrderPayment(current)):retained;
+  const invoice=documents.find(d=>d.id===current.invoiceId);if(!invoice)return 0;
+  const owed=invoice.status==="cancelled"||invoice.deletedAt?0:documentTotals(invoice).total;
+  return Math.min(retained,Math.max(0,roundMoney(paymentsForInvoice(allocated,invoice.id)-owed)));
+}
+/** Fail closed on damaged money records instead of treating missing/invalid values as zero. */
+export function billingIntegrityIssues(documents:SeikoCommercialDocument[],payments:SeikoPaymentRecord[]):string[]{
+  const issues:string[]=[],money=(n:number)=>Number.isFinite(n)&&Math.abs(n)<=1e9&&roundMoney(n)===n;
+  const docsById=new Map(documents.map(d=>[d.id,d])),paymentsById=new Map(payments.map(p=>[p.id,p])),refundTotals=new Map<string,number>();
+  for(const p of payments)if(p.refundOf)refundTotals.set(p.refundOf,(refundTotals.get(p.refundOf)||0)+Math.round(-p.amount*100));
+  if(new Set(documents.map(d=>d.id)).size!==documents.length||new Set(payments.map(p=>p.id)).size!==payments.length)issues.push("Duplicate financial record identity");
+  for(const doc of documents){
+    const t=documentTotals(doc);
+    if(!money(t.total)||t.total<0||!Array.isArray(doc.lines)||doc.lines.some(l=>!l||!Number.isFinite(l.quantity)||l.quantity<=0||!Number.isFinite(l.unitRate)||l.unitRate<0||!Number.isFinite(l.taxRate)||l.taxRate<0||l.taxRate>100))issues.push("Invalid document amounts: "+doc.id);
+    if((doc.credits||[]).some(c=>!money(c.amount)||!money(c.subtotal)||!money(c.tax)||c.amount<0||c.subtotal<0||c.tax<0||roundMoney(c.subtotal+c.tax)!==c.amount))issues.push("Invalid credit amounts: "+doc.id);
+    if(doc.pricingSnapshot&&roundMoney(doc.pricingSnapshot.units.reduce((n,u)=>n+u.amount,0))!==t.originalSubtotal)issues.push("Invoice pricing snapshot does not reconcile: "+doc.id);
+  }
+  for(const p of payments){
+    if(!money(p.amount)||p.amount===0||(p.refundOf?p.amount>=0:p.amount<=0))issues.push("Invalid receipt amount: "+p.id);
+    const invoice=docsById.get(p.invoiceId);
+    if(p.invoiceId&&(!invoice||invoice.kind!=="invoice"||p.orderId&&(invoice.orderId||"")!==p.orderId))issues.push("Receipt invoice link does not reconcile: "+p.id);
+    if(p.refundOf){const source=paymentsById.get(p.refundOf);if(!source||source.refundOf||source.amount<=0||source.invoiceId!==p.invoiceId||(source.orderId||"")!==(p.orderId||"")||p.date<source.date)issues.push("Invalid refund source: "+p.id);}
+    else if((refundTotals.get(p.id)||0)>Math.round(p.amount*100))issues.push("Refunds exceed the original receipt: "+p.id);
+  }
+  const allocated=allocateOrderPayments(documents,payments),received=payments.reduce((n,p)=>n+Math.round(p.amount*100),0);
+  const applied=allocated.reduce((n,p)=>n+(p.invoiceId?Math.round(p.amount*100):(p.allocations||[]).reduce((sum,a)=>sum+Math.round(a.amount*100),0)),0);
+  const remaining=allocated.reduce((n,p)=>n+Math.round(unappliedOrderPayment(p)*100),0);
+  if(![received,applied,remaining].every(Number.isSafeInteger))issues.push("Financial totals exceed the safe currency range");
+  if(received!==applied+remaining)issues.push("Collected, allocated, refunded and remaining money do not reconcile");
+  return issues;
+}
+export function storedBillingIntegrityIssues(documentRows:{sequence:number;id:string;data:string;cancelled:number;total_paise:number}[],paymentRows:{sequence:number;id:string;data:string;amount_paise:number}[]):string[]{
+  const documents=documentRows.map(row=>{const value=JSON.parse(row.data) as SeikoCommercialDocument;return {...value,id:row.id,number:value.number||String(row.sequence),status:row.cancelled?"cancelled" as const:"issued" as const};});
+  const payments=paymentRows.map(row=>({...JSON.parse(row.data) as SeikoPaymentRecord,id:row.id,receiptNumber:String(row.sequence)}));
+  const issues=billingIntegrityIssues(documents,payments);
+  documentRows.forEach((row,i)=>{if(JSON.parse(row.data).id!==row.id||!Number.isSafeInteger(row.total_paise)||Math.round(documentTotals(documents[i]).total*100)!==row.total_paise)issues.push("Stored invoice identity or total does not reconcile: "+row.id);});
+  paymentRows.forEach((row,i)=>{if(JSON.parse(row.data).id!==row.id||!Number.isSafeInteger(row.amount_paise)||Math.round(payments[i].amount*100)!==row.amount_paise)issues.push("Stored receipt identity or amount does not reconcile: "+row.id);});
+  return issues;
 }
 export function orderReceiptDocument(payment: SeikoPaymentRecord): SeikoCommercialDocument {
   return { ...payment.appearance, id: "receipt:" + payment.id, kind: "payment_receipt", number: payment.receiptNumber, orderId: payment.orderId, orderNo: payment.orderNo || payment.orderId, clientName: payment.clientName || "Payment", clientPhone: payment.clientPhone || "", issueDate: payment.date, taxMode: "non_gst", taxTreatment: "intra_state", lines: [], notes: "", status: "issued", createdAt: payment.createdAt, updatedAt: payment.createdAt };

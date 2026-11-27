@@ -36,5 +36,14 @@ module.exports=async({page,navigate,billing,base})=>{
  const preview=page.getByRole('dialog',{name:saved.receiptNumber,exact:true});await preview.waitFor();await preview.locator('.documentMore>summary').first().click();await preview.getByRole('button',{name:'Link to Order / Invoice',exact:true}).click();
  const picker=page.getByRole('dialog',{name:'Choose Order or Invoice for Payment',exact:true});await picker.waitFor();await picker.getByRole('button',{name:/Smoke School.*SMOKE-001/}).click();await picker.waitFor({state:'detached'});
  ledger=await (await billing.POST(new Request(base+'/api/erp/billing',{method:'POST',body:JSON.stringify({operation:'list'})}))).json();assert.equal(ledger.payments.filter(p=>p.id===saved.id).length,1);assert.equal(ledger.payments.find(p=>p.id===saved.id).orderId,'smoke-order');assert.equal(ledger.payments.find(p=>p.id===saved.id).receiptNumber,saved.receiptNumber);
- console.log('PASS: bounded top-layer menus, persistent mouse/touch/keyboard reordering, separate Settings divider, quick payment slip and later order link.');
+ await preview.locator('.documentMore>summary').first().click();await preview.getByRole('button',{name:'Record Refund',exact:true}).click();
+ const refundForm=page.getByRole('dialog',{name:'Record Refund · '+saved.receiptNumber,exact:true});await refundForm.waitFor();
+ await refundForm.getByLabel('Amount Refunded ₹',{exact:true}).fill('25');await refundForm.getByLabel('Refund Reason',{exact:true}).fill('Unused advance returned');
+ for(const width of [390,1280]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'refund form fits '+width);if(process.env.UI_AUDIT_OUTPUT_DIR)await page.screenshot({path:process.env.UI_AUDIT_OUTPUT_DIR+'/refund-'+width+'.png'});}
+ await refundForm.getByRole('button',{name:'Save and Print',exact:true}).click();await refundForm.waitFor({state:'detached'});
+ ledger=await (await billing.POST(new Request(base+'/api/erp/billing',{method:'POST',body:JSON.stringify({operation:'list'})}))).json();
+ const refund=ledger.payments.find(p=>p.refundOf===saved.id);assert.ok(refund);assert.equal(refund.amount,-25);assert.match(refund.receiptNumber,/^RFD-/);
+ assert.equal(ledger.payments.find(p=>p.id===saved.id).amount,75);assert.equal(ledger.payments.find(p=>p.id===saved.id).refundedAmount,25);
+ await page.getByRole('dialog',{name:refund.receiptNumber,exact:true}).waitFor();
+ console.log('PASS: bounded menus, persistent reordering, quick payment/linking and desktop/mobile refund entry with a numbered receipt preserve the original payment.');
 };

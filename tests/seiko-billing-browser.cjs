@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const ts = require('typescript');
 const { DatabaseSync } = require('node:sqlite');
-function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports, require: name => imports[name], crypto, Response, Request, URL, TextDecoder, Uint8Array }); return exports; }
+function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports, require: name => imports[name], crypto, Response, Request, URL, TextEncoder, TextDecoder, Uint8Array }); return exports; }
 (async () => {
  const sqlite = new DatabaseSync(':memory:');
  sqlite.exec("CREATE TABLE erp_orders(id TEXT, business_id TEXT, status TEXT, document_json TEXT)");

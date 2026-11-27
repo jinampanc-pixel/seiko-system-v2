@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { DatabaseSync } from 'node:sqlite';
 function load(path,imports={}) {
- const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:n=>imports[n],Request,Response,URL,TextDecoder,Uint8Array,crypto,atob,btoa});return exports;
+ const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:n=>imports[n],Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,crypto,atob,btoa});return exports;
 }
 const profiles=load('app/lib/billing-profile.ts');
 const model=load('app/lib/seiko-billing.ts');

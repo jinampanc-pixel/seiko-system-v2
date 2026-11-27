@@ -3,6 +3,7 @@ import type { SeikoOrder } from "../../../lib/order-domain";
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
 import { ORDER_STATUSES } from "../../../lib/order-statuses";
+const canonicalFinancialValue=(value:unknown)=>JSON.stringify(value,(_key,item)=>item&&typeof item==="object"&&!Array.isArray(item)?Object.fromEntries(Object.entries(item).sort(([a],[b])=>a.localeCompare(b))):item);
 
 type OrderLike = {
   commerce?: SeikoOrder["commerce"];
@@ -109,9 +110,9 @@ export async function POST(request: Request) {
       if (body.order?.commerce && !await authorizePermission(actor,businessId,"billing.invoices.manage")) {
         const existing = await db.prepare("SELECT document_json FROM erp_orders WHERE business_id=? AND id=?").bind(businessId,body.order.orderId).first<{document_json:string}>();
         const originalOrder=JSON.parse(existing?.document_json||"{}");
-        if(!await authorizePermission(actor,businessId,"financials.view")){const shown=redactCommercialPrices(originalOrder as SeikoOrder).commerce;if(JSON.stringify(shown?.rules||[])!==JSON.stringify(body.order.commerce.rules))return forbidden();body.order.commerce.rules=originalOrder.commerce?.rules||[];body.order.commerce.people=Object.fromEntries(Object.entries(body.order.commerce.people).map(([id,p])=>[id,{...p,...(originalOrder.commerce?.people[id]?.rateOverrides?{rateOverrides:originalOrder.commerce.people[id].rateOverrides}:{})}]));body.order.commerce.issues=body.order.commerce.issues.map(i=>{const old=originalOrder.commerce?.issues.find((x:{id:string})=>x.id===i.id);return old?{...i,extraCharge:old.extraCharge,taxRate:old.taxRate,hsnSac:old.hsnSac}:i;});}
-        if(JSON.stringify(JSON.parse(existing?.document_json||"{}").commerce?.rules||[])!==JSON.stringify(body.order.commerce.rules))return forbidden();
-        if(JSON.stringify(JSON.parse(existing?.document_json||"{}").commerce?.people||{})!==JSON.stringify(body.order.commerce.people))return forbidden();
+        if(!await authorizePermission(actor,businessId,"financials.view")){const shown=redactCommercialPrices(originalOrder as SeikoOrder).commerce;if(canonicalFinancialValue(shown?.rules||[])!==canonicalFinancialValue(body.order.commerce.rules))return forbidden();body.order.commerce.rules=originalOrder.commerce?.rules||[];body.order.commerce.people=Object.fromEntries(Object.entries(body.order.commerce.people).map(([id,p])=>[id,{...p,...(originalOrder.commerce?.people[id]?.rateOverrides?{rateOverrides:originalOrder.commerce.people[id].rateOverrides}:{}),...(originalOrder.commerce?.people[id]?.zeroPriceReason!==undefined?{zeroPriceReason:originalOrder.commerce.people[id].zeroPriceReason}:{})}]));body.order.commerce.issues=body.order.commerce.issues.map(i=>{const old=originalOrder.commerce?.issues.find((x:{id:string})=>x.id===i.id);return old?{...i,extraCharge:old.extraCharge,taxRate:old.taxRate,hsnSac:old.hsnSac}:i;});}
+        if(canonicalFinancialValue(JSON.parse(existing?.document_json||"{}").commerce?.rules||[])!==canonicalFinancialValue(body.order.commerce.rules))return forbidden();
+        if(canonicalFinancialValue(JSON.parse(existing?.document_json||"{}").commerce?.people||{})!==canonicalFinancialValue(body.order.commerce.people))return forbidden();
         const oldIssues=JSON.parse(existing?.document_json||"{}").commerce?.issues||[];if(body.order.commerce.issues.some(i=>{const old=oldIssues.find((o:{id:string})=>o.id===i.id);return i.chargeable!==Boolean(old?.chargeable)||i.extraCharge!==(old?.extraCharge||0)||(i.taxRate||0)!==(old?.taxRate||0)||(i.hsnSac||"")!==(old?.hsnSac||"");}))return forbidden();
       }
       if (!access.canCreate && !access.canEdit) return forbidden();
@@ -325,6 +326,7 @@ async function mutateOrder(db: OrderDb, businessId: string, actor: { userId: str
   if (body.operation === "status" && !(ORDER_STATUSES as readonly unknown[]).includes(body.status)) return error("INVALID_STATUS", "Choose a valid status.", 400);
   if (body.operation === "archive" && typeof body.archived !== "boolean") return error("INVALID_ARCHIVE", "Choose archive or restore.", 400);
   if (body.operation === "delete" && body.confirmOrderNo !== order.details?.orderNo) return error("CONFIRM_ORDER_NUMBER", "Enter the exact order number to delete it.", 400);
+  if(body.operation==="delete"&&order.commerce?.quantityBasis==="ordered"&&order.commerce.deliveries.length)return error("ORDER_HAS_HANDOVER_HISTORY","This order has garment handover or return history. Archive it to preserve its financial obligations and audit trail.",409);
   const now = new Date().toISOString();
   const document = { ...order, updatedAt: now,
     ...(body.operation === "status" ? { status: body.status } : {}),

@@ -1,4 +1,4 @@
-import { assignedQuantities, deliveredQuantity, pricingQuote, pricingDelta, pricingInvoiceLines, commerceOf, cents } from './order-commerce';
+import { pricingQuantities, assignedQuantity, deliveredQuantity, pricingQuote, pricingDelta, pricingInvoiceLines, commerceOf, cents } from './order-commerce';
 import { specificationForRecord, workspaceColumns, type SeikoOrder, type OrderRecord } from './order-domain';
 import { documentTotals, type SeikoCommercialDocument, type SeikoPaymentRecord, type SeikoBillingLine } from './seiko-billing';
 
@@ -20,12 +20,14 @@ export function orderBrief(order:SeikoOrder, documents:SeikoCommercialDocument[]
 }
 
 export function briefPriceGroups(order:SeikoOrder, unitsIn:ReturnType<typeof pricingQuote>['units']){
+ const quantities=pricingQuantities(order),records=new Map(order.records.map(r=>[r.recordId,r]));
  return pricingInvoiceLines(unitsIn).map(line=>{
   const units=unitsIn.filter(u=>`${u.ruleId}:${u.rate}:${u.taxRate}`===line.id),rule=commerceOf(order).rules.find(r=>r.id===units[0]?.ruleId);
   const contents=rule?.mode==='package'?rule.contents:[];
-  const same=contents.length===2&&contents.every(c=>c.quantity===contents[0].quantity);
+  const variable=rule?.packageCharge==='person'&&commerceOf(order).quantityBasis==='ordered';
+  const same=!variable&&contents.length===2&&contents.every(c=>c.quantity===contents[0].quantity);
   const setsPerPackage=same?contents[0].quantity:1;
-  return {line,people:new Set(units.filter(u=>u.recordId!=='order').map(u=>u.recordId)).size,sets:same?line.quantity*setsPerPackage:null,setRate:same?cents(line.unitRate/setsPerPackage):null,pieces:contents.length?line.quantity*contents.reduce((n,c)=>n+c.quantity,0):rule?.mode==='product'?line.quantity:null};
+  return {line,people:new Set(units.filter(u=>u.recordId!=='order').map(u=>u.recordId)).size,sets:same?line.quantity*setsPerPackage:null,setRate:same?cents(line.unitRate/setsPerPackage):null,pieces:variable?units.reduce((sum,u)=>{const record=records.get(u.recordId);return sum+(record?contents.flatMap(c=>[c.productId,...(c.alternatives||[])]).reduce((n,id)=>n+assignedQuantity(order,record,id,quantities),0):0);},0):contents.length?line.quantity*contents.reduce((n,c)=>n+c.quantity,0):rule?.mode==='product'?line.quantity:null};
  });
 }
 
@@ -44,10 +46,10 @@ export function briefGroupingOptions(order:SeikoOrder){
  return [...columns,...order.products.flatMap(p=>p.specifications.map(s=>({id:`spec:${s.id}:resolved`,label:`${p.name} / ${s.name}`})))];
 }
 export function briefProductGroups(order:SeikoOrder, fields:string[]=[]){
- const quantities=assignedQuantities(order),groups=new Map<string,{product:string;group:string;people:number;ordered:number;delivered:number;pending:number}>();
+ const quantities=pricingQuantities(order),groups=new Map<string,{product:string;group:string;people:number;ordered:number;delivered:number;pending:number}>();
  for(const p of order.products){
   const records:OrderRecord[]=p.quantityMode==='order_total'?[{recordId:'order',personId:'',values:{}}]:order.records;
-  for(const r of records){const quantity=p.quantityMode==='order_total'?p.orderTotal:quantities.get(r.recordId)?.[p.id]||0;if(!quantity)continue;
+  for(const r of records){const quantity=assignedQuantity(order,r,p.id,quantities);if(!quantity)continue;
    const values=fields.filter(Boolean).map(key=>{const spec=p.specifications.find(s=>key===`spec:${s.id}:resolved`||key===`spec:${s.id}`);return String(spec?specificationForRecord(spec,r):r.values[key]??'—');});
    const group=values.join(' · '),key=JSON.stringify([p.id,values]),row=groups.get(key)||{product:p.name,group,people:0,ordered:0,delivered:0,pending:0};
    const delivered=Math.max(0,Math.min(quantity,deliveredQuantity(order,r.recordId,p.id)));row.people+=r.recordId==='order'?0:1;row.ordered+=quantity;row.delivered+=delivered;row.pending+=quantity-delivered;groups.set(key,row);
