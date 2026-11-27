@@ -24,10 +24,11 @@ module.exports=async({page,sqlite,seed,navigate,order,domain,sheetModel})=>{
  await measurement.getByRole('checkbox',{name:uiLabel('Use Waist for Track pant', true),exact:true}).check();
  await page.getByRole('button',{name:uiLabel('Open workspace', true),exact:true}).click();await page.getByRole('region',{name:uiLabel('People and measurements', true),exact:true}).waitFor();
  const entry=page.getByRole('region',{name:uiLabel('People and measurements', true),exact:true});await entry.locator('.orderPeopleList').getByRole('button').filter({hasText:'S-001'}).click();
- const input=entry.getByRole('spinbutton',{name:uiLabel(/^Waist/, false)});assert.equal(await input.count(),1,'one shared Waist field appears for all three products');assert.equal(await input.inputValue(),'30');await input.fill('34');await entry.getByRole('button',{name:uiLabel('Save & close', true),exact:true}).click();await entry.getByRole('status').filter({hasText:'Saved:'}).waitFor();
+ const input=entry.getByRole('textbox',{name:uiLabel(/^Waist/, false)});assert.equal(await input.count(),1,'one shared Waist field appears for all three products');assert.equal(await input.inputValue(),'30');await input.fill('36/34');await entry.locator('[data-save-next]').focus();await page.keyboard.press('Shift+Tab');await page.keyboard.press('Tab');assert.equal(await entry.locator('[data-save-next]').evaluate(e=>getComputedStyle(e).outlineWidth),'4px');await entry.getByRole('button',{name:uiLabel('Save & close', true),exact:true}).click();await entry.getByRole('status').filter({hasText:'Saved:'}).waitFor();
  const stored=JSON.parse(sqlite.prepare('SELECT document_json FROM erp_orders WHERE id=?').get(fixture.orderId).document_json);
  assert.equal(stored.measurements.length,1);assert.equal(stored.measurements[0].appliesTo.length,3);
- for(const product of fixture.products)assert.equal(String(stored.records[0].values[`measurement:shared-waist:product:${product.id}`]),'34');
+ for(const product of fixture.products)assert.equal(String(stored.records[0].values[`measurement:shared-waist:product:${product.id}`]),'36/34');
+ await entry.locator('.orderPeopleList').getByRole('button').filter({hasText:'S-001'}).click();assert.equal(await entry.getByRole('textbox',{name:uiLabel(/^Waist/,false)}).inputValue(),'36/34');await entry.getByRole('button',{name:uiLabel('Close entry',true),exact:true}).click();
  assert.equal(await page.locator('body').getAttribute('data-seiko-palette'),'true');
  assert.equal(await page.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(251, 245, 237)');
 

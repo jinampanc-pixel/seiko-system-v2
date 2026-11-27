@@ -4,6 +4,15 @@ import { packingQuantities } from "./packing-label-model";
 
 export const PEOPLE_SHEET = "People";
 export type SheetColumn = WorkspaceColumn & { numeric?: boolean; options?: string[]; derived?: boolean };
+/** Measurements can carry a size/waist pair; quantities and numeric person fields cannot. */
+function numericCellValue(column: SheetColumn, raw: string | number): string | number {
+ const text=String(raw).trim();
+ if(!column.numeric||!text)return raw;
+ if(column.id.startsWith("measurement:")&&/^\d+(?:\.\d+)?\s*[/-]\s*\d+(?:\.\d+)?$/.test(text))return text;
+ const number=Number(text);
+ if(!Number.isFinite(number))throw Error(column.groupLabel+" / "+column.label+" must be a valid number"+(column.id.startsWith("measurement:")?" or size/waist pair.":"."));
+ return number;
+}
 export const RECORD_KEY = "_record_id", PERSON_KEY = "_person_id";
 const meta=(id:string,label:string):SheetColumn=>({id,label,groupId:"identity",groupLabel:"Person / record",required:false});
 export function orderSheetColumns(order:SeikoOrder):SheetColumn[]{
@@ -51,7 +60,7 @@ export function readOrderSheet(order:SeikoOrder,table:unknown[][],makeId:()=>str
    const prior=old.get(id);if(!prior&&!keys.some((k,n)=>k.startsWith("field:")&&String(row[n]??"").trim()))throw Error(`Row ${i+1}: enter person details before adding quantities or measurements.`);const personId=read(PERSON_KEY)||prior?.personId||`ADD-${id.slice(0,8)}`;
    const state=read("_state").toLowerCase()||"active";if(!["active","awaiting","hold","cancelled"].includes(state))throw Error(`Row ${i+1}: choose Active, Awaiting, Hold or Cancelled.`);
    const values={...(prior?.values||{})};
-   keys.forEach((key,n)=>{const c=columns.get(key);if(!c||c.derived||key.startsWith("_"))return;const raw=row[n]??"";if(typeof raw!=="string"&&typeof raw!=="number"&&raw!==null)throw Error(`Row ${i+1}: invalid cell value.`);const text=String(raw).trim();if(c.numeric&&text!==""&&(!Number.isFinite(Number(text))||(key.endsWith(":assigned_qty")&&(!Number.isInteger(Number(text))||Number(text)<0))))throw Error(`Row ${i+1}: ${c.groupLabel} / ${c.label} must be a valid ${key.endsWith(":assigned_qty")?"whole quantity of zero or more":"number"}.`);if(c.options?.length&&text&&!c.options.includes(text))throw Error(`Row ${i+1}: choose a saved option for ${c.label}.`);if(key.endsWith(":assigned_qty")){delete values[key.replace(":assigned_qty",":qty")];delete values[key.replace(":assigned_qty",":qty_override")];}if(text==="")delete values[key];else values[key]=c.numeric?Number(text):String(raw);});
+   keys.forEach((key,n)=>{const c=columns.get(key);if(!c||c.derived||key.startsWith("_"))return;const raw=row[n]??"";if(typeof raw!=="string"&&typeof raw!=="number"&&raw!==null)throw Error(`Row ${i+1}: invalid cell value.`);const text=String(raw).trim();if(c.numeric&&text!==""&&key.endsWith(":assigned_qty")&&(!Number.isInteger(Number(text))||Number(text)<0))throw Error(`Row ${i+1}: ${c.groupLabel} / ${c.label} must be a valid ${key.endsWith(":assigned_qty")?"whole quantity of zero or more":"number"}.`);if(c.options?.length&&text&&!c.options.includes(text))throw Error(`Row ${i+1}: choose a saved option for ${c.label}.`);if(key.endsWith(":assigned_qty")){delete values[key.replace(":assigned_qty",":qty")];delete values[key.replace(":assigned_qty",":qty_override")];}if(text==="")delete values[key];else values[key]=c.numeric?numericCellValue(c,text):String(raw);});
    for(const f of order.fields.filter(f=>/status|cancel/i.test(f.name)))if(/^(cancelled|canceled|removed)$/i.test(String(values[`field:${f.id}`]||""))&&state==="active")values[`field:${f.id}`]="Active";
    positions.set(id,i);records.push({recordId:id,personId,values,held:state==="hold"});
    people[id]={...people[id],state:state as "active"|"awaiting"|"hold"|"cancelled",reason:people[id]?.reason||(["hold","cancelled"].includes(state)?"Updated in Google Sheets":""),batch:read("_batch"),readySize:read("_size")};
@@ -93,7 +102,7 @@ export function prepareSheetPersonEdit(order:SeikoOrder,table:unknown[][],edit:S
  for(const [key,value] of Object.entries(edit.changes)){
   if(!columns.has(key)||columns.get(key)?.derived||key===RECORD_KEY||key===PERSON_KEY||!keys.includes(key))throw Error("The order fields changed. Update the sheet columns and reopen this person.");
   if(typeof value!=="string"&&typeof value!=="number"||String(value).length>2000)throw Error("Invalid field value.");
-  const entered=columns.get(key)?.numeric&&String(value).trim()!==""?Number(value):value;
+  const entered=numericCellValue(columns.get(key)!,value);
   const column=keys.indexOf(key),current=String(prior[column]??""),wanted=String(entered);
   if(!adding&&current!==String(edit.expected[key]??"")&&current!==wanted)throw Error("This person was changed in Sheets or by another user. Refresh and review before saving.");
   next[column]=entered;if(current!==wanted)updates.push({column,value:entered});

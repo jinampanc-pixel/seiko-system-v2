@@ -173,3 +173,12 @@ test('compact production pages balance six complete garment tables and preserve 
  assert.equal(document.compactProductionColumns([500,500,500],650),null);
  assert.equal(document.compactProductionColumns([NaN],650),null);
 });
+
+
+test('production preserves combined length/waist notation separately for every garment',()=>{
+ const order=makeOrder();order.products.push({...order.products[0],id:'pant',name:'Track Pant'});order.measurements[0].appliesTo.push('pant');
+ order.records=[{recordId:'one',personId:'one',values:{'measurement:length:product:shirt':'26/34','measurement:length:product:pant':'36/34'}}];
+ const demand=domain.productionDemand([{order,version:1}]);assert.equal(demand.length,2);
+ assert.ok(demand.some(row=>row.productId==='shirt'&&row.variant.includes('26/34')&&!row.unresolved));
+ assert.ok(demand.some(row=>row.productId==='pant'&&row.variant.includes('36/34')&&!row.unresolved));
+});

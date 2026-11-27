@@ -56,3 +56,19 @@ test('compound text measurements round-trip through Sheets without losing slash 
  const again=table(result);assert.equal(again[3][again[0].indexOf(key)],'26/34');
  assert.equal(o.records[0].values[key],28);assert.equal(result.records[0].recordId,o.records[0].recordId);
 });
+
+
+test('combined size/waist values survive person saves and sheet round trips for every product',()=>{
+ const o=order();o.measurements.push({id:'length',name:'Length',shared:false,type:'number',requiredMode:'Always',appliesTo:['shirt']});
+ for(const [key,value] of [['measurement:waist:shared','36/34'],['measurement:length:product:shirt','26/34']]){
+  const t=table(o),plan=model.prepareSheetPersonEdit(o,t,{recordId:'one',isNew:false,changes:{[key]:value},expected:{[key]:o.records[0].values[key]??''}});
+  assert.equal(plan.values[t[0].indexOf(key)],value);t[plan.row]=plan.values;
+  const saved=model.readOrderSheet(o,t,()=> 'new').order;
+  assert.equal(saved.records[0].values[key],value);
+  assert.equal(model.orderSheetRows(saved)[0][t[0].indexOf(key)],value);
+ }
+ const t=table(o),bad=changes=>model.prepareSheetPersonEdit(o,t,{recordId:'one',isNew:false,changes,expected:{}});
+ assert.throws(()=>bad({'product:pant:assigned_qty':'36/34'}),/number/);
+ assert.throws(()=>bad({'measurement:waist:shared':'36/'}),/size\/waist/);
+ assert.throws(()=>bad({'measurement:waist:shared':'nonsense'}),/valid number/);
+});
