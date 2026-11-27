@@ -6,7 +6,8 @@ import {fileURLToPath} from 'node:url';
 export function providerFailure(result){
   const text=String(result.stderr||'')+'\n'+String(result.stdout||'');
   const code=text.match(/\[code:\s*(\d+)\]/i)?.[1]||result.error?.code||'unknown';
-  const raw=text.replace(/\u001b\[[0-9;]*m/g,'').match(/\[ERROR\]\s*([^\r\n]+)/i)?.[1]||'';
+  const plain=text.split(String.fromCharCode(27)).map(part=>part.replace(/^\[[0-9;]*m/,'')).join('');
+  const raw=plain.match(/\[ERROR\]\s*([^\r\n]+)/i)?.[1]||'';
   const hint=raw.replace(/https?:\/\/[^\s"'<>]+/g,'[URL]').replace(/[a-f0-9]{32,}/gi,'[ID]').replace(/\b(?:bearer|token|secret|password)\b[^,;.]*/gi,'[redacted]').slice(0,220);
   return `exit ${result.status??'unavailable'}, provider code ${code}${hint?': '+hint:''}`;
 }
