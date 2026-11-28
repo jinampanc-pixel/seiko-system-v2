@@ -7,6 +7,11 @@ const modules={};function load(path){if(modules[path])return modules[path];const
 const model=load('app/lib/order-sheet-model.ts');
 function order(){return {orderId:'sheet-order',status:'Active',archived:false,updatedAt:'old',revisions:[],details:{orderNo:'SHEET-001',clientName:'Sample school'},fields:[{id:'name',name:'Name',type:'text',required:true,options:[]},{id:'gender',name:'Gender',type:'dropdown',options:['Boy','Girl']}],products:[{id:'shirt',name:'Shirt',quantityMode:'same_for_all',defaultQuantity:2,specifications:[]},{id:'pant',name:'Trousers',quantityMode:'same_for_all',defaultQuantity:2,specifications:[]}],measurements:[{id:'waist',name:'Waist',shared:true,type:'number',requiredMode:'Always',appliesTo:['pant']}],records:[{recordId:'one',personId:'P-0001',values:{'field:name':'Student A','field:gender':'Boy','measurement:waist:shared':28}},{recordId:'two',personId:'P-0002',values:{'field:name':'Student B','field:gender':'Girl','measurement:waist:shared':26}}]};}
 const table=o=>{const cols=model.orderSheetColumns(o);return [cols.map(c=>c.id),cols.map(c=>c.groupLabel),cols.map(c=>c.label),...model.orderSheetRows(o,cols)];};
+test('saved-person summaries preserve combined/shared measurements and exact zero exceptions without editing data',()=>{
+ const summary=load('app/lib/order-person-summary.ts'),o=order();o.measurements.push({id:'length',name:'Length',type:'text',requiredMode:'Optional',appliesTo:['shirt']});o.records[0].values['measurement:length:product:shirt']='36/34';o.records[0].values['product:shirt:assigned_qty']=1;
+ const before=JSON.stringify(o),rows=summary.personGarmentSummary(o,o.records[0]);assert.equal(rows.find(row=>row.id==='shirt').measurements,'Length: 36/34');assert.equal(rows.find(row=>row.id==='pant').measurements,'Waist: 28');assert.equal(rows.find(row=>row.id==='shirt').quantity,1);assert.equal(JSON.stringify(o),before);
+ o.records[0].values['product:pant:assigned_qty']=0;assert.equal(summary.personGarmentSummary(o,o.records[0]).some(row=>row.id==='pant'),false);
+});
 
 test('Awaiting imported after reconnect permits logo setup saves without making the student billable',()=>{
  const o=order(),t=table(o);t[3][t[0].indexOf('_state')]='Awaiting';

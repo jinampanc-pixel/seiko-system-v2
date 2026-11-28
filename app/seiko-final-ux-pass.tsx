@@ -435,7 +435,7 @@ function openOrderChoice(orderNo: string, action: "setup" | "workspace" | "label
     const menu = row.querySelector<HTMLDetailsElement>(".seikoRowActionMenu");
     if (menu) menu.open = true;
     window.setTimeout(() => {
-      const label = action === "setup" ? "Edit Order Details" : "Labels";
+      const label = action === "setup" ? "Edit Order" : "Labels";
       const button = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(node => (node.textContent?.trim() || "").toLowerCase() === label.toLowerCase());
       button?.click();
     }, 0);

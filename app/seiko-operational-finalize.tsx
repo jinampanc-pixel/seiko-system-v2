@@ -349,7 +349,7 @@ function enhanceWorkspaceMenu(page: HTMLElement) {
   const divider = menu.querySelector(".orderMenuDivider");
   divider?.insertAdjacentElement("afterend", labels);
 
-  const edit = buttons.find(button => (button.textContent?.trim() || "").toLowerCase() === "edit order details");
+  const edit = buttons.find(button => (button.textContent?.trim() || "").toLowerCase() === "edit order");
   edit?.addEventListener("click", () => { if (orderNo) sessionStorage.setItem(SETUP_RETURN_KEY, orderNo); });
   buttons.filter(button => !page.hasAttribute("data-server-order-actions") && ["Save", "Save & Close"].includes(button.textContent?.trim() || "")).forEach(button => {
     if (button.dataset.saveNoticeReady) return;
@@ -369,7 +369,7 @@ function triggerRowAction(row: HTMLElement, action: "open" | "setup" | "labels")
   waitFor(".workspacePage", node => {
     const page = node as HTMLElement;
     enhanceWorkspaceMenu(page);
-    workspaceAction(page, action === "setup" ? "Edit Order Details" : "Labels");
+    workspaceAction(page, action === "setup" ? "Edit Order" : "Labels");
   });
 }
 
@@ -389,7 +389,7 @@ function enhanceOrderCenter() {
       group.appendChild(button);
     };
     add("Open Order", "open");
-    add("Edit Order Details", "setup");
+    add("Edit Order", "setup");
     add("Labels", "labels");
     menu.querySelector("summary")?.insertAdjacentElement("afterend", group);
   });

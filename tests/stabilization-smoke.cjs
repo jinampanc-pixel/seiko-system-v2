@@ -208,6 +208,7 @@ function load(path, imports = {}) {
     if(process.argv.includes('--save-print')){await require('./save-print-browser.cjs')({page,navigate,seed,order});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--home-workspace')){await require('./home-workspace-browser.cjs')({page,navigate,seed,order});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--invoice-brief')){await require('./invoice-brief-browser.cjs')({page,seed,navigate,order,sqlite});assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--order-page-audit')){await require('./order-page-audit-browser.cjs')({page,seed,navigate,order});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--selected-people')){await require('./selected-people-browser.cjs')({page,seed,navigate,order,sqlite});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-workflow')){await require('./order-workflow-browser.cjs')({page,seed,navigate,order,sqlite});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--menu-payment')){await require('./menu-payment-browser.cjs')({page,navigate,billing,base});assert.deepEqual(errors,[]);return;}
