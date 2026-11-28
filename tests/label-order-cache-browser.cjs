@@ -43,7 +43,7 @@ const { spawn } = require('node:child_process');
     await search.fill('Follow-up only');
     await page.getByRole('button', { name: uiLabel(/FOLLOW-UP — Follow-up only/, false) }).click();
     assert.equal(await picker.inputValue(), 'follow-up-fixture');
-    await page.getByRole('button', { name: uiLabel('Production ⌄', true), exact: true }).click();
+    await page.getByRole('button', { name: uiLabel('Production', true), exact: true }).click();
     await page.getByRole('option', { name: uiLabel('Packing', true), exact: true }).click();
     await page.getByRole('button', { name: uiLabel('Continue to designer', true), exact: true }).click();
     await page.locator('.physicalPackingEditor').waitFor();
