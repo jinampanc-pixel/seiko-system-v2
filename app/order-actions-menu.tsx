@@ -1,15 +1,16 @@
 "use client";
 import { MoreIcon, ChevronDownIcon } from "./ui-icons";
+import { useRef } from "react";
 import { useAccess } from "./access-control";
 import type { SeikoOrder } from "./lib/order-domain";
 import type { OrderFinancialAction } from "./lib/order-commands";
-export function OrderActionsMenu({order,busy=false,onWorkspace,onFinancial,onHandover,onManagement,onProduction,onSetup,onLabels,onArchive,onDelete}:{order:SeikoOrder;busy?:boolean;onWorkspace:()=>void;onFinancial:(action:OrderFinancialAction)=>void;onHandover:()=>void;onManagement?:()=>void;onProduction?:()=>void;onSetup:()=>void;onLabels:()=>void;onArchive:()=>void;onDelete:()=>void}){const {membership,can}=useAccess();return (<details className="seikoRowActionMenu orderCenterActionMenu" onPointerLeave={event=>{
+export function OrderActionsMenu({order,busy=false,onWorkspace,onFinancial,onHandover,onManagement,onProduction,onSetup,onLabels,onArchive,onDelete}:{order:SeikoOrder;busy?:boolean;onWorkspace:()=>void;onFinancial:(action:OrderFinancialAction)=>void;onHandover:()=>void;onManagement?:()=>void;onProduction?:()=>void;onSetup:()=>void;onLabels:()=>void;onArchive:()=>void;onDelete:()=>void}){const {membership,can}=useAccess();const leaveTimer=useRef<number|undefined>(undefined);const cancelLeave=()=>{window.clearTimeout(leaveTimer.current);leaveTimer.current=undefined;};return (<details className="seikoRowActionMenu orderCenterActionMenu" onPointerEnter={cancelLeave} onPointerLeave={event=>{
         if(event.pointerType==="touch")return;
         const menu=event.currentTarget;
         if(event.relatedTarget instanceof Node&&menu.contains(event.relatedTarget))return;
-        window.setTimeout(()=>{if(menu.isConnected&&!menu.matches(":hover"))menu.open=false;},150);
+        cancelLeave();leaveTimer.current=window.setTimeout(()=>{if(menu.isConnected&&!menu.matches(":hover"))menu.open=false;},150);
       }} onToggle={event => {
-        const menu = event.currentTarget; if(event.target!==menu)return; if(!menu.open){menu.querySelectorAll<HTMLDetailsElement>(".orderMenuSection[open]").forEach(section=>{section.open=false;});return;}
+        const menu = event.currentTarget; if(event.target!==menu)return;cancelLeave(); if(!menu.open){menu.querySelectorAll<HTMLDetailsElement>(".orderMenuSection[open]").forEach(section=>{section.open=false;});return;}
         document.querySelectorAll<HTMLDetailsElement>(".seikoRowActionMenu[open]").forEach(other => { if (other !== menu) other.open = false; });
         const anchor = menu.querySelector("summary")!.getBoundingClientRect();
         const panel = menu.querySelector<HTMLElement>(".seikoRowActionPanel")!;

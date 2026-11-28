@@ -31,6 +31,9 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await firstMenu.locator(':scope > summary').click();
   await firstMenu.locator('.seikoRowActionPanel').hover();
   assert.equal(await firstMenu.evaluate(el=>el.open),true,'Moving into the action panel keeps it open');
+  await firstMenu.evaluate(menu=>{menu.dispatchEvent(new PointerEvent('pointerout',{bubbles:true,pointerType:'mouse',relatedTarget:document.body}));menu.open=false;menu.open=true;});
+  await firstMenu.locator('.seikoRowActionPanel').hover();await page.waitForTimeout(200);
+  assert.equal(await firstMenu.evaluate(el=>el.open),true,'A previous leave timer cannot close a reopened menu');
   await firstMenu.locator('.orderMenuSection > summary').filter({hasText:'Setup & Labels'}).click();
   assert.ok(await firstMenu.locator('.orderMenuSection > button').evaluateAll(buttons=>buttons.every(button=>parseFloat(getComputedStyle(button).fontSize)>=14)),'Submenu actions stay readable');
   await page.mouse.move(5,5);await page.waitForFunction(()=>!document.querySelector('.orderCenterActionMenu[open]'));
