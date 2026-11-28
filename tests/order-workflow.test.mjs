@@ -72,3 +72,5 @@ test('handoff creation issues once and optional annotations never invalidate pro
  assert.equal((await r.call('production',request)).status,200);
  }finally{r.sqlite.close();}
 });
+
+test('an explicit cancellation stays visible over optional tracking without changing business records',()=>{assert.equal(workflow.visibleOrderStatus('Cancelled','Production'),'Cancelled');assert.equal(workflow.visibleOrderStatus('Active','Production'),'Production');assert.equal(workflow.visibleOrderStatus('Active'),'Active');});

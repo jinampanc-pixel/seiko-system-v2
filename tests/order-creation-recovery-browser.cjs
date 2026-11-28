@@ -19,7 +19,7 @@ module.exports = async ({page, sqlite, navigate}) => {
   const countBefore = sqlite.prepare('SELECT COUNT(*) AS n FROM erp_orders').get().n;
   const offline = route => route.abort('internetdisconnected');
   await page.route('**/api/erp/orders', offline);
-  await setup.getByRole('button',{name:uiLabel('Create workspace', true),exact:true}).last().click();
+  await setup.getByRole('button',{name:uiLabel('Create Order', true),exact:true}).last().click();
   await page.getByRole('alert').filter({hasText:'temporarily unreachable'}).waitFor();
   assert.equal(await setup.getByLabel(uiLabel('Client name *', true), {exact:true}).inputValue(),'Recovery test client');
   assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM erp_orders').get().n, countBefore);
@@ -31,11 +31,11 @@ module.exports = async ({page, sqlite, navigate}) => {
   await page.unroute('**/api/erp/orders', offline);
   const expired = route => route.fulfill({status:302, headers:{location:'https://unreachable-login.invalid/'}});
   await page.route('**/api/erp/orders', expired);
-  await setup.getByRole('button',{name:uiLabel('Create workspace', true),exact:true}).last().click();
+  await setup.getByRole('button',{name:uiLabel('Create Order', true),exact:true}).last().click();
   await page.getByRole('alert').filter({hasText:'sign-in session has expired'}).waitFor();
   assert.equal(await setup.locator('.productPolicy').count(),6);
   await page.unroute('**/api/erp/orders', expired);
-  await setup.getByRole('button',{name:uiLabel('Create workspace', true),exact:true}).last().click();
+  await setup.getByRole('button',{name:uiLabel('Create Order', true),exact:true}).last().click();
   await page.getByRole('region',{name:uiLabel('Google Sheets order workspace', true),exact:true}).waitFor();assert.equal(await page.locator('.workspacePage').count(),0,'order creation opens the current workspace without mounting the legacy grid');
   const saved = sqlite.prepare("SELECT document_json FROM erp_orders WHERE json_extract(document_json, '$.details.clientName') = ?").get('Recovery test client');
   assert.equal(JSON.parse(saved.document_json).products.length,6);

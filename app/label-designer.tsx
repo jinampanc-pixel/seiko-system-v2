@@ -171,8 +171,8 @@ function recordPreviewText(record: RecordRow, sourceMode: SourceMode) {
     const productDetail = sourceMode === "person" ? (record.values.product_summary ? `Products: ${record.values.product_summary}` : "") : [record.product && `Product: ${record.product}`, record.size && `Size: ${record.size}`, record.qty && `Qty: ${record.qty}`].filter(Boolean).join(" · ");
     return [productDetail, ...personDetails].filter(Boolean).join(" · ");
 }
-export function LabelDesigner({ businessId, canManageSizes, order: primaryOrder, sourceOrders, onBack, backLabel, initialPurpose = null, initialSourceMode }: {
-    businessId: string;
+export function LabelDesigner({ businessId, canManageSizes, order: primaryOrder, sourceOrders, initialRecordIds, onBack, backLabel, initialPurpose = null, initialSourceMode }: {
+    initialRecordIds?:string[];businessId: string;
     canManageSizes: boolean;
     order?: SeikoOrder | null;
     sourceOrders?: SeikoOrder[];
@@ -200,9 +200,9 @@ export function LabelDesigner({ businessId, canManageSizes, order: primaryOrder,
         const sourceGroup = groupField ? `field:${groupField.id}` : packageGroupBy;
         const sourceCounts = Object.fromEntries(Object.entries(packageCounts).map(([key,value]) => [key.replace(packageGroupBy,sourceGroup),value]));
         return resolveLabelRows({...source, products:source.products.filter(product => productIds.includes(product.id))},sourceMode,sourceGroup,sourceCounts,personPackagePlan,productIds).map((row): RecordRow => ({...row,id:sourceModel.scoped(source,row.id),values:{...sourceModel.values(source,row.values),...labels,source_order_id:source.orderId,product_id:sourceModel.productId(source,row.values.product_id || ""),record_id:sourceModel.scoped(source,row.values.record_id || row.id)}}));
-      });
-    }, [order,sourceModel,sourceMode,packageGroupBy,packageCounts,personPackagePlan,includedProducts]);
-    const [selectedRows, setSelectedRows] = useState(() => records[0] ? [records[0].id] : []), [items, setItems] = useState<Item[]>(() => defaultLabelItems(order, initialPurpose, defaultSourceMode)), [selectedId, setSelectedId] = useState(""), [snap, setSnap] = useState(true), [guides, setGuides] = useState(true);
+      }).filter(record=>!initialRecordIds?.length||initialRecordIds.includes(record.values.record_id));
+    }, [order,sourceModel,sourceMode,packageGroupBy,packageCounts,personPackagePlan,includedProducts,initialRecordIds]);
+    const [selectedRows, setSelectedRows] = useState(() => initialRecordIds?.length?records.filter(record=>initialRecordIds.includes(record.values.record_id)).map(record=>record.id):records[0] ? [records[0].id] : []), [items, setItems] = useState<Item[]>(() => defaultLabelItems(order, initialPurpose, defaultSourceMode)), [selectedId, setSelectedId] = useState(""), [snap, setSnap] = useState(true), [guides, setGuides] = useState(true);
     const [outputMode, setOutputMode] = useState<OutputMode>("combined");
     const [advanced, setAdvanced] = useState(false), [customerUpdates, setCustomerUpdates] = useState(false);
     const classificationKey = key(businessId, `classification:${order?.orderId || "no-order"}`);

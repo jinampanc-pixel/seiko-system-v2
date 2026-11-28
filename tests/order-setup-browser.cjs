@@ -14,7 +14,7 @@ function load(path, imports = {}) { const exports = {}; vm.runInNewContext(ts.tr
   await page.route('**/api/erp/session', route => route.fulfill({ json: { ok: true, data: session } }));
   await page.route('**/api/seiko', route => route.fulfill({ json: { ok: true, data: session } }));
   await page.goto('http://127.0.0.1:5176/tests/packing-browser/index.html?orders');await page.getByRole('button',{name:uiLabel('+ New order', true),exact:true}).click();
-  const create=page.getByRole('button',{name:uiLabel('Create workspace', true),exact:true}).first();await create.click();assert.match(await page.getByRole('alert').innerText(),/Client Name is required/i);assert.match(await page.getByRole('alert').innerText(),/Phone Number is required/i);
+  const create=page.getByRole('button',{name:uiLabel('Create Order', true),exact:true}).first();await create.click();assert.match(await page.getByRole('alert').innerText(),/Client Name is required/i);assert.match(await page.getByRole('alert').innerText(),/Phone Number is required/i);
   await page.locator('.clientDetails label').filter({has:page.locator('span',{hasText:/^Client Name \*$/})}).locator('input').fill('Regression Client');await create.click();assert.match(await page.getByRole('alert').innerText(),/Phone Number is required/i);
  await page.locator('.clientDetails input[type=tel]').fill('   ');await create.click();assert.match(await page.getByRole('alert').innerText(),/Phone Number is required/i);
  await page.locator('.clientDetails input[type=tel]').fill('+91 90000 00000');

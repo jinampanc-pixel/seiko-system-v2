@@ -4,7 +4,7 @@ import { referenceAllocations, validOrderGroup, processedQuantity, productionDem
 
 const collection = 'production-handoffs-v1';
 const reply = (message:string,status=400,code?:string) => Response.json({ok:false,message,...(code?{code}:{})},{status,headers:{'Cache-Control':'no-store'}});
-type Body = { product?:string; requestedBy?:string; release?:boolean; refreshSources?:boolean; orderIds?:string[]; search?:string; status?:string; deliveryFrom?:string; deliveryTo?:string; page?:number; handoffPage?:number; handoffSearch?:string; handoffStatus?:string; businessId?:string; operation?:string; expectedVersion?:number; handoff?:ProductionHandoff; id?:string; reason?:string; event?:{allocationKey:string;operation:string;quantity:number;rejects:number;extras:number;reason:string} };
+type Body = { includeSources?:boolean; product?:string; requestedBy?:string; release?:boolean; refreshSources?:boolean; orderIds?:string[]; search?:string; status?:string; deliveryFrom?:string; deliveryTo?:string; page?:number; handoffPage?:number; handoffSearch?:string; handoffStatus?:string; businessId?:string; operation?:string; expectedVersion?:number; handoff?:ProductionHandoff; id?:string; reason?:string; event?:{allocationKey:string;operation:string;quantity:number;rejects:number;extras:number;reason:string} };
 export async function POST(request:Request) {
   if (request.headers.get('origin') && request.headers.get('origin') !== new URL(request.url).origin) return reply('Invalid request origin.',403);
   try {
@@ -27,12 +27,29 @@ export async function POST(request:Request) {
     const ids=[...new Set([...requested,...(body.handoff?.allocations||[]).map(row=>row.orderId)])];
     const targetId=body.id||body.handoff?.id;
     const targetRecord=targetId?await db.prepare("SELECT document_json FROM jinam_shared_records WHERE scope=? AND collection=? AND id=? AND id!='ledger'").bind(business,collection,targetId).first<{document_json:string}>():null;
+    // Viewing an immutable saved snapshot never waits for live source/sheet synchronization.
+    // All mutations and explicit source refresh still follow the full validation path below.
+    if(body.operation==='get'){
+      if(!targetRecord)return reply('Handoff unavailable.',404);
+      const handoff=JSON.parse(targetRecord.document_json) as ProductionHandoff;
+      return Response.json({ok:true,ledger:{handoffs:[handoff]},version,orders:[],snapshotOnly:true},{headers:{'Cache-Control':'no-store'}});
+    }
     if(targetRecord)for(const row of (JSON.parse(targetRecord.document_json) as ProductionHandoff).allocations)if(!ids.includes(row.orderId))ids.push(row.orderId);
     if(ids.length>25)return reply('Select at most 25 source orders.');
     const placeholders=ids.map(()=>'?').join(',');
     let result=ids.length?await db.prepare(`SELECT document_json,version FROM erp_orders WHERE business_id=? AND id IN (${placeholders}) AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL`).bind(business,...ids).all<{document_json:string;version:number}>():{results:[]};
     if(business==='seiko'){for(const source of result.results){const order=JSON.parse(source.document_json);if(order.googleSheet){try{await (await import('../../../lib/server-order-sheets')).syncOrderSheet(db,actor,order.orderId,body.operation!=="list"||Boolean(body.refreshSources));}catch(e){return reply((e as Error).message,409,(e as {code?:string}).code);}}}if(result.results.some(source=>JSON.parse(source.document_json).googleSheet))result=await db.prepare(`SELECT document_json,version FROM erp_orders WHERE business_id=? AND id IN (${placeholders}) AND archived=0 AND json_extract(document_json,'$.deletedAt') IS NULL`).bind(business,...ids).all<{document_json:string;version:number}>();}
     const orders:ProductionOrder[]=result.results.map(row=>({order:JSON.parse(row.document_json),version:row.version}));
+    const imageEntries=new Map<string,import('../../../lib/garment-catalog').CatalogEntry|null>();
+    for(const source of orders)for(const product of source.order.products){
+      if(!product.catalogEntryId||!(await import('../../../lib/garment-catalog')).isOriginalCatalogVariant(source.order,product))continue;
+      if(!imageEntries.has(product.catalogEntryId)){
+        const entry=await db.prepare('SELECT value_json FROM erp_preferences WHERE business_id=? AND key=?').bind(business,'catalog.entry.'+product.catalogEntryId).first<{value_json:string}>();
+        imageEntries.set(product.catalogEntryId,entry?JSON.parse(entry.value_json):null);
+      }
+      const entry=imageEntries.get(product.catalogEntryId);
+      if(entry&&!entry.archived){const images=[...entry.images,...entry.garment?.specifications.flatMap(spec=>spec.attachments)||[]].filter(file=>file.mimeType.startsWith('image/')&&file.storageKey.startsWith('shared:')).map(file=>({name:file.name,storageKey:file.storageKey}));if(images.length)(source.productImages??={})[product.id]=images;}
+    }
     // Only reservations touching selected orders and the open handoff are transferred.
     const relevant=ids.length?` OR EXISTS(SELECT 1 FROM json_each(document_json,'$.allocations') a WHERE json_extract(a.value,'$.orderId') IN (${placeholders}))`:'';
     const records=await db.prepare(`SELECT id,document_json FROM jinam_shared_records WHERE scope=? AND collection=? AND id!='ledger' AND (id=?${relevant}) ORDER BY created_at,id`).bind(business,collection,targetId||'',...ids).all<{id:string;document_json:string}>();
@@ -46,10 +63,10 @@ export async function POST(request:Request) {
       if(body.status&&body.status!=='All'&&body.status!=='Open'){where+=' AND status=?';args.push(body.status);}else if(body.status!=='All')where+=" AND status NOT IN ('Cancelled','Completed')";
       if(search){where+=" AND (instr(lower(order_no),?)>0 OR instr(lower(status),?)>0 OR EXISTS(SELECT 1 FROM json_tree(document_json) detail WHERE detail.type IN ('text','integer','real') AND instr(lower(CAST(detail.atom AS TEXT)),?)>0))";args.push(search,search,search);}
       for(const [value,operator] of [[body.deliveryFrom,'>='],[body.deliveryTo,'<=']])if(value){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value)))return reply('Choose a valid delivery date.');where+=` AND json_extract(document_json,'$.details.deliveryDate')${operator}?`;args.push(value);}
-      const productChoices=await db.prepare(`SELECT min(trim(json_extract(p.value,'$.name'))) AS name,COUNT(DISTINCT erp_orders.id) AS orders FROM erp_orders,json_each(document_json,'$.products') p WHERE ${where} AND trim(json_extract(p.value,'$.name'))!='' GROUP BY lower(trim(json_extract(p.value,'$.name'))) ORDER BY name COLLATE NOCASE`).bind(...args).all();
+      const productChoices=body.includeSources===false?{results:[]}:await db.prepare(`SELECT min(trim(json_extract(p.value,'$.name'))) AS name,COUNT(DISTINCT erp_orders.id) AS orders FROM erp_orders,json_each(document_json,'$.products') p WHERE ${where} AND trim(json_extract(p.value,'$.name'))!='' GROUP BY lower(trim(json_extract(p.value,'$.name'))) ORDER BY name COLLATE NOCASE`).bind(...args).all();
       if(product){where+=" AND EXISTS(SELECT 1 FROM json_each(document_json,'$.products') p WHERE trim(json_extract(p.value,'$.name'))=? COLLATE NOCASE)";args.push(product);}
-      const total=await db.prepare(`SELECT COUNT(*) AS total FROM erp_orders WHERE ${where}`).bind(...args).first<{total:number}>();
-      const choices=await db.prepare(`SELECT id AS orderId,order_no AS orderNo,status,json_extract(document_json,'$.details.clientName') AS client,json_extract(document_json,'$.details.deliveryDate') AS deliveryDate,(SELECT group_concat(name,', ') FROM (SELECT DISTINCT trim(json_extract(p.value,'$.name')) AS name FROM json_each(document_json,'$.products') p WHERE trim(json_extract(p.value,'$.name'))!='')) AS products FROM erp_orders WHERE ${where} ORDER BY updated_at DESC,id DESC LIMIT 10 OFFSET ?`).bind(...args,(page-1)*10).all();
+      const total=body.includeSources===false?{total:0}:await db.prepare(`SELECT COUNT(*) AS total FROM erp_orders WHERE ${where}`).bind(...args).first<{total:number}>();
+      const choices=body.includeSources===false?{results:[]}:await db.prepare(`SELECT id AS orderId,order_no AS orderNo,status,json_extract(document_json,'$.details.clientName') AS client,json_extract(document_json,'$.details.deliveryDate') AS deliveryDate,(SELECT group_concat(name,', ') FROM (SELECT DISTINCT trim(json_extract(p.value,'$.name')) AS name FROM json_each(document_json,'$.products') p WHERE trim(json_extract(p.value,'$.name'))!='')) AS products FROM erp_orders WHERE ${where} ORDER BY updated_at DESC,id DESC LIMIT 10 OFFSET ?`).bind(...args,(page-1)*10).all();
       const hs=String(body.handoffSearch||'').trim().toLowerCase().slice(0,120);
       let hw="scope=? AND collection=? AND id!='ledger'";const ha:unknown[]=[business,collection];
       if(body.handoffStatus==='Trash')hw+=" AND json_extract(document_json,'$.deletedAt') IS NOT NULL";

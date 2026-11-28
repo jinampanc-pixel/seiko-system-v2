@@ -1,4 +1,5 @@
 "use client";
+import { visibleOrderStatus } from "./lib/order-workflow";
 import { useAccess } from "./access-control";
 import { useOrderTrackingStatuses } from "./lib/order-tracking-client";
 import { OrderActionsMenu } from "./order-actions-menu";
@@ -116,7 +117,7 @@ function SeikoDashboard() {
   useEffect(() => { const load=()=>{try{setOrders(readOrderCache("seiko"));}catch{setOrders([]);}try{setScanQueue(JSON.parse(localStorage.getItem("jinam:seiko:scan-queue")||"[]") as Array<Record<string,unknown>>);}catch{setScanQueue([]);}};queueMicrotask(load);window.addEventListener("storage",load);window.addEventListener("seiko:orders-cache-updated",load as EventListener);window.addEventListener("seiko:scan-queue-updated",load);window.addEventListener("focus",load);return()=>{window.removeEventListener("storage",load);window.removeEventListener("seiko:orders-cache-updated",load as EventListener);window.removeEventListener("seiko:scan-queue-updated",load);window.removeEventListener("focus",load);};},[]);
   useEffect(()=>{try{localStorage.setItem(HOME_KEY,JSON.stringify(config));}catch{/* Settings reports preference write failures. */}applyHomeModules(config);},[config]);
   useEffect(()=>{const reload=()=>{const next=readHomeConfig();setConfig(next);setFocus(next.defaultFocus);setWorkMode("active");};window.addEventListener(HOME_CHANGED,reload);window.addEventListener("storage",reload);return()=>{window.removeEventListener(HOME_CHANGED,reload);window.removeEventListener("storage",reload);};},[]);
-  const activeOrders=useMemo(()=>orders.filter(order=>!order.archived&&!["Completed","Cancelled"].includes(trackingStatuses.get(order.orderId)||order.status)),[orders,trackingStatuses]);
+  const activeOrders=useMemo(()=>orders.filter(order=>!order.archived&&!["Completed","Cancelled"].includes(visibleOrderStatus(order.status,trackingStatuses.get(order.orderId)))),[orders,trackingStatuses]);
 
 
   const orderScope=useMemo(()=>orders.filter(order=>!order.archived),[orders]);
@@ -126,7 +127,7 @@ function SeikoDashboard() {
   const dueOrderIds = useMemo(() => { const today=new Date();today.setHours(0,0,0,0);return new Set(activeOrders.filter(order=>{const value=order.details.deliveryDate;if(!value)return false;const date=new Date(value+"T00:00:00");return Number.isFinite(date.getTime())&&date.getTime()<=today.getTime()+7*86400000;}).map(order=>order.orderId)); },[activeOrders]);
   const needsEntries = activeOrders.filter(order => order.records.length === 0).length;
   const dueCount = dueOrderIds.size;
-  const filtered = useMemo(() => searchEntries.filter(({order,text}) => (workMode!=="active" || focus==="all" || focus==="entries" && order.records.length===0 || focus==="due" && dueOrderIds.has(order.orderId)) && (!clientType || order.details.clientType===clientType) && (!product || order.products.some(item=>item.name===product)) && (!status || (trackingStatuses.get(order.orderId)||order.status)===status) && query.trim().toLowerCase().split(/\s+/).every(term=>text.includes(term))).map(entry=>entry.order), [searchEntries,clientType,product,status,query,focus,workMode,dueOrderIds,trackingStatuses]);
+  const filtered = useMemo(() => searchEntries.filter(({order,text}) => (workMode!=="active" || focus==="all" || focus==="entries" && order.records.length===0 || focus==="due" && dueOrderIds.has(order.orderId)) && (!clientType || order.details.clientType===clientType) && (!product || order.products.some(item=>item.name===product)) && (!status || (visibleOrderStatus(order.status,trackingStatuses.get(order.orderId)))===status) && query.trim().toLowerCase().split(/\s+/).every(term=>text.includes(term))).map(entry=>entry.order), [searchEntries,clientType,product,status,query,focus,workMode,dueOrderIds,trackingStatuses]);
   const activeFilterCount=[query.trim(),status,clientType,product].filter(Boolean).length;
   const clearFilters=()=>{setQuery("");setStatus("");setClientType("");setProduct("");};
   const queueTitle=(item:Record<string,unknown>,index:number)=>String(item.token||item.labelToken||item.id||`Queued scan ${index+1}`),queueTime=(item:Record<string,unknown>)=>String(item.createdAt||item.at||item.timestamp||"");

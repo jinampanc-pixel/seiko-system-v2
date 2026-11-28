@@ -54,7 +54,7 @@ function openSetup(orderNo: string) {
     const invoke = () => {
       const menu = row.querySelector<HTMLDetailsElement>(".orderCenterActionMenu,.seikoRowActionMenu");
       const edit = Array.from(row.querySelectorAll<HTMLButtonElement>(".seikoRowActionPanel button,button"))
-        .find(button => (button.textContent?.trim() || "").toLowerCase() === "edit setup");
+        .find(button => (button.textContent?.trim() || "").toLowerCase() === "edit order details");
       if (edit) {
         sessionStorage.setItem(SETUP_ORIGIN_KEY, "center");
         if (menu) menu.open = true;
@@ -66,7 +66,7 @@ function openSetup(orderNo: string) {
       open.click();
       waitFor(
         () => Array.from(document.querySelectorAll<HTMLButtonElement>(".workspacePage .orderActionMenu button"))
-          .find(button => (button.textContent?.trim() || "").toLowerCase() === "edit setup") || null,
+          .find(button => (button.textContent?.trim() || "").toLowerCase() === "edit order details") || null,
         button => {
           sessionStorage.setItem(SETUP_ORIGIN_KEY, "center");
           button.click();

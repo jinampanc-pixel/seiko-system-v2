@@ -2,7 +2,9 @@ import { fitBillingCopies, type BillingCopies } from "./seiko-billing-print";
 export async function readyDocument(frame:HTMLIFrameElement,copies?:BillingCopies){
  const doc=frame.contentDocument;if(!doc||!doc.body?.textContent?.trim())throw Error("Document is not ready. Wait for the preview and try again.");
  await doc.fonts.ready;
- await Promise.all(Array.from(doc.images).map(async image=>{if(image.complete&&image.naturalWidth>0)return;if(image.decode)await image.decode();else await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(Error("A document image could not load."));});if(!image.naturalWidth)throw Error("A document image could not load.");}));
+ await Promise.all(Array.from(doc.images).map(async image=>{try{if(image.complete&&image.naturalWidth>0)return;if(image.decode)await image.decode();else await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(Error("A document image could not load."));});if(!image.naturalWidth)throw Error("A document image could not load.");}catch(error){if(image.classList.contains('productionProductPhoto')){image.remove();return;}throw error;}}));
+ // One available reference photo per specification; absent media reserves no space.
+ for(const cell of doc.querySelectorAll('.productionSpecificationHeader th:first-child')){Array.from(cell.querySelectorAll('.productionProductPhoto')).slice(1).forEach(image=>image.remove());if(!cell.textContent?.trim()&&!cell.querySelector('img'))cell.parentElement?.remove();}
  if(doc.querySelector("[data-production-document]")){const {paginateProductionDocument}=await import("./production-document");paginateProductionDocument(doc);}
  if(copies)fitBillingCopies(frame,copies);
  return doc;

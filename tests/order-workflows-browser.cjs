@@ -34,7 +34,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await firstMenu.evaluate(menu=>{menu.dispatchEvent(new PointerEvent('pointerout',{bubbles:true,pointerType:'mouse',relatedTarget:document.body}));menu.open=false;menu.open=true;});
   await firstMenu.locator('.seikoRowActionPanel').hover();await page.waitForTimeout(200);
   assert.equal(await firstMenu.evaluate(el=>el.open),true,'A previous leave timer cannot close a reopened menu');
-  await firstMenu.locator('.orderMenuSection > summary').filter({hasText:'Setup & Labels'}).click();
+  await firstMenu.locator('.orderMenuSection > summary').filter({hasText:'Order Details & Labels'}).click();
   assert.ok(await firstMenu.locator('.orderMenuSection > button').evaluateAll(buttons=>buttons.every(button=>parseFloat(getComputedStyle(button).fontSize)>=14)),'Submenu actions stay readable');
   await page.mouse.move(5,5);await page.waitForFunction(()=>!document.querySelector('.orderCenterActionMenu[open]'));
   const productInfo=row('SMOKE-001').locator('.orderProductMeta');await productInfo.hover();await page.locator('.orderProductHoverCard').waitFor();
@@ -53,12 +53,13 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
       const readable = parseFloat(getComputedStyle(node.querySelector('.orderCenterInfo > span')).fontSize) >= 15
         && parseFloat(getComputedStyle(node.querySelector('.orderCenterInlineStatus select')).fontSize) >= 12
         && [...node.querySelectorAll('.orderCenterOperationalMeta b')].every(value => parseFloat(getComputedStyle(value).fontSize) >= 12);
-      return { height: row.height, readable, contained: [...node.querySelectorAll('.orderCenterInlineStatus, .seikoRowActionMenu > summary')].every(control => {
+      const dot=node.querySelector(".orderCenterActionMenu>summary").getBoundingClientRect(),status=node.querySelector(".orderOperationalFields select").getBoundingClientRect();return { aligned:innerWidth<=720||Math.abs(dot.top-status.top)<=2, height: row.height, readable, contained: [...node.querySelectorAll('.orderCenterInlineStatus, .seikoRowActionMenu > summary')].every(control => {
         const box = control.getBoundingClientRect();
         return box.left >= row.left && box.right <= row.right + 1 && box.top >= row.top && box.bottom <= row.bottom + 1 && box.right <= list.right + 1;
       }) };
     }));
     assert.ok(layout.every(item => item.contained), `Status and menu stay inside their row and list at ${width}px`);
+    assert.ok(layout.every(item=>item.aligned),`Action dots align with the tracking controls at ${width}px: ${JSON.stringify(layout)}`);
     assert.ok(layout.every(item => item.readable), `Names, status and metadata remain readable at ${width}px`);
     assert.ok(layout.every(item => item.height < (width > 720 ? 110 : 220)), `Rows stay compact at ${width}px: ${JSON.stringify(layout)}`);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `No horizontal overflow at ${width}px`);
@@ -69,11 +70,11 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   }
   await page.setViewportSize({ width: 1365, height: 900 });
   await page.evaluate(draft=>localStorage.setItem('jinam:seiko:order-setup-draft-v1',JSON.stringify(draft)),{...structuredClone(order),orderId:'unrelated-recovery',revisions:[]});
-  await action('SMOKE-001', 'Edit setup');
+  await action('SMOKE-001', 'Edit Order Details');
   const cell = page.getByLabel(uiLabel('Contact person / Attn', true),{exact:true});
   await cell.fill('Persisted through Save and Close'); await cell.press('Tab');assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('jinam:seiko:order-setup-draft-v1')).orderId),'unrelated-recovery','editing a saved order without revisions does not overwrite another new-order draft');
-  await page.getByRole('button', { name: uiLabel('Save changes', true), exact: true }).first().click();
-  await row('SMOKE-001').waitFor();
+  await page.getByRole('button', { name: uiLabel('Save Order Details', true), exact: true }).first().click();
+  await page.locator('.orderSetup').waitFor({state:'detached'});await page.locator('.orderDetailPage').getByRole('button',{name:uiLabel('← Back',true),exact:true}).click();await row('SMOKE-001').waitFor();
   assert.equal(read(order.orderId).details.contactPerson, 'Persisted through Save and Close');assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('jinam:seiko:order-setup-draft-v1')).orderId),'unrelated-recovery','saving an existing order retains unrelated draft recovery');await page.evaluate(()=>localStorage.removeItem('jinam:seiko:order-setup-draft-v1'));
   for (const [status, body, message] of [[502, '<html>Gateway unavailable</html>', 'unreadable response (HTTP 502)'], [401, '<html>Sign in</html>', 'sign-in session has expired'], [200, '{}', 'did not confirm the save']]) {
     await page.unroute('**/api/erp/orders');
@@ -84,9 +85,9 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
         await route.fulfill({status:response.status,contentType:'application/json',body:await response.text()});
       }
     });
-    await action('SMOKE-001', 'Edit setup');
+    await action('SMOKE-001', 'Edit Order Details');
     await cell.fill('Unsaved failure fixture'); await cell.press('Tab');
-        await page.getByRole('button', { name: uiLabel('Save changes', true), exact: true }).first().click();
+        await page.getByRole('button', { name: uiLabel('Save Order Details', true), exact: true }).first().click();
     await page.getByRole('alert').filter({ hasText: message }).waitFor();
     assert.equal(await cell.inputValue(), 'Unsaved failure fixture');
     assert.equal(await page.locator('.orderSaveConfirmation').count(), 0, 'Failed saves never show success');
@@ -99,9 +100,9 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
     await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
   });
-  await action('SMOKE-001', 'Edit setup');
+  await action('SMOKE-001', 'Edit Order Details');
   assert.equal(await cell.inputValue(), 'Persisted through Save and Close');
-  await page.reload(); await navigate('Orders'); await action('SMOKE-001', 'Edit setup');
+  await page.reload(); await navigate('Orders'); await action('SMOKE-001', 'Edit Order Details');
   assert.equal(await cell.inputValue(), 'Persisted through Save and Close');
 
   // A failed shared write must keep the draft open and must never claim a save.
@@ -110,7 +111,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     if (JSON.parse(request.postData()).operation === 'upsert') await route.fulfill({ status: 503, json: { ok: false, code: 'ERP_STORAGE_ERROR', message: 'Simulated shared save failure' } });
     else await route.fallback();
   });
-  await page.getByRole('button', { name: uiLabel('Save changes', true), exact: true }).first().click();
+  await page.getByRole('button', { name: uiLabel('Save Order Details', true), exact: true }).first().click();
   await page.getByRole('alert').filter({ hasText: 'Simulated shared save failure' }).waitFor();
   assert.equal(await cell.inputValue(), 'Unsaved failure fixture');
     assert.equal(await page.locator('.orderSaveConfirmation').count(), 0, 'Failed saves never show success');
@@ -120,8 +121,8 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
     const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
     await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
   });
-  await page.getByRole('button', { name: uiLabel('Save changes', true), exact: true }).first().click();
-  await row('SMOKE-001').waitFor();
+  await page.getByRole('button', { name: uiLabel('Save Order Details', true), exact: true }).first().click();
+  await page.locator('.orderSetup').waitFor({state:'detached'});await page.locator('.orderDetailPage').getByRole('button',{name:uiLabel('← Back',true),exact:true}).click();await row('SMOKE-001').waitFor();
   assert.equal(read(order.orderId).details.contactPerson, 'Unsaved failure fixture');
   await page.reload();
   const homeRow = page.locator('.homeOrderOperationalRow').filter({ hasText: 'SECOND-002' });
@@ -166,7 +167,7 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   const labelDialog=page.getByRole('dialog',{name:uiLabel('Label workspace', true),exact:true});await labelDialog.getByRole('heading',{name:uiLabel('Create labels', true),exact:true}).waitFor();
   assert.equal(await labelDialog.locator('.labelCreateOrderChoice select').first().inputValue(),order.orderId);assert.equal(page.url(),previousUrl);
   await labelDialog.getByRole('button',{name:uiLabel('Close label workspace', true),exact:true}).click();await labelDialog.waitFor({state:'detached'});
-  await action('SMOKE-001', 'Edit setup');
+  await action('SMOKE-001', 'Edit Order Details');
   await page.locator('.orderSetup').waitFor();
   await page.reload(); await navigate('Orders');
   await page.route('**/api/erp/orders', async (route, request) => {

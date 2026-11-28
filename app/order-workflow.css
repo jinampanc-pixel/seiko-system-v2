@@ -38,3 +38,8 @@
  .app .orderSetup>.personDetails .policyRow.personDetailPolicy>button{width:30px!important}
  .app .orderSetup>.personDetails .policyRow.personDetailPolicy:not(:has(>button)){grid-template-columns:minmax(60px,1fr) 80px 64px!important}
 }
+/* Align the action control with the input baseline, below the tracking labels. */
+@media(min-width:721px){.app .ordersPage .orderRowClickable[data-order-source="react"]>.orderCenterActionMenu{align-self:center!important;transform:translateY(9px);margin:0!important}}
+.app .orderCenterActionMenu .orderMenuSection>summary{font-weight:600!important}
+.app .orderCenterActionMenu .orderMenuSection>button{font-weight:400!important;padding-left:22px!important;background:color-mix(in srgb,var(--gold,#c29d65) 6%,transparent)!important}
+.app .orderCenterActionMenu .orderMenuSection>button:hover{background:color-mix(in srgb,var(--gold,#c29d65) 18%,transparent)!important}

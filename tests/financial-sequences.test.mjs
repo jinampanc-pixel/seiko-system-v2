@@ -356,3 +356,18 @@ test('late-link races, overpayments and refunded slips cannot misapply quick-pay
     assert.equal(r.sqlite.prepare("SELECT count(*) n FROM erp_audit_events WHERE action='link'").get().n, 0, 'rejected links leave no false success history');
   } finally { r.close(); }
 });
+
+test('selected-person billing preserves unselected garments and rejects a token reused for another selection',async()=>{
+ const r=runtime();try{
+  const order=fixture('selected-person-billing',true,0);assert.equal((await r.call('orders',{operation:'upsert',order})).status,200);
+  const first=await r.call('order-billing',{operation:'review',orderId:order.orderId,recordIds:['person-0']});assert.equal(first.status,200);assert.ok(first.quote.units.length);assert.ok(first.quote.units.every(unit=>unit.recordId==='person-0'));
+  assert.equal(first.quote.total,640.38);
+  assert.equal((await r.call('order-billing',{operation:'apply',orderId:order.orderId,recordIds:['person-1'],token:first.token,reason:'Wrong selection',date:'2026-09-26'})).status,409);
+  assert.equal((await r.call('order-billing',{operation:'apply',orderId:order.orderId,recordIds:['person-0'],token:first.token,reason:'First selected person',date:'2026-09-26'})).status,200);
+  let docs=(await r.call('billing',{operation:'list'})).documents;assert.equal(docs.length,1);assert.equal(invoiceOracle(docs[0]),64038);assert.ok(docs[0].pricingSnapshot.units.every(unit=>unit.recordId==='person-0'));
+  const remaining=await r.call('order-billing',{operation:'review',orderId:order.orderId});assert.equal(remaining.status,200);assert.equal(remaining.delta.filter(unit=>unit.amount>0).reduce((n,unit)=>n+paise(unit.amount),0),128076);assert.equal(remaining.delta.some(unit=>unit.amount<0),false);
+  const repeat=await r.call('order-billing',{operation:'review',orderId:order.orderId,recordIds:['person-0']});assert.equal(repeat.delta.filter(unit=>unit.amount!==0).length,0);
+  assert.equal((await r.call('order-billing',{operation:'review',orderId:order.orderId,recordIds:['unknown-person']})).status,400);assert.equal((await r.call('order-billing',{operation:'review',orderId:order.orderId,recordIds:[]})).status,400);
+  assert.equal((await r.call('order-billing',{operation:'apply',orderId:order.orderId,token:remaining.token,reason:'Other people',date:'2026-09-26'})).status,200);docs=(await r.call('billing',{operation:'list'})).documents;assert.equal(docs.reduce((sum,doc)=>sum+invoiceOracle(doc),0),192114);
+ }finally{r.close();}
+});

@@ -28,7 +28,7 @@ test("order center has detailed filters and a three-dot action menu for each ord
   assert.match(centers, /Due in next 7 days/i);
   assert.match(centers, /Overdue/);
   assert.match(centers, /orderCenterActionMenu/);
-  assert.match(centers, /Edit setup/i);
+  assert.match(centers, /Edit Order Details/i);
   assert.match(centers, /Create labels/i);
   assert.doesNotMatch(centers, /openAction\.textContent = "Open order"/i);
   assert.match(centers, /Archive order/i);

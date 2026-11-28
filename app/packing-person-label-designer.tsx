@@ -365,8 +365,8 @@ function packageBounds(items: LabelItem[]) {
   };
 }
 
-export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, sourceOrders, onBack, backLabel, referenceOnly=false }: {
-  businessId: string; canManageSizes: boolean; order: SeikoOrder; sourceOrders?: SeikoOrder[]; referenceOnly?:boolean; onBack?: () => void; backLabel?: string;
+export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, sourceOrders, initialRecordIds, onBack, backLabel, referenceOnly=false }: {
+  initialRecordIds?:string[];businessId: string; canManageSizes: boolean; order: SeikoOrder; sourceOrders?: SeikoOrder[]; referenceOnly?:boolean; onBack?: () => void; backLabel?: string;
 }) {
   const sourceModel = useMemo(() => labelSources(sourceOrders?.length ? sourceOrders : [primaryOrder]), [sourceOrders, primaryOrder]);
   const order = sourceModel.schema;
@@ -379,7 +379,7 @@ export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, so
   const [rules, setRules] = useState(() => openedTask?.presentationRules ? mergeRules(order, openedTask.presentationRules) : referenceOnly ? mergeRules(order) : loadRules(businessId, order));
   const [packagePresentation, setPackagePresentation] = useState(() => openedTask?.packagePresentation || loadPackagePresentation(businessId, order.orderId, referenceOnly));
   const quantities = useMemo(() => new Map(sourceModel.sources.flatMap(source => [...packingQuantities(source)].map(([id,values]) => [sourceModel.scoped(source,id),Object.fromEntries(Object.entries(values).map(([id,qty]) => [sourceModel.productId(source,id),qty]))] as const))), [sourceModel]);
-  const records = useMemo(() => buildSourcePersonRecords(sourceModel,rules,packagePresentation), [sourceModel,rules,packagePresentation]);
+  const records = useMemo(() => buildSourcePersonRecords(sourceModel,rules,packagePresentation).filter(record=>!initialRecordIds?.length||initialRecordIds.includes(record.id)), [sourceModel,rules,packagePresentation,initialRecordIds]);
   const [items, rawSetItems] = useState<LabelItem[]>(() => openedTask ? migrateItems(order, openedTask.items) : defaultItems(order).map(item=>referenceOnly?{...constrainBox(item),textSized:true}:constrainBox(item)));
   const itemsRef = useRef(items);
   useLayoutEffect(() => { itemsRef.current = items; }, [items]);
@@ -395,7 +395,7 @@ export function PackingPersonLabelDesigner({ businessId, order: primaryOrder, so
   };
   const undo = () => { if (!past.length) return; const next = past[past.length - 1]; setFuture(old => [items, ...old]); setPast(old => old.slice(0, -1)); itemsRef.current = next; rawSetItems(next); };
   const redo = () => { if (!future.length) return; const next = future[0]; setPast(old => [...old, items]); setFuture(old => old.slice(1)); itemsRef.current = next; rawSetItems(next); };
-  const [excluded, setExcluded] = useState<string[]>(() => openedTask ? records.filter(record => !openedTask.selectedRows.includes(record.id)).map(record => record.id) : []);
+  const [excluded, setExcluded] = useState<string[]>(() => initialRecordIds?.length?records.filter(record=>!initialRecordIds.includes(record.id)).map(record=>record.id):openedTask ? records.filter(record => !openedTask.selectedRows.includes(record.id)).map(record => record.id) : []);
   const selectedRecords = useMemo(() => {const omitted=new Set(excluded);return records.filter(record => !omitted.has(record.id));},[records,excluded]);
   const selectedRows = useMemo(() => selectedRecords.map(record => record.id),[selectedRecords]);
   const selectedPositions = useMemo(() => new Map(selectedRecords.map((record,index) => [record.id,index])),[selectedRecords]);

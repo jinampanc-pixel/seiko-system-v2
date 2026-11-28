@@ -45,7 +45,7 @@ export function SeikoPhase2() {
   useEffect(()=>{if(new URLSearchParams(window.location.search).get("screen")==="billing")setView("billing");},[]);
   const [reviewingOrder,setReviewingOrder]=useState(false);
   useEffect(()=>{const open=()=>setReviewingOrder(true),resume=()=>setReviewingOrder(false);window.addEventListener("seiko:open-order-service",open);window.addEventListener("seiko:resume-billing",resume);return()=>{window.removeEventListener("seiko:open-order-service",open);window.removeEventListener("seiko:resume-billing",resume);};},[]);
-  const [billingAction, setBillingAction] = useState<"payment" | "payments" | "invoice" | "quotation" | "challan" | null>(null);
+  const [billingAction, setBillingAction] = useState<"payment" | "payments" | "documents" | "invoice" | "quotation" | "challan" | null>(null);
   const [billingOrderId, setBillingOrderId] = useState("");
   const [billingRequestId, setBillingRequestId] = useState(0);
   const [libraryError,setLibraryError]=useState("");
@@ -83,7 +83,7 @@ export function SeikoPhase2() {
 
   useEffect(() => {
     const openBilling = (event: Event) => {
-      const detail = (event as CustomEvent<{ action?: "payment" | "payments" | "invoice" | "quotation" | "challan"; orderId?: string }>).detail;
+      const detail = (event as CustomEvent<{ action?: "payment" | "payments" | "documents" | "invoice" | "quotation" | "challan"; orderId?: string }>).detail;
       setReviewingOrder(false);setBillingOrderId(detail?.orderId || ""); setBillingRequestId(value => value + 1); setBillingAction(detail?.action || null); setView("billing");
     };
     window.addEventListener("seiko:open-billing", openBilling);

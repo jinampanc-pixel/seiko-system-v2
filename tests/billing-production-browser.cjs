@@ -82,35 +82,11 @@ module.exports=async({page,billing,navigate,base,seed,order,sqlite})=>{
  await page.getByRole('button',{name:'New Handoff',exact:true}).click();await page.getByLabel('Create Handoff By',{exact:true}).selectOption('product');
  await page.getByLabel('Handoff Product',{exact:true}).locator('option[value="Product First Shirt"]').waitFor({state:'attached'});await page.getByLabel('Handoff Product',{exact:true}).selectOption('Product First Shirt');
  for(const source of productSources)await page.getByLabel(source.details.orderNo+' · '+source.details.clientName,{exact:true}).check();
- await page.getByRole('button',{name:'Review Handoff',exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('.productionOrderList')?.getAttribute('aria-busy')||document.querySelector('.productionOrderList')?.getAttribute('aria-busy')==='false');
+ await page.getByRole('button',{name:'Create Handoff',exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('.productionOrderList')?.getAttribute('aria-busy')||document.querySelector('.productionOrderList')?.getAttribute('aria-busy')==='false');
  assert.equal(await page.getByLabel('Include product Unselected Pants',{exact:true}).count(),0,'Product-first cannot include unrelated garments');
  for(const width of [390,1365]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'Product handoff fits '+width);await capture('product-handoff-'+width);}
- await page.getByRole('button',{name:'Review Handoff',exact:true}).click();assert.match(await page.locator('.productionSimpleEditor').innerText(),/7/);assert.equal(await page.locator('.productionSimpleEditor').getByText('Unselected Pants',{exact:true}).count(),0);
- await page.getByText('Draft Options',{exact:true}).click();await page.getByRole('button',{name:'Save Draft',exact:true}).click();await page.getByText('Production sheet saved successfully.',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Create Handoff',exact:true}).click();await page.waitForFunction(()=>/^PH-/.test(document.querySelector('.productionWorkspaceHead h1')?.textContent||''));assert.match(await page.locator('.productionPrintSheet').textContent(),/7/);assert.equal(await page.locator('.productionPrintSheet').getByText('Unselected Pants',{exact:true}).count(),0);
  const savedProduct=JSON.parse(sqlite.prepare("SELECT document_json FROM jinam_shared_records WHERE collection='production-handoffs-v1' AND id!='ledger' ORDER BY created_at DESC LIMIT 1").get().document_json);assert.equal(new Set(savedProduct.allocations.map(r=>r.orderId)).size,2);assert.ok(savedProduct.allocations.every(r=>r.product==='Product First Shirt'));assert.equal(savedProduct.allocations.reduce((n,r)=>n+r.quantity,0),7);assert.ok(savedProduct.allocations.some(r=>r.specifications.includes('Teal')));assert.ok(savedProduct.allocations.some(r=>r.specifications.includes('Navy')));
  await page.locator('.productionWorkspace > .appBackControl').click();console.log('PASS: product-first selection combines two orders, excludes other garments and preserves specifications in saved handoff.');
- await page.getByRole('button',{name:uiLabel('Planning preferences', true),exact:true}).click();
- await page.getByRole('heading',{name:uiLabel('Production setup', true),exact:true}).waitFor();
- const payroll=page.getByLabel(uiLabel('Calculate payroll credits', true),{exact:true});
- await payroll.uncheck();
- assert.equal(await page.getByLabel(uiLabel('Join upper rate', true),{exact:true}).isEnabled(),false);
- await payroll.check();
- const rate=page.getByLabel(uiLabel('Join upper rate', true),{exact:true});
- await rate.fill('0');
- await page.getByText(uiLabel('Unsaved changes', true),{exact:true}).waitFor();
- await page.getByRole('button',{name:uiLabel('Save setup', true),exact:true}).click();
- await page.getByText(uiLabel('Setup saved in this browser.', true),{exact:true}).waitFor();
- await page.setViewportSize({width:1365,height:900});await capture('production-desktop');
- await navigate('Home');await navigate('Production');await page.getByRole('button',{name:uiLabel('Planning preferences', true),exact:true}).click();
- assert.equal(await rate.inputValue(),'0','Zero rate survives reopening');
- await rate.fill('12.50');
- await page.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key.endsWith('production-policy-v1:setup'))throw new DOMException('Quota exhausted','QuotaExceededError');return original.call(this,key,value);};});
- await page.getByRole('button',{name:uiLabel('Save setup', true),exact:true}).click();
- await page.getByRole('alert').filter({hasText:'could not save the setup'}).waitFor();
- assert.equal(await rate.inputValue(),'12.50','Failed save keeps setup edits open');
- assert.equal(await page.getByText(uiLabel('Setup saved in this browser.', true),{exact:true}).count(),0);
- assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('jinam:seiko:production-policy-v1:setup')).operations[0].rate),'0');
- for(const size of [{width:390,height:844},{width:360,height:640}]){await page.setViewportSize(size);if(size.width===390)await capture('production-mobile');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Production fits mobile width');}
- await page.setViewportSize({width:1365,height:900});
- console.log('PASS: billing filters, zero amount, document menus and payment access; production scope, zero rate, disabled reasons, save/reopen and failed save retention; responsive controls.');
+ console.log('PASS: billing controls and product-first handoffs preserve exact two-order quantities and specifications without planning controls.');
 };

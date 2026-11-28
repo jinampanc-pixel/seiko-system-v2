@@ -343,7 +343,7 @@ function detectView(): NavEntry | null {
   const setup = document.querySelector<HTMLElement>(".orderSetup");
   if (setup) {
     const order = setup.textContent?.match(/\d{4}-\d{2}-\d{3}/)?.[0] || "";
-    return { key: `setup:${order}`, label: "Order Setup", kind: "setup", target: order };
+    return { key: `setup:${order}`, label: "Order Details", kind: "setup", target: order };
   }
   if (document.querySelector(".ordersPage")) return { key: "module:Orders", label: "Order Center", kind: "module", target: "Orders" };
   if (document.querySelector(".labelLauncher")) return { key: "module:Labels", label: "Label Center", kind: "module", target: "Labels" };
@@ -435,7 +435,7 @@ function openOrderChoice(orderNo: string, action: "setup" | "workspace" | "label
     const menu = row.querySelector<HTMLDetailsElement>(".seikoRowActionMenu");
     if (menu) menu.open = true;
     window.setTimeout(() => {
-      const label = action === "setup" ? "Edit Setup" : "Labels";
+      const label = action === "setup" ? "Edit Order Details" : "Labels";
       const button = Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find(node => (node.textContent?.trim() || "").toLowerCase() === label.toLowerCase());
       button?.click();
     }, 0);

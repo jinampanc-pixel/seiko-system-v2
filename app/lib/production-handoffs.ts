@@ -3,7 +3,7 @@ import { packingQuantities } from './packing-label-model';
 
 export type ProductionDemand = {
   key: string; orderId: string; orderNo: string; client: string; productId: string; product: string;
-  variant: string; specifications: string; cuttingSignature: string; quantity: number; sourceQuantity:number; unresolved: boolean; sourceVersion: number; members:{recordId:string;quantity:number;delivered?:number}[];
+  variant: string; specifications: string; images?:{name:string;storageKey:string}[]; cuttingSignature: string; quantity: number; sourceQuantity:number; unresolved: boolean; sourceVersion: number; members:{recordId:string;quantity:number;delivered?:number}[];
 };
 export type ProductionAllocation = ProductionDemand & { quantity: number; lay: string; stack: string; issuedMembers?:{recordId:string;quantity:number}[] };
 export type ProductionLay = { id: string; pattern: string; fabric: string; width: string; stretch: string; grain: string; direction: string; checks: string; confirmed: boolean };
@@ -17,16 +17,17 @@ export type ProductionHandoff = {
   events: ProductionEvent[]; history: { at: string; actor: string; action: string }[]; createdAt: string;
 };
 export type ProductionLedger = { handoffs: ProductionHandoff[] };
-export type ProductionOrder = { order: SeikoOrder; version: number };
+export type ProductionOrder = { order: SeikoOrder; version: number; productImages?:Record<string,{name:string;storageKey:string}[]> };
 const text = (value: unknown) => String(value ?? '').trim();
 export const productionKey = (values: unknown[]) => JSON.stringify(values);
 export function productionDemand(orders: ProductionOrder[],sourceGroups:Record<string,string>={}): ProductionDemand[] {
   const result = new Map<string, ProductionDemand>();
-  for (const { order: raw, version } of orders) {
+  for (const { order: raw, version, productImages } of orders) {
     if (raw.status === "Cancelled" || raw.archived || (raw as SeikoOrder & {deletedAt?:string}).deletedAt) continue;
     const order = normalizeProductMeasurements(raw), quantities = packingQuantities(order);
     const records = order.records.filter(record => recordInOrderGroup(order,record.recordId,sourceGroups[order.orderId]||"all") && !record.held && !order.fields.some(f=>/status|cancel/i.test(f.name)&&/^(cancelled|canceled|removed)$/i.test(String(record.values["field:"+f.id]||"").trim())) && !["cancelled","hold","awaiting"].includes(order.commerce?.people[record.recordId]?.state||""));
     for (const product of order.products.filter(item => item.name.trim())) {
+      const images=[...new Map([...product.specifications.flatMap(spec=>spec.attachments||[]).filter(file=>file.mimeType.startsWith('image/')&&file.storageKey.startsWith('shared:')),...productImages?.[product.id]||[]].map(file=>[file.storageKey,{name:file.name,storageKey:file.storageKey}])).values()];
       if(product.quantityMode==='order_total'&&!recordInOrderGroup(order,'order-total',sourceGroups[order.orderId]||'all'))continue;
       const measurements = order.measurements.filter(item => item.appliesTo.includes(product.id) && item.name.trim());
       const rows = product.quantityMode === 'order_total' ? [{ recordId: 'order-total', personId: '', values: {} as Record<string,string|number> }] : records;
@@ -51,7 +52,7 @@ export function productionDemand(orders: ProductionOrder[],sourceGroups:Record<s
         const previous = result.get(key);
         const delivered=Math.min(quantity,(order.commerce?.deliveries||[]).filter(d=>d.recordId===(record.recordId==='order-total'?'order':record.recordId)&&d.productId===product.id&&d.kind==='delivery').reduce((n,d)=>n+d.quantity,0));
         if (previous) { previous.quantity += quantity; previous.members.push({recordId:record.recordId,quantity,...(delivered?{delivered}:{})}); }
-        else result.set(key, { key, orderId: order.orderId, orderNo: order.details.orderNo, client: order.details.clientName, productId: product.id, product: product.name.trim(), variant, specifications, cuttingSignature, quantity, sourceQuantity:quantity, unresolved, sourceVersion: version, members:[{recordId:record.recordId,quantity,...(delivered?{delivered}:{})}] });
+        else result.set(key, { key, orderId: order.orderId, orderNo: order.details.orderNo, client: order.details.clientName, productId: product.id, product: product.name.trim(), variant, specifications, ...(images.length?{images}:{}), cuttingSignature, quantity, sourceQuantity:quantity, unresolved, sourceVersion: version, members:[{recordId:record.recordId,quantity,...(delivered?{delivered}:{})}] });
       });
     }
   }
@@ -158,4 +159,14 @@ export function parseReferenceLines(value:string,order:ProductionOrder):Producti
   return {orderId:order.order.orderId,product:parts[0],variant:parts[1],quantity:Number(parts[2]),specifications:parts[3]||''};
  });
  return referenceAllocations(lines,[order]);
+}
+
+/** Presentation diagnostics compare cutting facts, never unrelated order revisions. */
+export function productionSourceChanges(handoff:ProductionHandoff,demand:ProductionDemand[]){
+ if(handoff.purpose==='reference')return [];
+ const members=(values:ProductionDemand['members'])=>JSON.stringify((values||[]).map(value=>[value.recordId,value.quantity]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))));
+ return handoff.allocations.flatMap(row=>{const current=demand.find(item=>item.key===row.key),reasons:string[]=[];
+ if(!current)reasons.push('No Longer in Current Demand');else{if(row.sourceQuantity!==undefined&&current.quantity!==row.sourceQuantity)reasons.push('Quantity Changed');if(current.specifications!==row.specifications||current.variant!==row.variant)reasons.push('Specifications Changed');if(members(current.members)!==members(row.members))reasons.push('People Changed');}
+ return reasons.length?[{row,current,reasons}]:[];
+ });
 }

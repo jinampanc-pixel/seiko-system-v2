@@ -82,7 +82,7 @@ function enhanceOrderMenu() {
     if (menu.dataset.labelPurposeMenuReady === "true") return;
 
     const printButton = buttonByText(menu, "Print Labels");
-    const editButton = buttonByText(menu, "Edit Setup");
+    const editButton = buttonByText(menu, "Edit Order Details");
     const sectionLabel = Array.from(menu.querySelectorAll<HTMLElement>(".orderMenuSectionLabel")).find(item => (item.textContent?.trim() || "").toLowerCase() === "create label");
     const purposeButtons = Array.from(menu.querySelectorAll<HTMLButtonElement>(".orderMenuIndented"));
     if (!printButton || !editButton || !sectionLabel || purposeButtons.length < 3) return;

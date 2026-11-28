@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { authenticateActor, authorizePermission } from "../../../lib/server-erp-auth";
-import { commerceOf, groupPricingQuote, recordInOrderGroup, validOrderGroup, pricingQuote, pricingDelta, pricingInvoiceLines, cents, validateCommerce } from "../../../lib/order-commerce";
+import { commerceOf, selectedPeopleQuote, groupPricingQuote, recordInOrderGroup, validOrderGroup, pricingQuote, pricingDelta, pricingInvoiceLines, cents, validateCommerce } from "../../../lib/order-commerce";
 import type { SeikoOrder } from "../../../lib/order-domain";
 import { storedBillingIntegrityIssues, documentTotals, validBillingDate, paymentsForInvoice, allocateOrderPayments, unappliedOrderPayment, validateBillingDocument, type SeikoCommercialDocument, type SeikoPaymentRecord } from "../../../lib/seiko-billing";
 import { invoiceLinesMatch } from "../../../lib/invoice-order-brief";
@@ -13,7 +13,7 @@ export async function POST(request:Request){
  const origin=request.headers.get("origin");if(origin&&origin!==new URL(request.url).origin)return fail("Invalid origin.",403);
  const actor=await authenticateActor(request);if(!actor)return fail("Sign in required.",401);
  if(!await authorizePermission(actor,"seiko","financials.view"))return fail("Billing access required.",403);
- let b:{requestedBy?:string;group?:string;baselineGroup?:string;updateInvoiceId?:string;sectionLabel?:string;sectionDate?:string;operation?:string;orderId?:string;basis?:"eligible"|"delivered";token?:string;invoiceId?:string;reason?:string;date?:string;taxMode?:"gst"|"non_gst";document?:SeikoCommercialDocument};
+ let b:{recordIds?:string[];requestedBy?:string;group?:string;baselineGroup?:string;updateInvoiceId?:string;sectionLabel?:string;sectionDate?:string;operation?:string;orderId?:string;basis?:"eligible"|"delivered";token?:string;invoiceId?:string;reason?:string;date?:string;taxMode?:"gst"|"non_gst";document?:SeikoCommercialDocument};
  try{const reader=request.body?.getReader();let text="",bytes=0;const decoder=new TextDecoder();if(reader)for(;;){const p=await reader.read();if(p.done)break;bytes+=p.value.byteLength;if(bytes>1024*1024){await reader.cancel();return fail("Request too large.",413);}text+=decoder.decode(p.value,{stream:true});}b=JSON.parse(text);}catch{return fail("Invalid request.");}
  if(!b||typeof b!=="object")return fail("Invalid request.");
  if(b.requestedBy&&b.requestedBy!==actor.email)return fail("This pending document belongs to another signed-in user.",403);
@@ -36,17 +36,20 @@ export async function POST(request:Request){
  let row=await db.prepare("SELECT document_json FROM erp_orders WHERE id=? AND business_id='seiko' AND json_extract(document_json,'$.deletedAt') IS NULL").bind(b.orderId).first<{document_json:string}>();if(!row)return fail("Order unavailable.",404);
  if(JSON.parse(row.document_json).googleSheet){try{await (await import("../../../lib/server-order-sheets")).syncOrderSheet(db,actor,b.orderId,true);row=await db.prepare("SELECT document_json FROM erp_orders WHERE id=? AND business_id='seiko'").bind(b.orderId).first<{document_json:string}>();if(!row)return fail("Order unavailable.",404);}catch(e){return fail((e as Error).message,409);}}
  const order=JSON.parse(row.document_json) as SeikoOrder;if(!commerceOf(order).rules.length)return fail("Save order pricing before reviewing billing.");const problem=validateCommerce(order);if(problem)return fail(problem);
+ const availableRecordIds=new Set(order.records.map(record=>record.recordId));
+ if(b.recordIds!==undefined&&(!Array.isArray(b.recordIds)||!b.recordIds.length||b.recordIds.length>5000||b.recordIds.some(id=>typeof id!=="string"||!availableRecordIds.has(id)||!recordInOrderGroup(order,id,b.group||"all"))))return fail("Choose valid people from the current order group.");
+ const selectedIds=b.recordIds?[...new Set(b.recordIds)].sort():undefined,selectedRecordIds=selectedIds?new Set(selectedIds):undefined;
  const rows:DocRow[]=(await db.prepare("SELECT sequence,id,data,cancelled FROM seiko_billing_documents WHERE json_extract(data,'$.orderId')=? AND json_extract(data,'$.kind')='invoice' AND cancelled=0 AND json_extract(data,'$.deletedAt') IS NULL ORDER BY sequence").bind(b.orderId).all<DocRow>()).results;
  const docs:SeikoCommercialDocument[]=rows.map(decode);const taxMode=docs[0]?.taxMode||b.taxMode||"non_gst";if(!["gst","non_gst"].includes(taxMode))return fail("Choose a valid tax register.");
- const fullQuote=pricingQuote(order,b.basis||"eligible"),quote=groupPricingQuote(order,b.basis||"eligible",b.group||"all");quote.units=quote.units.map(u=>({...u,taxRate:taxMode==="gst"?u.taxRate:0,key:u.key.replace(/:tax[\d.]+$/,`:tax${taxMode==="gst"?u.taxRate:0}`)}));
+ const fullQuote=pricingQuote(order,b.basis||"eligible"),quote=selectedPeopleQuote(groupPricingQuote(order,b.basis||"eligible",b.group||"all"),selectedIds);quote.units=quote.units.map(u=>({...u,taxRate:taxMode==="gst"?u.taxRate:0,key:u.key.replace(/:tax[\d.]+$/,`:tax${taxMode==="gst"?u.taxRate:0}`)}));
  const booked=docs.flatMap(d=>[...(d.pricingSnapshot?.units||[]),...(d.credits||[]).flatMap(c=>c.units)]);
- const delta=pricingDelta(quote.units,booked.filter(u=>recordInOrderGroup(order,u.recordId,b.group||"all")));
+ const delta=pricingDelta(quote.units,booked.filter(u=>recordInOrderGroup(order,u.recordId,b.group||"all")&&(!selectedRecordIds||selectedRecordIds.has(u.recordId))));
  const lock=await db.prepare("SELECT version FROM seiko_order_billing_locks WHERE order_id=?").bind(b.orderId).first<{version:number}>();
- const token=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify([row.document_json,rows,b.basis||"eligible",taxMode,b.group||"all",b.baselineGroup||"all",lock?.version||0]))))).map(n=>n.toString(16).padStart(2,"0")).join("");
+ const token=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify([row.document_json,rows,b.basis||"eligible",taxMode,b.group||"all",b.baselineGroup||"all",selectedIds||null,lock?.version||0]))))).map(n=>n.toString(16).padStart(2,"0")).join("");
  const paymentRows:{sequence:number;data:string}[]=(await db.prepare("SELECT sequence,data FROM seiko_billing_payments WHERE json_extract(data,'$.orderId')=? OR invoice_id IN (SELECT id FROM seiko_billing_documents WHERE json_extract(data,'$.orderId')=?)").bind(b.orderId,b.orderId).all<{sequence:number;data:string}>()).results;
  const payments=allocateOrderPayments(docs,paymentRows.map(r=>({...JSON.parse(r.data),receiptNumber:JSON.parse(r.data).receiptNumber||`${JSON.parse(r.data).refundOf?"RFD":"RCP"}-${JSON.parse(r.data).date.slice(0,4)}-${String(r.sequence).padStart(5,"0")}`} as SeikoPaymentRecord)));
  const totals={agreed:cents(fullQuote.units.reduce((n,u)=>n+u.amount*(1+(taxMode==="gst"?u.taxRate:0)/100),0)),invoiced:cents(docs.reduce((n,d)=>n+documentTotals(d).originalTotal,0)),credits:cents(docs.reduce((n,d)=>n+documentTotals(d).creditTotal,0)),received:cents(payments.reduce((n,p)=>n+p.amount,0)),outstanding:cents(docs.reduce((n,d)=>n+Math.max(0,documentTotals(d).total-paymentsForInvoice(payments,d.id)),0)),customerCredit:cents(docs.reduce((n,d)=>n+Math.max(0,paymentsForInvoice(payments,d.id)-documentTotals(d).total),0)+payments.reduce((n,p)=>n+unappliedOrderPayment(p),0))};
- const baselinePreview=groupPricingQuote(order,b.basis||"eligible",b.baselineGroup||"all");
+ const baselinePreview=selectedPeopleQuote(groupPricingQuote(order,b.basis||"eligible",b.baselineGroup||"all"),selectedIds);
  if(b.operation==="review")return Response.json({ok:true,baseline:{people:baselinePreview.billablePeople,total:cents(baselinePreview.units.reduce((n,u)=>n+u.amount*(1+(taxMode==="gst"?u.taxRate:0)/100),0))},token,taxMode,quote,delta,documents:docs.map(d=>({id:d.id,number:d.number,total:documentTotals(d).total,mapped:Boolean(d.pricingSnapshot),credits:d.credits||[]})),totals,canManage},{headers:{"Cache-Control":"no-store"}});
  if(b.token!==token)return fail("Order or invoices changed. Review the current differences again.",409);
  if(!b.reason?.trim()||b.reason.length>2000)return fail("Record the reason for this billing review.");
@@ -55,7 +58,7 @@ export async function POST(request:Request){
  const now=new Date().toISOString(),date=b.date||now.slice(0,10);if(!validBillingDate(date))return fail("Choose a valid adjustment date.");
  if(b.operation==="link"){
   const target=rows.find(r=>r.id===b.invoiceId),doc=target&&decode(target);if(!target||!doc||doc.pricingSnapshot)return fail("Select an unmapped invoice.");
-  const baseline=groupPricingQuote(order,b.basis||"eligible",b.baselineGroup||"all");baseline.units=baseline.units.map(u=>({...u,taxRate:taxMode==="gst"?u.taxRate:0,key:u.key.replace(/:tax[\d.]+$/,`:tax${taxMode==="gst"?u.taxRate:0}`)}));
+  const baseline=selectedPeopleQuote(groupPricingQuote(order,b.basis||"eligible",b.baselineGroup||"all"),selectedIds);baseline.units=baseline.units.map(u=>({...u,taxRate:taxMode==="gst"?u.taxRate:0,key:u.key.replace(/:tax[\d.]+$/,`:tax${taxMode==="gst"?u.taxRate:0}`)}));
   const available=pricingDelta(baseline.units,booked).filter(u=>u.amount>0);const units=[...available];const residual=cents(documentTotals(doc).originalSubtotal-units.reduce((n,u)=>n+u.amount,0));
   const taxDifference=cents(documentTotals(doc).tax-units.reduce((n,u)=>n+u.amount*u.taxRate/100,0));
   if(doc.taxMode==="gst"&&(!residual&&Math.abs(taxDifference)>.01||residual&&(!Number.isFinite(taxDifference/residual)||taxDifference/residual<0||taxDifference/residual>1)))return fail("Match the historical GST rates and roster before linking this invoice. Its tax difference cannot be inferred safely.");

@@ -31,3 +31,5 @@ export function applyWorkflowCommand(current:OrderWorkflow|undefined,command:Wor
   }else throw Error("Choose a valid workflow action.");
   return workflow;
 }
+
+export const visibleOrderStatus=(status:string,tracking?:string)=>status==="Cancelled"?"Cancelled":tracking||status;

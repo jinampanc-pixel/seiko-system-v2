@@ -364,3 +364,9 @@ export function groupPricingQuote(order:SeikoOrder,basis:"eligible"|"delivered"=
 }
 
 export { recordInOrderGroup, validOrderGroup, orderGroupOptions } from './order-domain';
+
+// Preserve pricing-unit identities while limiting a review to explicitly selected people.
+export function selectedPeopleQuote(quote:ReturnType<typeof pricingQuote>,recordIds?:readonly string[]){
+ if(!recordIds?.length)return quote;const ids=new Set(recordIds),units=quote.units.filter(u=>ids.has(u.recordId));
+ return {...quote,units,excluded:quote.excluded.filter(u=>ids.has(u.recordId)),notOrdered:quote.notOrdered.filter(u=>ids.has(u.recordId)),unpriced:quote.unpriced.filter(u=>ids.has(u.recordId)),total:cents(units.reduce((n,u)=>n+u.amount,0)),billablePeople:new Set(units.map(u=>u.recordId)).size};
+}

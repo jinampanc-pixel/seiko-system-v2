@@ -96,7 +96,7 @@ export async function changeSharedOrder(businessId: string, orderId: string, com
   return acceptSharedOrder(businessId, result.data, command.operation === "delete");
 }
 
-export type OrderFinancialAction = "payment" | "payments" | "invoice" | "challan" | "quotation";
+export type OrderFinancialAction = "payment" | "payments" | "documents" | "invoice" | "challan" | "quotation";
 export function openOrderFinancialAction(orderId: string, action: OrderFinancialAction) {
   window.dispatchEvent(new CustomEvent("seiko:open-billing", { detail: { orderId, action } }));
 }
