@@ -16,7 +16,7 @@ const allocation=row=>({...row,lay:'',stack:''});
 test('handoff photos are media references and do not change quantity identity',()=>{
  const order=makeOrder();order.products[0].specifications[0].attachments=[{id:'image',name:'School reference',storageKey:'shared:reference-one',mimeType:'image/png',size:68}];
  const source={order,version:1,productImages:{shirt:[{name:'Exact Catalog variant',storageKey:'shared:catalog-one'}]}};
- const rows=domain.productionDemand([source]);assert.ok(rows.every(row=>row.images.length===2));assert.equal(rows.reduce((sum,row)=>sum+row.quantity,0),4);
+ const rows=domain.productionDemand([source]);assert.ok(rows.every(row=>row.images.length===2));assert.ok(rows.every(row=>row.images[0].storageKey==='shared:catalog-one'),'prefer the exact Catalog product photo over order artwork');assert.equal(rows.reduce((sum,row)=>sum+row.quantity,0),4);
  const document=load('app/lib/production-document.ts');const h=handoff(rows);h.notes='INTERNAL NOTE';h.reason='INTERNAL REASON';h.history=[{at:'today',actor:'private@example.invalid',action:'INTERNAL HISTORY'}];
  const html=document.productionHandoffContent(h);assert.match(html,/Measurements/);assert.match(html,/Colour: Blue/);assert.match(html,/productionProductPhoto/);assert.match(html,/id=catalog-one/);assert.doesNotMatch(html,/INTERNAL|private@example|Order Allocation|Bundle Tickets|Cutting Quantities/);assert.match(html,/Total Collared T Shirt<\/th><td>4/);
  const withoutImages={...h,allocations:h.allocations.map(row=>({...row,images:[]}))};assert.doesNotMatch(document.productionHandoffContent(withoutImages),/<img|productionProductPhoto|placeholder|No Image/i,'no image creates no reserved space');

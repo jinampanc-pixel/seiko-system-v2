@@ -27,7 +27,7 @@ export function productionDemand(orders: ProductionOrder[],sourceGroups:Record<s
     const order = normalizeProductMeasurements(raw), quantities = packingQuantities(order);
     const records = order.records.filter(record => recordInOrderGroup(order,record.recordId,sourceGroups[order.orderId]||"all") && !record.held && !order.fields.some(f=>/status|cancel/i.test(f.name)&&/^(cancelled|canceled|removed)$/i.test(String(record.values["field:"+f.id]||"").trim())) && !["cancelled","hold","awaiting"].includes(order.commerce?.people[record.recordId]?.state||""));
     for (const product of order.products.filter(item => item.name.trim())) {
-      const images=[...new Map([...product.specifications.flatMap(spec=>spec.attachments||[]).filter(file=>file.mimeType.startsWith('image/')&&file.storageKey.startsWith('shared:')),...productImages?.[product.id]||[]].map(file=>[file.storageKey,{name:file.name,storageKey:file.storageKey}])).values()];
+      const images=[...new Map([...productImages?.[product.id]||[],...product.specifications.flatMap(spec=>spec.attachments||[]).filter(file=>file.mimeType.startsWith('image/')&&file.storageKey.startsWith('shared:'))].map(file=>[file.storageKey,{name:file.name,storageKey:file.storageKey}])).values()];
       if(product.quantityMode==='order_total'&&!recordInOrderGroup(order,'order-total',sourceGroups[order.orderId]||'all'))continue;
       const measurements = order.measurements.filter(item => item.appliesTo.includes(product.id) && item.name.trim());
       const rows = product.quantityMode === 'order_total' ? [{ recordId: 'order-total', personId: '', values: {} as Record<string,string|number> }] : records;
