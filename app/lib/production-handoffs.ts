@@ -12,6 +12,7 @@ export type ProductionHandoff = {
   id: string; number: string; name: string; status: 'Draft'|'Released'|'In progress'|'Closed'|'Cancelled';
   sourceGroups?:Record<string,string>; archivedAt?:string; deletedAt?:string;
   notes?:string; showNotes?:boolean;
+  saveFingerprint?:string;
   purpose: 'normal'|'rework'|'extra'|'reference'; reason: string; allocations: ProductionAllocation[]; lays: ProductionLay[];
   events: ProductionEvent[]; history: { at: string; actor: string; action: string }[]; createdAt: string;
 };

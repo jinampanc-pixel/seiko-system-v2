@@ -46,8 +46,8 @@ test("Order Center cannot return with invisible stale filters", () => {
 test("Order Center status remains visible beside the contextual menu", () => {
   assert.match(operationalUx, /statusWrap\?\.removeAttribute\("hidden"\)/);
   assert.match(operationalUx, /orderMenuStatusControl/);
-  assert.match(operationalUx, /const select = nativeStatus\.cloneNode\(true\) as HTMLSelectElement/);
-  assert.match(operationalUx, /setNativeSelect\(nativeStatus, select\.value\)/);
+  assert.match(operationalUx, /\.orderOperationalFields/);
+  assert.doesNotMatch(operationalUx, /nativeStatus\.cloneNode/);
 });
 
 test("Home Clear filters resets all active order-filter state", () => {

@@ -1,0 +1,2 @@
+const uiLabel=require('./ui-label.cjs');
+module.exports=async row=>{const menu=row.locator('.orderCenterActionMenu');if(!await menu.evaluate(node=>node.open))await menu.locator(':scope>summary').click();const section=menu.locator('.orderMenuSection').filter({hasText:/Setup\s*&\s*Labels/i});if(!await section.evaluate(node=>node.open))await section.locator(':scope>summary').click();await section.getByRole('button',{name:uiLabel('Edit Setup',true),exact:true}).click();};

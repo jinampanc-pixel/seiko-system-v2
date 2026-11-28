@@ -81,7 +81,9 @@ test("installed app identity is SEIKO TAILORS with the approved navy and gold co
 test("Phase 1 removes prototype UI from the visible SEIKO home and menu", () => {
   assert.match(seikoPhase, /hero\.style\.display = "none"/);
   assert.match(seikoPhase, /nextFlow\.style\.display = "none"/);
-  assert.match(seikoPhase, /ACTIVE ORDERS/i);
+  assert.match(seikoPhase, /<b>Quick Actions<\/b>/);
+  assert.match(seikoPhase, /<b>Orders<\/b>/);
+  assert.doesNotMatch(seikoPhase, /className=\{`seikoMetricCard/);
   assert.match(seikoPhase, /Open Production/);
   assert.match(page, /<span>Users & access<\/span>/i);
   assert.match(seikoPhase, /\["Inventory", "Sales", "Delivery"\]/);

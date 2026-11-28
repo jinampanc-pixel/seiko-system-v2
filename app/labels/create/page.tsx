@@ -2,7 +2,7 @@
 import {requestAppNavigation} from "../../app-navigation";
 import { separateLabelOrder } from "../../lib/separate-label-list";
 import type { SeikoOrder } from "../../lib/order-domain";
-import { CloseIcon } from "./../../ui-icons";
+import { CloseIcon, ChevronDownIcon } from "./../../ui-icons";
 
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -101,7 +101,7 @@ function ManagedDropdown({ value, options, disabled, canManage, manageLabel, onC
   }, []);
   return <div className={`labelEmbeddedSelect ${open ? "open" : ""}`} ref={root}>
     <button type="button" className="labelEmbeddedSelectButton" disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(current => !current)}>
-      <span>{selected?.label || "Choose…"}</span><span className="labelEmbeddedChevron">⌄</span>
+      <span>{selected?.label || "Choose…"}</span><span className="labelEmbeddedChevron appChevronSlot"><ChevronDownIcon/></span>
     </button>
     {open && <div className="labelEmbeddedMenu" role="listbox">
       <div className="labelEmbeddedOptions">{options.map(item => <button type="button" role="option" aria-selected={item.id === value} className={item.id === value ? "selected" : ""} key={item.id} onClick={() => { onChange(item.id); setOpen(false); }}><span>{item.label}</span>{item.id === value && <b>✓</b>}</button>)}</div>

@@ -113,7 +113,7 @@ test("Seiko orders preserve flexible client and person-entry behaviour", () => {
   assert.match(orders, /byClientType/);
   assert.match(orders, /suggestionPopup/);
   assert.match(orders, /Remove \$\{item\} suggestion/i);
-  assert.match(orders, /Select from a list/i);
+  assert.match(orders, /<option value="dropdown">List<\/option>/);
   assert.match(orders, /Open order/i);
   assert.match(orders, /Client name is required/i);
   assert.match(orderDomain, /groupLabel/);

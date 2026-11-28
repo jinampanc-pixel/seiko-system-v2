@@ -123,9 +123,9 @@ module.exports = async ({ page, browser, sqlite, order, seed, navigate, base, or
   await page.reload();
   const homeRow = page.locator('.homeOrderOperationalRow').filter({ hasText: 'SECOND-002' });
   await homeRow.locator('select').selectOption('Completed');
-  await homeRow.waitFor({ state: 'detached' });
-  assert.equal(read(second.orderId).status, 'Completed');
-  assert.match(await page.locator('.seikoMetricCard.active').innerText(), /ACTIVE ORDERS/i);
+  await page.waitForFunction(()=>document.querySelector('[aria-label="Status for SECOND-002"]')?.disabled===false);
+  assert.equal(read(second.orderId).status,second.status,'Optional tracking does not alter business eligibility');
+  assert.equal(await page.locator('.seikoMetricCard').count(),0);assert.equal(await homeRow.locator('select').inputValue(),'Completed');
   assert.equal(await page.locator('.homeOrderOperationalRow').filter({ hasText: 'SMOKE-001' }).isVisible(), true);
   await navigate('Orders');
   await action('SMOKE-001', 'Record payment');

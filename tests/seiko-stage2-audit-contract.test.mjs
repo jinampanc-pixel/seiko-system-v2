@@ -52,11 +52,11 @@ test("Home metrics switch one configurable operational list and status changes d
   assert.match(home, /Starting order view/i);
   assert.match(home, /activeOrderPageSize/);
   assert.match(home, /workMode/);
-  assert.match(home, /setWorkMode\(metric\.key\)/);
-  assert.match(home, /changeStatus/);
+  assert.match(home, /<b>Quick Actions<\/b>/);
+  assert.match(home, /OrderWorkflowButton/);
   assert.match(home, /homeOrderStatus/);
   assert.match(home, /homeOrderOpen/);
-  assert.match(home, /SCAN SYNC QUEUE/i);
+  assert.match(home, /<b>Orders<\/b>/);
   assert.match(home, /addEventListener\("seiko:orders-cache-updated",load/);
   assert.match(home, /addEventListener\("seiko:scan-queue-updated",load/);
   assert.match(home, /All client types/i);
@@ -97,12 +97,12 @@ test("workspace row and column operations are state-backed and page size is trul
 });
 
 test("workspace menu owns order status, save and secondary order actions", () => {
-  assert.match(orders, /workspaceNativeMenuStatus/);
+  assert.match(orders, /OrderWorkflowButton/);
   assert.match(orders, /workspaceMenuSaveNow/);
   assert.doesNotMatch(orders, />Put order on hold<\/button>/i);
   assert.match(orders, /Archive order/i);
   assert.match(orders, /Delete order/i);
-  assert.match(orders, /ORDER_STATUSES\.map/i);
+  assert.match(read("app/order-workflow.tsx"), /ORDER_STATUSES\.map/);
   assert.match(orders, /aria-label="More order actions"/i);
   assert.match(orders, /workspaceBackButton/);
   assert.doesNotMatch(orders, /className="workspaceSheetBar"/);
@@ -124,8 +124,8 @@ test("workspace menu owns order status, save and secondary order actions", () =>
 test("Order Center keeps status visible beside the contextual menu, rich workflow filters and archived state inside filters", () => {
   assert.match(operationalUx, /statusWrap\?\.removeAttribute\("hidden"\)/);
   assert.match(operationalUx, /orderMenuStatusControl/);
-  assert.match(operationalUx, /const select = nativeStatus\.cloneNode\(true\) as HTMLSelectElement/);
-  assert.match(operationalUx, /setNativeSelect\(nativeStatus, select\.value\)/);
+  assert.match(operationalUx, /\.orderOperationalFields/);
+  assert.doesNotMatch(operationalUx, /nativeStatus\.cloneNode/);
   assert.doesNotMatch(operationalUx, /appendMetaItem\(meta, "Status", order\.status\)/i);
   assert.match(operationalUx, /orderProductSummary/);
   assert.match(operationalUx, /quantityForRecord/);

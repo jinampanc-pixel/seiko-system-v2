@@ -32,8 +32,8 @@ test("Order Center opens rows directly and keeps visible status plus conditional
   assert.match(ux, /statusWrap\?\.removeAttribute\("hidden"\)/);
   assert.doesNotMatch(ux, /className = "orderCenterStatusBadge"/);
   assert.match(ux, /orderMenuStatusControl/);
-  assert.match(ux, /const select = nativeStatus\.cloneNode\(true\) as HTMLSelectElement/);
-  assert.match(ux, /setNativeSelect\(nativeStatus, select\.value\)/);
+  assert.match(ux, /\.orderOperationalFields/);
+  assert.doesNotMatch(ux, /nativeStatus\.cloneNode/);
   assert.match(ux, /hasPrintable = tasks\.some/);
   assert.match(ux, /Print labels/i);
   assert.match(ux, /waitForWorkspaceAction\("Labels"\)/);
@@ -43,7 +43,7 @@ test("workspace source owns status and save while rows-per-page accepts custom v
   assert.match(ux, /workspaceHeaderSecondaryAction/);
   assert.match(ux, /workspaceMenuOperational/);
   assert.doesNotMatch(ux, /Save now/i);
-  assert.match(orders, /workspaceNativeMenuStatus/);
+  assert.match(orders, /OrderWorkflowButton/);
   assert.match(orders, /workspaceMenuSaveNow/);
   assert.match(orders, />Save now<\/button>/i);
   assert.match(pager, /workspacePageSizeInput/);

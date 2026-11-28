@@ -8,7 +8,8 @@ import { OutputRecordMenu } from "./output-record-menu";
 import "./outputs/outputs.css";
 import { recordOutput, pendingOutputCount, type OutputContext, type OutputAction } from "./lib/output-activity";
 
-export function DocumentViewer({ html, title, filename, copies, beforeOutput, activity, controls, outputDisabled = false, previewOnly = false }: {
+export function DocumentViewer({ html, title, filename, copies, beforeOutput, activity, controls, outputDisabled = false, previewOnly = false, compactActions = false }: {
+  compactActions?:boolean;
   previewOnly?: boolean; controls?: ReactNode; activity?: OutputContext; html: string; title: string; filename: string; outputDisabled?: boolean;
   copies?: BillingCopies; beforeOutput?: () => Promise<unknown>;
 }) {
@@ -89,10 +90,11 @@ export function DocumentViewer({ html, title, filename, copies, beforeOutput, ac
   return <div className="documentViewer" aria-busy={Boolean(busy)}>{syncPending>0&&<p role="status">Output record pending sync. Printing and downloads remain available.</p>}
     <div className="documentViewerActions">
       {!previewOnly && <><button className="primary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void printDocument()}>{busy === "print" ? "Opening Print…" : "Print"}</button>
-      <button className="secondary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void downloadPdf()}>{busy === "download" ? "Downloading PDF…" : "Download PDF"}</button></>}
+      {!compactActions&&<button className="secondary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={() => void downloadPdf()}>{busy === "download" ? "Downloading PDF…" : "Download PDF"}</button>}</>}
       {controls}<label>Preview Zoom<select aria-label="Preview Zoom" value={zoom} onChange={e => setZoom(e.target.value)}><option value="fit">Fit Screen</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></label>
-      {activity && !outputDisabled && <OutputRecordMenu context={activity} content={html} beforeSave={beforeOutput}/>}
+      {activity && !outputDisabled && !compactActions && <OutputRecordMenu context={activity} content={html} beforeSave={beforeOutput}/>}
       {!previewOnly && <ActionMenu label="More Options">
+        {compactActions&&<button type="button" disabled={!ready||Boolean(busy)||outputDisabled} onClick={()=>void downloadPdf()}>Download PDF</button>}
         <button className="secondary" type="button" disabled={!ready || Boolean(busy) || outputDisabled} onClick={openDocument}>Open Document In New Tab</button>
         {file && <a className="secondary" href={download} target="_blank" rel="noopener noreferrer">Open downloaded PDF</a>}
         {file && typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] }) && <button className="secondary" type="button" onClick={() => void share()}>Share PDF</button>}

@@ -60,6 +60,12 @@ export async function POST(request:Request) {
       return Response.json({ok:true,ledger,version,orders,product,productChoices:productChoices.results,choices:choices.results,total:total?.total||0,page,handoffs:handoffs.results,handoffTotal:ht?.total||0,handoffPage},{headers:{'Cache-Control':'no-store'}});
     }
     if(!await authorizePermission(actor,business,'production.manage'))return reply('You cannot change production for this business.',403);
+    let saveFingerprint="";
+    if(body.operation==='save'&&body.handoff){
+      saveFingerprint=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify([body.handoff,Boolean(body.release)]))))).map(n=>n.toString(16).padStart(2,"0")).join("");
+      const saved=ledger.handoffs.find(item=>item.id===body.handoff!.id);
+      if(saved?.saveFingerprint===saveFingerprint)return Response.json({ok:true,ledger,version,orders},{headers:{'Cache-Control':'no-store'}});
+    }
     if(body.expectedVersion!==version)return reply('Production changed on another device. Your open edits remain; refresh and review before retrying.',409);
     const now=new Date().toISOString();let target:ProductionHandoff|undefined;
     const guards:ProductionOrder[]=[];
@@ -86,6 +92,7 @@ export async function POST(request:Request) {
       for(const lay of input.lays){if(typeof lay.id!=='string'||!lay.id||layIds.has(lay.id)||['pattern','fabric','width','stretch','grain','direction','checks'].some(key=>typeof lay[key as keyof typeof lay]!=='string')||typeof lay.confirmed!=='boolean')return reply('Invalid cutting lay.');layIds.add(lay.id);}
       target={id:input.id,number:previous?.number||`PH-${String((await db.prepare("SELECT COUNT(*) AS total FROM jinam_shared_records WHERE scope=? AND collection=? AND id!='ledger'").bind(business,collection).first<{total:number}>())!.total+1).padStart(5,'0')}`,name:input.name.trim(),status:'Draft',...(input.sourceGroups?{sourceGroups:input.sourceGroups}:{}),purpose:input.purpose,reason:input.reason,allocations,lays:input.lays,events:[],createdAt:previous?.createdAt||now,history:[...(previous?.history||[]),{at:now,actor:actor.email,action:'Draft saved'}]};
       target.notes=input.notes??previous?.notes??'';target.showNotes=input.showNotes??previous?.showNotes??false;
+      target.saveFingerprint=saveFingerprint;
       if(previous)ledger.handoffs=ledger.handoffs.map(item=>item.id===target!.id?target!:item);else ledger.handoffs.push(target);
       if(body.release){try{validateRelease(target,ledger,demand);reserveMembers(target,ledger,demand);}catch(error){return reply((error as Error).message,409);}guards.push(...orders.filter(item=>target!.allocations.some(row=>row.orderId===item.order.orderId)));target.status="Released";target.history.push({at:now,actor:actor.email,action:"Released to production"});}
     }else{
@@ -134,7 +141,14 @@ export async function POST(request:Request) {
       ON CONFLICT(scope,collection,id) DO UPDATE SET document_json=excluded.document_json,version=jinam_shared_records.version+1,updated_at=excluded.updated_at,updated_by_user_id=excluded.updated_by_user_id,updated_by_email=excluded.updated_by_email`)
       .bind(business,collection,target!.id,json,target!.createdAt,now,actor.userId,actor.email,business,collection,version+1,nonce);
     const written=await db.batch([claim,write]);
-    if(!written[0].meta?.changes||!written[1].meta?.changes)return reply('Production or a source order changed. Refresh and review before retrying.',409);
+    if(!written[0].meta?.changes||!written[1].meta?.changes){
+      if(saveFingerprint){
+        const row=await db.prepare("SELECT document_json FROM jinam_shared_records WHERE scope=? AND collection=? AND id=?").bind(business,collection,target!.id).first<{document_json:string}>();
+        const confirmed=row?JSON.parse(row.document_json) as ProductionHandoff:null;
+        if(confirmed?.saveFingerprint===saveFingerprint){const latest=await db.prepare("SELECT version FROM jinam_shared_records WHERE scope=? AND collection=? AND id='ledger'").bind(business,collection).first<{version:number}>();return Response.json({ok:true,ledger:{handoffs:ledger.handoffs.filter(h=>h.id!==confirmed.id).concat(confirmed)},version:latest?.version||version,orders},{headers:{'Cache-Control':'no-store'}});}
+      }
+      return reply('Production or a source order changed. Refresh and review before retrying.',409);
+    }
     return Response.json({ok:true,ledger,version:version+1,orders},{headers:{'Cache-Control':'no-store'}});
   }catch{return reply('Shared production storage is unreachable. Your open edits remain; retry when connected.',503);}
 }

@@ -49,4 +49,7 @@ import { PersonLookup } from "../../app/person-lookup";
 import { AccessProvider } from "../../app/access-control";
 import { BusinessApplicationRouter } from "../../app/business-application-router";
 import Home from "../../app/page";
-createRoot(document.getElementById("root")!).render(<AccessProvider><PersonLookup/><BusinessApplicationRouter><Home/></BusinessApplicationRouter></AccessProvider>);
+import { OrderWorkflowHost } from "../../app/order-workflow";
+createRoot(document.getElementById("root")!).render(<AccessProvider><OrderWorkflowHost/><PersonLookup/><BusinessApplicationRouter><Home/></BusinessApplicationRouter></AccessProvider>);
+
+import "../../app/chevron-consistency.css";

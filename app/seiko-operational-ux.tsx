@@ -28,11 +28,6 @@ function readSavedLabelTasks(): SavedLabelTask[] {
   }
 }
 
-function setNativeSelect(select: HTMLSelectElement, value: string) {
-  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, value);
-  select.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
 function waitForWorkspaceAction(label: string, attempts = 60) {
   const page = document.querySelector<HTMLElement>(".workspacePage");
   if (!page) {
@@ -97,7 +92,7 @@ function removeProductHover(){productHoverTarget=null;document.querySelector(".o
 function showProductHover(target: HTMLElement, order: SeikoOrder){
   removeProductHover();productHoverTarget=target;
   const card=document.createElement("div");card.className="orderProductHoverCard";card.setAttribute("role","dialog");card.setAttribute("aria-label",`${order.details.orderNo} product summary`);
-  const title=document.createElement("b");title.textContent=`${order.details.orderNo} products`;const body=document.createElement("div");orderProductSummary(order).forEach(line=>{const row=document.createElement("span");row.textContent=line;body.appendChild(row);});card.append(title,body);
+  const title=document.createElement("b");title.textContent=`${order.details.orderNo} products`;const body=document.createElement("div");orderProductSummary(order).forEach(line=>{const row=document.createElement("span");row.textContent=line;body.appendChild(row);});const delivery=document.createElement("span");delivery.textContent=`Delivery: ${dueLabel(order)}`;body.appendChild(delivery);card.append(title,body);
 
   document.body.appendChild(card);const box=target.getBoundingClientRect(),measured=card.getBoundingClientRect();card.style.left=`${Math.max(8,Math.min(window.innerWidth-measured.width-8,box.left))}px`;card.style.top=`${Math.max(8,Math.min(window.innerHeight-measured.height-8,box.bottom+6))}px`;
 }
@@ -112,11 +107,11 @@ function enhanceOrderCenter(page: HTMLElement) {
     const orderNo = row.querySelector<HTMLElement>(":scope > div:first-child > b")?.textContent?.trim() || "";
     const order = byNumber.get(orderNo);
     const open = row.querySelector<HTMLButtonElement>(".openOrderButton");
-    const nativeStatus = row.querySelector<HTMLSelectElement>(".orderListStatus select");
+    const workflowControl = row.querySelector<HTMLElement>(".orderOperationalFields");
     const statusWrap = row.querySelector<HTMLElement>(".orderListStatus");
     const menu = row.querySelector<HTMLDetailsElement>(".orderCenterActionMenu");
     const panel = menu?.querySelector<HTMLElement>(".seikoRowActionPanel");
-    if (!order || !open || !nativeStatus || !panel || !menu) return;
+    if (!order || !open || !workflowControl || !panel || !menu) return;
 
     open.hidden = true;
     statusWrap?.removeAttribute("hidden");
@@ -141,7 +136,7 @@ function enhanceOrderCenter(page: HTMLElement) {
       if (productHoverTarget && meta.contains(productHoverTarget)) removeProductHover();
       meta.dataset.signature = metaSignature;
       meta.replaceChildren();
-      appendMetaItem(meta, "Client Type", order.details.clientType || "—");
+
       appendMetaItem(meta, "Records", String(order.records.length));
       const productMeta = appendMetaItem(meta, "Products", String(order.products.filter(product => product.name.trim()).length));
       productMeta.classList.add("orderProductMeta"); productMeta.tabIndex = 0;
@@ -151,7 +146,7 @@ function enhanceOrderCenter(page: HTMLElement) {
 
 
 
-      appendMetaItem(meta, "Delivery", dueLabel(order));
+
     }
 
     if (row.dataset.rowOpenReady !== "true") {
@@ -167,28 +162,7 @@ function enhanceOrderCenter(page: HTMLElement) {
       });
     }
 
-    if (row.dataset.orderSource !== "react") {
-    let statusControl = panel.querySelector<HTMLElement>(".orderMenuStatusControl");
-    if (!statusControl) {
-      statusControl = document.createElement("label");
-      statusControl.className = "orderMenuStatusControl";
-      const label = document.createElement("span");
-      label.textContent = "Status";
-      const select = nativeStatus.cloneNode(true) as HTMLSelectElement;
-      select.removeAttribute("class");
-      select.setAttribute("aria-label", `Status for ${order.details.orderNo}`);
-      select.addEventListener("click", event => event.stopPropagation());
-      select.addEventListener("change", () => {
-        setNativeSelect(nativeStatus, select.value);
-        window.setTimeout(() => { menu.open = false; }, 0);
-      });
-      statusControl.append(label, select);
-      panel.prepend(statusControl);
-    }
-    const menuSelect = statusControl.querySelector<HTMLSelectElement>("select");
-    if (menuSelect) menuSelect.value = nativeStatus.value;
-
-    }
+    panel.querySelector(".orderMenuStatusControl")?.remove();
     const hasPrintable = tasks.some(task => task.orderId === order.orderId && (task.selectedRows?.length || 0) > 0);
     let print = panel.querySelector<HTMLButtonElement>(".orderMenuPrintLabels");
     if (hasPrintable && !print) {

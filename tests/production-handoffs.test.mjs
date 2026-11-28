@@ -13,7 +13,6 @@ export function makeOrder(id='one',colour='Blue'){
 }
 const allocation=row=>({...row,lay:'',stack:''});
 function handoff(rows,id='h1'){return {id,number:id,name:'Combined handoff',status:'Draft',purpose:'normal',reason:'',allocations:rows.map(allocation),lays:[],events:[],history:[],createdAt:'2026-10-07'};}
-
 test('shared body measurements appear on every linked product in production',()=>{
  const order=makeOrder();order.products=['pant','dress','track'].map(id=>({...order.products[0],id,name:id}));order.measurements=[{id:'waist',name:'Waist',type:'number',shared:true,appliesTo:['pant','dress','track'],requiredMode:'Optional'}];order.records=[{recordId:'one',personId:'one',values:{'measurement:waist:shared':34}}];
  const demand=domain.productionDemand([{order,version:1}]);assert.equal(demand.length,3);assert.ok(demand.every(row=>row.variant.includes('Waist: 34')&&!row.unresolved));assert.equal(demand.reduce((n,row)=>n+row.quantity,0),6);
@@ -66,9 +65,10 @@ test('shared production API protects business permissions, fixed releases, dupli
   const listed=await call({operation:'list',orderIds:[order.orderId]});assert.equal(listed.version,0);const h={...handoff(domain.productionDemand(listed.orders)),notes:"Cut with navy collar",showNotes:true};
   role='viewer';assert.equal((await call({operation:'save',expectedVersion:0,handoff:h})).status,403);role='owner';assert.equal((await call({operation:'list',orderIds:[order.orderId],businessId:'meth'})).status,403);
   let saved=await call({operation:'save',expectedVersion:0,handoff:h});assert.equal(saved.status,200);assert.equal(saved.version,1);assert.equal(saved.ledger.handoffs[0].notes,h.notes);assert.equal(saved.ledger.handoffs[0].showNotes,true);
-  assert.equal((await call({operation:'save',expectedVersion:0,handoff:h})).status,409);
+  const replay=await call({operation:'save',expectedVersion:0,handoff:h});assert.equal(replay.status,200);assert.equal(replay.version,1);assert.equal(replay.ledger.handoffs[0].history.length,1,'same save does not add history or reserve quantities twice');
   saved=await call({operation:'release',expectedVersion:1,id:h.id});assert.equal(saved.ledger.handoffs[0].status,'Released');
-  assert.equal((await call({operation:'save',expectedVersion:2,handoff:h})).status,409);
+  const releasedReplay=await call({operation:'save',expectedVersion:2,handoff:h});assert.equal(releasedReplay.status,200);assert.equal(releasedReplay.ledger.handoffs[0].status,'Released','an old save replay cannot undo issuance');
+  assert.equal((await call({operation:'save',expectedVersion:2,handoff:{...h,name:'Changed released handoff'}})).status,409);
   const other={...h,id:'h2'};saved=await call({operation:'save',expectedVersion:2,handoff:other});assert.equal(saved.version,3);
   assert.equal((await call({operation:'release',expectedVersion:3,id:'h2'})).status,409);
   const event={allocationKey:h.allocations[0].key,operation:'Cutting',quantity:1,rejects:0,extras:0,reason:''};saved=await call({operation:'event',expectedVersion:3,id:'h1',event});assert.equal(saved.version,4);

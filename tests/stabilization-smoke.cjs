@@ -57,7 +57,7 @@ function load(path, imports = {}) {
     } };
     const auth = { authenticateActor: async () => ({ userId: 'smoke-owner', email: 'smoke@example.invalid' }), authorizePermission: async () => ({ role: 'owner' }) };
     const ordersApi = load('app/api/erp/orders/route.ts', {
-      'cloudflare:workers': { env: { DB: db } }, '../../../lib/server-erp-auth': auth, '../../../lib/order-statuses': load('app/lib/order-statuses.ts'),'../../../lib/order-commerce':commercialModel,
+      'cloudflare:workers': { env: { DB: db } }, '../../../lib/server-erp-auth': auth, '../../../lib/order-statuses': load('app/lib/order-statuses.ts'),'../../../lib/order-commerce':commercialModel,'../../../lib/order-workflow':load('app/lib/order-workflow.ts'),
     });
     const seed = async value => {
       const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: JSON.stringify({ operation: 'upsert', businessId: 'seiko', order: value }) }));
@@ -107,6 +107,10 @@ function load(path, imports = {}) {
       const response = await ordersApi.POST(new Request(`${base}/api/erp/orders`, { method: 'POST', body: route.request().postData() }));
       await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
     });
+    const tracking=load('app/api/erp/order-workflow/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/order-workflow':load('app/lib/order-workflow.ts'),'../../../lib/order-statuses':load('app/lib/order-statuses.ts')});
+    await page.route('**/api/erp/order-workflow',async route=>{const response=await tracking.POST(new Request(base+'/api/erp/order-workflow',{method:'POST',body:route.request().postData()}));await route.fulfill({status:response.status,body:await response.text(),contentType:'application/json'});});
+    const workflowActions=load('app/api/erp/order-actions/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/order-workflow':load('app/lib/order-workflow.ts')});
+    await page.route('**/api/erp/order-actions',async route=>{const response=await workflowActions.POST(new Request(base+'/api/erp/order-actions',{method:'POST',body:route.request().postData()}));await route.fulfill({status:response.status,body:await response.text(),contentType:'application/json'});});
     const productionDomain=load('app/lib/production-handoffs.ts',{'./order-domain':domain,'./packing-label-model':load('app/lib/packing-label-model.ts',{'./order-domain':domain})});
     const production=load('app/api/erp/production/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth,'../../../lib/production-handoffs':productionDomain});
     const activity=load('app/api/erp/activity/route.ts',{'cloudflare:workers':{env:{DB:db}},'../../../lib/server-erp-auth':auth});
@@ -137,10 +141,15 @@ function load(path, imports = {}) {
     try { await page.getByRole('button', { name: uiLabel('Open menu', true), exact: true }).waitFor({ timeout: 10000 }); }
     catch { throw new Error(`Application did not mount: ${JSON.stringify(errors)}. ${JSON.stringify(diagnostics)} ${serverOutput} ${await page.locator('body').innerText()}`); }
     const navigate = async name => {
-      const moduleMenu=page.getByRole('button',{name:uiLabel('Open billing navigation', true),exact:true});
-      if(await moduleMenu.isVisible())await moduleMenu.click();
-      else await page.getByRole('button', { name: uiLabel('Open menu', true), exact: true }).click();
-      await page.getByRole('navigation', { name: uiLabel('Modules', false) }).getByRole('button', { name: uiLabel(new RegExp(`${name}$`), false) }).click();
+      try{
+      const navigation=page.getByRole('navigation',{name:uiLabel('Modules',false)});
+      if(!await navigation.isVisible()){
+        const billingToggle=page.getByRole('button',{name:uiLabel('Open billing navigation',true),exact:true});
+        if(await billingToggle.isVisible())await billingToggle.click();
+        else await page.getByRole('button',{name:uiLabel('Open menu',true),exact:true}).click();
+      }
+      await navigation.getByRole('button',{name:uiLabel(new RegExp(name+'$'),false)}).click();
+      }catch(error){fs.mkdirSync('work/browser-failures',{recursive:true});await page.screenshot({path:'work/browser-failures/navigation-failure.png',fullPage:true});fs.writeFileSync('work/browser-failures/navigation-failure.html',await page.content());console.log('Navigation failure',name,await page.evaluate(()=>({active:document.activeElement?.outerHTML.slice(0,300),menus:[...document.querySelectorAll('.moduleMenu')].map(e=>({text:e.textContent,box:JSON.stringify(e.getBoundingClientRect()),style:getComputedStyle(e).cssText})),toggle:document.querySelector('.menuToggle')?.outerHTML})));throw error;}
     };
     if (process.argv.includes('--large-orders')) {
       const started = Date.now();
@@ -199,6 +208,7 @@ function load(path, imports = {}) {
     if(process.argv.includes('--save-print')){await require('./save-print-browser.cjs')({page,navigate,seed,order});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--home-workspace')){await require('./home-workspace-browser.cjs')({page,navigate,seed,order});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--invoice-brief')){await require('./invoice-brief-browser.cjs')({page,seed,navigate,order,sqlite});assert.deepEqual(errors,[]);return;}
+    if(process.argv.includes('--order-workflow')){await require('./order-workflow-browser.cjs')({page,seed,navigate,order,sqlite});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--menu-payment')){await require('./menu-payment-browser.cjs')({page,navigate,billing,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--dialog-ux')){await require('./dialog-interactions-browser.cjs')({page,navigate,base});assert.deepEqual(errors,[]);return;}
     if(process.argv.includes('--order-rules')){await require('./order-rules-browser.cjs')({page,seed,navigate,order,sqlite,domain,sheetModel:load('app/lib/order-sheet-model.ts',{'./order-domain':domain})});assert.deepEqual(errors,[]);return;}
@@ -243,7 +253,7 @@ function load(path, imports = {}) {
     await surface.getByRole('button', { name: uiLabel('← Back', true), exact: true }).click();
     assert.equal(await surface.count(), 0);
     await navigate('(Home|Overview)');
-    await page.getByText(uiLabel('ACTIVE ORDERS', true), { exact: true }).first().waitFor();
+    await page.locator('.seikoDashboardActivityHead b').filter({hasText:/^Orders$/}).waitFor();
     if (process.argv.includes('--handover')) await require('./order-handover-browser.cjs')({page,sqlite,order,seed,navigate});
     if (process.argv.includes('--order-workflows')) await require('./order-workflows-browser.cjs')({ page, browser, sqlite, order, seed, navigate, base, ordersApi, session, errors });
     if (process.argv.includes('--order-workflows')) await require('./order-cache-browser.cjs')({ page, sqlite, navigate, ordersApi, base });

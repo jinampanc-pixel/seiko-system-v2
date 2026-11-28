@@ -20,7 +20,7 @@ const model = load("../app/lib/packing-label-model.ts", { "./order-domain": doma
 const designer = load("../app/packing-person-label-designer.tsx", {
   "./lib/label-record-selection": load("../app/lib/label-record-selection.ts"),
   "./output-record-menu": {}, "./outputs/outputs.css": {},
-  "./ui-icons": load("../app/ui-icons.tsx", {"react/jsx-runtime": {}}),
+  "./ui-icons": load("../app/ui-icons.tsx", {"react/jsx-runtime": {}, "./chevron-consistency.css": {}, "./lib/chevrons": load("../app/lib/chevrons.ts")}),
   "./lib/label-sources": load("../app/lib/label-sources.ts", {"./order-domain":domain}),
   "./lib/output-activity": {recordOutput:async()=>{}},
   "./label-set-name": {},

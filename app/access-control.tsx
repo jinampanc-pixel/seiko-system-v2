@@ -1,6 +1,6 @@
 "use client";
 import {APP_ICONS} from "./lib/app-icons";
-import { CloseIcon } from "./ui-icons";
+import { CloseIcon , ChevronDownIcon} from "./ui-icons";
 
 import { SharedLabelStorage } from "./shared-label-storage";
 
@@ -300,7 +300,7 @@ function AccessPanel({ onClose }: { onClose: () => void }) {
         {loadingUsers ? <p>Loading users…</p> : <div className="accessUserList">{users.map(user => <button key={user.email} className={`accessUserRow ${user.active ? "" : "inactive"}`} onClick={() => setEditing(user)}>
           <span className="accessAvatar">{(user.displayName || user.email).slice(0, 1).toUpperCase()}</span>
           <span><strong>{user.displayName || user.email}</strong><small>{user.email}{user.phone ? ` · ${user.phone}` : ""}</small><small className={user.hasCredentials ? "credentialReady" : "credentialMissing"}>{user.hasCredentials ? (user.mustChangePassword ? "Ready · Temporary Password" : "Ready to Sign In") : "Password Login Needs Setup"}</small></span>
-          <span className="accessRoleBadge">{titleRole(user.role)}</span><span className="accessRowChevron">›</span>
+          <span className="accessRoleBadge">{titleRole(user.role)}</span><span className="accessRowChevron appChevronSlot"><ChevronDownIcon/></span>
         </button>)}</div>}
         {editing && <MembershipEditor businessId={businessId} currentUser={session?.user.email || ""} actorRole={membership?.role || "viewer"} user={editing === "new" ? null : editing} onCancel={() => setEditing(null)} onSaved={async () => { setEditing(null); await loadUsers(); await refresh(); }}/>} 
       </div>}
