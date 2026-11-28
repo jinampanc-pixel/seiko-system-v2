@@ -31,7 +31,7 @@
 .personIdentity{min-width:0;min-height:38px;padding-right:156px;overflow-wrap:anywhere}.personIdentity>b{font-size:14px}.app .orderDetailPage .personIdentity small{display:block;font-size:12px!important;font-weight:400;margin-top:2px;color:var(--muted,#617489)}
 .personCardActions{position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:6px;min-height:36px}.app .orderDetailPage .personReadiness{display:inline-flex;align-items:center;justify-content:center;min-height:24px;box-sizing:border-box;padding:3px 7px;border:1px solid var(--line,#c29d65);border-radius:14px;font-size:12px;font-weight:500;white-space:nowrap;line-height:1.3;color:var(--navy,#173c5e);background:color-mix(in srgb,var(--gold) 20%,var(--paper))}.app .orderDetailPage .personReadiness[data-ready=true]{border-color:transparent;background:color-mix(in srgb,var(--navy) 6%,var(--paper))}.personCardActions>.documentMore{margin:0;align-self:center}
 .personGarmentSummary{grid-column:1/-1;min-width:0;font-size:12px;font-weight:400;line-height:1.5}.personGarmentSummary>span{display:block;overflow-wrap:anywhere}.personGarmentSummary>span>b{font-weight:500;margin-right:8px}.personGarmentSummary>small{font-size:11px;color:var(--muted,#617489)}
-.app .orderDetailPage .orderPeopleCard>.documentMore{flex:none;margin-right:8px;align-self:center}.app .orderDetailPage .orderPeopleCard .iconOnlyActionMenu>summary{display:grid!important;place-items:center!important;width:36px!important;height:36px!important;min-height:36px!important;max-height:36px!important;min-width:36px!important;padding:0!important;box-sizing:border-box}
+.app .orderDetailPage .orderPeopleCard>.documentMore{flex:none;margin-right:8px;align-self:center}.app .orderDetailPage .orderPeopleCard .iconOnlyActionMenu>summary{display:grid!important;place-items:center!important;justify-content:center!important;grid-template-columns:1fr;gap:0!important;width:36px!important;height:36px!important;min-height:36px!important;max-height:36px!important;min-width:36px!important;padding:0!important;box-sizing:border-box}
 .app .iconOnlyActionMenu>summary::after{content:none!important;display:none!important}.app .iconOnlyActionMenu>summary>svg{width:18px!important;height:18px!important}
 .app .orderDetailPage .orderPeopleCard>.personSelectBox{margin-left:0!important;margin-top:13px!important}.app .orderDetailPage .entrySpeechOptions{align-self:center}.app .orderDetailPage .entrySpeechOptions>summary{font-size:12px;min-height:36px;padding:6px 10px}.entrySpeechOptions label{font-size:13px}.entrySpeechOptions select{margin-top:4px}
 .app .orderDetailPage .orderEntryFields{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),200px));gap:10px!important}.app .orderDetailPage .orderEntryFields>label{min-width:0!important;margin:0!important}
@@ -85,4 +85,26 @@
  .orderEditorSections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.orderEditorSections>button{width:100%}
  .app .orderSetup>.clientDetails .setupGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
  .app .orderSetup>.clientDetails .setupGrid>:is(:first-child,.clientLongField,.attnField){grid-column:1/-1!important}
-}
+}/* Focus the open person on identity and measurements. */
+.app .orderDetailPage:has(.orderPeopleEntry>form)>.orderOverviewProducts,
+.app .orderDetailPage:has(.orderPeopleEntry>form)>.orderOverviewHeader>.orderOverviewClient,
+.app .orderDetailPage:has(.orderPeopleEntry>form)>.orderOverviewHeader>.orderOverviewMore,
+.app .orderDetailPage:has(.orderPeopleEntry>form)>.orderOverviewHeader>.orderOperationalFields,
+.orderPeopleEntry:has(>form)>.orderPeopleHead,.orderPeopleEntry:has(>form)>.entryProgress,.orderWorkspaceRecords:has(.orderPeopleEntry>form)>details{display:none!important}
+.app .orderDetailPage .orderPeopleEntry>form{width:100%;margin:0;box-sizing:border-box}
+.app .orderDetailPage .orderPeopleEntry>form>header{margin:0 0 12px;align-items:center;flex-direction:row;flex-wrap:nowrap}
+.app .orderDetailPage .orderPeopleEntry>form>header h3{margin:0;font-size:18px;overflow-wrap:anywhere;min-width:0}
+.app .orderDetailPage .personIdentityFields{border:0;border-bottom:1px solid var(--line);border-radius:0;padding:0 0 14px;margin:0 0 12px;min-width:0}
+.personIdentityFields legend{font-size:13px;font-weight:500;margin-bottom:8px}
+.app .orderDetailPage .personProductSpecifications{margin:8px 0;font-size:13px}
+.personProductSpecifications>summary{min-height:36px;display:flex;align-items:center;cursor:pointer}
+.app .orderDetailPage .personCardActions .documentMore>div{box-sizing:border-box;z-index:100;width:248px;max-width:calc(100vw - 24px);font-size:14px}
+.app .orderDetailPage .personCardActions .documentMore>div>button{display:flex!important;flex-direction:row!important;justify-content:flex-start!important;align-items:center!important;gap:8px!important;min-height:40px!important;padding:9px 10px!important;font-size:14px!important;font-weight:400!important;line-height:1.35!important;white-space:normal}
+.app .orderDetailPage .personCardActions .documentMore[open]>summary{background:color-mix(in srgb,var(--gold) 18%,var(--paper))}
+@media(max-width:600px){.app .orderDetailPage .orderPeopleEntry>form>.phase2Actions{gap:8px}.app .orderDetailPage .personIdentityFields .orderEntryFields{gap:10px}}
+
+.app .orderDetailPage .orderPeopleEntry>form>.phase2Actions>.documentMore{align-self:center}.app .orderDetailPage .entrySpeechToolbar{display:grid!important;gap:10px!important}.app .orderDetailPage .entrySpeechToolbar label{font-size:13px}.app .orderDetailPage .entryDelete{border:0;background:transparent;font-weight:400;padding:8px!important;min-height:36px!important}.app .orderDetailPage .personIdentityFields .orderEntryFields{grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr))!important}.app .orderDetailPage .personIdentityFields .orderEntryFields>label{max-width:260px}
+
+.app .orderDetailPage .personMoreOptions{margin:10px 0;font-size:13px}.personMoreOptions>summary{min-height:36px;cursor:pointer}.app .orderDetailPage .personMoreOptions>.entryDelete{margin:10px 0 0!important;color:#8b302b}.app .orderDetailPage .orderPeopleEntry>form>.phase2Actions{justify-content:flex-start;gap:8px}
+
+.app .orderDetailPage .orderPeopleEntry:has(>form){border-top:0!important;padding-top:0!important;margin-top:14px!important}
